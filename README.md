@@ -62,6 +62,22 @@ Open `http://localhost:3000`. Default admin credentials: `admin` / `admin`.
 
 > Change the admin password immediately in production.
 
+## Docker
+
+```bash
+# Build and start
+cp .env.example .env   # configure first
+docker compose up -d --build
+
+# View logs
+docker compose logs -f
+
+# Stop
+docker compose down
+```
+
+The SQLite database is persisted in `./data` on the host.
+
 ## Configuration
 
 | Variable | Description | Default |
