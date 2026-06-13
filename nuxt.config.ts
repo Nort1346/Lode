@@ -2,7 +2,8 @@
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
-    '@nuxt/ui'
+    '@nuxt/ui',
+    'nuxt-auth-utils'
   ],
 
   devtools: {
@@ -10,6 +11,18 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
+
+  runtimeConfig: {
+    quiProxyUrl: '',
+    jellyfinUrl: '',
+    jellyfinApiKey: '',
+    jellyfinPrepSpeedMb: 8,
+    savePathMovies: '/mnt/storage/streaming/Movies',
+    savePathSeries: '/mnt/storage/streaming/Series',
+    savePathGames: '/mnt/storage/streaming/Games',
+    savePathBooks: '/mnt/storage/streaming/Books',
+    savePathMusic: '/mnt/storage/streaming/Music'
+  },
 
   routeRules: {
     '/': { prerender: true }
