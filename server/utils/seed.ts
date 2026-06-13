@@ -11,19 +11,22 @@ export async function ensureAdminExists() {
     const id = randomUUID()
     const password = await bcrypt.hash('admin', 12)
 
-    db.insert(users).values({
-      id,
-      username: 'admin',
-      password,
-      role: 'admin',
-      isActive: true,
-      dailyDownloadLimit: 999,
-      activeTorrentLimit: 999,
-      maxTorrentSizeGb: 999,
-      downloadsToday: 0,
-      createdAt: new Date().toISOString()
-    }).run()
+    db.insert(users)
+      .values({
+        id,
+        username: 'admin',
+        password,
+        role: 'admin',
+        isActive: true,
+        dailyDownloadLimit: 999,
+        activeTorrentLimit: 999,
+        maxTorrentSizeGb: 999,
+        downloadsToday: 0,
+        createdAt: new Date().toISOString()
+      })
+      .run()
 
+    // eslint-disable-next-line no-console
     console.log('[DB] Admin user created (username: admin, password: admin)')
   }
 }

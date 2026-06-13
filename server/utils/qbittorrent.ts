@@ -40,7 +40,7 @@ export class QuiClient {
     return response
   }
 
-  async addTorrent(magnetLink: string, savePath: string, category: string, tags: string) {
+  async addTorrent(magnetLink: string, savePath: string, category: string, tags: string): Promise<QuiTorrent | null> {
     const formData = new URLSearchParams()
     formData.append('urls', magnetLink)
     formData.append('savepath', savePath)
@@ -55,22 +55,29 @@ export class QuiClient {
     })
 
     for (let i = 0; i < 3; i++) {
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await new Promise((resolve) => setTimeout(resolve, 2000))
       const torrents = await this.getRecentTorrents()
-      if (torrents.length > 0) return torrents[0]
+      const first = torrents[0]
+      if (first !== undefined) return first
     }
 
     return null
   }
 
   async getUserTorrents(tag: string): Promise<QuiTorrent[]> {
-    const response = await this.request(`/api/v2/torrents/info?tag=${encodeURIComponent(tag)}&sort=added_on&reverse=true`)
-    return response.json() as Promise<QuiTorrent[]>
+    const response = await this.request(
+      `/api/v2/torrents/info?tag=${encodeURIComponent(tag)}&sort=added_on&reverse=true`
+    )
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any
+    const data: QuiTorrent[] = await response.json()
+    return data
   }
 
   async getRecentTorrents(): Promise<QuiTorrent[]> {
     const response = await this.request('/api/v2/torrents/info?sort=added_on&reverse=true&limit=5')
-    return response.json() as Promise<QuiTorrent[]>
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any
+    const data: QuiTorrent[] = await response.json()
+    return data
   }
 
   async pauseTorrent(hash: string) {

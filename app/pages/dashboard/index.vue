@@ -32,7 +32,7 @@ const stats = ref({
 })
 
 const recentDownloads = ref<Download[]>([])
-const activeDownloads = computed(() => recentDownloads.value.filter(d => d.status === 'downloading'))
+const activeDownloads = computed(() => recentDownloads.value.filter((d) => d.status === 'downloading'))
 const loading = ref(true)
 const cancelling = ref<string | null>(null)
 
@@ -130,9 +130,7 @@ const savePathLabels: Record<string, string> = {
 <template>
   <div>
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">
-        Dashboard
-      </h1>
+      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">Dashboard</h1>
       <p class="text-zinc-500 dark:text-zinc-400">
         Welcome back, <span class="text-amber-600 dark:text-amber-400 font-medium">{{ user?.username }}</span>
       </p>
@@ -141,109 +139,72 @@ const savePathLabels: Record<string, string> = {
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
       <div class="card p-5">
         <div class="flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center shrink-0">
-            <UIcon
-              name="i-lucide-download"
-              class="w-5 h-5 text-amber-600 dark:text-amber-400"
-            />
+          <div
+            class="w-11 h-11 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center shrink-0"
+          >
+            <UIcon name="i-lucide-download" class="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
           <div>
             <p class="text-2xl font-bold text-zinc-900 dark:text-white">
               {{ stats.activeTorrents }}
             </p>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">
-              Active Torrents
-            </p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">Active Torrents</p>
           </div>
         </div>
-        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
-          Limit: {{ user?.activeTorrentLimit }}
-        </div>
+        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">Limit: {{ user?.activeTorrentLimit }}</div>
       </div>
 
       <div class="card p-5">
         <div class="flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl bg-cyan-500/10 dark:bg-cyan-500/15 flex items-center justify-center shrink-0">
-            <UIcon
-              name="i-lucide-clock"
-              class="w-5 h-5 text-cyan-600 dark:text-cyan-400"
-            />
+          <div
+            class="w-11 h-11 rounded-xl bg-cyan-500/10 dark:bg-cyan-500/15 flex items-center justify-center shrink-0"
+          >
+            <UIcon name="i-lucide-clock" class="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
           </div>
           <div>
             <p class="text-2xl font-bold text-zinc-900 dark:text-white">
               {{ stats.downloadsToday }}
             </p>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">
-              Downloads Today
-            </p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">Downloads Today</p>
           </div>
         </div>
-        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
-          Limit: {{ user?.dailyDownloadLimit }}
-        </div>
+        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">Limit: {{ user?.dailyDownloadLimit }}</div>
       </div>
 
       <div class="card p-5">
         <div class="flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl bg-green-500/10 dark:bg-green-500/15 flex items-center justify-center shrink-0">
-            <UIcon
-              name="i-lucide-check-circle"
-              class="w-5 h-5 text-green-600 dark:text-green-400"
-            />
+          <div
+            class="w-11 h-11 rounded-xl bg-green-500/10 dark:bg-green-500/15 flex items-center justify-center shrink-0"
+          >
+            <UIcon name="i-lucide-check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
           </div>
           <div>
             <p class="text-2xl font-bold text-zinc-900 dark:text-white">
               {{ stats.completedToday }}
             </p>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">
-              Completed
-            </p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">Completed</p>
           </div>
         </div>
-        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
-          Max size: {{ user?.maxTorrentSizeGb }}GB
-        </div>
+        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">Max size: {{ user?.maxTorrentSizeGb }}GB</div>
       </div>
     </div>
 
     <div class="card p-5 md:p-6">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">
-          Active Downloads
-        </h2>
-        <UButton
-          to="/dashboard/submit"
-          icon="i-lucide-plus"
-          label="New Request"
-          size="sm"
-        />
+        <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Active Downloads</h2>
+        <UButton to="/dashboard/submit" icon="i-lucide-plus" label="New Request" size="sm" />
       </div>
 
-      <div
-        v-if="loading && activeDownloads.length === 0"
-        class="flex justify-center py-8"
-      >
-        <UIcon
-          name="i-lucide-loader-2"
-          class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin"
-        />
+      <div v-if="loading && activeDownloads.length === 0" class="flex justify-center py-8">
+        <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
       </div>
 
-      <div
-        v-else-if="activeDownloads.length === 0"
-        class="text-center py-8 text-zinc-500 dark:text-zinc-400"
-      >
-        <UIcon
-          name="i-lucide-inbox"
-          class="w-12 h-12 mx-auto mb-3 opacity-40"
-        />
+      <div v-else-if="activeDownloads.length === 0" class="text-center py-8 text-zinc-500 dark:text-zinc-400">
+        <UIcon name="i-lucide-inbox" class="w-12 h-12 mx-auto mb-3 opacity-40" />
         <p>No active downloads. Submit a torrent to get started!</p>
       </div>
 
-      <div
-        v-else
-        class="space-y-3"
-      >
+      <div v-else class="space-y-3">
         <div
           v-for="dl in activeDownloads"
           :key="dl.id"
@@ -264,10 +225,7 @@ const savePathLabels: Record<string, string> = {
                 <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400">
                   {{ savePathLabels[dl.savePath] || dl.savePath }}
                 </span>
-                <span
-                  class="text-xs px-2 py-0.5 rounded-full"
-                  :class="statusColors[dl.status]"
-                >
+                <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
                   {{ dl.status }}
                 </span>
               </div>
@@ -286,13 +244,12 @@ const savePathLabels: Record<string, string> = {
           <div class="space-y-2">
             <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
               <span class="font-medium text-zinc-900 dark:text-white">{{ dl.progress.toFixed(1) }}%</span>
-              <span>ETA: <span class="text-zinc-900 dark:text-white">{{ formatEta(dl.etaSeconds) }}</span></span>
+              <span
+                >ETA: <span class="text-zinc-900 dark:text-white">{{ formatEta(dl.etaSeconds) }}</span></span
+              >
             </div>
             <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
-              <div
-                class="progress-bar h-full min-w-0.5"
-                :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
-              />
+              <div class="progress-bar h-full min-w-0.5" :style="{ width: `${Math.max(dl.progress, 0.5)}%` }" />
             </div>
             <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
               <span>↓ {{ formatSpeed(dl.downloadSpeed) }} · ↑ {{ formatSpeed(dl.uploadSpeed) }}</span>

@@ -2,15 +2,26 @@ import bcrypt from 'bcrypt'
 import { users } from '../../../database/schema'
 import { eq } from 'drizzle-orm'
 
+interface UpdateUserBody {
+  username?: string
+  password?: string
+  role?: string
+  isActive?: boolean
+  dailyDownloadLimit?: number
+  activeTorrentLimit?: number
+  maxTorrentSizeGb?: number
+  downloadsToday?: number
+}
+
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
 
   const id = getRouterParam(event, 'id')
-  if (!id) {
+  if (id === null || id === undefined) {
     throw createError({ statusCode: 400, statusMessage: 'User ID is required' })
   }
 
-  const body = await readBody(event)
+  const body = await readBody<UpdateUserBody>(event)
   const db = useDb()
 
   const user = db.select().from(users).where(eq(users.id, id)).get()

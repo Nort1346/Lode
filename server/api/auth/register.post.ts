@@ -3,13 +3,22 @@ import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
+interface RegisterBody {
+  username: string
+  password: string
+  role?: string
+  dailyDownloadLimit?: number
+  activeTorrentLimit?: number
+  maxTorrentSizeGb?: number
+}
+
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
 
-  const body = await readBody(event)
+  const body = await readBody<RegisterBody>(event)
   const { username, password, role, dailyDownloadLimit, activeTorrentLimit, maxTorrentSizeGb } = body
 
   if (!username || !password) {
@@ -29,18 +38,20 @@ export default defineEventHandler(async (event) => {
   const hashedPassword = await bcrypt.hash(password, 12)
   const id = randomUUID()
 
-  db.insert(users).values({
-    id,
-    username,
-    password: hashedPassword,
-    role: role || 'user',
-    dailyDownloadLimit: dailyDownloadLimit || 5,
-    activeTorrentLimit: activeTorrentLimit || 3,
-    maxTorrentSizeGb: maxTorrentSizeGb || 20,
-    isActive: true,
-    downloadsToday: 0,
-    createdAt: new Date().toISOString()
-  }).run()
+  db.insert(users)
+    .values({
+      id,
+      username,
+      password: hashedPassword,
+      role: role === 'user' || role === 'admin' ? role : 'user',
+      dailyDownloadLimit: dailyDownloadLimit ?? 5,
+      activeTorrentLimit: activeTorrentLimit ?? 3,
+      maxTorrentSizeGb: maxTorrentSizeGb ?? 20,
+      isActive: true,
+      downloadsToday: 0,
+      createdAt: new Date().toISOString()
+    })
+    .run()
 
   return { success: true, id }
 })

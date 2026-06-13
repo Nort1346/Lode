@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   await requireAdmin(event)
 
   const id = getRouterParam(event, 'id')
-  if (!id) {
+  if (id === null || id === undefined) {
     throw createError({ statusCode: 400, statusMessage: 'User ID is required' })
   }
 

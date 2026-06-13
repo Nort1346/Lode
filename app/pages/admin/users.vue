@@ -116,7 +116,7 @@ async function deleteUser(id: string) {
   }
 }
 
-async function toggleActive(user: { id: string, isActive: boolean }) {
+async function toggleActive(user: { id: string; isActive: boolean }) {
   try {
     await $fetch(`/api/admin/users/${user.id}`, {
       method: 'PUT',
@@ -138,57 +138,48 @@ function formatDate(dateStr: string): string {
   <div>
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
       <div>
-        <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">
-          User Management
-        </h1>
-        <p class="text-zinc-500 dark:text-zinc-400">
-          Manage user accounts and limits
-        </p>
+        <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">User Management</h1>
+        <p class="text-zinc-500 dark:text-zinc-400">Manage user accounts and limits</p>
       </div>
-      <UButton
-        icon="i-lucide-plus"
-        label="Add User"
-        @click="openCreate"
-      />
+      <UButton icon="i-lucide-plus" label="Add User" @click="openCreate" />
     </div>
 
-    <div
-      v-if="loading"
-      class="flex justify-center py-16"
-    >
-      <UIcon
-        name="i-lucide-loader-2"
-        class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin"
-      />
+    <div v-if="loading" class="flex justify-center py-16">
+      <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
     </div>
 
-    <div
-      v-else
-      class="card overflow-hidden"
-    >
+    <div v-else class="card overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
             <tr class="table-header">
-              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
-                User
-              </th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden sm:table-cell">
+              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">User</th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden sm:table-cell"
+              >
                 Role
               </th>
-              <th class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden md:table-cell">
+              <th
+                class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden md:table-cell"
+              >
                 Daily
               </th>
-              <th class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden md:table-cell">
+              <th
+                class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden md:table-cell"
+              >
                 Active
               </th>
-              <th class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden lg:table-cell">
+              <th
+                class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden lg:table-cell"
+              >
                 Max Size
               </th>
               <th class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
                 Status
               </th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden xl:table-cell">
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden xl:table-cell"
+              >
                 Created
               </th>
               <th class="px-4 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
@@ -197,30 +188,32 @@ function formatDate(dateStr: string): string {
             </tr>
           </thead>
           <tbody class="divide-y divide-zinc-200 dark:divide-white/5">
-            <tr
-              v-for="u in users"
-              :key="u.id"
-              class="table-row"
-            >
+            <tr v-for="u in users" :key="u.id" class="table-row">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
-                  <UAvatar
-                    :alt="u.username"
-                    size="sm"
-                  />
+                  <UAvatar :alt="u.username" size="sm" />
                   <div>
                     <span class="text-sm font-medium text-zinc-900 dark:text-white">{{ u.username }}</span>
                     <span
                       class="sm:hidden ml-2 text-xs px-1.5 py-0.5 rounded-full"
-                      :class="u.role === 'admin' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400'"
-                    >{{ u.role }}</span>
+                      :class="
+                        u.role === 'admin'
+                          ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                          : 'bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400'
+                      "
+                      >{{ u.role }}</span
+                    >
                   </div>
                 </div>
               </td>
               <td class="px-4 py-3 hidden sm:table-cell">
                 <span
                   class="text-xs px-2 py-1 rounded-full"
-                  :class="u.role === 'admin' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400'"
+                  :class="
+                    u.role === 'admin'
+                      ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                      : 'bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400'
+                  "
                 >
                   {{ u.role }}
                 </span>
@@ -246,12 +239,7 @@ function formatDate(dateStr: string): string {
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-1">
-                  <UButton
-                    icon="i-lucide-pencil"
-                    variant="ghost"
-                    size="xs"
-                    @click="openEdit(u)"
-                  />
+                  <UButton icon="i-lucide-pencil" variant="ghost" size="xs" @click="openEdit(u)" />
                   <UButton
                     v-if="u.role !== 'admin'"
                     icon="i-lucide-trash-2"
@@ -268,83 +256,47 @@ function formatDate(dateStr: string): string {
       </div>
     </div>
 
-    <UModal
-      v-model:open="showModal"
-      :title="editingUser ? 'Edit User' : 'Create User'"
-    >
+    <UModal v-model:open="showModal" :title="editingUser ? 'Edit User' : 'Create User'">
       <template #body>
-        <form
-          class="space-y-4"
-          @submit.prevent="saveUser"
-        >
+        <form class="space-y-4" @submit.prevent="saveUser">
           <UFormField label="Username">
-            <UInput
-              v-model="form.username"
-              :disabled="!!editingUser"
-              class="w-full"
-            />
+            <UInput v-model="form.username" :disabled="!!editingUser" class="w-full" />
           </UFormField>
 
           <UFormField :label="editingUser ? 'New Password (leave empty to keep)' : 'Password'">
-            <UInput
-              v-model="form.password"
-              type="password"
-              class="w-full"
-            />
+            <UInput v-model="form.password" type="password" class="w-full" />
           </UFormField>
 
           <UFormField label="Role">
             <USelect
               v-model="form.role"
-              :items="[{ label: 'User', value: 'user' }, { label: 'Admin', value: 'admin' }]"
+              :items="[
+                { label: 'User', value: 'user' },
+                { label: 'Admin', value: 'admin' }
+              ]"
               class="w-full"
             />
           </UFormField>
 
           <div class="grid grid-cols-3 gap-3">
             <UFormField label="Daily Limit">
-              <UInput
-                v-model.number="form.dailyDownloadLimit"
-                type="number"
-                class="w-full"
-              />
+              <UInput v-model.number="form.dailyDownloadLimit" type="number" class="w-full" />
             </UFormField>
 
             <UFormField label="Active Limit">
-              <UInput
-                v-model.number="form.activeTorrentLimit"
-                type="number"
-                class="w-full"
-              />
+              <UInput v-model.number="form.activeTorrentLimit" type="number" class="w-full" />
             </UFormField>
 
             <UFormField label="Max Size (GB)">
-              <UInput
-                v-model.number="form.maxTorrentSizeGb"
-                type="number"
-                class="w-full"
-              />
+              <UInput v-model.number="form.maxTorrentSizeGb" type="number" class="w-full" />
             </UFormField>
           </div>
 
-          <UAlert
-            v-if="error"
-            :description="error"
-            color="error"
-            variant="subtle"
-          />
+          <UAlert v-if="error" :description="error" color="error" variant="subtle" />
 
           <div class="flex justify-end gap-2 pt-2">
-            <UButton
-              variant="ghost"
-              label="Cancel"
-              @click="showModal = false"
-            />
-            <UButton
-              type="submit"
-              :loading="saving"
-              :label="editingUser ? 'Save Changes' : 'Create User'"
-            />
+            <UButton variant="ghost" label="Cancel" @click="showModal = false" />
+            <UButton type="submit" :loading="saving" :label="editingUser ? 'Save Changes' : 'Create User'" />
           </div>
         </form>
       </template>

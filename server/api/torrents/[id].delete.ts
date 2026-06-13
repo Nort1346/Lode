@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const id = getRouterParam(event, 'id')
-  if (!id) {
+  if (id === null || id === undefined) {
     throw createError({ statusCode: 400, statusMessage: 'Download ID is required' })
   }
 
@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
-  if (download.torrentHash) {
+  if (download.torrentHash !== null) {
     try {
       const qui = useQui()
       await qui.deleteTorrent(download.torrentHash, true)

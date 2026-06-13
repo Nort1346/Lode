@@ -126,51 +126,22 @@ const savePathLabels: Record<string, string> = {
 <template>
   <div>
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">
-        My Downloads
-      </h1>
-      <p class="text-zinc-500 dark:text-zinc-400">
-        Track and manage your torrents
-      </p>
+      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">My Downloads</h1>
+      <p class="text-zinc-500 dark:text-zinc-400">Track and manage your torrents</p>
     </div>
 
-    <div
-      v-if="loading && downloads.length === 0"
-      class="flex justify-center py-16"
-    >
-      <UIcon
-        name="i-lucide-loader-2"
-        class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin"
-      />
+    <div v-if="loading && downloads.length === 0" class="flex justify-center py-16">
+      <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
     </div>
 
-    <div
-      v-else-if="downloads.length === 0"
-      class="card p-12 text-center"
-    >
-      <UIcon
-        name="i-lucide-inbox"
-        class="w-16 h-16 mx-auto mb-4 text-zinc-300 dark:text-zinc-600"
-      />
-      <p class="text-zinc-500 dark:text-zinc-400 text-lg">
-        No downloads yet
-      </p>
-      <UButton
-        to="/dashboard/submit"
-        label="Submit your first torrent"
-        class="mt-4"
-      />
+    <div v-else-if="downloads.length === 0" class="card p-12 text-center">
+      <UIcon name="i-lucide-inbox" class="w-16 h-16 mx-auto mb-4 text-zinc-300 dark:text-zinc-600" />
+      <p class="text-zinc-500 dark:text-zinc-400 text-lg">No downloads yet</p>
+      <UButton to="/dashboard/submit" label="Submit your first torrent" class="mt-4" />
     </div>
 
-    <div
-      v-else
-      class="space-y-3"
-    >
-      <div
-        v-for="dl in downloads"
-        :key="dl.id"
-        class="card p-5"
-      >
+    <div v-else class="space-y-3">
+      <div v-for="dl in downloads" :key="dl.id" class="card p-5">
         <div class="flex items-start justify-between mb-3">
           <div class="flex-1 min-w-0">
             <p class="font-medium text-zinc-900 dark:text-white truncate">
@@ -183,13 +154,12 @@ const savePathLabels: Record<string, string> = {
               >
                 @{{ dl.username }}
               </span>
-              <span
-                class="text-xs px-2 py-0.5 rounded-full"
-                :class="statusColors[dl.status]"
-              >
+              <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
                 {{ dl.status }}
               </span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400">
+              <span
+                class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400"
+              >
                 {{ savePathLabels[dl.savePath] }}
               </span>
               <span class="text-xs text-zinc-400 dark:text-zinc-500">
@@ -210,19 +180,15 @@ const savePathLabels: Record<string, string> = {
           />
         </div>
 
-        <div
-          v-if="dl.status === 'downloading'"
-          class="space-y-2"
-        >
+        <div v-if="dl.status === 'downloading'" class="space-y-2">
           <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
             <span class="font-medium text-zinc-900 dark:text-white">{{ dl.progress.toFixed(1) }}%</span>
-            <span>ETA: <span class="text-zinc-900 dark:text-white font-medium">{{ formatEta(dl.etaSeconds) }}</span></span>
+            <span
+              >ETA: <span class="text-zinc-900 dark:text-white font-medium">{{ formatEta(dl.etaSeconds) }}</span></span
+            >
           </div>
           <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
-            <div
-              class="progress-bar h-full min-w-0.5"
-              :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
-            />
+            <div class="progress-bar h-full min-w-0.5" :style="{ width: `${Math.max(dl.progress, 0.5)}%` }" />
           </div>
           <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
             <span>↓ {{ formatSpeed(dl.downloadSpeed) }} · ↑ {{ formatSpeed(dl.uploadSpeed) }}</span>
@@ -235,10 +201,7 @@ const savePathLabels: Record<string, string> = {
           class="flex items-center gap-2 text-sm"
           :class="dl.completedAt ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'"
         >
-          <UIcon
-            :name="dl.completedAt ? 'i-lucide-clock' : 'i-lucide-check-circle'"
-            class="w-4 h-4"
-          />
+          <UIcon :name="dl.completedAt ? 'i-lucide-clock' : 'i-lucide-check-circle'" class="w-4 h-4" />
           <span v-if="dl.completedAt">{{ formatPrepTime(dl.completedAt, dl.sizeBytes) }}</span>
           <span v-else>Download completed</span>
           <span class="text-zinc-400 dark:text-zinc-500">· {{ formatSize(dl.sizeBytes) }}</span>

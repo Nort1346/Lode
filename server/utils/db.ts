@@ -54,8 +54,8 @@ function initDb() {
     );
   `)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const columns = sqlite.prepare('PRAGMA table_info(downloads)').all().map((c: any) => c.name as string)
+  const pragmaRows = sqlite.prepare('PRAGMA table_info(downloads)').all() as Record<string, unknown>[]
+  const columns = pragmaRows.map((c) => c.name as string)
   if (!columns.includes('label')) {
     sqlite.exec(`ALTER TABLE downloads ADD COLUMN label TEXT NOT NULL DEFAULT ''`)
   }

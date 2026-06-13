@@ -4,7 +4,9 @@ export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   username: text('username').notNull().unique(),
   password: text('password').notNull(),
-  role: text('role', { enum: ['user', 'admin'] }).notNull().default('user'),
+  role: text('role', { enum: ['user', 'admin'] })
+    .notNull()
+    .default('user'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   dailyDownloadLimit: integer('daily_download_limit').notNull().default(5),
   activeTorrentLimit: integer('active_torrent_limit').notNull().default(3),
@@ -21,7 +23,9 @@ export const downloads = sqliteTable('downloads', {
   torrentName: text('torrent_name').notNull().default(''),
   magnetLink: text('magnet_link').notNull(),
   savePath: text('save_path', { enum: ['movies', 'series', 'games', 'books', 'music'] }).notNull(),
-  status: text('status', { enum: ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed'] }).notNull().default('pending'),
+  status: text('status', { enum: ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed'] })
+    .notNull()
+    .default('pending'),
   torrentHash: text('torrent_hash'),
   progress: real('progress').notNull().default(0),
   etaSeconds: integer('eta_seconds').notNull().default(0),

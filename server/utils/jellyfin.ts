@@ -15,7 +15,7 @@ export class JellyfinClient {
       headers: {
         'X-Emby-Token': this.apiKey,
         'Content-Type': 'application/json',
-        ...options.headers as Record<string, string>
+        ...(options.headers as Record<string, string>)
       }
     })
 
@@ -28,7 +28,7 @@ export class JellyfinClient {
   }
 
   async notifyMediaUpdated(paths: string[]) {
-    const updates = paths.map(path => ({
+    const updates = paths.map((path) => ({
       Path: path,
       UpdateType: 'scan'
     }))

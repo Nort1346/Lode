@@ -3,10 +3,19 @@ import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
+interface CreateUserBody {
+  username: string
+  password: string
+  role?: string
+  dailyDownloadLimit?: number
+  activeTorrentLimit?: number
+  maxTorrentSizeGb?: number
+}
+
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
 
-  const body = await readBody(event)
+  const body = await readBody<CreateUserBody>(event)
   const { username, password, role, dailyDownloadLimit, activeTorrentLimit, maxTorrentSizeGb } = body
 
   if (!username || !password) {
@@ -22,18 +31,20 @@ export default defineEventHandler(async (event) => {
   const hashedPassword = await bcrypt.hash(password, 12)
   const id = randomUUID()
 
-  db.insert(users).values({
-    id,
-    username,
-    password: hashedPassword,
-    role: role || 'user',
-    dailyDownloadLimit: dailyDownloadLimit || 5,
-    activeTorrentLimit: activeTorrentLimit || 3,
-    maxTorrentSizeGb: maxTorrentSizeGb || 20,
-    isActive: true,
-    downloadsToday: 0,
-    createdAt: new Date().toISOString()
-  }).run()
+  db.insert(users)
+    .values({
+      id,
+      username,
+      password: hashedPassword,
+      role: role === 'user' || role === 'admin' ? role : 'user',
+      dailyDownloadLimit: dailyDownloadLimit ?? 5,
+      activeTorrentLimit: activeTorrentLimit ?? 3,
+      maxTorrentSizeGb: maxTorrentSizeGb ?? 20,
+      isActive: true,
+      downloadsToday: 0,
+      createdAt: new Date().toISOString()
+    })
+    .run()
 
   return { success: true, id }
 })

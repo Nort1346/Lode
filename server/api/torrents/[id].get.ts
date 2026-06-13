@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const id = getRouterParam(event, 'id')
-  if (!id) {
+  if (id === null || id === undefined) {
     throw createError({ statusCode: 400, statusMessage: 'Download ID is required' })
   }
 
@@ -23,21 +23,24 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
-  if (download.torrentHash) {
+  if (download.torrentHash !== null) {
     try {
       const qui = useQui()
       const torrents = await qui.getUserTorrents(session.user.username)
-      const torrent = torrents.find(t => t.hash === download.torrentHash)
+      const torrent = torrents.find((t) => t.hash === download.torrentHash)
 
-      if (torrent) {
-        db.update(downloads).set({
-          progress: Math.round(torrent.progress * 100),
-          etaSeconds: torrent.eta,
-          downloadSpeed: torrent.dlspeed,
-          uploadSpeed: torrent.upspeed,
-          downloadedBytes: torrent.downloaded,
-          status: torrent.progress >= 1 ? 'completed' : 'downloading'
-        }).where(eq(downloads.id, id)).run()
+      if (torrent !== undefined) {
+        db.update(downloads)
+          .set({
+            progress: Math.round(torrent.progress * 100),
+            etaSeconds: torrent.eta,
+            downloadSpeed: torrent.dlspeed,
+            uploadSpeed: torrent.upspeed,
+            downloadedBytes: torrent.downloaded,
+            status: torrent.progress >= 1 ? 'completed' : 'downloading'
+          })
+          .where(eq(downloads.id, id))
+          .run()
 
         return {
           ...download,

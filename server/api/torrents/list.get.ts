@@ -1,5 +1,11 @@
 import { downloads, users } from '../../database/schema'
 import { eq, and, desc } from 'drizzle-orm'
+import type { InferSelectModel } from 'drizzle-orm'
+
+type DownloadRow = InferSelectModel<typeof downloads> & { username?: string }
+
+const DOWNLOAD_STATUS_VALUES = ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed'] as const
+type SupportedStatus = (typeof DOWNLOAD_STATUS_VALUES)[number]
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -9,7 +15,11 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb()
   const query = getQuery(event)
-  const status = query.status as string | undefined
+  const rawStatus = query.status
+  const status =
+    typeof rawStatus === 'string' && DOWNLOAD_STATUS_VALUES.includes(rawStatus as SupportedStatus)
+      ? (rawStatus as SupportedStatus)
+      : undefined
   const config = useRuntimeConfig()
 
   const savePathMap: Record<string, string> = {
@@ -20,68 +30,68 @@ export default defineEventHandler(async (event) => {
     music: config.savePathMusic
   }
 
-  let results
-  if (status) {
-    results = db.select().from(downloads)
-      .where(and(
-        eq(downloads.userId, session.user.id),
-        eq(downloads.status, status)
-      ))
+  let results: DownloadRow[]
+  if (status !== undefined) {
+    results = db
+      .select()
+      .from(downloads)
+      .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, status)))
       .orderBy(desc(downloads.createdAt))
       .all()
   } else {
-    results = db.select().from(downloads)
+    results = db
+      .select()
+      .from(downloads)
       .where(eq(downloads.userId, session.user.id))
       .orderBy(desc(downloads.createdAt))
       .all()
   }
 
   if (session.user.role === 'admin') {
-    results = db.select().from(downloads)
-      .orderBy(desc(downloads.createdAt))
-      .all()
+    results = db.select().from(downloads).orderBy(desc(downloads.createdAt)).all()
 
     const allUsers = db.select().from(users).all()
-    const userMap = new Map(allUsers.map(u => [u.id, u.username]))
+    const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
     for (const dl of results) {
-      dl.username = userMap.get(dl.userId) || 'unknown'
+      dl.username = userMap.get(dl.userId) ?? 'unknown'
     }
   }
 
-  const prepSpeedBytes = (config.jellyfinPrepSpeedMb || 8) * 1024 * 1024
+  const prepSpeedBytes = (config.jellyfinPrepSpeedMb ?? 8) * 1024 * 1024
 
-  const activeIds = results
-    .filter(d => d.status === 'downloading' && d.torrentHash)
-    .map(d => d.id)
+  const activeIds = results.filter((d) => d.status === 'downloading' && d.torrentHash !== null).map((d) => d.id)
 
   if (activeIds.length > 0) {
     try {
       const qui = useQui()
       const quiTorrents = await qui.getUserTorrents(session.user.username)
-      const foundHashes = new Set(quiTorrents.map(t => t.hash))
+      const foundHashes = new Set(quiTorrents.map((t) => t.hash))
 
       const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
 
       for (const dl of results) {
-        if (dl.status === 'downloading' && dl.torrentHash) {
-          const quiTorrent = quiTorrents.find(t => t.hash === dl.torrentHash)
+        if (dl.status === 'downloading' && dl.torrentHash !== null) {
+          const quiTorrent = quiTorrents.find((t) => t.hash === dl.torrentHash)
 
-          if (quiTorrent) {
+          if (quiTorrent !== undefined) {
             const progressPct = quiTorrent.progress * 100
             const isComplete = progressPct >= 99.9 || completedStates.has(quiTorrent.state)
 
             if (isComplete) {
-              db.update(downloads).set({
-                torrentName: quiTorrent.name || dl.torrentName,
-                progress: 100,
-                etaSeconds: 0,
-                downloadSpeed: 0,
-                uploadSpeed: 0,
-                sizeBytes: quiTorrent.size,
-                downloadedBytes: quiTorrent.downloaded,
-                status: 'completed',
-                completedAt: new Date().toISOString()
-              }).where(eq(downloads.id, dl.id)).run()
+              db.update(downloads)
+                .set({
+                  torrentName: quiTorrent.name || dl.torrentName,
+                  progress: 100,
+                  etaSeconds: 0,
+                  downloadSpeed: 0,
+                  uploadSpeed: 0,
+                  sizeBytes: quiTorrent.size,
+                  downloadedBytes: quiTorrent.downloaded,
+                  status: 'completed',
+                  completedAt: new Date().toISOString()
+                })
+                .where(eq(downloads.id, dl.id))
+                .run()
 
               dl.torrentName = quiTorrent.name || dl.torrentName
               dl.progress = 100
@@ -93,15 +103,18 @@ export default defineEventHandler(async (event) => {
               dl.status = 'completed'
               dl.completedAt = new Date().toISOString()
             } else {
-              db.update(downloads).set({
-                torrentName: quiTorrent.name || dl.torrentName,
-                progress: progressPct,
-                etaSeconds: quiTorrent.eta,
-                downloadSpeed: quiTorrent.dlspeed,
-                uploadSpeed: quiTorrent.upspeed,
-                sizeBytes: quiTorrent.size,
-                downloadedBytes: quiTorrent.downloaded
-              }).where(eq(downloads.id, dl.id)).run()
+              db.update(downloads)
+                .set({
+                  torrentName: quiTorrent.name || dl.torrentName,
+                  progress: progressPct,
+                  etaSeconds: quiTorrent.eta,
+                  downloadSpeed: quiTorrent.dlspeed,
+                  uploadSpeed: quiTorrent.upspeed,
+                  sizeBytes: quiTorrent.size,
+                  downloadedBytes: quiTorrent.downloaded
+                })
+                .where(eq(downloads.id, dl.id))
+                .run()
 
               dl.torrentName = quiTorrent.name || dl.torrentName
               dl.progress = progressPct
@@ -112,14 +125,17 @@ export default defineEventHandler(async (event) => {
               dl.downloadedBytes = quiTorrent.downloaded
             }
           } else if (!foundHashes.has(dl.torrentHash)) {
-            db.update(downloads).set({
-              status: 'completed',
-              progress: 100,
-              etaSeconds: 0,
-              downloadSpeed: 0,
-              uploadSpeed: 0,
-              completedAt: new Date().toISOString()
-            }).where(eq(downloads.id, dl.id)).run()
+            db.update(downloads)
+              .set({
+                status: 'completed',
+                progress: 100,
+                etaSeconds: 0,
+                downloadSpeed: 0,
+                uploadSpeed: 0,
+                completedAt: new Date().toISOString()
+              })
+              .where(eq(downloads.id, dl.id))
+              .run()
 
             dl.status = 'completed'
             dl.progress = 100
@@ -136,19 +152,22 @@ export default defineEventHandler(async (event) => {
   }
 
   const jellyfin = useJellyfin()
-  if (jellyfin) {
-    const completedWithPrep = results.filter(d => d.status === 'completed' && d.completedAt)
+  if (jellyfin !== null) {
+    const completedWithPrep = results.filter((d) => d.status === 'completed' && d.completedAt !== null)
     const notifiedPaths = new Set<string>()
 
     for (const dl of completedWithPrep) {
       if (notifiedPaths.has(dl.id)) continue
 
-      const elapsed = (Date.now() - new Date(dl.completedAt!).getTime()) / 1000
+      const completedAt = dl.completedAt
+      if (completedAt === null) continue
+
+      const elapsed = (Date.now() - new Date(completedAt).getTime()) / 1000
       const prepDelay = dl.sizeBytes / prepSpeedBytes
 
       if (elapsed >= prepDelay) {
         const targetPath = savePathMap[dl.savePath]
-        if (targetPath) {
+        if (targetPath !== undefined) {
           await jellyfin.notifyMediaUpdated([targetPath]).catch(() => {})
         }
         db.update(downloads).set({ completedAt: null }).where(eq(downloads.id, dl.id)).run()

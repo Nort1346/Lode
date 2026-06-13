@@ -2,8 +2,13 @@ import bcrypt from 'bcrypt'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 
+interface LoginBody {
+  username: string
+  password: string
+}
+
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
+  const body = await readBody<LoginBody>(event)
   const { username, password } = body
 
   if (!username || !password) {

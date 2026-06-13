@@ -44,27 +44,18 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div
-    class="bg-main min-h-screen flex flex-col items-center justify-center p-4"
-  >
+  <div class="bg-main min-h-screen flex flex-col items-center justify-center p-4">
     <button
       class="fixed top-4 right-4 p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors shadow-sm"
       @click="toggleTheme"
     >
-      <UIcon
-        :name="isDark ? 'i-lucide-sun' : 'i-lucide-moon'"
-        class="w-5 h-5"
-      />
+      <UIcon :name="isDark ? 'i-lucide-sun' : 'i-lucide-moon'" class="w-5 h-5" />
     </button>
 
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-gradient mb-2">
-          StreamHub
-        </h1>
-        <p class="text-zinc-500 dark:text-zinc-400">
-          Access your downloading panel
-        </p>
+        <h1 class="text-4xl font-bold text-gradient mb-2">StreamHub</h1>
+        <p class="text-zinc-500 dark:text-zinc-400">Access your downloading panel</p>
       </div>
 
       <div class="card p-8">
@@ -91,13 +82,7 @@ async function handleLogin() {
               />
             </UFormField>
 
-            <UAlert
-              v-if="error"
-              :description="error"
-              color="error"
-              variant="subtle"
-              class="mb-4"
-            />
+            <UAlert v-if="error" :description="error" color="error" variant="subtle" class="mb-4" />
 
             <UButton
               type="submit"

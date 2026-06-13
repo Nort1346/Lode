@@ -1,5 +1,5 @@
 import { ensureAdminExists } from '../utils/seed'
 
-export default defineNitroPlugin(async () => {
-  await ensureAdminExists()
+export default defineNitroPlugin(() => {
+  void ensureAdminExists()
 })
