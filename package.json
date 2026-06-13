@@ -1,0 +1,29 @@
+{
+  "name": "requesting-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.111",
+    "@iconify-json/simple-icons": "^1.2.85",
+    "@nuxt/hints": "1.1.2",
+    "@nuxt/image": "2.0.0",
+    "@nuxt/ui": "^4.8.2",
+    "nuxt": "^4.4.8",
+    "tailwindcss": "^4.3.0"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.15.2",
+    "eslint": "^10.4.1",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.3"
+  },
+  "packageManager": "pnpm@11.5.2"
+}
