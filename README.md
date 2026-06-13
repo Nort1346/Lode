@@ -1,64 +1,95 @@
-# Nuxt Starter Template
+# StreamHub
 
-[![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
+Torrent request manager for streaming services. Users submit magnet links, StreamHub communicates with qBittorrent via [qui](https://github.com/autobrr/qui) proxy, and an admin panel manages users with configurable download limits.
 
-Use this template to get started with [Nuxt UI](https://ui.nuxt.com) quickly.
+## Features
 
-- [Live demo](https://starter-template.nuxt.dev/)
-- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/nuxt)
+- **Torrent management** — submit magnet links, track progress, delete with disk cleanup
+- **User system** — roles, daily download limits, active torrent limits, max size per user
+- **Jellyfin integration** — auto-notifies Jellyfin after torrent completes, configurable prep delay
+- **Label system** — categorize downloads (movies, series, games, books, music)
+- **Admin panel** — user CRUD, activate/deactivate, per-user limit configuration
+- **Light/dark mode** — amber primary, glassmorphism dark theme, mobile responsive
+- **Strict TypeScript** — ESLint with type-checked rules, Prettier, full typecheck
 
-<a href="https://starter-template.nuxt.dev/" target="_blank">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-    <img alt="Nuxt Starter Template" src="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png" width="830" height="466">
-  </picture>
-</a>
+## Tech Stack
 
-> The starter template for Vue is on https://github.com/nuxt-ui-templates/starter-vue.
+| Layer | Technology |
+|-------|-----------|
+| Framework | [Nuxt 4](https://nuxt.com) |
+| UI | [Nuxt UI 4](https://ui.nuxt.com) |
+| ORM | [Drizzle ORM](https://orm.drizzle.team) |
+| Database | SQLite (file-based) |
+| Auth | [nuxt-auth-utils](https://github.com/atinux/nuxt-auth-utils) |
+| Language | TypeScript 6 |
 
 ## Quick Start
 
-```bash [Terminal]
-npm create nuxt@latest -- -t ui
-```
+### Prerequisites
 
-## Deploy your own
+- Node.js 20+
+- pnpm 11+
+- A running [qui](https://github.com/autobrr/qui) instance connected to qBittorrent
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=starter&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fstarter&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fstarter-dark.png&demo-url=https%3A%2F%2Fstarter-template.nuxt.dev%2F&demo-title=Nuxt%20Starter%20Template&demo-description=A%20minimal%20template%20to%20get%20started%20with%20Nuxt%20UI.)
-
-## Setup
-
-Make sure to install the dependencies:
+### Install
 
 ```bash
+git clone <your-repo-url>
+cd requesting-site
 pnpm install
 ```
 
-## Development Server
+### Configure
 
-Start the development server on `http://localhost:3000`:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your settings. At minimum, set:
+
+```env
+NUXT_QUI_PROXY_URL=http://localhost:7476/proxy/YOUR_KEY
+NUXT_SESSION_PASSWORD=your-random-32-char-string
+```
+
+### Run
 
 ```bash
 pnpm dev
 ```
 
-## Production
+Open `http://localhost:3000`. Default admin credentials: `admin` / `admin`.
 
-Build the application for production:
+> Change the admin password immediately in production.
+
+## Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NUXT_QUI_PROXY_URL` | qui Client Proxy URL | — |
+| `NUXT_SESSION_PASSWORD` | Session encryption key (32+ chars) | — |
+| `NUXT_JELLYFIN_URL` | Jellyfin server URL | — |
+| `NUXT_JELLYFIN_API_KEY` | Jellyfin API key | — |
+| `NUXT_JELLYFIN_PREP_SPEED_MB` | Prep speed in MB/s for delay calculation | `8` |
+| `NUXT_SAVE_PATH_MOVIES` | qBittorrent save path for movies | `/mnt/storage/streaming/Movies` |
+| `NUXT_SAVE_PATH_SERIES` | qBittorrent save path for series | `/mnt/storage/streaming/Series` |
+| `NUXT_SAVE_PATH_GAMES` | qBittorrent save path for games | `/mnt/storage/streaming/Games` |
+| `NUXT_SAVE_PATH_BOOKS` | qBittorrent save path for books | `/mnt/storage/streaming/Books` |
+| `NUXT_SAVE_PATH_MUSIC` | qBittorrent save path for music | `/mnt/storage/streaming/Music` |
+
+## Scripts
 
 ```bash
-pnpm build
+pnpm dev          # Development server
+pnpm build        # Production build
+pnpm preview      # Preview production build
+pnpm lint         # Run ESLint
+pnpm lint:fix     # Auto-fix lint issues
+pnpm format       # Format with Prettier
+pnpm format:check # Check formatting
+pnpm typecheck    # Run vue-tsc type checking
 ```
 
-Locally preview production build:
+## License
 
-```bash
-pnpm preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
-
-## Renovate integration
-
-Install [Renovate GitHub app](https://github.com/apps/renovate/installations/select_target) on your repository and you are good to go.
+[MIT](LICENSE)
