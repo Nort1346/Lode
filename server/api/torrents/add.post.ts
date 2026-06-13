@@ -9,7 +9,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { magnetLink, savePath, label } = body
+  const { magnetLink: rawMagnetLink, savePath, label } = body
+  const magnetLink = rawMagnetLink?.replace(/^magnet:\/\//, 'magnet:')
 
   if (!magnetLink) {
     throw createError({ statusCode: 400, statusMessage: 'Magnet link is required' })
@@ -83,6 +84,13 @@ export default defineEventHandler(async (event) => {
     downloadedBytes: torrent?.downloaded || 0,
     createdAt: new Date().toISOString()
   }).run()
+
+  if (!torrent) {
+    throw createError({
+      statusCode: 502,
+      statusMessage: 'Torrent was sent to qBittorrent but could not be confirmed. It may appear shortly.'
+    })
+  }
 
   return { success: true, id, torrent }
 })

@@ -54,14 +54,22 @@ export class QuiClient {
       body: formData.toString()
     })
 
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    for (let i = 0; i < 3; i++) {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const torrents = await this.getRecentTorrents()
+      if (torrents.length > 0) return torrents[0]
+    }
 
-    const torrents = await this.getUserTorrents(tags)
-    return torrents.length > 0 ? torrents[0] : null
+    return null
   }
 
   async getUserTorrents(tag: string): Promise<QuiTorrent[]> {
     const response = await this.request(`/api/v2/torrents/info?tag=${encodeURIComponent(tag)}&sort=added_on&reverse=true`)
+    return response.json() as Promise<QuiTorrent[]>
+  }
+
+  async getRecentTorrents(): Promise<QuiTorrent[]> {
+    const response = await this.request('/api/v2/torrents/info?sort=added_on&reverse=true&limit=5')
     return response.json() as Promise<QuiTorrent[]>
   }
 

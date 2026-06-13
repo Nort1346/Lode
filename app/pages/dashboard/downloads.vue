@@ -220,7 +220,7 @@ const savePathLabels: Record<string, string> = {
           </div>
           <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
             <div
-              class="progress-bar h-full min-w-[2px]"
+              class="progress-bar h-full min-w-0.5"
               :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
             />
           </div>

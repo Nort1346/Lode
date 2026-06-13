@@ -23,21 +23,21 @@ const { user } = useUserSession()
         Server Configuration
       </h2>
       <div class="space-y-3 text-sm text-zinc-500 dark:text-zinc-400">
-        <div class="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/5">
+        <div class="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5">
           <UIcon
             name="i-lucide-server"
             class="w-5 h-5 text-amber-600 dark:text-amber-400"
           />
           <span>qBittorrent connection via qui Client Proxy</span>
         </div>
-        <div class="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/5">
+        <div class="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5">
           <UIcon
             name="i-lucide-folder"
             class="w-5 h-5 text-cyan-600 dark:text-cyan-400"
           />
           <span>Save paths are configured via environment variables</span>
         </div>
-        <div class="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/5">
+        <div class="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5">
           <UIcon
             name="i-lucide-shield"
             class="w-5 h-5 text-green-600 dark:text-green-400"
@@ -52,32 +52,32 @@ const { user } = useUserSession()
         Environment Variables
       </h2>
       <div class="space-y-2 text-sm">
-        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
+        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
           <span class="text-zinc-400 dark:text-zinc-500 shrink-0">NUXT_QUI_PROXY_URL</span>
           <span class="text-zinc-300 dark:text-zinc-600">=</span>
           <span class="text-amber-600 dark:text-amber-400">http://localhost:7476/proxy/...</span>
         </div>
-        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
+        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
           <span class="text-zinc-400 dark:text-zinc-500 shrink-0">NUXT_SAVE_PATH_MOVIES</span>
           <span class="text-zinc-300 dark:text-zinc-600">=</span>
           <span class="text-amber-600 dark:text-amber-400">/mnt/storage/streaming/Movies</span>
         </div>
-        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
+        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
           <span class="text-zinc-400 dark:text-zinc-500 shrink-0">NUXT_SAVE_PATH_SERIES</span>
           <span class="text-zinc-300 dark:text-zinc-600">=</span>
           <span class="text-amber-600 dark:text-amber-400">/mnt/storage/streaming/Series</span>
         </div>
-        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
+        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
           <span class="text-zinc-400 dark:text-zinc-500 shrink-0">NUXT_SAVE_PATH_GAMES</span>
           <span class="text-zinc-300 dark:text-zinc-600">=</span>
           <span class="text-amber-600 dark:text-amber-400">/mnt/storage/streaming/Games</span>
         </div>
-        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
+        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
           <span class="text-zinc-400 dark:text-zinc-500 shrink-0">NUXT_SAVE_PATH_MUSIC</span>
           <span class="text-zinc-300 dark:text-zinc-600">=</span>
           <span class="text-amber-600 dark:text-amber-400">/mnt/storage/streaming/Music</span>
         </div>
-        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
+        <div class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto">
           <span class="text-zinc-400 dark:text-zinc-500 shrink-0">NUXT_SAVE_PATH_BOOKS</span>
           <span class="text-zinc-300 dark:text-zinc-600">=</span>
           <span class="text-amber-600 dark:text-amber-400">/mnt/storage/streaming/Books</span>

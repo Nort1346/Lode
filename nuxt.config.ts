@@ -13,6 +13,11 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
+    session: {
+      cookie: {
+        secure: false
+      }
+    },
     quiProxyUrl: '',
     jellyfinUrl: '',
     jellyfinApiKey: '',

@@ -247,7 +247,7 @@ const savePathLabels: Record<string, string> = {
         <div
           v-for="dl in activeDownloads"
           :key="dl.id"
-          class="p-4 rounded-xl border border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/10 transition-all bg-zinc-50 dark:bg-white/[0.02]"
+          class="p-4 rounded-xl border border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/10 transition-all bg-zinc-50 dark:bg-white/2"
         >
           <div class="flex items-start justify-between mb-2">
             <div class="flex-1 min-w-0">
@@ -290,7 +290,7 @@ const savePathLabels: Record<string, string> = {
             </div>
             <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
               <div
-                class="progress-bar h-full min-w-[2px]"
+                class="progress-bar h-full min-w-0.5"
                 :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
               />
             </div>
