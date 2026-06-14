@@ -155,7 +155,7 @@ const savePathLabels: Record<string, string> = {
                 @{{ dl.username }}
               </span>
               <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
-                {{ dl.status }}
+                {{ capitalize(dl.status) }}
               </span>
               <span
                 class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400"

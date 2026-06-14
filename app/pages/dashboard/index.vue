@@ -226,7 +226,7 @@ const savePathLabels: Record<string, string> = {
                   {{ savePathLabels[dl.savePath] || dl.savePath }}
                 </span>
                 <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
-                  {{ dl.status }}
+                  {{ capitalize(dl.status) }}
                 </span>
               </div>
             </div>
