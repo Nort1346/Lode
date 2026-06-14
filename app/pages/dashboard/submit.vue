@@ -64,7 +64,7 @@ async function handleSubmit() {
       <form @submit.prevent="handleSubmit">
         <div class="space-y-4">
           <UFormField label="Label" description="Give it a name so you know what it is">
-            <UInput v-model="form.label" placeholder="e.g. The Matrix 1999, Breaking Bad S01" class="w-full" />
+            <UInput v-model="form.label" placeholder="e.g. The Matrix 1999, Avatar" class="w-full" />
           </UFormField>
 
           <UFormField label="Magnet Link" description="Paste a magnet:?xt=... link">

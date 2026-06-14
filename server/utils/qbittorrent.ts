@@ -54,14 +54,27 @@ export class QuiClient {
       body: formData.toString()
     })
 
+    let found: QuiTorrent | undefined
     for (let i = 0; i < 3; i++) {
       await new Promise((resolve) => setTimeout(resolve, 2000))
       const torrents = await this.getRecentTorrents()
-      const first = torrents[0]
-      if (first !== undefined) return first
+      found = torrents.find((t) => t.hash !== undefined && t.tags === tags)
+      if (found !== undefined) break
     }
 
-    return null
+    if (found === undefined) return null
+
+    if (found.size === 0) {
+      const targetHash = found.hash
+      for (let j = 0; j < 10; j++) {
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+        const torrents = await this.getRecentTorrents()
+        const refreshed = torrents.find((t) => t.hash === targetHash)
+        if (refreshed !== undefined && refreshed.size > 0) return refreshed
+      }
+    }
+
+    return found
   }
 
   async getUserTorrents(tag: string): Promise<QuiTorrent[]> {
