@@ -52,6 +52,17 @@ function initDb() {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      username TEXT,
+      action TEXT NOT NULL,
+      details TEXT,
+      ip TEXT,
+      user_agent TEXT,
+      created_at TEXT NOT NULL
+    );
   `)
 
   const pragmaRows = sqlite.prepare('PRAGMA table_info(downloads)').all() as Record<string, unknown>[]

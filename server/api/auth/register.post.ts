@@ -53,5 +53,12 @@ export default defineEventHandler(async (event) => {
     })
     .run()
 
+  logActivity(event, {
+    action: 'register',
+    userId: session.user.id,
+    username: session.user.username,
+    details: JSON.stringify({ newUsername: username, role: role ?? 'user' })
+  })
+
   return { success: true, id }
 })

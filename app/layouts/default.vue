@@ -29,6 +29,7 @@ const navigation = computed(() => {
   if (isAdmin.value) {
     items.push(
       { label: 'User Management', icon: 'i-lucide-users', to: '/admin/users' },
+      { label: 'Activity Logs', icon: 'i-lucide-activity', to: '/admin/logs' },
       {
         label: 'Admin Settings',
         icon: 'i-lucide-settings',

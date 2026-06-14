@@ -2,7 +2,7 @@ import { users } from '../../../database/schema'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
+  const admin = await requireAdmin(event)
 
   const id = getRouterParam(event, 'id')
   if (id === null || id === undefined) {
@@ -20,6 +20,13 @@ export default defineEventHandler(async (event) => {
   }
 
   db.delete(users).where(eq(users.id, id)).run()
+
+  logActivity(event, {
+    action: 'user_delete',
+    userId: admin.id,
+    username: admin.username,
+    details: JSON.stringify({ targetUser: user.username, targetUserId: id })
+  })
 
   return { success: true }
 })

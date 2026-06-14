@@ -125,5 +125,17 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  logActivity(event, {
+    action: 'torrent_add',
+    userId: session.user.id,
+    username: session.user.username,
+    details: JSON.stringify({
+      name: torrent?.name ?? 'unknown',
+      label: label ?? '',
+      savePath,
+      sizeBytes: torrent?.size ?? 0
+    })
+  })
+
   return { success: true, id, torrent }
 })

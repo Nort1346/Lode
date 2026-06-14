@@ -34,5 +34,12 @@ export default defineEventHandler(async (event) => {
 
   db.update(downloads).set({ status: 'removed' }).where(eq(downloads.id, id)).run()
 
+  logActivity(event, {
+    action: 'torrent_delete',
+    userId: session.user.id,
+    username: session.user.username,
+    details: JSON.stringify({ name: download.torrentName, hash: download.torrentHash })
+  })
+
   return { success: true }
 })

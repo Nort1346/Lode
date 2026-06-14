@@ -41,3 +41,14 @@ export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull()
 })
+
+export const activityLogs = sqliteTable('activity_logs', {
+  id: text('id').primaryKey(),
+  userId: text('user_id'),
+  username: text('username'),
+  action: text('action').notNull(),
+  details: text('details'),
+  ip: text('ip'),
+  userAgent: text('user_agent'),
+  createdAt: text('created_at').notNull()
+})

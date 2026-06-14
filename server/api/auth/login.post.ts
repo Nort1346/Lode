@@ -19,15 +19,23 @@ export default defineEventHandler(async (event) => {
   const user = db.select().from(users).where(eq(users.username, username)).get()
 
   if (!user) {
+    logActivity(event, { action: 'login_failed', username, details: 'User not found' })
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
   }
 
   if (!user.isActive) {
+    logActivity(event, {
+      action: 'login_failed',
+      userId: user.id,
+      username: user.username,
+      details: 'Account deactivated'
+    })
     throw createError({ statusCode: 403, statusMessage: 'Account is deactivated' })
   }
 
   const valid = await bcrypt.compare(password, user.password)
   if (!valid) {
+    logActivity(event, { action: 'login_failed', userId: user.id, username: user.username, details: 'Wrong password' })
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
   }
 
@@ -43,6 +51,8 @@ export default defineEventHandler(async (event) => {
       downloadsToday: user.downloadsToday
     }
   })
+
+  logActivity(event, { action: 'login', userId: user.id, username: user.username })
 
   return { success: true, user: { id: user.id, username: user.username, role: user.role } }
 })
