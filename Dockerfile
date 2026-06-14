@@ -23,7 +23,7 @@ RUN pnpm run build
 FROM node:22-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libsqlite3-0 libssl3 ca-certificates \
+    libsqlite3-0 libssl3 ca-certificates gosu \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -35,13 +35,15 @@ RUN addgroup --system --gid 1001 nodejs \
 # Copy only the production build output
 COPY --from=build --chown=appuser:nodejs /app/.output ./.output
 
-# Ensure data directory exists and is writable
-RUN mkdir -p /app/.data && chown appuser:nodejs /app/.data
+# Entrypoint script (runs as root first, then drops to appuser)
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-USER appuser
+# No USER directive — entrypoint handles privilege dropping
 
 EXPOSE 3000
 
 ENV NODE_ENV=production
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["node", ".output/server/index.mjs"]
