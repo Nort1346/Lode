@@ -21,9 +21,9 @@ useHead({
 
 useSeoMeta({
   title: 'StreamHub',
-  description: 'Streaming requesting site for your torrents',
+  description: 'Streaming downloading panel',
   ogTitle: 'StreamHub',
-  ogDescription: 'Streaming requesting site for your torrents'
+  ogDescription: 'Streaming downloading panel'
 })
 </script>
 

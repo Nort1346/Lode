@@ -46,7 +46,7 @@ async function handleLogin() {
 <template>
   <div class="bg-main min-h-screen flex flex-col items-center justify-center p-4">
     <button
-      class="fixed top-4 right-4 p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors shadow-sm"
+      class="flex items-center justify-center fixed top-4 right-4 p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors shadow-sm"
       @click="toggleTheme"
     >
       <UIcon :name="isDark ? 'i-lucide-sun' : 'i-lucide-moon'" class="w-5 h-5" />

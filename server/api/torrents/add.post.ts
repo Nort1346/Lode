@@ -87,6 +87,17 @@ export default defineEventHandler(async (event) => {
   const qui = useQui()
   const torrent = await qui.addTorrent(magnetLink, targetPath, savePath, session.user.username)
 
+  if (torrent !== null) {
+    const maxSizeBytes = session.user.maxTorrentSizeGb * 1024 * 1024 * 1024
+    if (torrent.size > maxSizeBytes) {
+      await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+      throw createError({
+        statusCode: 413,
+        statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${session.user.maxTorrentSizeGb} GB`
+      })
+    }
+  }
+
   const id = randomUUID()
   db.insert(downloads)
     .values({

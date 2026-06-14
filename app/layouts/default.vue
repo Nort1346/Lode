@@ -67,14 +67,14 @@ watch(
       class="md:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-white/8 bg-white dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-30"
     >
       <button
-        class="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
+        class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
         @click="mobileOpen = true"
       >
         <UIcon name="i-lucide-menu" class="w-5 h-5" />
       </button>
       <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">StreamHub</NuxtLink>
       <button
-        class="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
+        class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
         @click="toggleTheme"
       >
         <UIcon :name="isDark ? 'i-lucide-sun' : 'i-lucide-moon'" class="w-5 h-5" />
@@ -90,7 +90,7 @@ watch(
         <div class="flex items-center justify-between mb-6">
           <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">StreamHub</NuxtLink>
           <button
-            class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-500"
+            class="flex items-center justify-center p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-500"
             @click="mobileOpen = false"
           >
             <UIcon name="i-lucide-x" class="w-5 h-5" />
