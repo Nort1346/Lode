@@ -43,10 +43,80 @@
       {{ t('browse.noResults') }} "{{ lastQuery }}"
     </div>
 
-    <div v-else class="py-20 text-center text-zinc-400 dark:text-zinc-500">
-      <UIcon name="i-lucide-film" class="mx-auto mb-4 size-12 opacity-50" />
-      <p>{{ t('browse.enterTitle') }}</p>
-    </div>
+    <template v-else>
+      <div v-if="popularPending" class="flex justify-center py-20">
+        <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-amber-500" />
+      </div>
+      <template v-else-if="popularData">
+        <section v-if="popularMovies.length > 0" class="mb-10">
+          <h2 class="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
+            {{ t('browse.popularMovies') }}
+          </h2>
+          <div class="group/carousel relative">
+            <button
+              class="absolute top-1/2 left-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-1.5 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800"
+              @click="scrollCarousel(movieCarouselRef, -1)"
+            >
+              <UIcon name="i-lucide-chevron-left" class="size-5 text-zinc-700 dark:text-zinc-300" />
+            </button>
+            <div ref="movieCarouselRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 pb-2 scrollbar-hide">
+              <div v-for="item in popularMovies" :key="`movie-${item.id}`" class="w-32 flex-none sm:w-36 md:w-40">
+                <MediaCard
+                  :id="item.id"
+                  type="movie"
+                  :title="item.title"
+                  :overview="item.overview"
+                  :poster-url="item.posterUrl"
+                  :year="item.year"
+                  :rating="item.rating"
+                  @click="goToItem(item)"
+                />
+              </div>
+            </div>
+            <button
+              class="absolute top-1/2 right-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-1.5 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800"
+              @click="scrollCarousel(movieCarouselRef, 1)"
+            >
+              <UIcon name="i-lucide-chevron-right" class="size-5 text-zinc-700 dark:text-zinc-300" />
+            </button>
+          </div>
+        </section>
+
+        <section v-if="popularTvShows.length > 0">
+          <h2 class="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
+            {{ t('browse.popularTv') }}
+          </h2>
+          <div class="group/carousel relative">
+            <button
+              class="absolute top-1/2 left-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-1.5 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800"
+              @click="scrollCarousel(tvCarouselRef, -1)"
+            >
+              <UIcon name="i-lucide-chevron-left" class="size-5 text-zinc-700 dark:text-zinc-300" />
+            </button>
+            <div ref="tvCarouselRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 pb-2 scrollbar-hide">
+              <div v-for="item in popularTvShows" :key="`tv-${item.id}`" class="w-32 flex-none sm:w-36 md:w-40">
+                <MediaCard
+                  :id="item.id"
+                  type="tv"
+                  :title="item.title"
+                  :overview="item.overview"
+                  :poster-url="item.posterUrl"
+                  :year="item.year"
+                  :rating="item.rating"
+                  @click="goToItem(item)"
+                />
+              </div>
+            </div>
+            <button
+              class="absolute top-1/2 right-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-1.5 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800"
+              @click="scrollCarousel(tvCarouselRef, 1)"
+            >
+              <UIcon name="i-lucide-chevron-right" class="size-5 text-zinc-700 dark:text-zinc-300" />
+            </button>
+          </div>
+        </section>
+      </template>
+    </template>
   </div>
 </template>
 
@@ -57,6 +127,9 @@ const searchQuery = ref('')
 const searchType = ref('all')
 const lastQuery = ref('')
 const searched = ref(false)
+
+const movieCarouselRef = ref<HTMLElement | null>(null)
+const tvCarouselRef = ref<HTMLElement | null>(null)
 
 const typeOptions = computed(() => [
   { label: t('browse.searchAll'), value: 'all' },
@@ -76,6 +149,20 @@ const { data, pending, error, execute } = await useFetch('/api/browse/search', {
 
 const results = computed(() => data.value?.results ?? [])
 
+const { data: popularData, pending: popularPending } = await useFetch('/api/browse/popular', {
+  query: computed(() => ({ locale: locale.value })),
+  watch: [locale]
+})
+
+const popularMovies = computed(() => popularData.value?.movies ?? [])
+const popularTvShows = computed(() => popularData.value?.tv ?? [])
+
+function scrollCarousel(el: HTMLElement | null, direction: -1 | 1) {
+  if (!el) return
+  const scrollAmount = el.clientWidth * 0.75
+  el.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' })
+}
+
 async function doSearch() {
   const q = searchQuery.value.trim()
   if (q.length < 2) return
@@ -92,3 +179,13 @@ function goToItem(item: { id: number; type: string }) {
   }
 }
 </script>
+
+<style scoped>
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+</style>

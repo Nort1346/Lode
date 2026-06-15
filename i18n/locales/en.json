@@ -31,7 +31,13 @@
     "searchTv": "TV Shows",
     "error": "An error occurred while searching. Please try again.",
     "noResults": "No results found for",
-    "enterTitle": "Enter a title to find a movie or TV show"
+    "enterTitle": "Enter a title to find a movie or TV show",
+    "popularMovies": "Popular Movies",
+    "popularTv": "Popular TV Shows"
+  },
+  "mediaCard": {
+    "movie": "Movie",
+    "tv": "TV Show"
   },
   "movie": {
     "availableTorrents": "Available Torrents",

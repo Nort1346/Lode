@@ -65,5 +65,6 @@ export async function cacheSet(key: string, value: unknown, ttlSeconds: number):
 export const CACHE_TTL = {
   TMDB_SEARCH: 86400, // 24 hours
   TMDB_DETAILS: 604800, // 7 days
-  PROWLARR_RESULTS: 1800 // 30 minutes
+  PROWLARR_RESULTS: 1800, // 30 minutes
+  TMDB_POPULAR: 21600 // 6 hours
 } as const

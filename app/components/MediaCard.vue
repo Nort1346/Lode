@@ -35,7 +35,7 @@
           class="rounded-md px-2 py-0.5 text-xs font-semibold backdrop-blur-sm"
           :class="type === 'movie' ? 'bg-blue-500/80 text-white' : 'bg-purple-500/80 text-white'"
         >
-          {{ type === 'movie' ? 'Film' : 'Serial' }}
+          {{ type === 'movie' ? t('mediaCard.movie') : t('mediaCard.tv') }}
         </span>
       </div>
 
@@ -54,6 +54,8 @@
 </template>
 
 <script setup lang="ts">
+const { t } = useI18n()
+
 defineProps<{
   id: number
   type: 'movie' | 'tv'
@@ -97,5 +99,12 @@ function handleMouseLeave() {
 .media-card {
   transform-style: preserve-3d;
   will-change: transform;
+  z-index: 0;
+  transition:
+    transform 0.2s ease-out,
+    z-index 0s;
+}
+.media-card:hover {
+  z-index: 20;
 }
 </style>

@@ -193,3 +193,41 @@ export async function getSeasonDetails(showId: number, seasonNumber: number, loc
   await cacheSet(cacheKey, data, CACHE_TTL.TMDB_DETAILS)
   return data
 }
+
+export async function getPopularMovies(locale = 'pl', page = 1): Promise<TmdbSearchResult<TmdbMovie>> {
+  const lang = resolveTmdbLanguage(locale)
+  const cacheKey = `tmdb:popular:movie:${lang}:${page}`
+  const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
+  if (cached !== null) return cached
+
+  const url = new URL(`${TMDB_BASE}/movie/popular`)
+  url.searchParams.set('api_key', getApiKey())
+  url.searchParams.set('language', lang)
+  url.searchParams.set('page', String(page))
+
+  const response = await fetch(url.toString())
+  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+
+  const result = (await response.json()) as TmdbSearchResult<TmdbMovie>
+  await cacheSet(cacheKey, result, CACHE_TTL.TMDB_POPULAR)
+  return result
+}
+
+export async function getPopularTvShows(locale = 'pl', page = 1): Promise<TmdbSearchResult<TmdbTvShow>> {
+  const lang = resolveTmdbLanguage(locale)
+  const cacheKey = `tmdb:popular:tv:${lang}:${page}`
+  const cached = await cacheGet<TmdbSearchResult<TmdbTvShow>>(cacheKey)
+  if (cached !== null) return cached
+
+  const url = new URL(`${TMDB_BASE}/tv/popular`)
+  url.searchParams.set('api_key', getApiKey())
+  url.searchParams.set('language', lang)
+  url.searchParams.set('page', String(page))
+
+  const response = await fetch(url.toString())
+  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+
+  const result = (await response.json()) as TmdbSearchResult<TmdbTvShow>
+  await cacheSet(cacheKey, result, CACHE_TTL.TMDB_POPULAR)
+  return result
+}

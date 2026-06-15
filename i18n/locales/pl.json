@@ -31,7 +31,13 @@
     "searchTv": "Seriale",
     "error": "Wystąpił błąd podczas wyszukiwania. Spróbuj ponownie.",
     "noResults": "Nie znaleziono wyników dla",
-    "enterTitle": "Wpisz tytuł aby znaleźć film lub serial"
+    "enterTitle": "Wpisz tytuł aby znaleźć film lub serial",
+    "popularMovies": "Popularne filmy",
+    "popularTv": "Popularne seriale"
+  },
+  "mediaCard": {
+    "movie": "Film",
+    "tv": "Serial"
   },
   "movie": {
     "availableTorrents": "Dostępne torrenty",
