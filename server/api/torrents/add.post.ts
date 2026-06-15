@@ -3,7 +3,9 @@ import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
 interface AddTorrentBody {
-  magnetLink: string
+  magnetLink?: string
+  torrentFile?: string
+  fileName?: string
   savePath: string
   label?: string
 }
@@ -18,17 +20,31 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<AddTorrentBody>(event)
-  const rawMagnetLink = body.magnetLink
+  const rawMagnetLink = body.magnetLink ?? ''
+  const torrentFileBase64 = body.torrentFile ?? ''
+  const fileName = body.fileName ?? ''
   const savePath = body.savePath
-  const label = body.label
-  const magnetLink = rawMagnetLink?.replace(/^magnet:\/\//, 'magnet:')
+  const label = body.label ?? ''
+  const magnetLink = rawMagnetLink.replace(/^magnet:\/\//, 'magnet:')
 
-  if (!magnetLink) {
-    throw createError({ statusCode: 400, statusMessage: 'Magnet link is required' })
+  const hasMagnet = magnetLink.length > 0
+  const hasFile = torrentFileBase64.length > 0
+
+  if (!hasMagnet && !hasFile) {
+    throw createError({ statusCode: 400, statusMessage: 'Magnet link or .torrent file is required' })
   }
 
-  if (!magnetLink.startsWith('magnet:')) {
+  if (hasMagnet && !magnetLink.startsWith('magnet:')) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid magnet link' })
+  }
+
+  if (hasFile) {
+    if (fileName.length === 0 || !fileName.endsWith('.torrent')) {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid .torrent file' })
+    }
+    if (torrentFileBase64.length > 7 * 1024 * 1024) {
+      throw createError({ statusCode: 413, statusMessage: 'File too large (max 5MB)' })
+    }
   }
 
   if (!savePath || !SAVE_PATH_KEYS.includes(savePath as SavePathKey)) {
@@ -41,34 +57,36 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
   const config = useRuntimeConfig()
 
-  const userDownloads = db
-    .select()
-    .from(downloads)
-    .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, 'downloading')))
-    .all()
+  if (session.user.role !== 'admin') {
+    const userDownloads = db
+      .select()
+      .from(downloads)
+      .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, 'downloading')))
+      .all()
 
-  if (userDownloads.length >= session.user.activeTorrentLimit) {
-    throw createError({
-      statusCode: 429,
-      statusMessage: `Active torrent limit reached (${session.user.activeTorrentLimit})`
-    })
-  }
+    if (userDownloads.length >= session.user.activeTorrentLimit) {
+      throw createError({
+        statusCode: 429,
+        statusMessage: `Active torrent limit reached (${session.user.activeTorrentLimit})`
+      })
+    }
 
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
 
-  const todayDownloads = db
-    .select()
-    .from(downloads)
-    .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, 'completed')))
-    .all()
-    .filter((d) => new Date(d.createdAt) >= todayStart)
+    const todayAll = db
+      .select()
+      .from(downloads)
+      .where(eq(downloads.userId, session.user.id))
+      .all()
+      .filter((d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed')
 
-  if (todayDownloads.length >= session.user.dailyDownloadLimit) {
-    throw createError({
-      statusCode: 429,
-      statusMessage: `Daily download limit reached (${session.user.dailyDownloadLimit})`
-    })
+    if (todayAll.length >= session.user.dailyDownloadLimit) {
+      throw createError({
+        statusCode: 429,
+        statusMessage: `Daily download limit reached (${session.user.dailyDownloadLimit})`
+      })
+    }
   }
 
   const savePathMap: Record<SavePathKey, string> = {
@@ -85,7 +103,18 @@ export default defineEventHandler(async (event) => {
   }
 
   const qui = useQui()
-  const torrent = await qui.addTorrent(magnetLink, targetPath, savePath, session.user.username)
+
+  let torrent
+  let storedMagnetLink: string
+
+  if (hasFile) {
+    const fileBuffer = Buffer.from(torrentFileBase64, 'base64')
+    storedMagnetLink = `file:${fileName}`
+    torrent = await qui.addTorrentFile(fileBuffer, fileName, targetPath, savePath, session.user.username)
+  } else {
+    storedMagnetLink = magnetLink
+    torrent = await qui.addTorrent(magnetLink, targetPath, savePath, session.user.username)
+  }
 
   if (torrent !== null) {
     const maxSizeBytes = session.user.maxTorrentSizeGb * 1024 * 1024 * 1024
@@ -104,7 +133,7 @@ export default defineEventHandler(async (event) => {
       id,
       userId: session.user.id,
       label: label ?? '',
-      magnetLink,
+      magnetLink: storedMagnetLink,
       savePath: savePath as SavePathKey,
       status: torrent !== null ? 'downloading' : 'pending',
       torrentHash: torrent?.hash ?? null,

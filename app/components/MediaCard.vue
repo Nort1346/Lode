@@ -30,14 +30,12 @@
         {{ rating.toFixed(1) }}
       </div>
 
-      <div class="absolute top-2 left-2">
-        <span
-          class="rounded-md px-2 py-0.5 text-xs font-semibold backdrop-blur-sm"
-          :class="type === 'movie' ? 'bg-blue-500/80 text-white' : 'bg-purple-500/80 text-white'"
-        >
-          {{ type === 'movie' ? t('mediaCard.movie') : t('mediaCard.tv') }}
-        </span>
-      </div>
+      <span
+        class="absolute top-2 left-2 flex items-center rounded-md px-2 py-0.5 text-xs font-semibold backdrop-blur-sm"
+        :class="type === 'movie' ? 'bg-blue-500/80 text-white' : 'bg-purple-500/80 text-white'"
+      >
+        {{ type === 'movie' ? t('mediaCard.movie') : t('mediaCard.tv') }}
+      </span>
 
       <div
         class="absolute right-0 bottom-0 left-0 p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100"

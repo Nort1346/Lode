@@ -90,6 +90,46 @@ export class QuiClient {
     return null
   }
 
+  async addTorrentFile(
+    fileBuffer: ArrayBuffer | Buffer,
+    fileName: string,
+    savePath: string,
+    category: string,
+    tags: string
+  ): Promise<QuiTorrent | null> {
+    const formData = new FormData()
+    const arrayBuf =
+      fileBuffer instanceof Buffer
+        ? (fileBuffer.buffer.slice(fileBuffer.byteOffset, fileBuffer.byteOffset + fileBuffer.byteLength) as ArrayBuffer)
+        : (fileBuffer as ArrayBuffer)
+    formData.append('torrents', new Blob([arrayBuf]), fileName)
+    formData.append('savepath', savePath)
+    formData.append('category', category)
+    formData.append('tags', tags)
+    formData.append('paused', 'false')
+
+    await this.request('/api/v2/torrents/add', {
+      method: 'POST',
+      body: formData
+    })
+
+    for (let i = 0; i < 3; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      const torrents = await this.getRecentTorrents()
+      const found = torrents.find((t) => t.hash !== undefined && t.tags === tags)
+      if (found !== undefined) {
+        if (found.size === 0) {
+          const waited = await this.waitForSize(found.hash, 10, 3000)
+          if (waited !== undefined) return waited
+        }
+        return found
+      }
+    }
+
+    return null
+  }
+
   private async findByHash(hash: string): Promise<QuiTorrent | undefined> {
     const response = await this.request(`/api/v2/torrents/info?hashes=${hash}`)
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any

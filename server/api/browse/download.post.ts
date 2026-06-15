@@ -45,17 +45,36 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
   const config = useRuntimeConfig()
 
-  const userDownloads = db
-    .select()
-    .from(downloads)
-    .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, 'downloading')))
-    .all()
+  if (session.user.role !== 'admin') {
+    const userDownloads = db
+      .select()
+      .from(downloads)
+      .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, 'downloading')))
+      .all()
 
-  if (userDownloads.length >= session.user.activeTorrentLimit) {
-    throw createError({
-      statusCode: 429,
-      statusMessage: `Active torrent limit reached (${session.user.activeTorrentLimit})`
-    })
+    if (userDownloads.length >= session.user.activeTorrentLimit) {
+      throw createError({
+        statusCode: 429,
+        statusMessage: `Active torrent limit reached (${session.user.activeTorrentLimit})`
+      })
+    }
+
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+
+    const todayAll = db
+      .select()
+      .from(downloads)
+      .where(eq(downloads.userId, session.user.id))
+      .all()
+      .filter((d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed')
+
+    if (todayAll.length >= session.user.dailyDownloadLimit) {
+      throw createError({
+        statusCode: 429,
+        statusMessage: `Daily download limit reached (${session.user.dailyDownloadLimit})`
+      })
+    }
   }
 
   const savePathMap: Record<SavePathKey, string> = {
