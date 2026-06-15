@@ -1,6 +1,35 @@
 <template>
-  <div v-if="pending" class="flex justify-center py-20">
-    <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-amber-500" />
+  <div v-if="pending" class="space-y-8">
+    <div class="flex flex-col gap-8 lg:flex-row">
+      <USkeleton class="mx-auto h-72 w-48 rounded-xl lg:mx-0 lg:h-96 lg:w-64" />
+      <div class="flex-1 space-y-4">
+        <USkeleton class="h-8 w-2/3 rounded" />
+        <USkeleton class="h-5 w-1/3 rounded" />
+        <div class="flex gap-3">
+          <USkeleton class="h-4 w-12 rounded" />
+          <USkeleton class="h-4 w-16 rounded" />
+          <USkeleton class="h-4 w-8 rounded" />
+        </div>
+        <div class="flex gap-2">
+          <USkeleton class="h-6 w-16 rounded-full" />
+          <USkeleton class="h-6 w-20 rounded-full" />
+          <USkeleton class="h-6 w-14 rounded-full" />
+        </div>
+        <div class="space-y-2">
+          <USkeleton class="h-4 w-full rounded" />
+          <USkeleton class="h-4 w-full rounded" />
+          <USkeleton class="h-4 w-3/4 rounded" />
+        </div>
+        <USkeleton class="h-4 w-40 rounded" />
+        <USkeleton class="h-9 w-36 rounded-lg" />
+      </div>
+    </div>
+    <div class="space-y-2">
+      <USkeleton class="h-10 w-48 rounded-xl" />
+      <USkeleton class="h-20 w-full rounded-xl" />
+      <USkeleton class="h-20 w-full rounded-xl" />
+      <USkeleton class="h-20 w-full rounded-xl" />
+    </div>
   </div>
 
   <div v-else-if="error || !movie" class="rounded-xl bg-red-500/10 p-6 text-center text-red-500 dark:text-red-400">
