@@ -47,11 +47,12 @@ export default defineEventHandler(async (event) => {
       .all()
   }
 
+  const allUsers = db.select().from(users).all()
+  const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
+
   if (session.user.role === 'admin') {
     results = db.select().from(downloads).orderBy(desc(downloads.createdAt)).all()
 
-    const allUsers = db.select().from(users).all()
-    const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
     for (const dl of results) {
       dl.username = userMap.get(dl.userId) ?? 'unknown'
     }
@@ -64,7 +65,19 @@ export default defineEventHandler(async (event) => {
   if (activeIds.length > 0) {
     try {
       const qui = useQui()
-      const quiTorrents = await qui.getUserTorrents(session.user.username)
+
+      let quiTorrents: Awaited<ReturnType<typeof qui.getUserTorrents>> = []
+      if (session.user.role === 'admin') {
+        const allUsernames = [
+          ...new Set(results.map((d) => userMap.get(d.userId)).filter((u): u is string => u !== undefined))
+        ]
+        for (const username of allUsernames) {
+          const torrents = await qui.getUserTorrents(username)
+          quiTorrents = quiTorrents.concat(torrents)
+        }
+      } else {
+        quiTorrents = await qui.getUserTorrents(session.user.username)
+      }
       const foundHashes = new Set(quiTorrents.map((t) => t.hash))
 
       const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
@@ -125,24 +138,29 @@ export default defineEventHandler(async (event) => {
               dl.downloadedBytes = quiTorrent.downloaded
             }
           } else if (!foundHashes.has(dl.torrentHash)) {
-            db.update(downloads)
-              .set({
-                status: 'completed',
-                progress: 100,
-                etaSeconds: 0,
-                downloadSpeed: 0,
-                uploadSpeed: 0,
-                completedAt: new Date().toISOString()
-              })
-              .where(eq(downloads.id, dl.id))
-              .run()
+            const ageMs = Date.now() - new Date(dl.createdAt).getTime()
+            const fiveMinutes = 5 * 60 * 1000
 
-            dl.status = 'completed'
-            dl.progress = 100
-            dl.etaSeconds = 0
-            dl.downloadSpeed = 0
-            dl.uploadSpeed = 0
-            dl.completedAt = new Date().toISOString()
+            if (ageMs > fiveMinutes) {
+              db.update(downloads)
+                .set({
+                  status: 'completed',
+                  progress: 100,
+                  etaSeconds: 0,
+                  downloadSpeed: 0,
+                  uploadSpeed: 0,
+                  completedAt: new Date().toISOString()
+                })
+                .where(eq(downloads.id, dl.id))
+                .run()
+
+              dl.status = 'completed'
+              dl.progress = 100
+              dl.etaSeconds = 0
+              dl.downloadSpeed = 0
+              dl.uploadSpeed = 0
+              dl.completedAt = new Date().toISOString()
+            }
           }
         }
       }

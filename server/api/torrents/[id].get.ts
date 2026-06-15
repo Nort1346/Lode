@@ -1,4 +1,4 @@
-import { downloads } from '../../database/schema'
+import { downloads, users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -26,30 +26,37 @@ export default defineEventHandler(async (event) => {
   if (download.torrentHash !== null) {
     try {
       const qui = useQui()
-      const torrents = await qui.getUserTorrents(session.user.username)
+      const owner = db.select().from(users).where(eq(users.id, download.userId)).get()
+      const tag = owner?.username ?? session.user.username
+      const torrents = await qui.getUserTorrents(tag)
       const torrent = torrents.find((t) => t.hash === download.torrentHash)
+      const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
 
       if (torrent !== undefined) {
+        const progressPct = torrent.progress * 100
+        const isComplete = progressPct >= 99.9 || completedStates.has(torrent.state)
+
         db.update(downloads)
           .set({
-            progress: Math.round(torrent.progress * 100),
-            etaSeconds: torrent.eta,
-            downloadSpeed: torrent.dlspeed,
-            uploadSpeed: torrent.upspeed,
+            progress: isComplete ? 100 : Math.round(progressPct),
+            etaSeconds: isComplete ? 0 : torrent.eta,
+            downloadSpeed: isComplete ? 0 : torrent.dlspeed,
+            uploadSpeed: isComplete ? 0 : torrent.upspeed,
             downloadedBytes: torrent.downloaded,
-            status: torrent.progress >= 1 ? 'completed' : 'downloading'
+            status: isComplete ? 'completed' : 'downloading',
+            completedAt: isComplete ? new Date().toISOString() : null
           })
           .where(eq(downloads.id, id))
           .run()
 
         return {
           ...download,
-          progress: Math.round(torrent.progress * 100),
-          etaSeconds: torrent.eta,
-          downloadSpeed: torrent.dlspeed,
-          uploadSpeed: torrent.upspeed,
+          progress: isComplete ? 100 : Math.round(progressPct),
+          etaSeconds: isComplete ? 0 : torrent.eta,
+          downloadSpeed: isComplete ? 0 : torrent.dlspeed,
+          uploadSpeed: isComplete ? 0 : torrent.upspeed,
           downloadedBytes: torrent.downloaded,
-          status: torrent.progress >= 1 ? 'completed' : 'downloading'
+          status: isComplete ? 'completed' : 'downloading'
         }
       }
     } catch {

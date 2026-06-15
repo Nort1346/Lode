@@ -45,7 +45,7 @@ const { user } = useUserSession()
     </div>
 
     <div class="card p-6 mt-4">
-      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Environment Variables</h2>
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Default Environment Variables</h2>
       <div class="space-y-2 text-sm">
         <div
           class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto"
