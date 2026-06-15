@@ -41,13 +41,10 @@ const cancelling = ref<string | null>(null)
 
 async function fetchData() {
   try {
-    const [, downloadsRes] = await Promise.all([
-      $fetch<{ downloads: Download[] }>('/api/torrents/list?status=downloading'),
-      $fetch<{ downloads: Download[] }>('/api/torrents/list')
-    ])
+    const downloadsRes = await $fetch<{ downloads: Download[] }>('/api/torrents/list')
 
-    stats.value.activeTorrents = activeDownloads.value.length
-    recentDownloads.value = downloadsRes.downloads?.slice(0, 5) || []
+    recentDownloads.value = downloadsRes.downloads || []
+    stats.value.activeTorrents = recentDownloads.value.filter((d: Download) => d.status === 'downloading').length
 
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)

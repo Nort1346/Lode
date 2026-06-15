@@ -49,6 +49,7 @@ export default defineEventHandler(async (event) => {
 
   const allUsers = db.select().from(users).all()
   const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
+  userMap.set(session.user.id, session.user.username)
 
   if (session.user.role === 'admin') {
     results = db.select().from(downloads).orderBy(desc(downloads.createdAt)).all()
@@ -66,114 +67,96 @@ export default defineEventHandler(async (event) => {
     try {
       const qui = useQui()
 
-      let quiTorrents: Awaited<ReturnType<typeof qui.getUserTorrents>> = []
-      if (session.user.role === 'admin') {
-        const allUsernames = [
-          ...new Set(results.map((d) => userMap.get(d.userId)).filter((u): u is string => u !== undefined))
-        ]
-        for (const username of allUsernames) {
-          const torrents = await qui.getUserTorrents(username)
-          quiTorrents = quiTorrents.concat(torrents)
-        }
-      } else {
-        quiTorrents = await qui.getUserTorrents(session.user.username)
-      }
-      const foundHashes = new Set(quiTorrents.map((t) => t.hash))
-
+      const quiTorrents = await qui.getAllTorrents()
       const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
 
       for (const dl of results) {
-        if (dl.status === 'downloading' && dl.torrentHash !== null) {
-          const quiTorrent = quiTorrents.find((t) => t.hash === dl.torrentHash)
+        if (dl.status !== 'downloading' || dl.torrentHash === null) continue
+
+        let quiTorrent = quiTorrents.find((t) => t.hash === dl.torrentHash)
+
+        if (quiTorrent === undefined && quiTorrents.length > 0) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[list.get.ts] hash mismatch: db="${dl.torrentHash}" name="${dl.torrentName}" qui_count=${quiTorrents.length}`
+          )
+
+          quiTorrent = quiTorrents.find(
+            (t) => t.name === dl.torrentName || (dl.torrentName !== '' && t.name.includes(dl.torrentName))
+          )
 
           if (quiTorrent !== undefined) {
-            const progressPct = quiTorrent.progress * 100
-            const isComplete = progressPct >= 99.9 || completedStates.has(quiTorrent.state)
+            // eslint-disable-next-line no-console
+            console.warn(`[list.get.ts] matched by name: "${quiTorrent.name}" hash=${quiTorrent.hash}`)
+            db.update(downloads).set({ torrentHash: quiTorrent.hash }).where(eq(downloads.id, dl.id)).run()
+            dl.torrentHash = quiTorrent.hash
+          }
+        }
 
-            if (isComplete) {
-              db.update(downloads)
-                .set({
-                  torrentName: quiTorrent.name || dl.torrentName,
-                  progress: 100,
-                  etaSeconds: 0,
-                  downloadSpeed: 0,
-                  uploadSpeed: 0,
-                  sizeBytes: quiTorrent.size,
-                  downloadedBytes: quiTorrent.downloaded,
-                  numSeeds: quiTorrent.num_seeds,
-                  numLeechs: quiTorrent.num_leechs,
-                  status: 'completed',
-                  completedAt: new Date().toISOString()
-                })
-                .where(eq(downloads.id, dl.id))
-                .run()
+        if (quiTorrent !== undefined) {
+          const progressPct = quiTorrent.progress * 100
+          const isComplete = progressPct >= 99.9 || completedStates.has(quiTorrent.state)
 
-              dl.torrentName = quiTorrent.name || dl.torrentName
-              dl.progress = 100
-              dl.etaSeconds = 0
-              dl.downloadSpeed = 0
-              dl.uploadSpeed = 0
-              dl.sizeBytes = quiTorrent.size
-              dl.downloadedBytes = quiTorrent.downloaded
-              dl.numSeeds = quiTorrent.num_seeds
-              dl.numLeechs = quiTorrent.num_leechs
-              dl.status = 'completed'
-              dl.completedAt = new Date().toISOString()
-            } else {
-              db.update(downloads)
-                .set({
-                  torrentName: quiTorrent.name || dl.torrentName,
-                  progress: progressPct,
-                  etaSeconds: quiTorrent.eta,
-                  downloadSpeed: quiTorrent.dlspeed,
-                  uploadSpeed: quiTorrent.upspeed,
-                  sizeBytes: quiTorrent.size,
-                  downloadedBytes: quiTorrent.downloaded,
-                  numSeeds: quiTorrent.num_seeds,
-                  numLeechs: quiTorrent.num_leechs
-                })
-                .where(eq(downloads.id, dl.id))
-                .run()
+          if (isComplete) {
+            db.update(downloads)
+              .set({
+                torrentName: quiTorrent.name || dl.torrentName,
+                progress: 100,
+                etaSeconds: 0,
+                downloadSpeed: 0,
+                uploadSpeed: 0,
+                sizeBytes: quiTorrent.size,
+                downloadedBytes: quiTorrent.downloaded,
+                numSeeds: quiTorrent.num_seeds,
+                numLeechs: quiTorrent.num_leechs,
+                status: 'completed',
+                completedAt: new Date().toISOString()
+              })
+              .where(eq(downloads.id, dl.id))
+              .run()
 
-              dl.torrentName = quiTorrent.name || dl.torrentName
-              dl.progress = progressPct
-              dl.etaSeconds = quiTorrent.eta
-              dl.downloadSpeed = quiTorrent.dlspeed
-              dl.uploadSpeed = quiTorrent.upspeed
-              dl.sizeBytes = quiTorrent.size
-              dl.downloadedBytes = quiTorrent.downloaded
-              dl.numSeeds = quiTorrent.num_seeds
-              dl.numLeechs = quiTorrent.num_leechs
-            }
-          } else if (!foundHashes.has(dl.torrentHash)) {
-            const ageMs = Date.now() - new Date(dl.createdAt).getTime()
-            const fiveMinutes = 5 * 60 * 1000
+            dl.torrentName = quiTorrent.name || dl.torrentName
+            dl.progress = 100
+            dl.etaSeconds = 0
+            dl.downloadSpeed = 0
+            dl.uploadSpeed = 0
+            dl.sizeBytes = quiTorrent.size
+            dl.downloadedBytes = quiTorrent.downloaded
+            dl.numSeeds = quiTorrent.num_seeds
+            dl.numLeechs = quiTorrent.num_leechs
+            dl.status = 'completed'
+            dl.completedAt = new Date().toISOString()
+          } else {
+            db.update(downloads)
+              .set({
+                torrentName: quiTorrent.name || dl.torrentName,
+                progress: progressPct,
+                etaSeconds: quiTorrent.eta,
+                downloadSpeed: quiTorrent.dlspeed,
+                uploadSpeed: quiTorrent.upspeed,
+                sizeBytes: quiTorrent.size,
+                downloadedBytes: quiTorrent.downloaded,
+                numSeeds: quiTorrent.num_seeds,
+                numLeechs: quiTorrent.num_leechs
+              })
+              .where(eq(downloads.id, dl.id))
+              .run()
 
-            if (ageMs > fiveMinutes) {
-              db.update(downloads)
-                .set({
-                  status: 'completed',
-                  progress: 100,
-                  etaSeconds: 0,
-                  downloadSpeed: 0,
-                  uploadSpeed: 0,
-                  completedAt: new Date().toISOString()
-                })
-                .where(eq(downloads.id, dl.id))
-                .run()
-
-              dl.status = 'completed'
-              dl.progress = 100
-              dl.etaSeconds = 0
-              dl.downloadSpeed = 0
-              dl.uploadSpeed = 0
-              dl.completedAt = new Date().toISOString()
-            }
+            dl.torrentName = quiTorrent.name || dl.torrentName
+            dl.progress = progressPct
+            dl.etaSeconds = quiTorrent.eta
+            dl.downloadSpeed = quiTorrent.dlspeed
+            dl.uploadSpeed = quiTorrent.upspeed
+            dl.sizeBytes = quiTorrent.size
+            dl.downloadedBytes = quiTorrent.downloaded
+            dl.numSeeds = quiTorrent.num_seeds
+            dl.numLeechs = quiTorrent.num_leechs
           }
         }
       }
-    } catch {
-      // qui might be offline, return stored data
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[list.get.ts] qui fetch failed:', err)
     }
   }
 

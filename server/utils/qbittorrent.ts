@@ -122,6 +122,13 @@ export class QuiClient {
     return data
   }
 
+  async getAllTorrents(): Promise<QuiTorrent[]> {
+    const response = await this.request('/api/v2/torrents/info?sort=added_on&reverse=true')
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any
+    const data: QuiTorrent[] = await response.json()
+    return data
+  }
+
   async pauseTorrent(hash: string) {
     await this.request('/api/v2/torrents/pause', {
       method: 'POST',
