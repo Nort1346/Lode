@@ -6,7 +6,8 @@
     "downloads": "My Downloads",
     "users": "User Management",
     "logs": "Activity Logs",
-    "settings": "Admin Settings"
+    "settings": "Admin Settings",
+    "requests": "Requests"
   },
   "theme": {
     "light": "Light Mode",
@@ -173,6 +174,38 @@
     "activeTorrentLimit": "Active torrent limit (default: 3)",
     "maxTorrentSize": "Maximum torrent size in GB (default: 20)",
     "accountStatus": "Account active/inactive status"
+  },
+  "requests": {
+    "title": "Requests",
+    "subtitle": "Manage user requests",
+    "requestThis": "Request this title",
+    "requestSuccess": "Request sent",
+    "requestSuccessDesc": "Your request has been submitted.",
+    "alreadyRequested": "Already requested",
+    "myRequests": "My Requests",
+    "allRequests": "All Requests",
+    "filterAll": "All",
+    "filterPending": "Pending",
+    "filterAccepted": "Accepted",
+    "filterRejected": "Rejected",
+    "accept": "Accept",
+    "reject": "Reject",
+    "rejectNote": "Rejection reason (optional)",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "pending": "Pending",
+    "noRequests": "No requests",
+    "tableUser": "User",
+    "tableTitle": "Title",
+    "tableType": "Type",
+    "tableStatus": "Status",
+    "tableDate": "Date",
+    "tableActions": "Actions",
+    "pageInfo": "Page {page} of {total} ({count} total)",
+    "previous": "Previous",
+    "next": "Next",
+    "confirmAccept": "Are you sure you want to accept this request?",
+    "confirmReject": "Are you sure you want to reject this request?"
   },
   "common": {
     "loading": "Loading...",

@@ -58,6 +58,23 @@
         <p class="mt-6 leading-relaxed text-zinc-700 dark:text-zinc-300">{{ movie.overview }}</p>
 
         <div v-if="movie.imdbId" class="mt-4 text-sm text-zinc-500 dark:text-zinc-400">IMDB: {{ movie.imdbId }}</div>
+
+        <div class="mt-4">
+          <UButton
+            v-if="!alreadyRequested"
+            color="primary"
+            variant="outline"
+            icon="i-lucide-message-square-plus"
+            :loading="requesting"
+            @click="requestTitle"
+          >
+            {{ t('requests.requestThis') }}
+          </UButton>
+          <span v-else class="inline-flex items-center gap-2 text-sm text-amber-500">
+            <UIcon name="i-lucide-check-circle" class="size-4" />
+            {{ t('requests.alreadyRequested') }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -187,6 +204,8 @@ interface MovieData {
 
 const route = useRoute()
 const downloadingIdx = ref<number | null>(null)
+const requesting = ref(false)
+const alreadyRequested = ref(false)
 const { t, locale } = useI18n()
 
 const { data, pending, error } = await useFetch<{ movie: MovieData; torrents: Torrent[] }>(
@@ -205,6 +224,45 @@ function formatLanguage(lang: string): string {
     en: 'English'
   }
   return map[lang] ?? lang
+}
+
+watchEffect(async () => {
+  if (!movie.value?.imdbId) return
+  try {
+    const res = await $fetch<{ requested: boolean }>(`/api/requests/mine?mediaType=movie&mediaId=${movie.value.id}`)
+    alreadyRequested.value = res.requested
+  } catch {
+    // not logged in or error
+  }
+})
+
+async function requestTitle() {
+  if (!movie.value) return
+  requesting.value = true
+  try {
+    await $fetch('/api/requests/post', {
+      method: 'POST',
+      body: {
+        mediaType: 'movie',
+        mediaId: movie.value.id,
+        mediaTitle: movie.value.title,
+        mediaPoster: movie.value.posterUrl
+      }
+    })
+    alreadyRequested.value = true
+    const toast = useToast()
+    toast.add({
+      title: t('requests.requestSuccess'),
+      description: t('requests.requestSuccessDesc'),
+      color: 'success'
+    })
+  } catch (err) {
+    const toast = useToast()
+    const msg = err instanceof Error ? err.message : t('requests.alreadyRequested')
+    toast.add({ title: t('requests.alreadyRequested'), description: msg, color: 'warning' })
+  } finally {
+    requesting.value = false
+  }
 }
 
 async function downloadTorrent(torrent: Torrent, idx: number) {

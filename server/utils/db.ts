@@ -63,6 +63,19 @@ function initDb() {
       user_agent TEXT,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS requests (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      username TEXT NOT NULL,
+      media_type TEXT NOT NULL,
+      media_id INTEGER NOT NULL,
+      media_title TEXT NOT NULL,
+      media_poster TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      note TEXT,
+      created_at TEXT NOT NULL
+    );
   `)
 
   const pragmaRows = sqlite.prepare('PRAGMA table_info(downloads)').all() as Record<string, unknown>[]

@@ -6,7 +6,8 @@
     "downloads": "Moje pobrania",
     "users": "Użytkownicy",
     "logs": "Logi",
-    "settings": "Ustawienia Admina"
+    "settings": "Ustawienia Admina",
+    "requests": "Żądania"
   },
   "theme": {
     "light": "Tryb jasny",
@@ -173,6 +174,38 @@
     "activeTorrentLimit": "Limit aktywnych torrentów (domyślnie: 3)",
     "maxTorrentSize": "Maksymalny rozmiar torrenta w GB (domyślnie: 20)",
     "accountStatus": "Status konta aktywne/ nieaktywne"
+  },
+  "requests": {
+    "title": "Żądania",
+    "subtitle": "Zarządzaj żdaniami użytkowników",
+    "requestThis": "Zażądaj tego tytułu",
+    "requestSuccess": "Żądanie wysłane",
+    "requestSuccessDesc": "Twoje żądanie zostało wysłane.",
+    "alreadyRequested": "Już zażądano",
+    "myRequests": "Moje żądania",
+    "allRequests": "Wszystkie żądania",
+    "filterAll": "Wszystkie",
+    "filterPending": "Oczekujące",
+    "filterAccepted": "Zaakceptowane",
+    "filterRejected": "Odrzucone",
+    "accept": "Akceptuj",
+    "reject": "Odrzuć",
+    "rejectNote": "Powód odrzucenia (opcjonalnie)",
+    "accepted": "Zaakceptowane",
+    "rejected": "Odrzucone",
+    "pending": "Oczekujące",
+    "noRequests": "Brak żądań",
+    "tableUser": "Użytkownik",
+    "tableTitle": "Tytuł",
+    "tableType": "Typ",
+    "tableStatus": "Status",
+    "tableDate": "Data",
+    "tableActions": "Akcje",
+    "pageInfo": "Strona {page} z {total} ({count} łącznie)",
+    "previous": "Poprzednia",
+    "next": "Następna",
+    "confirmAccept": "Czy na pewno chcesz zaakceptować to żądanie?",
+    "confirmReject": "Czy na pewno chcesz odrzucić to żądanie?"
   },
   "common": {
     "loading": "Ładowanie...",

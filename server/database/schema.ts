@@ -54,3 +54,18 @@ export const activityLogs = sqliteTable('activity_logs', {
   userAgent: text('user_agent'),
   createdAt: text('created_at').notNull()
 })
+
+export const requests = sqliteTable('requests', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  username: text('username').notNull(),
+  mediaType: text('media_type', { enum: ['movie', 'tv'] }).notNull(),
+  mediaId: integer('media_id').notNull(),
+  mediaTitle: text('media_title').notNull(),
+  mediaPoster: text('media_poster'),
+  status: text('status', { enum: ['pending', 'accepted', 'rejected'] })
+    .notNull()
+    .default('pending'),
+  note: text('note'),
+  createdAt: text('created_at').notNull()
+})
