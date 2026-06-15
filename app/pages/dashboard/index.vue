@@ -15,6 +15,8 @@ interface Download {
   uploadSpeed: number
   sizeBytes: number
   downloadedBytes: number
+  numSeeds: number
+  numLeechs: number
   createdAt: string
   completedAt: string | null
 }
@@ -107,6 +109,43 @@ function formatSize(bytes: number): string {
   if (gb >= 1) return `${gb.toFixed(2)} GB`
   const mb = bytes / (1024 * 1024)
   return `${mb.toFixed(1)} MB`
+}
+
+type TorrentQuality = 'dead' | 'poor' | 'slow' | 'ok'
+
+function getTorrentQuality(dl: Download): TorrentQuality {
+  if (dl.status !== 'downloading') return 'ok'
+  if (dl.numSeeds === 0 && dl.progress < 100) return 'dead'
+  if (dl.numSeeds <= 3 && dl.progress < 100) return 'poor'
+  if (dl.downloadSpeed === 0 && dl.etaSeconds > 0 && dl.progress < 100) return 'slow'
+  return 'ok'
+}
+
+const qualityConfig: Record<TorrentQuality, { border: string; badge: string; badgeText: string; bar: string }> = {
+  dead: {
+    border: 'border-red-500/60 dark:border-red-500/40',
+    badge: 'bg-red-500/15 text-red-700 dark:text-red-400',
+    badgeText: '⚠ Brak seederów — rozważ usunięcie',
+    bar: 'from-red-500 to-red-600'
+  },
+  poor: {
+    border: 'border-amber-500/50 dark:border-amber-500/30',
+    badge: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+    badgeText: 'Mało seederów',
+    bar: 'from-amber-500 to-orange-500'
+  },
+  slow: {
+    border: 'border-zinc-400/50 dark:border-zinc-500/30',
+    badge: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400',
+    badgeText: 'Wolne połączenie',
+    bar: 'from-cyan-500 to-blue-500'
+  },
+  ok: {
+    border: 'border-zinc-200 dark:border-white/5',
+    badge: '',
+    badgeText: '',
+    bar: 'from-cyan-500 to-blue-500'
+  }
 }
 
 const statusColors: Record<string, string> = {
@@ -208,7 +247,12 @@ const savePathLabels: Record<string, string> = {
         <div
           v-for="dl in activeDownloads"
           :key="dl.id"
-          class="p-4 rounded-xl border border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/10 transition-all bg-zinc-50 dark:bg-white/2"
+          class="p-4 rounded-xl border transition-all bg-zinc-50 dark:bg-white/2"
+          :class="
+            getTorrentQuality(dl) === 'ok'
+              ? 'border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/10'
+              : qualityConfig[getTorrentQuality(dl)].border
+          "
         >
           <div class="flex items-start justify-between mb-2">
             <div class="flex-1 min-w-0">
@@ -228,15 +272,22 @@ const savePathLabels: Record<string, string> = {
                 <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
                   {{ capitalize(dl.status) }}
                 </span>
+                <span
+                  v-if="getTorrentQuality(dl) !== 'ok'"
+                  class="text-xs px-2 py-0.5 rounded-full"
+                  :class="qualityConfig[getTorrentQuality(dl)].badge"
+                >
+                  {{ qualityConfig[getTorrentQuality(dl)].badgeText }}
+                </span>
               </div>
             </div>
             <UButton
               icon="i-lucide-trash-2"
               color="error"
-              variant="ghost"
+              :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
               size="xs"
               :loading="cancelling === dl.id"
-              label="Delete"
+              :label="getTorrentQuality(dl) !== 'ok' ? 'Usuń' : 'Delete'"
               @click="cancelTorrent(dl.id)"
             />
           </div>
@@ -244,12 +295,21 @@ const savePathLabels: Record<string, string> = {
           <div class="space-y-2">
             <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
               <span class="font-medium text-zinc-900 dark:text-white">{{ dl.progress.toFixed(1) }}%</span>
-              <span
-                >ETA: <span class="text-zinc-900 dark:text-white">{{ formatEta(dl.etaSeconds) }}</span></span
-              >
+              <div class="flex items-center gap-3">
+                <span v-if="dl.numSeeds > 0" class="text-zinc-500 dark:text-zinc-400">
+                  <UIcon name="i-lucide-arrow-up" class="inline size-3" />{{ dl.numSeeds }}
+                </span>
+                <span
+                  >ETA: <span class="text-zinc-900 dark:text-white">{{ formatEta(dl.etaSeconds) }}</span></span
+                >
+              </div>
             </div>
             <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
-              <div class="progress-bar h-full min-w-0.5" :style="{ width: `${Math.max(dl.progress, 0.5)}%` }" />
+              <div
+                class="h-full min-w-0.5 rounded-full bg-gradient-to-r"
+                :class="qualityConfig[getTorrentQuality(dl)].bar"
+                :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
+              />
             </div>
             <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
               <span>↓ {{ formatSpeed(dl.downloadSpeed) }} · ↑ {{ formatSpeed(dl.uploadSpeed) }}</span>

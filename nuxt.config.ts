@@ -14,6 +14,10 @@ export default defineNuxtConfig({
         secure: false
       }
     },
+    redisUrl: '',
+    tmdbApiKey: '',
+    prowlarrUrl: 'http://127.0.0.1:9696',
+    prowlarrApiKey: '',
     quiProxyUrl: '',
     jellyfinUrl: '',
     jellyfinApiKey: '',

@@ -100,6 +100,8 @@ export default defineEventHandler(async (event) => {
                   uploadSpeed: 0,
                   sizeBytes: quiTorrent.size,
                   downloadedBytes: quiTorrent.downloaded,
+                  numSeeds: quiTorrent.num_seeds,
+                  numLeechs: quiTorrent.num_leechs,
                   status: 'completed',
                   completedAt: new Date().toISOString()
                 })
@@ -113,6 +115,8 @@ export default defineEventHandler(async (event) => {
               dl.uploadSpeed = 0
               dl.sizeBytes = quiTorrent.size
               dl.downloadedBytes = quiTorrent.downloaded
+              dl.numSeeds = quiTorrent.num_seeds
+              dl.numLeechs = quiTorrent.num_leechs
               dl.status = 'completed'
               dl.completedAt = new Date().toISOString()
             } else {
@@ -124,7 +128,9 @@ export default defineEventHandler(async (event) => {
                   downloadSpeed: quiTorrent.dlspeed,
                   uploadSpeed: quiTorrent.upspeed,
                   sizeBytes: quiTorrent.size,
-                  downloadedBytes: quiTorrent.downloaded
+                  downloadedBytes: quiTorrent.downloaded,
+                  numSeeds: quiTorrent.num_seeds,
+                  numLeechs: quiTorrent.num_leechs
                 })
                 .where(eq(downloads.id, dl.id))
                 .run()
@@ -136,6 +142,8 @@ export default defineEventHandler(async (event) => {
               dl.uploadSpeed = quiTorrent.upspeed
               dl.sizeBytes = quiTorrent.size
               dl.downloadedBytes = quiTorrent.downloaded
+              dl.numSeeds = quiTorrent.num_seeds
+              dl.numLeechs = quiTorrent.num_leechs
             }
           } else if (!foundHashes.has(dl.torrentHash)) {
             const ageMs = Date.now() - new Date(dl.createdAt).getTime()

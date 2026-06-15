@@ -1,4 +1,14 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: streamhub-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
   streamhub:
     build: .
     container_name: streamhub
@@ -10,4 +20,9 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+    depends_on:
+      - redis
     restart: unless-stopped
+
+volumes:
+  redis-data:

@@ -17,6 +17,12 @@ export interface QuiTorrent {
   completion_on: number
 }
 
+function extractMagnetHash(magnetUrl: string): string | null {
+  const match = magnetUrl.match(/btih:([a-fA-F0-9]{40})/i)
+  const group = match?.[1]
+  return group !== undefined ? group.toLowerCase() : null
+}
+
 export class QuiClient {
   private proxyUrl: string
 
@@ -54,27 +60,50 @@ export class QuiClient {
       body: formData.toString()
     })
 
-    let found: QuiTorrent | undefined
+    const knownHash = extractMagnetHash(magnetLink)
+
     for (let i = 0; i < 3; i++) {
       await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      if (knownHash !== null) {
+        const byHash = await this.findByHash(knownHash)
+        if (byHash !== undefined) {
+          if (byHash.size === 0) {
+            const waited = await this.waitForSize(byHash.hash, 10, 3000)
+            if (waited !== undefined) return waited
+          }
+          return byHash
+        }
+      }
+
       const torrents = await this.getRecentTorrents()
-      found = torrents.find((t) => t.hash !== undefined && t.tags === tags)
-      if (found !== undefined) break
-    }
-
-    if (found === undefined) return null
-
-    if (found.size === 0) {
-      const targetHash = found.hash
-      for (let j = 0; j < 10; j++) {
-        await new Promise((resolve) => setTimeout(resolve, 3000))
-        const torrents = await this.getRecentTorrents()
-        const refreshed = torrents.find((t) => t.hash === targetHash)
-        if (refreshed !== undefined && refreshed.size > 0) return refreshed
+      const found = torrents.find((t) => t.hash !== undefined && t.tags === tags)
+      if (found !== undefined) {
+        if (found.size === 0) {
+          const waited = await this.waitForSize(found.hash, 10, 3000)
+          if (waited !== undefined) return waited
+        }
+        return found
       }
     }
 
-    return found
+    return null
+  }
+
+  private async findByHash(hash: string): Promise<QuiTorrent | undefined> {
+    const response = await this.request(`/api/v2/torrents/info?hashes=${hash}`)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any
+    const data: QuiTorrent[] = await response.json()
+    return data[0]
+  }
+
+  private async waitForSize(hash: string, maxAttempts: number, delayMs: number): Promise<QuiTorrent | undefined> {
+    for (let j = 0; j < maxAttempts; j++) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+      const byHash = await this.findByHash(hash)
+      if (byHash !== undefined && byHash.size > 0) return byHash
+    }
+    return undefined
   }
 
   async getUserTorrents(tag: string): Promise<QuiTorrent[]> {

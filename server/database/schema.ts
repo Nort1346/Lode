@@ -33,6 +33,8 @@ export const downloads = sqliteTable('downloads', {
   uploadSpeed: integer('upload_speed').notNull().default(0),
   sizeBytes: integer('size_bytes').notNull().default(0),
   downloadedBytes: integer('downloaded_bytes').notNull().default(0),
+  numSeeds: integer('num_seeds').notNull().default(0),
+  numLeechs: integer('num_leechs').notNull().default(0),
   createdAt: text('created_at').notNull().default(''),
   completedAt: text('completed_at')
 })

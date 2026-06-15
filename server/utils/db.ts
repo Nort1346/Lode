@@ -73,6 +73,12 @@ function initDb() {
   if (!columns.includes('completed_at')) {
     sqlite.exec(`ALTER TABLE downloads ADD COLUMN completed_at TEXT`)
   }
+  if (!columns.includes('num_seeds')) {
+    sqlite.exec(`ALTER TABLE downloads ADD COLUMN num_seeds INTEGER NOT NULL DEFAULT 0`)
+  }
+  if (!columns.includes('num_leechs')) {
+    sqlite.exec(`ALTER TABLE downloads ADD COLUMN num_leechs INTEGER NOT NULL DEFAULT 0`)
+  }
 
   _db = drizzle(sqlite, { schema })
   return _db

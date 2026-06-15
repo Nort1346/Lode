@@ -15,6 +15,11 @@ const navigation = computed(() => {
   const items = [
     { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
     {
+      label: 'Browse',
+      icon: 'i-lucide-film',
+      to: '/browse'
+    },
+    {
       label: 'Submit Torrent',
       icon: 'i-lucide-plus-circle',
       to: '/dashboard/submit'
@@ -105,7 +110,7 @@ watch(
             :to="item.to"
             class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
             :class="
-              route.path === item.to
+              route.path === item.to || (item.to !== '/dashboard' && route.path.startsWith(item.to))
                 ? 'nav-link-active'
                 : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/5'
             "
@@ -152,7 +157,7 @@ watch(
           :to="item.to"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
           :class="
-            route.path === item.to
+            route.path === item.to || (item.to !== '/dashboard' && route.path.startsWith(item.to))
               ? 'nav-link-active'
               : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/5'
           "
