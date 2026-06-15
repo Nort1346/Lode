@@ -6,7 +6,7 @@ definePageMeta({
 const { user, clear } = useUserSession()
 const route = useRoute()
 const colorMode = useColorMode()
-const { t, locale, locales } = useI18n()
+const { t, locale, locales, setLocale } = useI18n()
 
 const mobileOpen = ref(false)
 
@@ -77,7 +77,7 @@ watch(
           :items="localeOptions"
           size="xs"
           class="w-20"
-          @update:model-value="locale = $event as 'en' | 'pl'"
+          @update:model-value="setLocale($event as 'pl' | 'en')"
         />
         <button
           class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
@@ -183,7 +183,7 @@ watch(
             :items="localeOptions"
             size="xs"
             class="w-full"
-            @update:model-value="locale = $event as 'en' | 'pl'"
+            @update:model-value="setLocale($event as 'pl' | 'en')"
           />
         </div>
 
