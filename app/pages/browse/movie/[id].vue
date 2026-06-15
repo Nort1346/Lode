@@ -4,7 +4,7 @@
   </div>
 
   <div v-else-if="error || !movie" class="rounded-xl bg-red-500/10 p-6 text-center text-red-500 dark:text-red-400">
-    Nie udało się załadować szczegółów filmu.
+    {{ t('movie.loadError') }}
   </div>
 
   <div v-else>
@@ -36,7 +36,9 @@
           <span v-if="movie.releaseDate" class="text-zinc-600 dark:text-zinc-300">{{
             movie.releaseDate.slice(0, 4)
           }}</span>
-          <span v-if="movie.runtime" class="text-zinc-600 dark:text-zinc-300">{{ movie.runtime }} min</span>
+          <span v-if="movie.runtime" class="text-zinc-600 dark:text-zinc-300"
+            >{{ movie.runtime }} {{ t('common.min') }}</span
+          >
           <span v-if="movie.rating > 0" class="flex items-center gap-1 text-amber-500">
             <UIcon name="i-lucide-star" class="size-4" />
             {{ movie.rating.toFixed(1) }}
@@ -62,15 +64,15 @@
     <div class="mt-10">
       <h2 class="mb-4 text-xl font-bold text-zinc-900 dark:text-white">
         <UIcon name="i-lucide-download" class="mr-2 inline size-5" />
-        Dostępne torrenty
+        {{ t('movie.availableTorrents') }}
       </h2>
 
       <div
         v-if="torrents.length === 0"
         class="rounded-xl bg-zinc-100/50 py-8 text-center text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
       >
-        <p v-if="!movie.imdbId">Brak identyfikatora IMDB — nie można wyszukać torrentów.</p>
-        <p v-else>Nie znaleziono torrentów. Sprawdź czy Prowlarr jest uruchomiony.</p>
+        <p v-if="!movie.imdbId">{{ t('movie.noImdb') }}</p>
+        <p v-else>{{ t('movie.noTorrents') }}</p>
       </div>
 
       <div v-else class="space-y-2">
@@ -88,7 +90,7 @@
             <div class="flex items-center gap-2">
               <span v-if="torrent.recommended" class="flex items-center gap-1 text-xs font-bold text-amber-500">
                 <UIcon name="i-lucide-star" class="size-3" />
-                Polecany
+                {{ t('movie.recommended') }}
               </span>
               <span
                 v-if="torrent.resolution"
@@ -143,7 +145,7 @@
               :loading="downloadingIdx === idx"
               @click="downloadTorrent(torrent, idx)"
             >
-              Pobierz
+              {{ t('movie.download') }}
             </UButton>
           </div>
         </div>
@@ -185,9 +187,11 @@ interface MovieData {
 
 const route = useRoute()
 const downloadingIdx = ref<number | null>(null)
+const { t, locale } = useI18n()
 
 const { data, pending, error } = await useFetch<{ movie: MovieData; torrents: Torrent[] }>(
-  `/api/browse/movie/${route.params.id}`
+  computed(() => `/api/browse/movie/${route.params.id}?locale=${locale.value}`),
+  { watch: [locale] }
 )
 
 const movie = computed(() => data.value?.movie ?? null)
@@ -218,15 +222,15 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
     })
     const toast = useToast()
     toast.add({
-      title: 'Torrent dodany',
-      description: `${movie.value?.title ?? 'Film'} został dodany do kolejki.`,
+      title: t('download.added'),
+      description: t('download.addedDesc', { label: movie.value?.title ?? 'Film' }),
       color: 'success'
     })
     navigateTo('/dashboard/downloads')
   } catch (err) {
     const toast = useToast()
-    const msg = err instanceof Error ? err.message : 'Nie udało się dodać torrenta.'
-    toast.add({ title: 'Błąd pobierania', description: msg, color: 'error' })
+    const msg = err instanceof Error ? err.message : t('download.errorDesc')
+    toast.add({ title: t('download.error'), description: msg, color: 'error' })
   } finally {
     downloadingIdx.value = null
   }

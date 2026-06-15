@@ -26,6 +26,7 @@ definePageMeta({
 })
 
 const { user } = useUserSession()
+const { t } = useI18n()
 
 const stats = ref({
   activeTorrents: 0,
@@ -121,23 +122,25 @@ function getTorrentQuality(dl: Download): TorrentQuality {
   return 'ok'
 }
 
-const qualityConfig: Record<TorrentQuality, { border: string; badge: string; badgeText: string; bar: string }> = {
+const qualityConfig = computed<
+  Record<TorrentQuality, { border: string; badge: string; badgeText: string; bar: string }>
+>(() => ({
   dead: {
     border: 'border-red-500/60 dark:border-red-500/40',
     badge: 'bg-red-500/15 text-red-700 dark:text-red-400',
-    badgeText: '⚠ Brak seederów — rozważ usunięcie',
+    badgeText: t('torrent.dead'),
     bar: 'from-red-500 to-red-600'
   },
   poor: {
     border: 'border-amber-500/50 dark:border-amber-500/30',
     badge: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-    badgeText: 'Mało seederów',
+    badgeText: t('torrent.poor'),
     bar: 'from-amber-500 to-orange-500'
   },
   slow: {
     border: 'border-zinc-400/50 dark:border-zinc-500/30',
     badge: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400',
-    badgeText: 'Wolne połączenie',
+    badgeText: t('torrent.slow'),
     bar: 'from-cyan-500 to-blue-500'
   },
   ok: {
@@ -146,7 +149,7 @@ const qualityConfig: Record<TorrentQuality, { border: string; badge: string; bad
     badgeText: '',
     bar: 'from-cyan-500 to-blue-500'
   }
-}
+}))
 
 const statusColors: Record<string, string> = {
   downloading: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400',
@@ -171,7 +174,8 @@ const savePathLabels: Record<string, string> = {
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">Dashboard</h1>
       <p class="text-zinc-500 dark:text-zinc-400">
-        Welcome back, <span class="text-amber-600 dark:text-amber-400 font-medium">{{ user?.username }}</span>
+        {{ t('dashboard.welcome') }}
+        <span class="text-amber-600 dark:text-amber-400 font-medium">{{ user?.username }}</span>
       </p>
     </div>
 
@@ -187,10 +191,12 @@ const savePathLabels: Record<string, string> = {
             <p class="text-2xl font-bold text-zinc-900 dark:text-white">
               {{ stats.activeTorrents }}
             </p>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">Active Torrents</p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ t('dashboard.activeTorrents') }}</p>
           </div>
         </div>
-        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">Limit: {{ user?.activeTorrentLimit }}</div>
+        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
+          {{ t('common.limit') }}: {{ user?.activeTorrentLimit }}
+        </div>
       </div>
 
       <div class="card p-5">
@@ -204,10 +210,12 @@ const savePathLabels: Record<string, string> = {
             <p class="text-2xl font-bold text-zinc-900 dark:text-white">
               {{ stats.downloadsToday }}
             </p>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">Downloads Today</p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ t('dashboard.downloadsToday') }}</p>
           </div>
         </div>
-        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">Limit: {{ user?.dailyDownloadLimit }}</div>
+        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
+          {{ t('common.limit') }}: {{ user?.dailyDownloadLimit }}
+        </div>
       </div>
 
       <div class="card p-5">
@@ -221,7 +229,7 @@ const savePathLabels: Record<string, string> = {
             <p class="text-2xl font-bold text-zinc-900 dark:text-white">
               {{ stats.completedToday }}
             </p>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">Completed</p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ t('dashboard.completed') }}</p>
           </div>
         </div>
         <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">Max size: {{ user?.maxTorrentSizeGb }}GB</div>
@@ -230,8 +238,8 @@ const savePathLabels: Record<string, string> = {
 
     <div class="card p-5 md:p-6">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Active Downloads</h2>
-        <UButton to="/dashboard/submit" icon="i-lucide-plus" label="New Request" size="sm" />
+        <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('dashboard.activeTorrents') }}</h2>
+        <UButton to="/dashboard/submit" icon="i-lucide-plus" :label="t('dashboard.newRequest')" size="sm" />
       </div>
 
       <div v-if="loading && activeDownloads.length === 0" class="flex justify-center py-8">
@@ -240,7 +248,7 @@ const savePathLabels: Record<string, string> = {
 
       <div v-else-if="activeDownloads.length === 0" class="text-center py-8 text-zinc-500 dark:text-zinc-400">
         <UIcon name="i-lucide-inbox" class="w-12 h-12 mx-auto mb-3 opacity-40" />
-        <p>No active downloads. Submit a torrent to get started!</p>
+        <p>{{ t('dashboard.noActive') }}</p>
       </div>
 
       <div v-else class="space-y-3">
@@ -287,7 +295,7 @@ const savePathLabels: Record<string, string> = {
               :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
               size="xs"
               :loading="cancelling === dl.id"
-              :label="getTorrentQuality(dl) !== 'ok' ? 'Usuń' : 'Delete'"
+              :label="t('download.delete')"
               @click="cancelTorrent(dl.id)"
             />
           </div>

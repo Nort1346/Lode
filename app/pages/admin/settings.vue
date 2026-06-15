@@ -5,36 +5,37 @@ definePageMeta({
 })
 
 const { user } = useUserSession()
+const { t } = useI18n()
 </script>
 
 <template>
   <div>
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">Admin Settings</h1>
-      <p class="text-zinc-500 dark:text-zinc-400">Configure global application settings</p>
+      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('settings.title') }}</h1>
+      <p class="text-zinc-500 dark:text-zinc-400">{{ t('settings.subtitle') }}</p>
     </div>
 
     <div class="card p-6">
-      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Server Configuration</h2>
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('settings.serverConfig') }}</h2>
       <div class="space-y-3 text-sm text-zinc-500 dark:text-zinc-400">
         <div
           class="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5"
         >
           <UIcon name="i-lucide-server" class="w-5 h-5 text-amber-600 dark:text-amber-400" />
-          <span>qBittorrent connection via qui Client Proxy</span>
+          <span>{{ t('settings.qbDescription') }}</span>
         </div>
         <div
           class="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5"
         >
           <UIcon name="i-lucide-folder" class="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
-          <span>Save paths are configured via environment variables</span>
+          <span>{{ t('settings.pathsDescription') }}</span>
         </div>
         <div
           class="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5"
         >
           <UIcon name="i-lucide-shield" class="w-5 h-5 text-green-600 dark:text-green-400" />
           <span
-            >Admin account:
+            >{{ t('settings.adminAccount') }}
             <code
               class="text-zinc-900 dark:text-white font-mono text-xs bg-zinc-100 dark:bg-white/5 px-1.5 py-0.5 rounded"
               >{{ user?.username }}</code
@@ -45,7 +46,7 @@ const { user } = useUserSession()
     </div>
 
     <div class="card p-6 mt-4">
-      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Default Environment Variables</h2>
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('settings.envVars') }}</h2>
       <div class="space-y-2 text-sm">
         <div
           class="flex items-center gap-2 p-2 rounded bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto"
@@ -93,30 +94,30 @@ const { user } = useUserSession()
     </div>
 
     <div class="card p-6 mt-4">
-      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">How to Change User Limits</h2>
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('settings.howToChange') }}</h2>
       <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
-        Go to
-        <NuxtLink to="/admin/users" class="text-amber-600 dark:text-amber-400 hover:underline"
-          >User Management</NuxtLink
-        >
-        and click the edit button on any user to change:
+        {{ t('settings.howToChangeDesc') }}
+        <NuxtLink to="/admin/users" class="text-amber-600 dark:text-amber-400 hover:underline">{{
+          t('nav.users')
+        }}</NuxtLink>
+        {{ t('settings.howToChangeDesc2') }}
       </p>
       <ul class="space-y-2 text-sm text-zinc-500 dark:text-zinc-400">
         <li class="flex items-center gap-2">
           <UIcon name="i-lucide-check" class="w-4 h-4 text-green-600 dark:text-green-400" />
-          Daily download limit (default: 5)
+          {{ t('settings.dailyDownloadLimit') }}
         </li>
         <li class="flex items-center gap-2">
           <UIcon name="i-lucide-check" class="w-4 h-4 text-green-600 dark:text-green-400" />
-          Active torrent limit (default: 3)
+          {{ t('settings.activeTorrentLimit') }}
         </li>
         <li class="flex items-center gap-2">
           <UIcon name="i-lucide-check" class="w-4 h-4 text-green-600 dark:text-green-400" />
-          Maximum torrent size in GB (default: 20)
+          {{ t('settings.maxTorrentSize') }}
         </li>
         <li class="flex items-center gap-2">
           <UIcon name="i-lucide-check" class="w-4 h-4 text-green-600 dark:text-green-400" />
-          Account active/inactive status
+          {{ t('settings.accountStatus') }}
         </li>
       </ul>
     </div>

@@ -3,6 +3,15 @@ import { cacheGet, cacheSet, CACHE_TTL } from './cache'
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
 
+const LOCALE_MAP: Record<string, string> = {
+  pl: 'pl-PL',
+  en: 'en-US'
+}
+
+export function resolveTmdbLanguage(locale: string): string {
+  return LOCALE_MAP[locale] ?? 'pl-PL'
+}
+
 export interface TmdbMovie {
   id: number
   title: string
@@ -84,14 +93,15 @@ export function getImageUrl(
   return `${TMDB_IMAGE_BASE}/${size}${path}`
 }
 
-export async function searchMovies(query: string, page = 1): Promise<TmdbSearchResult<TmdbMovie>> {
-  const cacheKey = `tmdb:search:movie:${query}:${page}`
+export async function searchMovies(query: string, page = 1, locale = 'pl'): Promise<TmdbSearchResult<TmdbMovie>> {
+  const lang = resolveTmdbLanguage(locale)
+  const cacheKey = `tmdb:search:movie:${query}:${page}:${lang}`
   const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
   if (cached !== null) return cached
 
   const url = new URL(`${TMDB_BASE}/search/movie`)
   url.searchParams.set('api_key', getApiKey())
-  url.searchParams.set('language', 'pl-PL')
+  url.searchParams.set('language', lang)
   url.searchParams.set('query', query)
   url.searchParams.set('page', String(page))
 
@@ -103,14 +113,15 @@ export async function searchMovies(query: string, page = 1): Promise<TmdbSearchR
   return result
 }
 
-export async function searchTvShows(query: string, page = 1): Promise<TmdbSearchResult<TmdbTvShow>> {
-  const cacheKey = `tmdb:search:tv:${query}:${page}`
+export async function searchTvShows(query: string, page = 1, locale = 'pl'): Promise<TmdbSearchResult<TmdbTvShow>> {
+  const lang = resolveTmdbLanguage(locale)
+  const cacheKey = `tmdb:search:tv:${query}:${page}:${lang}`
   const cached = await cacheGet<TmdbSearchResult<TmdbTvShow>>(cacheKey)
   if (cached !== null) return cached
 
   const url = new URL(`${TMDB_BASE}/search/tv`)
   url.searchParams.set('api_key', getApiKey())
-  url.searchParams.set('language', 'pl-PL')
+  url.searchParams.set('language', lang)
   url.searchParams.set('query', query)
   url.searchParams.set('page', String(page))
 
@@ -122,14 +133,15 @@ export async function searchTvShows(query: string, page = 1): Promise<TmdbSearch
   return result
 }
 
-export async function getMovieDetails(id: number): Promise<TmdbMovie> {
-  const cacheKey = `tmdb:movie:${id}`
+export async function getMovieDetails(id: number, locale = 'pl'): Promise<TmdbMovie> {
+  const lang = resolveTmdbLanguage(locale)
+  const cacheKey = `tmdb:movie:${id}:${lang}`
   const cached = await cacheGet<TmdbMovie>(cacheKey)
   if (cached !== null) return cached
 
   const url = new URL(`${TMDB_BASE}/movie/${id}`)
   url.searchParams.set('api_key', getApiKey())
-  url.searchParams.set('language', 'pl-PL')
+  url.searchParams.set('language', lang)
   url.searchParams.set('append_to_response', 'external_ids')
 
   const response = await fetch(url.toString())
@@ -145,14 +157,15 @@ export async function getMovieDetails(id: number): Promise<TmdbMovie> {
   return result
 }
 
-export async function getTvShowDetails(id: number): Promise<TmdbTvShow> {
-  const cacheKey = `tmdb:tv:${id}`
+export async function getTvShowDetails(id: number, locale = 'pl'): Promise<TmdbTvShow> {
+  const lang = resolveTmdbLanguage(locale)
+  const cacheKey = `tmdb:tv:${id}:${lang}`
   const cached = await cacheGet<TmdbTvShow>(cacheKey)
   if (cached !== null) return cached
 
   const url = new URL(`${TMDB_BASE}/tv/${id}`)
   url.searchParams.set('api_key', getApiKey())
-  url.searchParams.set('language', 'pl-PL')
+  url.searchParams.set('language', lang)
   url.searchParams.set('append_to_response', 'external_ids')
 
   const response = await fetch(url.toString())
@@ -163,14 +176,15 @@ export async function getTvShowDetails(id: number): Promise<TmdbTvShow> {
   return data
 }
 
-export async function getSeasonDetails(showId: number, seasonNumber: number): Promise<TmdbSeason> {
-  const cacheKey = `tmdb:tv:${showId}:season:${seasonNumber}`
+export async function getSeasonDetails(showId: number, seasonNumber: number, locale = 'pl'): Promise<TmdbSeason> {
+  const lang = resolveTmdbLanguage(locale)
+  const cacheKey = `tmdb:tv:${showId}:season:${seasonNumber}:${lang}`
   const cached = await cacheGet<TmdbSeason>(cacheKey)
   if (cached !== null) return cached
 
   const url = new URL(`${TMDB_BASE}/tv/${showId}/season/${seasonNumber}`)
   url.searchParams.set('api_key', getApiKey())
-  url.searchParams.set('language', 'pl-PL')
+  url.searchParams.set('language', lang)
 
   const response = await fetch(url.toString())
   if (!response.ok) throw new Error(`TMDB API error ${response.status}`)

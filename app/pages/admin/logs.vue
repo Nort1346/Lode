@@ -15,6 +15,7 @@ definePageMeta({
   layout: 'default'
 })
 
+const { t } = useI18n()
 const logs = ref<ActivityLog[]>([])
 const loading = ref(true)
 const page = ref(1)
@@ -24,15 +25,15 @@ const filterAction = ref('')
 const filterUserId = ref('')
 const limit = 50
 
-const ACTION_LABELS: Record<string, string> = {
-  login: 'Login',
-  login_failed: 'Login Failed',
-  logout: 'Logout',
-  register: 'Register',
-  torrent_add: 'Torrent Add',
-  torrent_delete: 'Torrent Delete',
-  user_update: 'User Update',
-  user_delete: 'User Delete'
+const ACTION_KEYS: Record<string, string> = {
+  login: 'action_login',
+  login_failed: 'action_login_failed',
+  logout: 'action_logout',
+  register: 'action_register',
+  torrent_add: 'action_torrent_add',
+  torrent_delete: 'action_torrent_delete',
+  user_update: 'action_user_update',
+  user_delete: 'action_user_delete'
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -46,7 +47,12 @@ const ACTION_COLORS: Record<string, string> = {
   user_delete: 'red'
 }
 
-const ACTION_OPTIONS = Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label }))
+const ACTION_OPTIONS = computed(() =>
+  Object.entries(ACTION_KEYS).map(([value, key]) => ({
+    value,
+    label: t(`logs.${key}`)
+  }))
+)
 
 async function fetchLogs() {
   loading.value = true
@@ -114,7 +120,8 @@ function actionColor(action: string): string {
 }
 
 function actionLabel(action: string): string {
-  return ACTION_LABELS[action] ?? action
+  const key = ACTION_KEYS[action]
+  return key ? t(`logs.${key}`) : action
 }
 
 function shortenUA(ua: string | null): string {
@@ -127,15 +134,20 @@ function shortenUA(ua: string | null): string {
 <template>
   <div>
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">Activity Logs</h1>
-      <p class="text-zinc-500 dark:text-zinc-400">Track user actions, logins, and torrent activity</p>
+      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('logs.title') }}</h1>
+      <p class="text-zinc-500 dark:text-zinc-400">{{ t('logs.subtitle') }}</p>
     </div>
 
     <div class="card p-5 mb-6">
       <div class="flex flex-col sm:flex-row gap-3">
-        <USelect v-model="filterAction" :items="ACTION_OPTIONS" placeholder="All actions" class="w-full sm:w-48" />
-        <UInput v-model="filterUserId" placeholder="Filter by user ID" class="w-full sm:w-48" />
-        <UButton label="Apply" icon="i-lucide-search" @click="applyFilters" />
+        <USelect
+          v-model="filterAction"
+          :items="ACTION_OPTIONS"
+          :placeholder="t('logs.allActions')"
+          class="w-full sm:w-48"
+        />
+        <UInput v-model="filterUserId" :placeholder="t('logs.filterUser')" class="w-full sm:w-48" />
+        <UButton :label="t('logs.apply')" icon="i-lucide-search" @click="applyFilters" />
       </div>
     </div>
 
@@ -145,7 +157,7 @@ function shortenUA(ua: string | null): string {
 
     <div v-else-if="logs.length === 0" class="card p-12 text-center">
       <UIcon name="i-lucide-inbox" class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
-      <p class="text-zinc-500 dark:text-zinc-400">No logs found</p>
+      <p class="text-zinc-500 dark:text-zinc-400">{{ t('logs.noLogs') }}</p>
     </div>
 
     <div v-else class="card overflow-hidden">
@@ -153,23 +165,29 @@ function shortenUA(ua: string | null): string {
         <table class="w-full">
           <thead>
             <tr class="table-header">
-              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">Time</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">User</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">Action</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
+                {{ t('logs.tableTime') }}
+              </th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
+                {{ t('logs.tableUser') }}
+              </th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
+                {{ t('logs.tableAction') }}
+              </th>
               <th
                 class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden lg:table-cell"
               >
-                Details
+                {{ t('logs.tableDetails') }}
               </th>
               <th
                 class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden md:table-cell"
               >
-                IP
+                {{ t('logs.tableIP') }}
               </th>
               <th
                 class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden xl:table-cell"
               >
-                User Agent
+                {{ t('logs.tableUA') }}
               </th>
             </tr>
           </thead>
@@ -207,11 +225,11 @@ function shortenUA(ua: string | null): string {
 
       <div class="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-white/5">
         <span class="text-sm text-zinc-500 dark:text-zinc-400">
-          Page {{ page }} of {{ totalPages }} ({{ total }} total)
+          {{ t('logs.pageInfo', { page, total: totalPages, count: total }) }}
         </span>
         <div class="flex gap-2">
-          <UButton label="Previous" variant="soft" :disabled="page <= 1" @click="prevPage" />
-          <UButton label="Next" variant="soft" :disabled="page >= totalPages" @click="nextPage" />
+          <UButton :label="t('logs.previous')" variant="soft" :disabled="page <= 1" @click="prevPage" />
+          <UButton :label="t('logs.next')" variant="soft" :disabled="page >= totalPages" @click="nextPage" />
         </div>
       </div>
     </div>

@@ -16,6 +16,7 @@ definePageMeta({
   layout: 'default'
 })
 
+const { t } = useI18n()
 const users = ref<AdminUser[]>([])
 const loading = ref(true)
 const showModal = ref(false)
@@ -99,14 +100,14 @@ async function saveUser() {
     await fetchUsers()
   } catch (e: unknown) {
     const err = e as { data?: { statusMessage?: string } }
-    error.value = err.data?.statusMessage || 'Failed to save user'
+    error.value = err.data?.statusMessage || t('admin.saveFailed')
   } finally {
     saving.value = false
   }
 }
 
 async function deleteUser(id: string) {
-  if (!confirm('Are you sure you want to delete this user?')) return
+  if (!confirm(t('admin.confirmDelete'))) return
 
   try {
     await $fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
@@ -132,16 +133,21 @@ function formatDate(dateStr: string): string {
   if (!dateStr) return '—'
   return new Date(dateStr).toLocaleDateString()
 }
+
+const roleOptions = computed(() => [
+  { label: t('admin.roleUser'), value: 'user' },
+  { label: t('admin.roleAdmin'), value: 'admin' }
+])
 </script>
 
 <template>
   <div>
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
       <div>
-        <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">User Management</h1>
-        <p class="text-zinc-500 dark:text-zinc-400">Manage user accounts and limits</p>
+        <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('admin.userTitle') }}</h1>
+        <p class="text-zinc-500 dark:text-zinc-400">{{ t('admin.userSubtitle') }}</p>
       </div>
-      <UButton icon="i-lucide-plus" label="Add User" @click="openCreate" />
+      <UButton icon="i-lucide-plus" :label="t('admin.addUser')" @click="openCreate" />
     </div>
 
     <div v-if="loading" class="flex justify-center py-16">
@@ -153,37 +159,39 @@ function formatDate(dateStr: string): string {
         <table class="w-full">
           <thead>
             <tr class="table-header">
-              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">User</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
+                {{ t('admin.tableUser') }}
+              </th>
               <th
                 class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden sm:table-cell"
               >
-                Role
+                {{ t('admin.tableRole') }}
               </th>
               <th
                 class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden md:table-cell"
               >
-                Daily
+                {{ t('admin.tableDaily') }}
               </th>
               <th
                 class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden md:table-cell"
               >
-                Active
+                {{ t('admin.tableActive') }}
               </th>
               <th
                 class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden lg:table-cell"
               >
-                Max Size
+                {{ t('admin.tableMaxSize') }}
               </th>
               <th class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
-                Status
+                {{ t('admin.tableStatus') }}
               </th>
               <th
                 class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden xl:table-cell"
               >
-                Created
+                {{ t('admin.tableCreated') }}
               </th>
               <th class="px-4 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
-                Actions
+                {{ t('admin.tableActions') }}
               </th>
             </tr>
           </thead>
@@ -256,38 +264,31 @@ function formatDate(dateStr: string): string {
       </div>
     </div>
 
-    <UModal v-model:open="showModal" :title="editingUser ? 'Edit User' : 'Create User'">
+    <UModal v-model:open="showModal" :title="editingUser ? t('admin.editUser') : t('admin.createUser')">
       <template #body>
         <form class="space-y-4" @submit.prevent="saveUser">
-          <UFormField label="Username">
+          <UFormField :label="t('admin.username')">
             <UInput v-model="form.username" :disabled="!!editingUser" class="w-full" />
           </UFormField>
 
-          <UFormField :label="editingUser ? 'New Password (leave empty to keep)' : 'Password'">
+          <UFormField :label="editingUser ? t('admin.newPassword') : t('admin.password')">
             <UInput v-model="form.password" type="password" class="w-full" />
           </UFormField>
 
-          <UFormField label="Role">
-            <USelect
-              v-model="form.role"
-              :items="[
-                { label: 'User', value: 'user' },
-                { label: 'Admin', value: 'admin' }
-              ]"
-              class="w-full"
-            />
+          <UFormField :label="t('admin.tableRole')">
+            <USelect v-model="form.role" :items="roleOptions" class="w-full" />
           </UFormField>
 
           <div class="grid grid-cols-3 gap-3">
-            <UFormField label="Daily Limit">
+            <UFormField :label="t('admin.dailyLimit')">
               <UInput v-model.number="form.dailyDownloadLimit" type="number" class="w-full" />
             </UFormField>
 
-            <UFormField label="Active Limit">
+            <UFormField :label="t('admin.activeLimit')">
               <UInput v-model.number="form.activeTorrentLimit" type="number" class="w-full" />
             </UFormField>
 
-            <UFormField label="Max Size (GB)">
+            <UFormField :label="t('admin.maxSizeGB')">
               <UInput v-model.number="form.maxTorrentSizeGb" type="number" class="w-full" />
             </UFormField>
           </div>
@@ -295,8 +296,12 @@ function formatDate(dateStr: string): string {
           <UAlert v-if="error" :description="error" color="error" variant="subtle" />
 
           <div class="flex justify-end gap-2 pt-2">
-            <UButton variant="ghost" label="Cancel" @click="showModal = false" />
-            <UButton type="submit" :loading="saving" :label="editingUser ? 'Save Changes' : 'Create User'" />
+            <UButton variant="ghost" :label="t('admin.cancel')" @click="showModal = false" />
+            <UButton
+              type="submit"
+              :loading="saving"
+              :label="editingUser ? t('admin.saveChanges') : t('admin.createUser')"
+            />
           </div>
         </form>
       </template>

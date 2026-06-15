@@ -3,7 +3,7 @@
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
       <UInput
         v-model="searchQuery"
-        placeholder="Szukaj filmów i seriali..."
+        :placeholder="t('browse.searchPlaceholder')"
         icon="i-lucide-search"
         size="xl"
         class="flex-1"
@@ -18,7 +18,7 @@
     </div>
 
     <div v-else-if="error" class="rounded-xl bg-red-500/10 p-6 text-center text-red-500 dark:text-red-400">
-      Wystąpił błąd podczas wyszukiwania. Spróbuj ponownie.
+      {{ t('browse.error') }}
     </div>
 
     <div
@@ -40,34 +40,38 @@
     </div>
 
     <div v-else-if="searched" class="py-20 text-center text-zinc-500 dark:text-zinc-400">
-      Nie znaleziono wyników dla "{{ lastQuery }}"
+      {{ t('browse.noResults') }} "{{ lastQuery }}"
     </div>
 
     <div v-else class="py-20 text-center text-zinc-400 dark:text-zinc-500">
       <UIcon name="i-lucide-film" class="mx-auto mb-4 size-12 opacity-50" />
-      <p>Wpisz tytuł aby znaleźć film lub serial</p>
+      <p>{{ t('browse.enterTitle') }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+const { t, locale } = useI18n()
+
 const searchQuery = ref('')
 const searchType = ref('all')
 const lastQuery = ref('')
 const searched = ref(false)
 
-const typeOptions = [
-  { label: 'Wszystko', value: 'all' },
-  { label: 'Filmy', value: 'movie' },
-  { label: 'Seriale', value: 'tv' }
-]
+const typeOptions = computed(() => [
+  { label: t('browse.searchAll'), value: 'all' },
+  { label: t('browse.searchMovies'), value: 'movie' },
+  { label: t('browse.searchTv'), value: 'tv' }
+])
 
 const { data, pending, error, execute } = await useFetch('/api/browse/search', {
   query: computed(() => ({
     q: lastQuery.value,
-    type: searchType.value
+    type: searchType.value,
+    locale: locale.value
   })),
-  immediate: false
+  immediate: false,
+  watch: [locale]
 })
 
 const results = computed(() => data.value?.results ?? [])

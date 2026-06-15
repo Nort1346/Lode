@@ -10,6 +10,7 @@ export default defineEventHandler(async (event) => {
   const q = typeof query.q === 'string' ? query.q.trim() : ''
   const type = typeof query.type === 'string' ? query.type : 'all'
   const page = typeof query.page === 'string' ? Number(query.page) : 1
+  const locale = typeof query.locale === 'string' ? query.locale : 'pl'
 
   if (q.length < 2) {
     throw createError({ statusCode: 400, statusMessage: 'Search query must be at least 2 characters' })
@@ -29,7 +30,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     if (type === 'all' || type === 'movie') {
-      const movieResults = await searchMovies(q, page)
+      const movieResults = await searchMovies(q, page, locale)
       for (const m of movieResults.results) {
         results.push({
           id: m.id,
@@ -46,7 +47,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (type === 'all' || type === 'tv') {
-      const tvResults = await searchTvShows(q, page)
+      const tvResults = await searchTvShows(q, page, locale)
       for (const t of tvResults.results) {
         results.push({
           id: t.id,

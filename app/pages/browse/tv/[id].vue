@@ -4,7 +4,7 @@
   </div>
 
   <div v-else-if="error || !show" class="rounded-xl bg-red-500/10 p-6 text-center text-red-500 dark:text-red-400">
-    Nie udało się załadować szczegółów serialu.
+    {{ t('tv.loadError') }}
   </div>
 
   <div v-else>
@@ -37,7 +37,7 @@
             show.firstAirDate.slice(0, 4)
           }}</span>
           <span class="text-zinc-600 dark:text-zinc-300">
-            {{ show.numberOfSeasons }} {{ show.numberOfSeasons === 1 ? 'sezon' : 'sezonów' }}
+            {{ show.numberOfSeasons }} {{ show.numberOfSeasons === 1 ? t('tv.season_one') : t('tv.season_many') }}
           </span>
           <span v-if="show.rating > 0" class="flex items-center gap-1 text-amber-500">
             <UIcon name="i-lucide-star" class="size-4" />
@@ -61,7 +61,7 @@
 
     <div class="mt-10">
       <div class="mb-6 flex items-center gap-4">
-        <h2 class="text-xl font-bold text-zinc-900 dark:text-white">Sezony</h2>
+        <h2 class="text-xl font-bold text-zinc-900 dark:text-white">{{ t('tv.seasons') }}</h2>
         <USelect v-model="selectedSeason" :items="seasonOptions" size="md" class="w-48" />
       </div>
 
@@ -71,7 +71,7 @@
 
       <div v-else-if="seasonData">
         <div v-if="seasonData.seasonPacks.length > 0" class="mb-6">
-          <h3 class="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">Pakiety sezonowe</h3>
+          <h3 class="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ t('tv.seasonPacks') }}</h3>
           <div class="space-y-2">
             <div
               v-for="(pack, idx) in seasonData.seasonPacks"
@@ -81,7 +81,7 @@
               <div class="flex-1 min-w-0">
                 <span class="flex items-center gap-2 text-xs font-bold text-purple-500">
                   <UIcon name="i-lucide-layers" class="size-3" />
-                  Pakiet sezonowy
+                  {{ t('tv.seasonPack') }}
                 </span>
                 <p class="mt-1 line-clamp-1 text-sm text-zinc-800 dark:text-zinc-200">{{ pack.title }}</p>
                 <div class="mt-1 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
@@ -106,7 +106,7 @@
                   )
                 "
               >
-                Pobierz cały sezon
+                {{ t('tv.downloadSeason') }}
               </UButton>
             </div>
           </div>
@@ -129,33 +129,35 @@
                     <UIcon name="i-lucide-star" class="size-3" />
                     {{ ep.rating.toFixed(1) }}
                   </span>
-                  <span v-if="ep.runtime" class="text-xs text-zinc-500 dark:text-zinc-400">{{ ep.runtime }} min</span>
+                  <span v-if="ep.runtime" class="text-xs text-zinc-500 dark:text-zinc-400"
+                    >{{ ep.runtime }} {{ t('common.min') }}</span
+                  >
                 </div>
                 <h3 class="mt-1 font-semibold text-zinc-900 dark:text-white">{{ ep.name }}</h3>
                 <p class="mt-1 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">{{ ep.overview }}</p>
 
                 <div v-if="ep.torrents.length > 0" class="mt-3 space-y-1">
                   <div
-                    v-for="(t, tIdx) in ep.torrents.slice(0, 3)"
+                    v-for="(tr, tIdx) in ep.torrents.slice(0, 3)"
                     :key="tIdx"
                     class="flex items-center gap-3 rounded-lg p-2 transition-colors"
                     :class="
-                      t.recommended ? 'bg-amber-500/5 ring-1 ring-amber-500/30' : 'bg-zinc-100/50 dark:bg-zinc-700/30'
+                      tr.recommended ? 'bg-amber-500/5 ring-1 ring-amber-500/30' : 'bg-zinc-100/50 dark:bg-zinc-700/30'
                     "
                   >
                     <span
                       class="text-xs font-bold"
-                      :class="t.score >= 80 ? 'text-emerald-500' : t.score >= 60 ? 'text-amber-500' : 'text-zinc-500'"
+                      :class="tr.score >= 80 ? 'text-emerald-500' : tr.score >= 60 ? 'text-amber-500' : 'text-zinc-500'"
                     >
-                      {{ t.score }}
+                      {{ tr.score }}
                     </span>
-                    <span v-if="t.recommended" class="text-xs text-amber-500">
+                    <span v-if="tr.recommended" class="text-xs text-amber-500">
                       <UIcon name="i-lucide-star" class="size-3" />
                     </span>
-                    <span class="flex-1 truncate text-xs text-zinc-700 dark:text-zinc-300">{{ t.title }}</span>
-                    <span class="text-xs text-zinc-500">{{ t.sizeFormatted }}</span>
+                    <span class="flex-1 truncate text-xs text-zinc-700 dark:text-zinc-300">{{ tr.title }}</span>
+                    <span class="text-xs text-zinc-500">{{ tr.sizeFormatted }}</span>
                     <span class="flex items-center gap-1 text-xs text-emerald-500">
-                      <UIcon name="i-lucide-arrow-up" class="size-3" />{{ t.seeders }}
+                      <UIcon name="i-lucide-arrow-up" class="size-3" />{{ tr.seeders }}
                     </span>
                     <UButton
                       size="xs"
@@ -165,7 +167,7 @@
                       :loading="downloadingKey === `ep-${ep.episodeNumber}-${tIdx}`"
                       @click="
                         downloadTorrent(
-                          t.magnetLink,
+                          tr.magnetLink,
                           `${show?.name ?? ''} S${String(selectedSeason).padStart(2, '0')}E${String(ep.episodeNumber).padStart(2, '0')} ${ep.name}`,
                           `ep-${ep.episodeNumber}-${tIdx}`
                         )
@@ -174,7 +176,7 @@
                   </div>
                 </div>
 
-                <p v-else class="mt-2 text-xs text-zinc-400 dark:text-zinc-500">Brak dostępnych torrentów</p>
+                <p v-else class="mt-2 text-xs text-zinc-400 dark:text-zinc-500">{{ t('tv.noTorrents') }}</p>
               </div>
             </div>
           </div>
@@ -253,22 +255,30 @@ const route = useRoute()
 const selectedSeason = ref(1)
 const downloadingKey = ref<string | null>(null)
 const downloadingPackIdx = ref<number | null>(null)
+const { t, locale } = useI18n()
 
-const { data: showData, pending, error } = await useFetch<{ show: ShowData }>(`/api/browse/tv/${route.params.id}`)
+const {
+  data: showData,
+  pending,
+  error
+} = await useFetch<{ show: ShowData }>(
+  computed(() => `/api/browse/tv/${route.params.id}?locale=${locale.value}`),
+  { watch: [locale] }
+)
 
 const show = computed(() => showData.value?.show ?? null)
 
 const seasonOptions = computed(() => {
   if (show.value === null) return []
   return show.value.seasons.map((s) => ({
-    label: `${s.name} (${s.episodeCount} odc.)`,
+    label: `${s.name} (${s.episodeCount} ${t('tv.episodes')})`,
     value: s.seasonNumber
   }))
 })
 
 const { data: seasonData, pending: seasonPending } = await useFetch<SeasonData>(
-  `/api/browse/tv/${route.params.id}/season/${selectedSeason.value}`,
-  { watch: [selectedSeason] }
+  computed(() => `/api/browse/tv/${route.params.id}/season/${selectedSeason.value}?locale=${locale.value}`),
+  { watch: [selectedSeason, locale] }
 )
 
 async function downloadTorrent(magnetLink: string | null, label: string, key: string, type?: string) {
@@ -290,12 +300,12 @@ async function downloadTorrent(magnetLink: string | null, label: string, key: st
       }
     })
     const toast = useToast()
-    toast.add({ title: 'Torrent dodany', description: `${label} został dodany do kolejki.`, color: 'success' })
+    toast.add({ title: t('download.added'), description: t('download.addedDesc', { label }), color: 'success' })
     navigateTo('/dashboard/downloads')
   } catch (err) {
     const toast = useToast()
-    const msg = err instanceof Error ? err.message : 'Nie udało się dodać torrenta.'
-    toast.add({ title: 'Błąd pobierania', description: msg, color: 'error' })
+    const msg = err instanceof Error ? err.message : t('download.errorDesc')
+    toast.add({ title: t('download.error'), description: msg, color: 'error' })
   } finally {
     downloadingKey.value = null
     downloadingPackIdx.value = null

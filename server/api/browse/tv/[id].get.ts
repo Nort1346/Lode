@@ -11,9 +11,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid TV show ID' })
   }
 
+  const locale = (getQuery(event).locale as string | undefined) ?? 'pl'
+
   let show
   try {
-    show = await getTvShowDetails(id)
+    show = await getTvShowDetails(id, locale)
   } catch {
     throw createError({ statusCode: 502, statusMessage: 'Failed to fetch TV show details from TMDB' })
   }

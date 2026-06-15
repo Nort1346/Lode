@@ -43,10 +43,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid show/season ID' })
   }
 
+  const locale = (getQuery(event).locale as string | undefined) ?? 'pl'
+
   let show, season
   try {
-    show = await getTvShowDetails(showId)
-    season = await getSeasonDetails(showId, seasonNumber)
+    show = await getTvShowDetails(showId, locale)
+    season = await getSeasonDetails(showId, seasonNumber, locale)
   } catch {
     throw createError({ statusCode: 502, statusMessage: 'Failed to fetch season details from TMDB' })
   }

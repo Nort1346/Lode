@@ -6,40 +6,32 @@ definePageMeta({
 const { user, clear } = useUserSession()
 const route = useRoute()
 const colorMode = useColorMode()
+const { t, locale, locales } = useI18n()
 
 const mobileOpen = ref(false)
 
 const isAdmin = computed(() => user.value?.role === 'admin')
 
+const localeOptions = computed(() =>
+  (locales.value as Array<{ code: string; name: string }>).map((l) => ({
+    label: l.name,
+    value: l.code
+  }))
+)
+
 const navigation = computed(() => {
   const items = [
-    { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
-    {
-      label: 'Browse',
-      icon: 'i-lucide-film',
-      to: '/browse'
-    },
-    {
-      label: 'Submit Torrent',
-      icon: 'i-lucide-plus-circle',
-      to: '/dashboard/submit'
-    },
-    {
-      label: 'My Downloads',
-      icon: 'i-lucide-download',
-      to: '/dashboard/downloads'
-    }
+    { label: t('nav.dashboard'), icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
+    { label: t('nav.browse'), icon: 'i-lucide-film', to: '/browse' },
+    { label: t('nav.submit'), icon: 'i-lucide-plus-circle', to: '/dashboard/submit' },
+    { label: t('nav.downloads'), icon: 'i-lucide-download', to: '/dashboard/downloads' }
   ]
 
   if (isAdmin.value) {
     items.push(
-      { label: 'User Management', icon: 'i-lucide-users', to: '/admin/users' },
-      { label: 'Activity Logs', icon: 'i-lucide-activity', to: '/admin/logs' },
-      {
-        label: 'Admin Settings',
-        icon: 'i-lucide-settings',
-        to: '/admin/settings'
-      }
+      { label: t('nav.users'), icon: 'i-lucide-users', to: '/admin/users' },
+      { label: t('nav.logs'), icon: 'i-lucide-activity', to: '/admin/logs' },
+      { label: t('nav.settings'), icon: 'i-lucide-settings', to: '/admin/settings' }
     )
   }
 
@@ -79,12 +71,21 @@ watch(
         <UIcon name="i-lucide-menu" class="w-5 h-5" />
       </button>
       <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">StreamHub</NuxtLink>
-      <button
-        class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
-        @click="toggleTheme"
-      >
-        <UIcon :name="isDark ? 'i-lucide-sun' : 'i-lucide-moon'" class="w-5 h-5" />
-      </button>
+      <div class="flex items-center gap-1">
+        <USelect
+          :model-value="locale"
+          :items="localeOptions"
+          size="xs"
+          class="w-20"
+          @update:model-value="locale = $event as 'en' | 'pl'"
+        />
+        <button
+          class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
+          @click="toggleTheme"
+        >
+          <UIcon :name="isDark ? 'i-lucide-sun' : 'i-lucide-moon'" class="w-5 h-5" />
+        </button>
+      </div>
     </div>
 
     <!-- Mobile overlay -->
@@ -136,7 +137,7 @@ watch(
             variant="ghost"
             color="neutral"
             icon="i-lucide-log-out"
-            label="Sign Out"
+            :label="t('auth.signOut')"
             class="w-full justify-start"
             @click="handleLogout"
           />
@@ -173,8 +174,18 @@ watch(
           @click="toggleTheme"
         >
           <UIcon :name="isDark ? 'i-lucide-sun' : 'i-lucide-moon'" class="w-5 h-5" />
-          {{ isDark ? 'Light Mode' : 'Dark Mode' }}
+          {{ isDark ? t('theme.light') : t('theme.dark') }}
         </button>
+
+        <div class="px-3">
+          <USelect
+            :model-value="locale"
+            :items="localeOptions"
+            size="xs"
+            class="w-full"
+            @update:model-value="locale = $event as 'en' | 'pl'"
+          />
+        </div>
 
         <div class="flex items-center gap-3 px-3">
           <UAvatar :alt="user?.username" size="sm" />
@@ -191,7 +202,7 @@ watch(
           variant="ghost"
           color="neutral"
           icon="i-lucide-log-out"
-          label="Sign Out"
+          :label="t('auth.signOut')"
           class="w-full justify-start"
           @click="handleLogout"
         />

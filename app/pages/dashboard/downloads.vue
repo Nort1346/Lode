@@ -26,6 +26,8 @@ definePageMeta({
   layout: 'default'
 })
 
+const { t } = useI18n()
+
 const downloads = ref<Download[]>([])
 const loading = ref(true)
 const cancelling = ref<string | null>(null)
@@ -102,32 +104,34 @@ function getTorrentQuality(dl: Download): TorrentQuality {
   return 'ok'
 }
 
-const qualityConfig: Record<TorrentQuality, { border: string; badge: string; badgeText: string; bar: string }> = {
-  dead: {
-    border: 'border-red-500/60 dark:border-red-500/40',
-    badge: 'bg-red-500/15 text-red-700 dark:text-red-400',
-    badgeText: '⚠ Brak seederów — rozważ usunięcie',
-    bar: 'from-red-500 to-red-600'
-  },
-  poor: {
-    border: 'border-amber-500/50 dark:border-amber-500/30',
-    badge: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-    badgeText: 'Mało seederów',
-    bar: 'from-amber-500 to-orange-500'
-  },
-  slow: {
-    border: 'border-zinc-400/50 dark:border-zinc-500/30',
-    badge: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400',
-    badgeText: 'Wolne połączenie',
-    bar: 'from-cyan-500 to-blue-500'
-  },
-  ok: {
-    border: '',
-    badge: '',
-    badgeText: '',
-    bar: 'from-cyan-500 to-blue-500'
-  }
-}
+const qualityConfig = computed(
+  (): Record<TorrentQuality, { border: string; badge: string; badgeKey: string; bar: string }> => ({
+    dead: {
+      border: 'border-red-500/60 dark:border-red-500/40',
+      badge: 'bg-red-500/15 text-red-700 dark:text-red-400',
+      badgeKey: 'torrent.dead',
+      bar: 'from-red-500 to-red-600'
+    },
+    poor: {
+      border: 'border-amber-500/50 dark:border-amber-500/30',
+      badge: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+      badgeKey: 'torrent.poor',
+      bar: 'from-amber-500 to-orange-500'
+    },
+    slow: {
+      border: 'border-zinc-400/50 dark:border-zinc-500/30',
+      badge: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400',
+      badgeKey: 'torrent.slow',
+      bar: 'from-cyan-500 to-blue-500'
+    },
+    ok: {
+      border: '',
+      badge: '',
+      badgeKey: '',
+      bar: 'from-cyan-500 to-blue-500'
+    }
+  })
+)
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleString()
@@ -139,9 +143,9 @@ function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
   const elapsed = (Date.now() - new Date(completedAt).getTime()) / 1000
   const delay = sizeBytes / prepSpeedBytes
   const remaining = Math.max(0, delay - elapsed)
-  if (remaining <= 0) return 'Ready'
-  if (remaining < 60) return `~${Math.ceil(remaining)}s remaining`
-  return `~${Math.ceil(remaining / 60)}m remaining`
+  if (remaining <= 0) return t('downloads.prepReady')
+  if (remaining < 60) return t('downloads.prepRemainingSec', { s: Math.ceil(remaining) })
+  return t('downloads.prepRemainingMin', { m: Math.ceil(remaining / 60) })
 }
 
 const statusColors: Record<string, string> = {
@@ -153,20 +157,20 @@ const statusColors: Record<string, string> = {
   removed: 'bg-zinc-500/15 text-zinc-500 dark:text-zinc-500'
 }
 
-const savePathLabels: Record<string, string> = {
-  movies: '🎬 Movies',
-  series: '📺 Series',
-  games: '🎮 Games',
-  music: '🎵 Music',
-  books: '📚 Books'
-}
+const savePathLabels = computed<Record<string, string>>(() => ({
+  movies: t('common.savePath_movies'),
+  series: t('common.savePath_series'),
+  games: t('common.savePath_games'),
+  music: t('common.savePath_music'),
+  books: t('common.savePath_books')
+}))
 </script>
 
 <template>
   <div>
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">My Downloads</h1>
-      <p class="text-zinc-500 dark:text-zinc-400">Track and manage your torrents</p>
+      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('dashboard.myDownloads') }}</h1>
+      <p class="text-zinc-500 dark:text-zinc-400">{{ t('dashboard.trackManage') }}</p>
     </div>
 
     <div v-if="loading && downloads.length === 0" class="flex justify-center py-16">
@@ -175,8 +179,8 @@ const savePathLabels: Record<string, string> = {
 
     <div v-else-if="downloads.length === 0" class="card p-12 text-center">
       <UIcon name="i-lucide-inbox" class="w-16 h-16 mx-auto mb-4 text-zinc-300 dark:text-zinc-600" />
-      <p class="text-zinc-500 dark:text-zinc-400 text-lg">No downloads yet</p>
-      <UButton to="/dashboard/submit" label="Submit your first torrent" class="mt-4" />
+      <p class="text-zinc-500 dark:text-zinc-400 text-lg">{{ t('dashboard.noDownloads') }}</p>
+      <UButton to="/dashboard/submit" :label="t('dashboard.noDownloadsDesc')" class="mt-4" />
     </div>
 
     <div v-else class="space-y-3">
@@ -199,7 +203,7 @@ const savePathLabels: Record<string, string> = {
                 @{{ dl.username }}
               </span>
               <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
-                {{ capitalize(dl.status) }}
+                {{ t(`common.status_${dl.status}`) }}
               </span>
               <span
                 class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400"
@@ -211,7 +215,9 @@ const savePathLabels: Record<string, string> = {
                 class="text-xs px-2 py-0.5 rounded-full"
                 :class="qualityConfig[getTorrentQuality(dl)].badge"
               >
-                {{ qualityConfig[getTorrentQuality(dl)].badgeText }}
+                {{
+                  qualityConfig[getTorrentQuality(dl)].badgeKey ? t(qualityConfig[getTorrentQuality(dl)].badgeKey) : ''
+                }}
               </span>
               <span class="text-xs text-zinc-400 dark:text-zinc-500">
                 {{ formatDate(dl.createdAt) }}
@@ -225,7 +231,7 @@ const savePathLabels: Record<string, string> = {
             color="error"
             :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
             size="xs"
-            :label="getTorrentQuality(dl) !== 'ok' ? 'Usuń' : 'Delete'"
+            :label="getTorrentQuality(dl) !== 'ok' ? t('common.deleteBad') : t('common.delete')"
             :loading="cancelling === dl.id"
             @click="cancelTorrent(dl.id)"
           />
@@ -242,7 +248,7 @@ const savePathLabels: Record<string, string> = {
                 <UIcon name="i-lucide-arrow-down" class="inline size-3" />{{ dl.numLeechs }}
               </span>
               <span
-                >ETA:
+                >{{ t('common.eta') }}:
                 <span class="text-zinc-900 dark:text-white font-medium">{{ formatEta(dl.etaSeconds) }}</span></span
               >
             </div>
@@ -267,7 +273,7 @@ const savePathLabels: Record<string, string> = {
         >
           <UIcon :name="dl.completedAt ? 'i-lucide-clock' : 'i-lucide-check-circle'" class="w-4 h-4" />
           <span v-if="dl.completedAt">{{ formatPrepTime(dl.completedAt, dl.sizeBytes) }}</span>
-          <span v-else>Download completed</span>
+          <span v-else>{{ t('dashboard.completed') }}</span>
           <span class="text-zinc-400 dark:text-zinc-500">· {{ formatSize(dl.sizeBytes) }}</span>
         </div>
       </div>

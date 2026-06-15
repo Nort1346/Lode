@@ -5,6 +5,7 @@ definePageMeta({
 
 const { loggedIn, fetch: fetchSession } = useUserSession()
 const colorMode = useColorMode()
+const { t } = useI18n()
 
 if (loggedIn.value) {
   navigateTo('/dashboard')
@@ -36,7 +37,7 @@ async function handleLogin() {
     window.location.href = '/dashboard'
   } catch (e: unknown) {
     const err = e as { data?: { statusMessage?: string } }
-    error.value = err.data?.statusMessage || 'Login failed'
+    error.value = err.data?.statusMessage || t('login.failed')
   } finally {
     loading.value = false
   }
@@ -55,27 +56,27 @@ async function handleLogin() {
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
         <h1 class="text-4xl font-bold text-gradient mb-2">StreamHub</h1>
-        <p class="text-zinc-500 dark:text-zinc-400">Access your downloading panel</p>
+        <p class="text-zinc-500 dark:text-zinc-400">{{ t('login.subtitle') }}</p>
       </div>
 
       <div class="card p-8">
         <form @submit.prevent="handleLogin">
           <div class="space-y-4">
-            <UFormField label="Username">
+            <UFormField :label="t('login.usernameLabel')">
               <UInput
                 v-model="form.username"
-                placeholder="Enter your username"
+                :placeholder="t('login.usernamePlaceholder')"
                 icon="i-lucide-user"
                 class="w-full"
                 size="lg"
               />
             </UFormField>
 
-            <UFormField label="Password">
+            <UFormField :label="t('login.passwordLabel')">
               <UInput
                 v-model="form.password"
                 type="password"
-                placeholder="Enter your password"
+                :placeholder="t('login.passwordPlaceholder')"
                 icon="i-lucide-lock"
                 class="w-full"
                 size="lg"
@@ -91,7 +92,7 @@ async function handleLogin() {
               size="lg"
               class="w-full justify-center"
               :loading="loading"
-              label="Sign In"
+              :label="t('login.signIn')"
             />
           </div>
         </form>

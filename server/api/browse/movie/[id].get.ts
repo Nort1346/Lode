@@ -13,9 +13,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid movie ID' })
   }
 
+  const locale = (getQuery(event).locale as string | undefined) ?? 'pl'
+
   let movie
   try {
-    movie = await getMovieDetails(id)
+    movie = await getMovieDetails(id, locale)
   } catch {
     throw createError({ statusCode: 502, statusMessage: 'Failed to fetch movie details from TMDB' })
   }
