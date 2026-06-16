@@ -108,16 +108,6 @@ export class ProwlarrClient {
       query: `{imdbid:${imdbId}}`
     })) as ProwlarrRelease[]
 
-    const devilTorrent = raw.find((item) => item.indexer === 'Devil-Torrents')
-    if (devilTorrent !== undefined) {
-      console.log('[Prowlarr IMDB] Devil-Torrents result:', JSON.stringify(devilTorrent, null, 2))
-    }
-
-    const polishTorrent = raw.find((item) => item.indexer === 'Polskie-Torrenty')
-    if (polishTorrent !== undefined) {
-      console.log('[Prowlarr IMDB] Polskie-Torrenty result:', JSON.stringify(polishTorrent, null, 2))
-    }
-
     const results = (raw ?? []).filter(hasDownloadMethod).map(normalizeResult)
 
     await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
@@ -134,15 +124,10 @@ export class ProwlarrClient {
       query
     })) as ProwlarrRelease[]
 
-    const devilTorrent = raw.find((item) => item.indexer === 'Devil-Torrents')
-    if (devilTorrent !== undefined) {
-      console.log('[Prowlarr Query] Devil-Torrents result:', JSON.stringify(devilTorrent, null, 2))
-    }
-
-    const polishTorrent = raw.find((item) => item.indexer === 'Polskie-Torrenty')
-    if (polishTorrent !== undefined) {
-      console.log('[Prowlarr Query] Polskie-Torrenty result:', JSON.stringify(polishTorrent, null, 2))
-    }
+    // const devilTorrent = raw.find((item) => item.indexer === 'Devil-Torrents')
+    // if (devilTorrent !== undefined) {
+    //  console.log('[Prowlarr Query] Devil-Torrents result:', JSON.stringify(devilTorrent, null, 2))
+    // }
 
     const results = (raw ?? []).filter(hasDownloadMethod).map(normalizeResult)
 

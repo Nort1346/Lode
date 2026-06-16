@@ -189,7 +189,12 @@
     "integrations": "Integracje",
     "paths": "Ścieżki zapisu",
     "trackers": "Trackery prywatne",
-    "adminAccount": "Konto administratora"
+    "adminAccount": "Konto administratora",
+    "discordTitle": "Discord Webhook",
+    "discordDesc": "Powiadomienia o ukończonych pobraniach wysyłane na kanał Discord.",
+    "discordLocale": "Język embedów Discord",
+    "discordLocaleDesc": "Język opisów filmów/seriali w powiadomieniach Discord.",
+    "discord": "Discord"
   },
   "requests": {
     "title": "Żądania",

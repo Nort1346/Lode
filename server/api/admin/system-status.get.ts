@@ -103,6 +103,35 @@ async function checkJellyfin(config: ReturnType<typeof useRuntimeConfig>): Promi
   }
 }
 
+async function checkDiscord(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
+  const webhookUrl = config.discordWebhookUrl as string
+  if (!webhookUrl) {
+    return { name: 'Discord', configured: false, status: 'not_configured' }
+  }
+
+  const start = Date.now()
+  try {
+    const res = await fetch(`${webhookUrl}?wait=${Date.now()}`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000)
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return {
+      name: 'Discord',
+      configured: true,
+      status: 'up',
+      latencyMs: Date.now() - start
+    }
+  } catch {
+    return {
+      name: 'Discord',
+      configured: true,
+      status: 'down',
+      latencyMs: Date.now() - start
+    }
+  }
+}
+
 async function checkRedis(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
   const url = config.redisUrl as string
   if (!url) {
@@ -147,7 +176,8 @@ export default defineEventHandler(async (event: H3Event) => {
     checkQbittorrent(config),
     checkProwlarr(config),
     checkJellyfin(config),
-    checkRedis(config)
+    checkRedis(config),
+    checkDiscord(config)
   ])
 
   return { services }

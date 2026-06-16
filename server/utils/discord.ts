@@ -1,0 +1,242 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { ContainerBuilder, SectionBuilder } from '@discordjs/builders'
+import type { SeparatorBuilder, TextDisplayBuilder } from '@discordjs/builders'
+import { REST } from '@discordjs/rest'
+import { Routes, MessageFlags } from 'discord-api-types/v10'
+import { settings } from '../database/schema'
+import { eq } from 'drizzle-orm'
+import { getMovieDetails, getTvShowDetails, getImageUrl } from './tmdb'
+
+export interface DownloadCompleteData {
+  id: string
+  label: string
+  torrentName: string
+  savePath: string
+  sizeBytes: number
+  completedAt: string
+  username: string
+  tmdbId: number | null
+  mediaType: string | null
+}
+
+export interface TmdbMeta {
+  title: string
+  overview: string
+  posterUrl: string | null
+  backdropUrl: string | null
+  runtime: number | null
+  genres: string[]
+  voteAverage: number
+  releaseDate: string
+}
+
+const LOCALE_OPTIONS = ['pl', 'en'] as const
+type DiscordLocale = (typeof LOCALE_OPTIONS)[number]
+
+const FALLBACK_POSTER_NAME = 'poster_not_found.png'
+const FALLBACK_POSTER_PATH = resolve(process.cwd(), 'public', FALLBACK_POSTER_NAME)
+const FALLBACK_POSTER_REF = `attachment://${FALLBACK_POSTER_NAME}`
+
+const DISCORD_STRINGS = {
+  pl: {
+    genres: 'Gatunki',
+    runtime: 'Czas trwania',
+    rating: 'Ocena TMDB',
+    premiere: 'Premiera',
+    size: 'Rozmiar',
+    category: 'Kategoria',
+    downloadedBy: 'Dodane przez',
+    min: 'min',
+    movies: '🎬 Film',
+    series: '📺 Serial',
+    games: '🎮 Gry',
+    books: '📚 Książki',
+    music: '🎵 Muzyka'
+  },
+  en: {
+    genres: 'Genres',
+    runtime: 'Runtime',
+    rating: 'TMDB Rating',
+    premiere: 'Release',
+    size: 'Size',
+    category: 'Category',
+    downloadedBy: 'Downloaded by',
+    min: 'min',
+    movies: '🎬 Movies',
+    series: '📺 Series',
+    games: '🎮 Games',
+    books: '📚 Books',
+    music: '🎵 Music'
+  }
+} as const
+
+export function getDiscordLocale(): DiscordLocale {
+  const db = useDb()
+  const row = db.select().from(settings).where(eq(settings.key, 'discord_locale')).get()
+  const val = row?.value
+  if (val === 'pl' || val === 'en') return val
+  return 'pl'
+}
+
+function getStrings(locale: DiscordLocale) {
+  return DISCORD_STRINGS[locale]
+}
+
+export async function fetchTmdbMeta(tmdbId: number, mediaType: string): Promise<TmdbMeta | null> {
+  const locale = getDiscordLocale()
+  try {
+    if (mediaType === 'movie') {
+      const movie = await getMovieDetails(tmdbId, locale)
+      return {
+        title: movie.title,
+        overview: movie.overview,
+        posterUrl: getImageUrl(movie.poster_path, 'w500'),
+        backdropUrl: getImageUrl(movie.backdrop_path, 'w1280'),
+        runtime: movie.runtime,
+        genres: movie.genres.map((g) => g.name),
+        voteAverage: movie.vote_average,
+        releaseDate: movie.release_date
+      }
+    }
+    if (mediaType === 'tv') {
+      const show = await getTvShowDetails(tmdbId, locale)
+      return {
+        title: show.name,
+        overview: show.overview,
+        posterUrl: getImageUrl(show.poster_path, 'w500'),
+        backdropUrl: getImageUrl(show.backdrop_path, 'w1280'),
+        runtime: null,
+        genres: show.genres.map((g) => g.name),
+        voteAverage: show.vote_average,
+        releaseDate: show.first_air_date
+      }
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+function formatSize(bytes: number): string {
+  if (bytes <= 0) return '—'
+  const gb = bytes / (1024 * 1024 * 1024)
+  if (gb >= 1) return `${gb.toFixed(2)} GB`
+  const mb = bytes / (1024 * 1024)
+  return `${mb.toFixed(1)} MB`
+}
+
+function savePathLabel(savePath: string, strings: ReturnType<typeof getStrings>): string {
+  const map: Record<string, string> = {
+    movies: strings.movies,
+    series: strings.series,
+    games: strings.games,
+    books: strings.books,
+    music: strings.music
+  }
+  return map[savePath] ?? savePath
+}
+
+function addSeparator(container: ContainerBuilder): void {
+  container.addSeparatorComponents((sep: SeparatorBuilder) => sep.setSpacing(2))
+}
+
+export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): Promise<void> {
+  const config = useRuntimeConfig()
+  const webhookUrl = config.discordWebhookUrl as string
+  if (!webhookUrl) {
+    console.warn('[discord] webhook URL not configured')
+    return
+  }
+
+  const locale = getDiscordLocale()
+  const str = getStrings(locale)
+
+  let tmdb: TmdbMeta | null = null
+  if (data.tmdbId !== null && data.mediaType !== null) {
+    tmdb = await fetchTmdbMeta(data.tmdbId, data.mediaType)
+  }
+
+  const title = (tmdb?.title ?? data.label ?? data.torrentName ?? 'Pobrane').trim() || 'Pobrane'
+  const description = tmdb?.overview ?? ''
+
+  const container = new ContainerBuilder()
+
+  container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(`# ${title}`))
+
+  let posterFile: Buffer | null = null
+  if (tmdb !== null && tmdb.posterUrl !== null && tmdb.posterUrl !== undefined && tmdb.posterUrl.length > 0) {
+    const url = tmdb.posterUrl
+    container.addMediaGalleryComponents((media) => media.addItems((item) => item.setURL(url)))
+  } else {
+    posterFile = readFileSync(FALLBACK_POSTER_PATH)
+    container.addMediaGalleryComponents((media) => media.addItems((item) => item.setURL(FALLBACK_POSTER_REF)))
+  }
+
+  if (description.length > 0) {
+    addSeparator(container)
+    const truncated = description.length > 2000 ? description.substring(0, 2000) + '...' : description
+    container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(truncated))
+  }
+
+  if (tmdb !== null && tmdb !== undefined) {
+    addSeparator(container)
+
+    if (tmdb.genres.length > 0) {
+      const genres = tmdb.genres.join(', ')
+      container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(`**${str.genres}:** ${genres}`))
+    }
+
+    const metaParts: string[] = []
+    if (tmdb.runtime !== null && tmdb.runtime !== undefined && tmdb.runtime > 0) {
+      metaParts.push(`${str.runtime}: ${tmdb.runtime} ${str.min}`)
+    }
+    if (tmdb.voteAverage !== null && tmdb.voteAverage !== undefined && tmdb.voteAverage > 0) {
+      metaParts.push(`${str.rating}: ${tmdb.voteAverage.toFixed(1)}/10`)
+    }
+    if (tmdb.releaseDate !== null && tmdb.releaseDate !== undefined && tmdb.releaseDate.length > 0) {
+      metaParts.push(`${str.premiere}: ${tmdb.releaseDate}`)
+    }
+    if (metaParts.length > 0) {
+      container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(metaParts.join(' · ')))
+    }
+  }
+
+  addSeparator(container)
+  const infoParts: string[] = [
+    `**${str.size}:** ${formatSize(data.sizeBytes)}`,
+    `**${str.category}:** ${savePathLabel(data.savePath, str)}`,
+    `**${str.downloadedBy}:** ${data.username}`
+  ]
+  container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(infoParts.join(' · ')))
+
+  const match = webhookUrl.match(/\/webhooks\/(\d+)\/(.+?)(?:\/|$)/)
+  if (match === null || match[1] === undefined || match[2] === undefined) {
+    console.error('[discord] webhook URL format invalid:', webhookUrl)
+    return
+  }
+
+  const webhookId = match[1]
+  const webhookToken = match[2]
+  const rest = new REST({ version: '10' }).setToken(webhookToken)
+
+  const payload = {
+    components: [container.toJSON()],
+    flags: MessageFlags.IsComponentsV2
+  }
+
+  const files =
+    posterFile !== null ? [{ data: posterFile, name: FALLBACK_POSTER_NAME, contentType: 'image/png' as const }] : []
+
+  try {
+    await rest.post(Routes.webhook(webhookId, webhookToken), {
+      body: payload,
+      files,
+      query: new URLSearchParams({ with_components: 'true' })
+    })
+  } catch (err) {
+    console.error('[discord] webhook post failed:', err)
+  }
+}
+
+export { LOCALE_OPTIONS }

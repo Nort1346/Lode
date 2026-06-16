@@ -100,6 +100,13 @@ function initDb() {
     sqlite.exec(`ALTER TABLE users ADD COLUMN private_tracker_limit INTEGER NOT NULL DEFAULT 5`)
   }
 
+  if (!columns.includes('tmdb_id')) {
+    sqlite.exec(`ALTER TABLE downloads ADD COLUMN tmdb_id INTEGER`)
+  }
+  if (!columns.includes('media_type')) {
+    sqlite.exec(`ALTER TABLE downloads ADD COLUMN media_type TEXT`)
+  }
+
   _db = drizzle(sqlite, { schema })
   return _db
 }

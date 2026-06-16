@@ -1,5 +1,6 @@
-import { downloads } from '../database/schema'
+import { downloads, users } from '../database/schema'
 import { eq } from 'drizzle-orm'
+import { sendDownloadCompleteWebhook } from './discord'
 
 interface SyncResult {
   synced: number
@@ -8,6 +9,34 @@ interface SyncResult {
 }
 
 const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
+
+function notifyDiscord(
+  dl: {
+    id: string
+    label: string
+    torrentName: string
+    savePath: string
+    sizeBytes: number
+    completedAt: string | null
+    tmdbId: number | null
+    mediaType: string | null
+    userId: string
+  },
+  userMap: Map<string, string>
+): void {
+  const completedAt = dl.completedAt ?? new Date().toISOString()
+  void sendDownloadCompleteWebhook({
+    id: dl.id,
+    label: dl.label,
+    torrentName: dl.torrentName,
+    savePath: dl.savePath,
+    sizeBytes: dl.sizeBytes,
+    completedAt,
+    username: userMap.get(dl.userId) ?? 'unknown',
+    tmdbId: dl.tmdbId,
+    mediaType: dl.mediaType
+  }).catch((err) => console.error('[torrent-sync] webhook failed:', err))
+}
 
 export async function syncTorrentStatus(): Promise<SyncResult> {
   const db = useDb()
@@ -21,6 +50,9 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     .filter((d) => d.torrentHash !== null)
 
   if (activeDownloads.length === 0) return result
+
+  const allUsers = db.select().from(users).all()
+  const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
 
   let quiTorrents
   try {
@@ -61,6 +93,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           .where(eq(downloads.id, dl.id))
           .run()
         result.completed++
+        void notifyDiscord(dl, userMap)
       } else {
         db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)).run()
         result.failed++
@@ -93,6 +126,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         .where(eq(downloads.id, dl.id))
         .run()
       result.completed++
+      void notifyDiscord(dl, userMap)
     } else {
       db.update(downloads)
         .set({

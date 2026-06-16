@@ -10,6 +10,8 @@ interface DownloadBody {
   indexer?: string
   label: string
   savePath: string
+  tmdbId?: number
+  mediaType?: string
 }
 
 const SAVE_PATH_KEYS = ['movies', 'series', 'games', 'music', 'books'] as const
@@ -28,6 +30,9 @@ export default defineEventHandler(async (event) => {
   const indexer = body.indexer ?? ''
   const savePath = body.savePath
   const label = body.label
+  const tmdbId = body.tmdbId ?? null
+  const rawMediaType = body.mediaType
+  const mediaType = rawMediaType === 'movie' || rawMediaType === 'tv' ? rawMediaType : null
 
   const hasMagnet = rawMagnetLink.length > 0
   const hasDownloadUrl = downloadUrl.length > 0
@@ -217,7 +222,9 @@ export default defineEventHandler(async (event) => {
       uploadSpeed: torrent?.upspeed ?? 0,
       sizeBytes: torrent?.size ?? 0,
       downloadedBytes: torrent?.downloaded ?? 0,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      tmdbId,
+      mediaType
     })
     .run()
 

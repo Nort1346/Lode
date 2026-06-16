@@ -17,19 +17,22 @@ const { user } = useUserSession()
 
 const services = ref<ServiceStatus[]>([])
 const loadingServices = ref(true)
+const discordLocale = ref('pl')
 
 const serviceIcons: Record<string, string> = {
   qBittorrent: 'i-lucide-download',
   Prowlarr: 'i-lucide-search',
   Jellyfin: 'i-lucide-play',
-  Redis: 'i-lucide-database'
+  Redis: 'i-lucide-database',
+  Discord: 'i-lucide-message-square'
 }
 
 const serviceColors: Record<string, string> = {
   qBittorrent: 'text-blue-600 dark:text-blue-400',
   Prowlarr: 'i-lucide-search text-purple-600 dark:text-purple-400',
   Jellyfin: 'text-pink-600 dark:text-pink-400',
-  Redis: 'text-red-600 dark:text-red-400'
+  Redis: 'text-red-600 dark:text-red-400',
+  Discord: 'text-indigo-600 dark:text-indigo-400'
 }
 
 const statusColors: Record<string, string> = {
@@ -66,19 +69,30 @@ const envVars = {
     { name: 'NUXT_TRACKER_DEVIL_COOKIE', desc: 'Devil-Torrents Cookie' },
     { name: 'NUXT_TRACKER_POLSKIE_ENABLED', desc: 'Polskie-Torrenty' },
     { name: 'NUXT_TRACKER_POLSKIE_COOKIE', desc: 'Polskie-Torrenty Cookie' }
-  ]
+  ],
+  discord: [{ name: 'NUXT_DISCORD_WEBHOOK_URL', desc: 'Discord Webhook URL' }]
 }
 
 async function fetchStatus() {
   loadingServices.value = true
   try {
-    const data = await $fetch<{ services: ServiceStatus[] }>('/api/admin/system-status')
-    services.value = data.services
+    const [statusData, localeData] = await Promise.all([
+      $fetch<{ services: ServiceStatus[] }>('/api/admin/system-status'),
+      $fetch<{ locale: string }>('/api/admin/discord-locale')
+    ])
+    services.value = statusData.services
+    discordLocale.value = localeData.locale
   } catch {
     services.value = []
   } finally {
     loadingServices.value = false
   }
+}
+
+async function changeDiscordLocale(newLocale: string) {
+  const valid = newLocale === 'pl' || newLocale === 'en' ? newLocale : 'pl'
+  discordLocale.value = valid
+  await $fetch('/api/admin/discord-locale', { method: 'PUT', body: { locale: valid } })
 }
 
 onMounted(fetchStatus)
@@ -93,13 +107,13 @@ onMounted(fetchStatus)
 
     <div class="mb-6">
       <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('settings.systemStatus') }}</h2>
-      <div v-if="loadingServices" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <USkeleton v-for="i in 4" :key="i" class="h-24 rounded-xl" />
+      <div v-if="loadingServices" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <USkeleton v-for="i in 5" :key="i" class="h-24 rounded-xl" />
       </div>
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div v-for="s in services" :key="s.name" class="card p-4">
           <div class="flex items-center gap-3 mb-3">
-            <div class="p-2 rounded-lg bg-zinc-100 dark:bg-white/5">
+            <div class="flex justify-center items-center p-2 rounded-lg bg-zinc-100 dark:bg-white/5">
               <UIcon :name="serviceIcons[s.name] ?? 'i-lucide-circle'" class="w-5 h-5" :class="serviceColors[s.name]" />
             </div>
             <div class="flex-1 min-w-0">
@@ -122,6 +136,27 @@ onMounted(fetchStatus)
               {{ s.latencyMs }}{{ t('settings.ms') }}
             </span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-6 mb-4">
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('settings.discordTitle') }}</h2>
+      <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">{{ t('settings.discordDesc') }}</p>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{{
+            t('settings.discordLocale')
+          }}</label>
+          <USelect
+            :model-value="discordLocale"
+            :items="[
+              { label: 'Polski', value: 'pl' },
+              { label: 'English', value: 'en' }
+            ]"
+            @update:model-value="changeDiscordLocale"
+          />
+          <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-4">{{ t('settings.discordLocaleDesc') }}</p>
         </div>
       </div>
     </div>

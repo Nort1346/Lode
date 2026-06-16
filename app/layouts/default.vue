@@ -147,7 +147,7 @@ watch(
     </div>
 
     <!-- Desktop sidebar -->
-    <aside class="hidden md:flex sidebar w-64 p-4 flex-col fixed h-full">
+    <aside class="hidden md:flex sidebar w-64 p-4 flex-col fixed h-full z-20">
       <div class="mb-6 px-2">
         <NuxtLink to="/dashboard" class="text-xl font-bold text-gradient">StreamHub</NuxtLink>
       </div>

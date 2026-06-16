@@ -22,6 +22,10 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  icon: {
+    size: '24px'
+  },
+
   runtimeConfig: {
     session: {
       cookie: {
@@ -45,7 +49,8 @@ export default defineNuxtConfig({
     trackerDevilCookie: '',
     trackerPolskieEnabled: true,
     trackerPolskieCookie: '',
-    torrentSyncIntervalMs: 10000
+    torrentSyncIntervalMs: 10000,
+    discordWebhookUrl: ''
   },
 
   routeRules: {

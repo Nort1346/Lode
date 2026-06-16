@@ -37,7 +37,9 @@ export const downloads = sqliteTable('downloads', {
   numSeeds: integer('num_seeds').notNull().default(0),
   numLeechs: integer('num_leechs').notNull().default(0),
   createdAt: text('created_at').notNull().default(''),
-  completedAt: text('completed_at')
+  completedAt: text('completed_at'),
+  tmdbId: integer('tmdb_id'),
+  mediaType: text('media_type', { enum: ['movie', 'tv'] })
 })
 
 export const settings = sqliteTable('settings', {

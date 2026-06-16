@@ -39,14 +39,20 @@
   <div v-else>
     <div
       v-if="movie.backdropUrl"
-      class="fixed top-0 left-0 -z-10 h-[50vh] w-full bg-cover bg-center"
-      :style="{ backgroundImage: `url(${movie.backdropUrl})` }"
+      class="fixed top-0 left-0 z-0 h-[70vh] w-full bg-cover bg-center"
+      :style="{
+        backgroundImage: `url(${movie.backdropUrl})`,
+        maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)'
+      }"
     >
-      <div class="h-full w-full bg-gradient-to-b from-black/60 via-black/40 to-[var(--ui-bg)]" />
+      <div
+        class="h-full w-full bg-linear-to-b from-white/70 via-white/40 to-[var(--ui-bg)] dark:from-black/95 dark:via-black/70"
+      />
     </div>
 
-    <div class="flex flex-col gap-8 lg:flex-row">
-      <div class="flex-shrink-0">
+    <div class="relative z-10 flex flex-col gap-8 lg:flex-row">
+      <div class="shrink-0">
         <img
           v-if="movie.posterUrl"
           :src="movie.posterUrl"
@@ -107,7 +113,7 @@
       </div>
     </div>
 
-    <div class="mt-10">
+    <div class="relative z-10 mt-10">
       <h2 class="mb-4 text-xl font-bold text-zinc-900 dark:text-white">
         <UIcon name="i-lucide-download" class="mr-2 inline size-5" />
         {{ t('movie.availableTorrents') }}
@@ -409,7 +415,9 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
         guid: torrent.guid ?? '',
         indexer: torrent.indexer,
         label: movie.value?.title ?? 'Film',
-        savePath: 'movies'
+        savePath: 'movies',
+        tmdbId: movie.value?.id ?? null,
+        mediaType: 'movie'
       }
     })
     const toast = useToast()

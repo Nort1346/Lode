@@ -41,13 +41,19 @@
   <div v-else>
     <div
       v-if="show.backdropUrl"
-      class="fixed top-0 left-0 -z-10 h-[50vh] w-full bg-cover bg-center"
-      :style="{ backgroundImage: `url(${show.backdropUrl})` }"
+      class="fixed top-0 left-0 z-0 h-[70vh] w-full bg-cover bg-center"
+      :style="{
+        backgroundImage: `url(${show.backdropUrl})`,
+        maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)'
+      }"
     >
-      <div class="h-full w-full bg-gradient-to-b from-black/60 via-black/40 to-[var(--ui-bg)]" />
+      <div
+        class="h-full w-full bg-linear-to-b from-white/70 via-white/40 to-[var(--ui-bg)] dark:from-black/95 dark:via-black/70"
+      />
     </div>
 
-    <div class="flex flex-col gap-8 lg:flex-row">
+    <div class="relative z-10 flex flex-col gap-8 lg:flex-row">
       <div class="flex-shrink-0">
         <img
           v-if="show.posterUrl"
@@ -107,7 +113,7 @@
       </div>
     </div>
 
-    <div class="mt-10">
+    <div class="relative z-10 mt-10">
       <div class="mb-6 flex items-center gap-4">
         <h2 class="text-xl font-bold text-zinc-900 dark:text-white">{{ t('tv.seasons') }}</h2>
         <USelect v-model="selectedSeason" :items="seasonOptions" size="md" class="w-48" />
@@ -538,7 +544,9 @@ async function downloadTorrent(
         guid: guid ?? '',
         indexer: indexer ?? '',
         label,
-        savePath: 'series'
+        savePath: 'series',
+        tmdbId: show.value?.id ?? null,
+        mediaType: 'tv'
       }
     })
     const toast = useToast()
