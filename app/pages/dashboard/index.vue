@@ -89,8 +89,10 @@ function formatEta(seconds: number): string {
   if (seconds <= 0) return '—'
   const hours = Math.floor(seconds / 3600)
   const mins = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
   if (hours > 0) return `${hours}h ${mins}m`
-  return `${mins}m`
+  if (mins > 0) return `${mins}m ${secs}s`
+  return `${secs}s`
 }
 
 function formatSpeed(bytes: number): string {

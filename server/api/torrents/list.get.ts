@@ -90,12 +90,25 @@ export default defineEventHandler(async (event) => {
             console.warn(`[list.get.ts] matched by name: "${quiTorrent.name}" hash=${quiTorrent.hash}`)
             db.update(downloads).set({ torrentHash: quiTorrent.hash }).where(eq(downloads.id, dl.id)).run()
             dl.torrentHash = quiTorrent.hash
+          } else {
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[list.get.ts] hash+name mismatch: db_hash="${dl.torrentHash}" name="${dl.torrentName}" — marking as failed`
+            )
+            db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)).run()
+            dl.status = 'failed'
           }
         }
 
+        if (dl.status === 'failed') continue
+
         if (quiTorrent !== undefined) {
           const progressPct = quiTorrent.progress * 100
-          const isComplete = progressPct >= 99.9 || completedStates.has(quiTorrent.state)
+          const isComplete =
+            quiTorrent.completion_on > 0 ||
+            quiTorrent.downloaded >= quiTorrent.size ||
+            progressPct >= 99.9 ||
+            completedStates.has(quiTorrent.state)
 
           if (isComplete) {
             db.update(downloads)

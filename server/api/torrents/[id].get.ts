@@ -31,11 +31,15 @@ export default defineEventHandler(async (event) => {
 
       if (torrent !== undefined) {
         const progressPct = torrent.progress * 100
-        const isComplete = progressPct >= 99.9 || completedStates.has(torrent.state)
+        const isComplete =
+          torrent.completion_on > 0 ||
+          torrent.downloaded >= torrent.size ||
+          progressPct >= 99.9 ||
+          completedStates.has(torrent.state)
 
         db.update(downloads)
           .set({
-            progress: isComplete ? 100 : Math.round(progressPct),
+            progress: isComplete ? 100 : progressPct,
             etaSeconds: isComplete ? 0 : torrent.eta,
             downloadSpeed: isComplete ? 0 : torrent.dlspeed,
             uploadSpeed: isComplete ? 0 : torrent.upspeed,
@@ -48,7 +52,7 @@ export default defineEventHandler(async (event) => {
 
         return {
           ...download,
-          progress: isComplete ? 100 : Math.round(progressPct),
+          progress: isComplete ? 100 : progressPct,
           etaSeconds: isComplete ? 0 : torrent.eta,
           downloadSpeed: isComplete ? 0 : torrent.dlspeed,
           uploadSpeed: isComplete ? 0 : torrent.upspeed,
