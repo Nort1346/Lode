@@ -1,5 +1,28 @@
 import { cacheGet, cacheSet, CACHE_TTL } from './cache'
 
+export const POLISH_TRACKERS: readonly string[] = ['Devil-Torrents', 'Polskie-Torrenty']
+
+interface TrackerCookieConfig {
+  enabled: boolean
+  cookie: string
+}
+
+export function getTrackerCookieConfig(indexer: string, config: Record<string, unknown>): TrackerCookieConfig | null {
+  if (indexer === 'Devil-Torrents') {
+    return {
+      enabled: config.trackerDevilEnabled !== false,
+      cookie: (config.trackerDevilCookie as string) ?? ''
+    }
+  }
+  if (indexer === 'Polskie-Torrenty') {
+    return {
+      enabled: config.trackerPolskieEnabled !== false,
+      cookie: (config.trackerPolskieCookie as string) ?? ''
+    }
+  }
+  return null
+}
+
 export interface ProwlarrResult {
   title: string
   indexer: string
@@ -8,6 +31,7 @@ export interface ProwlarrResult {
   leechers: number
   magnetLink: string | null
   downloadUrl: string | null
+  guid: string | null
   publishDate: string
   categories: number[]
   infoUrl: string
@@ -22,6 +46,7 @@ interface ProwlarrRelease {
   leechers: number | null
   magnetUrl: string | null
   downloadUrl: string | null
+  guid: string
   publishDate: string
   categories: number[]
   infoUrl: string
@@ -37,11 +62,16 @@ function normalizeResult(item: ProwlarrRelease): ProwlarrResult {
     leechers: item.leechers ?? 0,
     magnetLink: item.magnetUrl ?? null,
     downloadUrl: item.downloadUrl ?? null,
+    guid: item.guid ?? null,
     publishDate: item.publishDate,
     categories: item.categories ?? [],
     infoUrl: item.infoUrl ?? '',
     imdbId: item.imdbId ?? null
   }
+}
+
+function hasDownloadMethod(item: ProwlarrRelease): boolean {
+  return item.magnetUrl !== null || item.downloadUrl !== null || POLISH_TRACKERS.includes(item.indexer)
 }
 
 export class ProwlarrClient {
@@ -78,16 +108,24 @@ export class ProwlarrClient {
       query: `{imdbid:${imdbId}}`
     })) as ProwlarrRelease[]
 
-    const results = (raw ?? [])
-      .filter((item) => item.magnetUrl !== null || item.downloadUrl !== null)
-      .map(normalizeResult)
+    const devilTorrent = raw.find((item) => item.indexer === 'Devil-Torrents')
+    if (devilTorrent !== undefined) {
+      console.log('[Prowlarr IMDB] Devil-Torrents result:', JSON.stringify(devilTorrent, null, 2))
+    }
+
+    const polishTorrent = raw.find((item) => item.indexer === 'Polskie-Torrenty')
+    if (polishTorrent !== undefined) {
+      console.log('[Prowlarr IMDB] Polskie-Torrenty result:', JSON.stringify(polishTorrent, null, 2))
+    }
+
+    const results = (raw ?? []).filter(hasDownloadMethod).map(normalizeResult)
 
     await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
     return results
   }
 
-  async searchByQuery(query: string): Promise<ProwlarrResult[]> {
-    const cacheKey = `prowlarr:query:${query}`
+  async searchByQuery(query: string, locale = 'pl'): Promise<ProwlarrResult[]> {
+    const cacheKey = `prowlarr:query:${query}:${locale}`
     const cached = await cacheGet<ProwlarrResult[]>(cacheKey)
     if (cached !== null) return cached
 
@@ -96,9 +134,17 @@ export class ProwlarrClient {
       query
     })) as ProwlarrRelease[]
 
-    const results = (raw ?? [])
-      .filter((item) => item.magnetUrl !== null || item.downloadUrl !== null)
-      .map(normalizeResult)
+    const devilTorrent = raw.find((item) => item.indexer === 'Devil-Torrents')
+    if (devilTorrent !== undefined) {
+      console.log('[Prowlarr Query] Devil-Torrents result:', JSON.stringify(devilTorrent, null, 2))
+    }
+
+    const polishTorrent = raw.find((item) => item.indexer === 'Polskie-Torrenty')
+    if (polishTorrent !== undefined) {
+      console.log('[Prowlarr Query] Polskie-Torrenty result:', JSON.stringify(polishTorrent, null, 2))
+    }
+
+    const results = (raw ?? []).filter(hasDownloadMethod).map(normalizeResult)
 
     await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
     return results

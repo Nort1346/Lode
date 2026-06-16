@@ -1,4 +1,4 @@
-import { downloads, users } from '../../database/schema'
+import { downloads } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -26,10 +26,7 @@ export default defineEventHandler(async (event) => {
   if (download.torrentHash !== null) {
     try {
       const qui = useQui()
-      const owner = db.select().from(users).where(eq(users.id, download.userId)).get()
-      const tag = owner?.username ?? session.user.username
-      const torrents = await qui.getUserTorrents(tag)
-      const torrent = torrents.find((t) => t.hash === download.torrentHash)
+      const torrent = await qui.findTorrentByHash(download.torrentHash)
       const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
 
       if (torrent !== undefined) {

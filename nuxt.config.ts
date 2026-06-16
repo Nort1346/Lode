@@ -40,7 +40,11 @@ export default defineNuxtConfig({
     savePathSeries: '/mnt/storage/streaming/Series',
     savePathGames: '/mnt/storage/streaming/Games',
     savePathBooks: '/mnt/storage/streaming/Books',
-    savePathMusic: '/mnt/storage/streaming/Music'
+    savePathMusic: '/mnt/storage/streaming/Music',
+    trackerDevilEnabled: true,
+    trackerDevilCookie: '',
+    trackerPolskieEnabled: true,
+    trackerPolskieCookie: ''
   },
 
   routeRules: {

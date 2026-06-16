@@ -53,13 +53,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 502, statusMessage: 'Failed to fetch season details from TMDB' })
   }
 
-  const imdbId = show.external_ids?.imdb_id ?? null
-
   let rawTorrents: ProwlarrResult[] = []
   const prowlarr = useProwlarr()
-  if (prowlarr !== null && imdbId !== null) {
+  if (prowlarr !== null) {
     try {
-      rawTorrents = await prowlarr.searchByImdb(imdbId, 'tv')
+      rawTorrents = await prowlarr.searchByQuery(show.name, locale)
+      if (rawTorrents.length === 0 && show.original_name !== show.name) {
+        rawTorrents = await prowlarr.searchByQuery(show.original_name, locale)
+      }
     } catch {
       // Prowlarr might be offline
     }
@@ -86,6 +87,8 @@ export default defineEventHandler(async (event) => {
         leechers: t.leechers,
         indexer: t.indexer,
         magnetLink: t.magnetLink,
+        downloadUrl: t.downloadUrl,
+        guid: t.guid,
         score: t.score,
         recommended: t.recommended,
         resolution: t.parsed.resolution,
@@ -107,6 +110,8 @@ export default defineEventHandler(async (event) => {
         leechers: t.leechers,
         indexer: t.indexer,
         magnetLink: t.magnetLink,
+        downloadUrl: t.downloadUrl,
+        guid: t.guid,
         score: 0,
         recommended: false,
         resolution: parsed.resolution,

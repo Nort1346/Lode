@@ -189,10 +189,85 @@
               color="warning"
               icon="i-lucide-download"
               :loading="downloadingIdx === idx"
+              :disabled="torrent.magnetLink === null && torrent.guid === null && torrent.downloadUrl === null"
               @click="downloadTorrent(torrent, idx)"
             >
               {{ t('movie.download') }}
             </UButton>
+            <UButton
+              v-if="isDev"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-bug"
+              @click="toggleDebug(idx)"
+            />
+          </div>
+          <div
+            v-if="isDev && debugOpenIdx === idx"
+            class="mt-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <div class="mb-2 flex items-center gap-2 font-bold text-zinc-500 dark:text-zinc-400">
+              <UIcon name="i-lucide-bug" class="size-3" />
+              Dev Info
+            </div>
+            <div class="space-y-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-24 text-zinc-400">indexer:</span>
+                <span class="text-zinc-700 dark:text-zinc-300">{{ torrent.indexer }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-24 text-zinc-400">magnetLink:</span>
+                <span
+                  class="max-w-xs truncate"
+                  :class="torrent.magnetLink ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
+                >
+                  {{ torrent.magnetLink ?? '—' }}
+                </span>
+                <UButton
+                  v-if="torrent.magnetLink"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-copy"
+                  @click="copyToClipboard(torrent.magnetLink!)"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-24 text-zinc-400">downloadUrl:</span>
+                <span
+                  class="max-w-xs truncate"
+                  :class="torrent.downloadUrl ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
+                >
+                  {{ torrent.downloadUrl ?? '—' }}
+                </span>
+                <UButton
+                  v-if="torrent.downloadUrl"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-copy"
+                  @click="copyToClipboard(torrent.downloadUrl!)"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-24 text-zinc-400">guid:</span>
+                <span
+                  class="max-w-xs truncate"
+                  :class="torrent.guid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
+                >
+                  {{ torrent.guid ?? '—' }}
+                </span>
+                <UButton
+                  v-if="torrent.guid"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-copy"
+                  @click="copyToClipboard(torrent.guid!)"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -209,6 +284,8 @@ interface Torrent {
   leechers: number
   indexer: string
   magnetLink: string | null
+  downloadUrl: string | null
+  guid: string | null
   score: number
   recommended: boolean
   resolution: string | null
@@ -235,7 +312,18 @@ const route = useRoute()
 const downloadingIdx = ref<number | null>(null)
 const requesting = ref(false)
 const alreadyRequested = ref(false)
+const debugOpenIdx = ref<number | null>(null)
 const { t, locale } = useI18n()
+
+const isDev = import.meta.dev
+
+function toggleDebug(idx: number) {
+  debugOpenIdx.value = debugOpenIdx.value === idx ? null : idx
+}
+
+async function copyToClipboard(text: string) {
+  await navigator.clipboard.writeText(text)
+}
 
 const { data, pending, error } = await useFetch<{ movie: MovieData; torrents: Torrent[] }>(
   computed(() => `/api/browse/movie/${route.params.id}?locale=${locale.value}`),
@@ -295,14 +383,20 @@ async function requestTitle() {
 }
 
 async function downloadTorrent(torrent: Torrent, idx: number) {
-  if (torrent.magnetLink === null) return
+  const hasMagnet = torrent.magnetLink !== null && torrent.magnetLink.length > 0
+  const hasGuid = torrent.guid !== null && torrent.guid.length > 0
+  const hasDownloadUrl = torrent.downloadUrl !== null && torrent.downloadUrl.length > 0
+  if (!hasMagnet && !hasGuid && !hasDownloadUrl) return
   downloadingIdx.value = idx
 
   try {
     await $fetch('/api/browse/download', {
       method: 'POST',
       body: {
-        magnetLink: torrent.magnetLink,
+        magnetLink: torrent.magnetLink ?? '',
+        downloadUrl: torrent.downloadUrl ?? '',
+        guid: torrent.guid ?? '',
+        indexer: torrent.indexer,
         label: movie.value?.title ?? 'Film',
         savePath: 'movies'
       }

@@ -104,16 +104,17 @@ export default defineEventHandler(async (event) => {
 
   const qui = useQui()
 
+  const dlTag = `dl-${randomUUID().slice(0, 8)}`
   let torrent
   let storedMagnetLink: string
 
   if (hasFile) {
     const fileBuffer = Buffer.from(torrentFileBase64, 'base64')
     storedMagnetLink = `file:${fileName}`
-    torrent = await qui.addTorrentFile(fileBuffer, fileName, targetPath, savePath, session.user.username)
+    torrent = await qui.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag)
   } else {
     storedMagnetLink = magnetLink
-    torrent = await qui.addTorrent(magnetLink, targetPath, savePath, session.user.username)
+    torrent = await qui.addTorrent(magnetLink, targetPath, savePath, dlTag)
   }
 
   if (torrent !== null) {

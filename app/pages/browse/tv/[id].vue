@@ -148,17 +148,95 @@
                 icon="i-lucide-download"
                 size="sm"
                 :loading="downloadingPackIdx === idx"
+                :disabled="pack.magnetLink === null && pack.guid === null && pack.downloadUrl === null"
                 @click="
                   downloadTorrent(
                     pack.magnetLink,
                     `${show?.name ?? ''} S${String(selectedSeason).padStart(2, '0')} Season Pack`,
                     String(idx),
-                    'pack'
+                    'pack',
+                    pack.guid,
+                    pack.indexer,
+                    pack.downloadUrl
                   )
                 "
               >
                 {{ t('tv.downloadSeason') }}
               </UButton>
+              <UButton
+                v-if="isDev"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-bug"
+                @click="toggleDebug(`pack-${idx}`)"
+              />
+              <div
+                v-if="isDev && debugOpenKey === `pack-${idx}`"
+                class="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                <div class="mb-2 flex items-center gap-2 font-bold text-zinc-500 dark:text-zinc-400">
+                  <UIcon name="i-lucide-bug" class="size-3" />
+                  Dev Info
+                </div>
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="w-24 text-zinc-400">indexer:</span>
+                    <span class="text-zinc-700 dark:text-zinc-300">{{ pack.indexer }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="w-24 text-zinc-400">magnetLink:</span>
+                    <span
+                      class="max-w-xs truncate"
+                      :class="pack.magnetLink ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
+                    >
+                      {{ pack.magnetLink ?? '—' }}
+                    </span>
+                    <UButton
+                      v-if="pack.magnetLink"
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-copy"
+                      @click="copyToClipboard(pack.magnetLink!)"
+                    />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="w-24 text-zinc-400">downloadUrl:</span>
+                    <span
+                      class="max-w-xs truncate"
+                      :class="pack.downloadUrl ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
+                    >
+                      {{ pack.downloadUrl ?? '—' }}
+                    </span>
+                    <UButton
+                      v-if="pack.downloadUrl"
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-copy"
+                      @click="copyToClipboard(pack.downloadUrl!)"
+                    />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="w-24 text-zinc-400">guid:</span>
+                    <span
+                      class="max-w-xs truncate"
+                      :class="pack.guid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
+                    >
+                      {{ pack.guid ?? '—' }}
+                    </span>
+                    <UButton
+                      v-if="pack.guid"
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-copy"
+                      @click="copyToClipboard(pack.guid!)"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -216,14 +294,93 @@
                       variant="ghost"
                       icon="i-lucide-download"
                       :loading="downloadingKey === `ep-${ep.episodeNumber}-${tIdx}`"
+                      :disabled="tr.magnetLink === null && tr.guid === null && tr.downloadUrl === null"
                       @click="
                         downloadTorrent(
                           tr.magnetLink,
                           `${show?.name ?? ''} S${String(selectedSeason).padStart(2, '0')}E${String(ep.episodeNumber).padStart(2, '0')} ${ep.name}`,
-                          `ep-${ep.episodeNumber}-${tIdx}`
+                          `ep-${ep.episodeNumber}-${tIdx}`,
+                          undefined,
+                          tr.guid,
+                          tr.indexer,
+                          tr.downloadUrl
                         )
                       "
                     />
+                    <UButton
+                      v-if="isDev"
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-bug"
+                      @click="toggleDebug(`ep-${ep.episodeNumber}-${tIdx}`)"
+                    />
+                    <div
+                      v-if="isDev && debugOpenKey === `ep-${ep.episodeNumber}-${tIdx}`"
+                      class="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                    >
+                      <div class="mb-2 flex items-center gap-2 font-bold text-zinc-500 dark:text-zinc-400">
+                        <UIcon name="i-lucide-bug" class="size-3" />
+                        Dev Info
+                      </div>
+                      <div class="space-y-1.5">
+                        <div class="flex items-center gap-2">
+                          <span class="w-24 text-zinc-400">indexer:</span>
+                          <span class="text-zinc-700 dark:text-zinc-300">{{ tr.indexer }}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <span class="w-24 text-zinc-400">magnetLink:</span>
+                          <span
+                            class="max-w-xs truncate"
+                            :class="tr.magnetLink ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
+                          >
+                            {{ tr.magnetLink ?? '—' }}
+                          </span>
+                          <UButton
+                            v-if="tr.magnetLink"
+                            size="xs"
+                            color="neutral"
+                            variant="ghost"
+                            icon="i-lucide-copy"
+                            @click="copyToClipboard(tr.magnetLink!)"
+                          />
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <span class="w-24 text-zinc-400">downloadUrl:</span>
+                          <span
+                            class="max-w-xs truncate"
+                            :class="tr.downloadUrl ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
+                          >
+                            {{ tr.downloadUrl ?? '—' }}
+                          </span>
+                          <UButton
+                            v-if="tr.downloadUrl"
+                            size="xs"
+                            color="neutral"
+                            variant="ghost"
+                            icon="i-lucide-copy"
+                            @click="copyToClipboard(tr.downloadUrl!)"
+                          />
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <span class="w-24 text-zinc-400">guid:</span>
+                          <span
+                            class="max-w-xs truncate"
+                            :class="tr.guid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
+                          >
+                            {{ tr.guid ?? '—' }}
+                          </span>
+                          <UButton
+                            v-if="tr.guid"
+                            size="xs"
+                            color="neutral"
+                            variant="ghost"
+                            icon="i-lucide-copy"
+                            @click="copyToClipboard(tr.guid!)"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -245,6 +402,9 @@ interface SeasonPack {
   seeders: number
   leechers: number
   magnetLink: string | null
+  downloadUrl: string | null
+  guid: string | null
+  indexer: string
   resolution: string | null
   language: string | null
   isSeasonPack: boolean
@@ -257,6 +417,9 @@ interface EpisodeTorrent {
   seeders: number
   leechers: number
   magnetLink: string | null
+  downloadUrl: string | null
+  guid: string | null
+  indexer: string
   score: number
   recommended: boolean
   resolution: string | null
@@ -308,7 +471,18 @@ const downloadingKey = ref<string | null>(null)
 const downloadingPackIdx = ref<number | null>(null)
 const requesting = ref(false)
 const alreadyRequested = ref(false)
+const debugOpenKey = ref<string | null>(null)
 const { t, locale } = useI18n()
+
+const isDev = import.meta.dev
+
+function toggleDebug(key: string) {
+  debugOpenKey.value = debugOpenKey.value === key ? null : key
+}
+
+async function copyToClipboard(text: string) {
+  await navigator.clipboard.writeText(text)
+}
 
 const {
   data: showData,
@@ -334,8 +508,19 @@ const { data: seasonData, pending: seasonPending } = await useFetch<SeasonData>(
   { watch: [selectedSeason, locale] }
 )
 
-async function downloadTorrent(magnetLink: string | null, label: string, key: string, type?: string) {
-  if (magnetLink === null) return
+async function downloadTorrent(
+  magnetLink: string | null,
+  label: string,
+  key: string,
+  type?: string,
+  guid?: string | null,
+  indexer?: string,
+  downloadUrl?: string | null
+) {
+  const hasMagnet = magnetLink !== null && magnetLink.length > 0
+  const hasGuid = guid !== null && guid !== undefined && guid.length > 0
+  const hasDownloadUrl = downloadUrl !== null && downloadUrl !== undefined && downloadUrl.length > 0
+  if (!hasMagnet && !hasGuid && !hasDownloadUrl) return
 
   if (type === 'pack') {
     downloadingPackIdx.value = Number(key)
@@ -347,7 +532,10 @@ async function downloadTorrent(magnetLink: string | null, label: string, key: st
     await $fetch('/api/browse/download', {
       method: 'POST',
       body: {
-        magnetLink,
+        magnetLink: magnetLink ?? '',
+        downloadUrl: downloadUrl ?? '',
+        guid: guid ?? '',
+        indexer: indexer ?? '',
         label,
         savePath: 'series'
       }

@@ -66,7 +66,7 @@ export class QuiClient {
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
       if (knownHash !== null) {
-        const byHash = await this.findByHash(knownHash)
+        const byHash = await this.findTorrentByHash(knownHash)
         if (byHash !== undefined) {
           if (byHash.size === 0) {
             const waited = await this.waitForSize(byHash.hash, 10, 3000)
@@ -130,7 +130,7 @@ export class QuiClient {
     return null
   }
 
-  private async findByHash(hash: string): Promise<QuiTorrent | undefined> {
+  async findTorrentByHash(hash: string): Promise<QuiTorrent | undefined> {
     const response = await this.request(`/api/v2/torrents/info?hashes=${hash}`)
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any
     const data: QuiTorrent[] = await response.json()
@@ -140,7 +140,7 @@ export class QuiClient {
   private async waitForSize(hash: string, maxAttempts: number, delayMs: number): Promise<QuiTorrent | undefined> {
     for (let j = 0; j < maxAttempts; j++) {
       await new Promise((resolve) => setTimeout(resolve, delayMs))
-      const byHash = await this.findByHash(hash)
+      const byHash = await this.findTorrentByHash(hash)
       if (byHash !== undefined && byHash.size > 0) return byHash
     }
     return undefined

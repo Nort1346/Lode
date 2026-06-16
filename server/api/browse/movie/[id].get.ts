@@ -24,9 +24,12 @@ export default defineEventHandler(async (event) => {
 
   let torrents: ReturnType<typeof rankTorrents> = []
   const prowlarr = useProwlarr()
-  if (prowlarr !== null && movie.imdb_id !== null) {
+  if (prowlarr !== null) {
     try {
-      const rawResults = await prowlarr.searchByImdb(movie.imdb_id, 'movie')
+      let rawResults = await prowlarr.searchByQuery(movie.title, locale)
+      if (rawResults.length === 0 && movie.original_title !== movie.title) {
+        rawResults = await prowlarr.searchByQuery(movie.original_title, locale)
+      }
       torrents = rankTorrents(rawResults, 'movie')
     } catch {
       // Prowlarr might be offline, return empty torrents
@@ -56,6 +59,8 @@ export default defineEventHandler(async (event) => {
       leechers: t.leechers,
       indexer: t.indexer,
       magnetLink: t.magnetLink,
+      downloadUrl: t.downloadUrl,
+      guid: t.guid,
       score: t.score,
       recommended: t.recommended,
       resolution: t.parsed.resolution,
