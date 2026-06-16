@@ -135,6 +135,7 @@
     "dailyLimit": "Limit dzienny",
     "activeLimit": "Limit aktywnych",
     "maxSizeGB": "Maks. rozmiar (GB)",
+    "privateTrackerLimit": "Limit prywatnych trackerów",
     "cancel": "Anuluj",
     "saveChanges": "Zapisz zmiany",
     "confirmDelete": "Czy na pewno chcesz usunąć tego użytkownika?",

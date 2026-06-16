@@ -10,6 +10,7 @@ interface UpdateUserBody {
   dailyDownloadLimit?: number
   activeTorrentLimit?: number
   maxTorrentSizeGb?: number
+  privateTrackerLimit?: number
   downloadsToday?: number
 }
 
@@ -58,6 +59,10 @@ export default defineEventHandler(async (event) => {
   if (body.maxTorrentSizeGb !== undefined) {
     updates.maxTorrentSizeGb = body.maxTorrentSizeGb
     changedFields.push('maxTorrentSizeGb')
+  }
+  if (body.privateTrackerLimit !== undefined) {
+    updates.privateTrackerLimit = body.privateTrackerLimit
+    changedFields.push('privateTrackerLimit')
   }
   if (body.downloadsToday !== undefined) {
     updates.downloadsToday = body.downloadsToday

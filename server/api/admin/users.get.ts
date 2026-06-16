@@ -14,6 +14,7 @@ export default defineEventHandler(async (event) => {
     dailyDownloadLimit: u.dailyDownloadLimit,
     activeTorrentLimit: u.activeTorrentLimit,
     maxTorrentSizeGb: u.maxTorrentSizeGb,
+    privateTrackerLimit: u.privateTrackerLimit,
     downloadsToday: u.downloadsToday,
     createdAt: u.createdAt
   }))

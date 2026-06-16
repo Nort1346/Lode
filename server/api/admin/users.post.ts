@@ -10,13 +10,15 @@ interface CreateUserBody {
   dailyDownloadLimit?: number
   activeTorrentLimit?: number
   maxTorrentSizeGb?: number
+  privateTrackerLimit?: number
 }
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
 
   const body = await readBody<CreateUserBody>(event)
-  const { username, password, role, dailyDownloadLimit, activeTorrentLimit, maxTorrentSizeGb } = body
+  const { username, password, role, dailyDownloadLimit, activeTorrentLimit, maxTorrentSizeGb, privateTrackerLimit } =
+    body
 
   if (!username || !password) {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })
@@ -40,6 +42,7 @@ export default defineEventHandler(async (event) => {
       dailyDownloadLimit: dailyDownloadLimit ?? 5,
       activeTorrentLimit: activeTorrentLimit ?? 3,
       maxTorrentSizeGb: maxTorrentSizeGb ?? 20,
+      privateTrackerLimit: privateTrackerLimit ?? 5,
       isActive: true,
       downloadsToday: 0,
       createdAt: new Date().toISOString()

@@ -7,6 +7,7 @@ interface AdminUser {
   dailyDownloadLimit: number
   activeTorrentLimit: number
   maxTorrentSizeGb: number
+  privateTrackerLimit: number
   downloadsToday: number
   createdAt: string
 }
@@ -27,7 +28,8 @@ const form = reactive({
   role: 'user',
   dailyDownloadLimit: 5,
   activeTorrentLimit: 3,
-  maxTorrentSizeGb: 20
+  maxTorrentSizeGb: 20,
+  privateTrackerLimit: 5
 })
 const saving = ref(false)
 const error = ref('')
@@ -54,6 +56,7 @@ function openCreate() {
   form.dailyDownloadLimit = 5
   form.activeTorrentLimit = 3
   form.maxTorrentSizeGb = 20
+  form.privateTrackerLimit = 5
   error.value = ''
   showModal.value = true
 }
@@ -66,6 +69,7 @@ function openEdit(user: AdminUser) {
   form.dailyDownloadLimit = user.dailyDownloadLimit
   form.activeTorrentLimit = user.activeTorrentLimit
   form.maxTorrentSizeGb = user.maxTorrentSizeGb
+  form.privateTrackerLimit = user.privateTrackerLimit
   error.value = ''
   showModal.value = true
 }
@@ -80,7 +84,8 @@ async function saveUser() {
         role: form.role,
         dailyDownloadLimit: form.dailyDownloadLimit,
         activeTorrentLimit: form.activeTorrentLimit,
-        maxTorrentSizeGb: form.maxTorrentSizeGb
+        maxTorrentSizeGb: form.maxTorrentSizeGb,
+        privateTrackerLimit: form.privateTrackerLimit
       }
       if (form.password) body.password = form.password
       if (form.username !== editingUser.value.username) body.username = form.username
@@ -182,6 +187,11 @@ const roleOptions = computed(() => [
               >
                 {{ t('admin.tableMaxSize') }}
               </th>
+              <th
+                class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden lg:table-cell"
+              >
+                {{ t('admin.privateTrackerLimit') }}
+              </th>
               <th class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
                 {{ t('admin.tableStatus') }}
               </th>
@@ -234,6 +244,9 @@ const roleOptions = computed(() => [
               </td>
               <td class="px-4 py-3 text-center text-sm text-zinc-600 dark:text-zinc-300 hidden lg:table-cell">
                 {{ u.maxTorrentSizeGb }}GB
+              </td>
+              <td class="px-4 py-3 text-center text-sm text-zinc-600 dark:text-zinc-300 hidden lg:table-cell">
+                {{ u.privateTrackerLimit }}
               </td>
               <td class="px-4 py-3 text-center">
                 <button
@@ -292,6 +305,10 @@ const roleOptions = computed(() => [
               <UInput v-model.number="form.maxTorrentSizeGb" type="number" class="w-full" />
             </UFormField>
           </div>
+
+          <UFormField :label="t('admin.privateTrackerLimit')">
+            <UInput v-model.number="form.privateTrackerLimit" type="number" class="w-full" />
+          </UFormField>
 
           <UAlert v-if="error" :description="error" color="error" variant="subtle" />
 

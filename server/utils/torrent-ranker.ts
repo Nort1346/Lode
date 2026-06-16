@@ -152,13 +152,13 @@ function scoreResolution(parsed: ParsedTitle): number {
 function scoreLanguage(parsed: ParsedTitle): number {
   switch (parsed.language) {
     case 'pl-dub':
-      return 30
+      return 20
     case 'pl-sub':
-      return 25
+      return 15
     case 'pl-lektor':
       return 20
     case 'en':
-      return 15
+      return 10
     default:
       return 5
   }
@@ -166,13 +166,13 @@ function scoreLanguage(parsed: ParsedTitle): number {
 
 function scoreSeeders(seeders: number): number {
   if (seeders <= 0) return 0
-  if (seeders >= 500) return 20
-  if (seeders >= 100) return 17
-  if (seeders >= 50) return 14
+  if (seeders >= 500) return 17
+  if (seeders >= 100) return 15
+  if (seeders >= 50) return 13
   if (seeders >= 20) return 11
-  if (seeders >= 10) return 8
-  if (seeders >= 5) return 5
-  return 3
+  if (seeders >= 10) return 10
+  if (seeders >= 5) return 8
+  return 4
 }
 
 function scoreSize(sizeBytes: number, type: 'movie' | 'series'): number {
@@ -207,7 +207,28 @@ function scoreGroup(parsed: ParsedTitle): number {
   return KNOWN_GROUPS.has(parsed.group) ? 5 : 0
 }
 
-function calculateScore(result: ProwlarrResult, type: 'movie' | 'series'): number {
+function scoreTitleRelevance(torrentTitle: string, mediaTitle: string, year: string): number {
+  if (mediaTitle.length === 0) return 0
+
+  const lower = torrentTitle.toLowerCase()
+  const titleLower = mediaTitle.toLowerCase()
+
+  const words = titleLower.split(/\s+/).filter((w) => w.length >= 3)
+  if (words.length === 0) return 0
+
+  const matchedWords = words.filter((w) => lower.includes(w))
+  if (matchedWords.length === 0) return -20
+
+  const wordScore = Math.round((matchedWords.length / words.length) * 15)
+
+  const yearScore = year !== '' && lower.includes(year) ? 10 : 0
+
+  const fullTitleScore = lower.includes(titleLower) ? 10 : 0
+
+  return wordScore + yearScore + fullTitleScore
+}
+
+function calculateScore(result: ProwlarrResult, type: 'movie' | 'series', mediaTitle: string, year: string): number {
   const parsed = parseTorrentTitle(result.title)
 
   const resolution = scoreResolution(parsed)
@@ -216,13 +237,19 @@ function calculateScore(result: ProwlarrResult, type: 'movie' | 'series'): numbe
   const size = scoreSize(result.size, type)
   const source = scoreSource(parsed)
   const group = scoreGroup(parsed)
+  const titleRelevance = scoreTitleRelevance(result.title, mediaTitle, year)
 
-  return resolution + language + seeders + size + source + group
+  return resolution + language + seeders + size + source + group + titleRelevance
 }
 
-export function rankTorrents(results: ProwlarrResult[], type: 'movie' | 'series' = 'movie'): RankedTorrent[] {
+export function rankTorrents(
+  results: ProwlarrResult[],
+  type: 'movie' | 'series' = 'movie',
+  mediaTitle = '',
+  year = ''
+): RankedTorrent[] {
   const ranked = results.map((result) => {
-    const score = calculateScore(result, type)
+    const score = calculateScore(result, type, mediaTitle, year)
     const parsed = parseTorrentTitle(result.title)
     return { ...result, score, recommended: false, parsed }
   })

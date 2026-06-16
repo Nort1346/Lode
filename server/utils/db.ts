@@ -25,6 +25,7 @@ function initDb() {
       daily_download_limit INTEGER NOT NULL DEFAULT 5,
       active_torrent_limit INTEGER NOT NULL DEFAULT 3,
       max_torrent_size_gb INTEGER NOT NULL DEFAULT 20,
+      private_tracker_limit INTEGER NOT NULL DEFAULT 5,
       downloads_today INTEGER NOT NULL DEFAULT 0,
       downloads_reset_at TEXT,
       created_at TEXT NOT NULL DEFAULT ''
@@ -91,6 +92,12 @@ function initDb() {
   }
   if (!columns.includes('num_leechs')) {
     sqlite.exec(`ALTER TABLE downloads ADD COLUMN num_leechs INTEGER NOT NULL DEFAULT 0`)
+  }
+
+  const userPragmaRows = sqlite.prepare('PRAGMA table_info(users)').all() as Record<string, unknown>[]
+  const userColumns = userPragmaRows.map((c) => c.name as string)
+  if (!userColumns.includes('private_tracker_limit')) {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN private_tracker_limit INTEGER NOT NULL DEFAULT 5`)
   }
 
   _db = drizzle(sqlite, { schema })

@@ -87,6 +87,16 @@ export default defineEventHandler(async (event) => {
         statusMessage: `Daily download limit reached (${session.user.dailyDownloadLimit})`
       })
     }
+
+    if (isPolishTracker) {
+      const todayPrivate = todayAll.filter((d) => d.magnetLink.startsWith('guid:'))
+      if (todayPrivate.length >= session.user.privateTrackerLimit) {
+        throw createError({
+          statusCode: 429,
+          statusMessage: `Private tracker daily limit reached (${session.user.privateTrackerLimit})`
+        })
+      }
+    }
   }
 
   const savePathMap: Record<SavePathKey, string> = {

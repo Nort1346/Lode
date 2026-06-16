@@ -7,6 +7,7 @@ declare module '#auth-utils' {
     dailyDownloadLimit: number
     activeTorrentLimit: number
     maxTorrentSizeGb: number
+    privateTrackerLimit: number
     downloadsToday: number
   }
 }

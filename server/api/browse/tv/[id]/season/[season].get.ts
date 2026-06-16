@@ -53,13 +53,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 502, statusMessage: 'Failed to fetch season details from TMDB' })
   }
 
+  const year = show.first_air_date?.slice(0, 4) ?? ''
+
   let rawTorrents: ProwlarrResult[] = []
   const prowlarr = useProwlarr()
   if (prowlarr !== null) {
     try {
-      rawTorrents = await prowlarr.searchByQuery(show.name, locale)
+      rawTorrents = await prowlarr.searchByQuery(`${show.name} ${year}`.trim(), locale)
       if (rawTorrents.length === 0 && show.original_name !== show.name) {
-        rawTorrents = await prowlarr.searchByQuery(show.original_name, locale)
+        rawTorrents = await prowlarr.searchByQuery(`${show.original_name} ${year}`.trim(), locale)
       }
     } catch {
       // Prowlarr might be offline
@@ -68,7 +70,7 @@ export default defineEventHandler(async (event) => {
 
   const episodes = (season.episodes ?? []).map((ep) => {
     const episodeTorrents = rawTorrents.filter((t) => episodeRangeMatches(t.title, seasonNumber, ep.episode_number))
-    const ranked = rankTorrents(episodeTorrents, 'series')
+    const ranked = rankTorrents(episodeTorrents, 'series', show.name, year)
 
     return {
       id: ep.id,

@@ -11,6 +11,7 @@ export const users = sqliteTable('users', {
   dailyDownloadLimit: integer('daily_download_limit').notNull().default(5),
   activeTorrentLimit: integer('active_torrent_limit').notNull().default(3),
   maxTorrentSizeGb: integer('max_torrent_size_gb').notNull().default(20),
+  privateTrackerLimit: integer('private_tracker_limit').notNull().default(5),
   downloadsToday: integer('downloads_today').notNull().default(0),
   downloadsResetAt: text('downloads_reset_at'),
   createdAt: text('created_at').notNull().default('')

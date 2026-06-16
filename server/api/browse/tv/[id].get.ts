@@ -26,11 +26,12 @@ export default defineEventHandler(async (event) => {
   const prowlarr = useProwlarr()
   if (prowlarr !== null) {
     try {
-      let rawResults = await prowlarr.searchByQuery(show.name, locale)
+      const year = show.first_air_date?.slice(0, 4) ?? ''
+      let rawResults = await prowlarr.searchByQuery(`${show.name} ${year}`.trim(), locale)
       if (rawResults.length === 0 && show.original_name !== show.name) {
-        rawResults = await prowlarr.searchByQuery(show.original_name, locale)
+        rawResults = await prowlarr.searchByQuery(`${show.original_name} ${year}`.trim(), locale)
       }
-      torrents = rankTorrents(rawResults, 'series')
+      torrents = rankTorrents(rawResults, 'series', show.name, year)
     } catch {
       // Prowlarr might be offline
     }
