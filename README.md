@@ -4,16 +4,19 @@ Torrent request manager for streaming services. Users submit magnet links, Strea
 
 ## Features
 
-- **Torrent management** — submit magnet links, track progress, delete with disk cleanup
+- **Torrent management** — submit magnet links or `.torrent` files, track progress, delete with disk cleanup
+- **Background torrent sync** — continuous 10s server-side sync via Nitro plugin, no client dependency
 - **Browse & search** — TMDB-powered movie/TV search with poster cards, detail pages, popular carousels
 - **Torrent download from browse** — Prowlarr integration, one-click download with quality/seeder info
+- **Polish private trackers** — Devil-Torrents / Polskie-Torrenty with cookie auth, guid-based download, per-user daily limits
 - **Title requests** — users request movies/TV they want, admin accepts/rejects with notes
-- **User system** — roles, daily download limits, active torrent limits, max size per user
+- **User system** — roles, daily download limits, active torrent limits, max size per user, private tracker limits
 - **Jellyfin integration** — auto-notifies Jellyfin after torrent completes, configurable prep delay
 - **Label system** — categorize downloads (movies, series, games, books, music)
 - **Admin panel** — user CRUD, activate/deactivate, per-user limit configuration, request management
+- **System dashboard** — live service health checks (qBittorrent, Prowlarr, Jellyfin, Redis) at `/admin/settings`
 - **i18n** — Polish/English language switching, TMDB locale-aware results
-- **Activity logs** — track user actions (login, torrent add, delete, settings changes)
+- **Activity logs** — track user actions with action/user filtering
 - **Skeleton loading** — loading skeletons on movie/TV detail pages
 - **Redis caching** — cached TMDB/Prowlarr results with configurable TTL
 - **Light/dark mode** — amber primary, glassmorphism dark theme, mobile responsive
@@ -112,6 +115,11 @@ The SQLite database is persisted in `./data` on the host.
 | `NUXT_SAVE_PATH_GAMES` | qBittorrent save path for games | `/mnt/storage/streaming/Games` |
 | `NUXT_SAVE_PATH_BOOKS` | qBittorrent save path for books | `/mnt/storage/streaming/Books` |
 | `NUXT_SAVE_PATH_MUSIC` | qBittorrent save path for music | `/mnt/storage/streaming/Music` |
+| `NUXT_TRACKER_DEVIL_ENABLED` | Enable Devil-Torrents tracker | `true` |
+| `NUXT_TRACKER_DEVIL_COOKIE` | Devil-Torrents session cookie | — |
+| `NUXT_TRACKER_POLSKIE_ENABLED` | Enable Polskie-Torrenty tracker | `true` |
+| `NUXT_TRACKER_POLSKIE_COOKIE` | Polskie-Torrenty session cookie | — |
+| `NUXT_TORRENT_SYNC_INTERVAL_MS` | Background torrent sync interval (ms) | `10000` |
 
 ## Scripts
 
