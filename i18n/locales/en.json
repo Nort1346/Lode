@@ -45,7 +45,7 @@
     "recommended": "Recommended",
     "download": "Download",
     "noImdb": "No IMDB ID — cannot search for torrents.",
-    "noTorrents": "No torrents found. Check if Prowlarr is running.",
+    "noTorrents": "No torrents found.",
     "loadError": "Failed to load movie details."
   },
   "tv": {

@@ -473,8 +473,9 @@ const requesting = ref(false)
 const alreadyRequested = ref(false)
 const debugOpenKey = ref<string | null>(null)
 const { t, locale } = useI18n()
+const { user } = useUserSession()
 
-const isDev = import.meta.dev
+const isDev = computed(() => import.meta.dev && user.value?.role === 'admin')
 
 function toggleDebug(key: string) {
   debugOpenKey.value = debugOpenKey.value === key ? null : key
@@ -503,7 +504,7 @@ const seasonOptions = computed(() => {
   }))
 })
 
-const { data: seasonData, pending: seasonPending } = await useFetch<SeasonData>(
+const { data: seasonData, pending: seasonPending } = useLazyFetch<SeasonData>(
   computed(() => `/api/browse/tv/${route.params.id}/season/${selectedSeason.value}?locale=${locale.value}`),
   { watch: [selectedSeason, locale] }
 )

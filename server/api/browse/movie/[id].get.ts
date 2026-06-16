@@ -1,6 +1,4 @@
 import { getMovieDetails, getImageUrl } from '../../../utils/tmdb'
-import { useProwlarr } from '../../../utils/prowlarr'
-import { rankTorrents, formatSize } from '../../../utils/torrent-ranker'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -22,21 +20,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 502, statusMessage: 'Failed to fetch movie details from TMDB' })
   }
 
-  let torrents: ReturnType<typeof rankTorrents> = []
-  const prowlarr = useProwlarr()
-  if (prowlarr !== null) {
-    try {
-      const year = movie.release_date?.slice(0, 4) ?? ''
-      let rawResults = await prowlarr.searchByQuery(`${movie.title} ${year}`.trim(), locale)
-      if (rawResults.length === 0 && movie.original_title !== movie.title) {
-        rawResults = await prowlarr.searchByQuery(`${movie.original_title} ${year}`.trim(), locale)
-      }
-      torrents = rankTorrents(rawResults, 'movie', movie.title, year)
-    } catch {
-      // Prowlarr might be offline, return empty torrents
-    }
-  }
-
   return {
     movie: {
       id: movie.id,
@@ -51,22 +34,6 @@ export default defineEventHandler(async (event) => {
       runtime: movie.runtime,
       genres: movie.genres,
       imdbId: movie.imdb_id
-    },
-    torrents: torrents.map((t) => ({
-      title: t.title,
-      size: t.size,
-      sizeFormatted: formatSize(t.size),
-      seeders: t.seeders,
-      leechers: t.leechers,
-      indexer: t.indexer,
-      magnetLink: t.magnetLink,
-      downloadUrl: t.downloadUrl,
-      guid: t.guid,
-      score: t.score,
-      recommended: t.recommended,
-      resolution: t.parsed.resolution,
-      source: t.parsed.source,
-      language: t.parsed.language
-    }))
+    }
   }
 })

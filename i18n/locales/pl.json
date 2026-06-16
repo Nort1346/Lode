@@ -45,7 +45,7 @@
     "recommended": "Polecany",
     "download": "Pobierz",
     "noImdb": "Brak identyfikatora IMDB — nie można wyszukać torrentów.",
-    "noTorrents": "Nie znaleziono torrentów. Sprawdź czy Prowlarr jest uruchomiony.",
+    "noTorrents": "Nie znaleziono torrentów.",
     "loadError": "Nie udało się załadować szczegółów filmu."
   },
   "tv": {

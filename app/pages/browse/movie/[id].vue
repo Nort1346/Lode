@@ -113,8 +113,14 @@
         {{ t('movie.availableTorrents') }}
       </h2>
 
+      <div v-if="torrentsPending" class="space-y-2">
+        <USkeleton class="h-20 w-full rounded-xl" />
+        <USkeleton class="h-20 w-full rounded-xl" />
+        <USkeleton class="h-20 w-full rounded-xl" />
+      </div>
+
       <div
-        v-if="torrents.length === 0"
+        v-else-if="torrents.length === 0"
         class="rounded-xl bg-zinc-100/50 py-8 text-center text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
       >
         <p v-if="!movie.imdbId">{{ t('movie.noImdb') }}</p>
@@ -183,7 +189,6 @@
               >
                 {{ torrent.score }}
               </div>
-              <div class="text-[10px] text-zinc-400">/100</div>
             </div>
             <UButton
               color="warning"
@@ -314,8 +319,9 @@ const requesting = ref(false)
 const alreadyRequested = ref(false)
 const debugOpenIdx = ref<number | null>(null)
 const { t, locale } = useI18n()
+const { user } = useUserSession()
 
-const isDev = import.meta.dev
+const isDev = computed(() => import.meta.dev && user.value?.role === 'admin')
 
 function toggleDebug(idx: number) {
   debugOpenIdx.value = debugOpenIdx.value === idx ? null : idx
@@ -325,13 +331,18 @@ async function copyToClipboard(text: string) {
   await navigator.clipboard.writeText(text)
 }
 
-const { data, pending, error } = await useFetch<{ movie: MovieData; torrents: Torrent[] }>(
+const { data, pending, error } = await useFetch<{ movie: MovieData }>(
   computed(() => `/api/browse/movie/${route.params.id}?locale=${locale.value}`),
   { watch: [locale] }
 )
 
+const { data: torrentData, pending: torrentsPending } = useLazyFetch<{ torrents: Torrent[] }>(
+  computed(() => `/api/browse/movie/${route.params.id}/torrents?locale=${locale.value}`),
+  { watch: [locale] }
+)
+
 const movie = computed(() => data.value?.movie ?? null)
-const torrents = computed(() => data.value?.torrents ?? [])
+const torrents = computed(() => torrentData.value?.torrents ?? [])
 
 function formatLanguage(lang: string): string {
   const map: Record<string, string> = {
