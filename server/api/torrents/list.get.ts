@@ -76,7 +76,7 @@ export default defineEventHandler(async (event) => {
         let quiTorrent = quiTorrents.find((t) => t.hash === dl.torrentHash)
 
         if (quiTorrent === undefined && quiTorrents.length > 0) {
-          // eslint-disable-next-line no-console
+
           console.warn(
             `[list.get.ts] hash mismatch: db="${dl.torrentHash}" name="${dl.torrentName}" qui_count=${quiTorrents.length}`
           )
@@ -86,12 +86,12 @@ export default defineEventHandler(async (event) => {
           )
 
           if (quiTorrent !== undefined) {
-            // eslint-disable-next-line no-console
+
             console.warn(`[list.get.ts] matched by name: "${quiTorrent.name}" hash=${quiTorrent.hash}`)
             db.update(downloads).set({ torrentHash: quiTorrent.hash }).where(eq(downloads.id, dl.id)).run()
             dl.torrentHash = quiTorrent.hash
           } else {
-            // eslint-disable-next-line no-console
+
             console.warn(
               `[list.get.ts] hash+name mismatch: db_hash="${dl.torrentHash}" name="${dl.torrentName}" — marking as failed`
             )
@@ -168,7 +168,6 @@ export default defineEventHandler(async (event) => {
         }
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('[list.get.ts] qui fetch failed:', err)
     }
   }

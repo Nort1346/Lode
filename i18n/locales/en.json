@@ -145,7 +145,7 @@
     "title": "Activity Logs",
     "subtitle": "Track user actions, logins, and torrent activity",
     "allActions": "All actions",
-    "filterUser": "Filter by user ID",
+    "allUsers": "All users",
     "apply": "Apply",
     "noLogs": "No logs found",
     "tableTime": "Time",

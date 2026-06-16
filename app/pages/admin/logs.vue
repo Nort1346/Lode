@@ -21,9 +21,10 @@ const loading = ref(true)
 const page = ref(1)
 const totalPages = ref(1)
 const total = ref(0)
-const filterAction = ref('')
-const filterUserId = ref('')
+const filterAction = ref('all')
+const filterUserId = ref('all')
 const limit = 50
+const users = ref<{ id: string; username: string }[]>([])
 
 const ACTION_KEYS: Record<string, string> = {
   login: 'action_login',
@@ -47,12 +48,13 @@ const ACTION_COLORS: Record<string, string> = {
   user_delete: 'red'
 }
 
-const ACTION_OPTIONS = computed(() =>
-  Object.entries(ACTION_KEYS).map(([value, key]) => ({
+const ACTION_OPTIONS = computed(() => [
+  { value: 'all', label: t('logs.allActions') },
+  ...Object.entries(ACTION_KEYS).map(([value, key]) => ({
     value,
     label: t(`logs.${key}`)
   }))
-)
+])
 
 async function fetchLogs() {
   loading.value = true
@@ -60,8 +62,8 @@ async function fetchLogs() {
     const params = new URLSearchParams()
     params.set('page', String(page.value))
     params.set('limit', String(limit))
-    if (filterAction.value) params.set('action', filterAction.value)
-    if (filterUserId.value) params.set('userId', filterUserId.value)
+    if (filterAction.value !== 'all') params.set('action', filterAction.value)
+    if (filterUserId.value !== 'all') params.set('userId', filterUserId.value)
 
     const res = await $fetch<{ logs: ActivityLog[]; page: number; totalPages: number; total: number }>(
       `/api/admin/logs?${params.toString()}`
@@ -77,7 +79,19 @@ async function fetchLogs() {
   }
 }
 
-onMounted(fetchLogs)
+onMounted(async () => {
+  fetchLogs()
+  try {
+    users.value = await $fetch('/api/admin/users')
+  } catch {
+    // silently fail
+  }
+})
+
+const USER_OPTIONS = computed(() => [
+  { value: 'all', label: t('logs.allUsers') },
+  ...users.value.map((u) => ({ value: u.id, label: u.username }))
+])
 
 function applyFilters() {
   page.value = 1
@@ -146,7 +160,12 @@ function shortenUA(ua: string | null): string {
           :placeholder="t('logs.allActions')"
           class="w-full sm:w-48"
         />
-        <UInput v-model="filterUserId" :placeholder="t('logs.filterUser')" class="w-full sm:w-48" />
+        <USelect
+          v-model="filterUserId"
+          :items="USER_OPTIONS"
+          :placeholder="t('logs.allUsers')"
+          class="w-full sm:w-48"
+        />
         <UButton :label="t('logs.apply')" icon="i-lucide-search" @click="applyFilters" />
       </div>
     </div>

@@ -145,7 +145,7 @@
     "title": "Logi aktywności",
     "subtitle": "Śledź akcje użytkowników, logowania i aktywność torrentów",
     "allActions": "Wszystkie akcje",
-    "filterUser": "Filtruj po ID użytkownika",
+    "allUsers": "Wszyscy użytkownicy",
     "apply": "Zastosuj",
     "noLogs": "Brak logów",
     "tableTime": "Czas",

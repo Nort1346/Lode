@@ -19,7 +19,7 @@ export default withNuxt(
       }
     },
     rules: {
-      'no-console': 'warn',
+      'no-console': 'off',
       eqeqeq: ['error', 'always'],
 
       // Safety

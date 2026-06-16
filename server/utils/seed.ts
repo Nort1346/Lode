@@ -26,7 +26,6 @@ export async function ensureAdminExists() {
       })
       .run()
 
-    // eslint-disable-next-line no-console
     console.log('[DB] Admin user created (username: admin, password: admin)')
   }
 }
