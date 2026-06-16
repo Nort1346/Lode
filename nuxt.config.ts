@@ -44,7 +44,8 @@ export default defineNuxtConfig({
     trackerDevilEnabled: true,
     trackerDevilCookie: '',
     trackerPolskieEnabled: true,
-    trackerPolskieCookie: ''
+    trackerPolskieCookie: '',
+    torrentSyncIntervalMs: 10000
   },
 
   routeRules: {
