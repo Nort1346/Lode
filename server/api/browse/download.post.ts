@@ -2,6 +2,7 @@ import { downloads } from '../../database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { POLISH_TRACKERS, getTrackerCookieConfig } from '../../utils/prowlarr'
+import { useFlareSolverr } from '../../utils/flaresolverr'
 
 interface DownloadBody {
   magnetLink?: string
@@ -144,13 +145,31 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    const flaresolverr = useFlareSolverr()
+    let fetchHeaders: Record<string, string> = { Cookie: trackerConfig.cookie }
+
+    if (flaresolverr !== null) {
+      const trackerOrigin = new URL(guidUrl).origin
+      console.log(`[Download] ${indexer} solving Cloudflare challenge via FlareSolverr (${trackerOrigin})...`)
+      try {
+        const solution = await flaresolverr.solveChallenge(trackerOrigin)
+        fetchHeaders = {
+          Cookie: `${trackerConfig.cookie}; ${solution.cookies}`,
+          'User-Agent': solution.userAgent
+        }
+        console.log(`[Download] ${indexer} Cloudflare challenge solved`)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.log(`[Download] ${indexer} FlareSolverr failed, falling back to direct fetch: ${msg}`)
+      }
+    }
+
     let fileResponse: Response
     try {
-      fileResponse = await fetch(guidUrl, {
-        headers: { Cookie: trackerConfig.cookie }
-      })
-    } catch {
-      throw createError({ statusCode: 502, statusMessage: `Failed to connect to ${indexer}` })
+      fileResponse = await fetch(guidUrl, { headers: fetchHeaders })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      throw createError({ statusCode: 502, statusMessage: `Failed to connect to ${indexer}: ${msg}` })
     }
 
     if (!fileResponse.ok) {

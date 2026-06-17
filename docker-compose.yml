@@ -9,6 +9,16 @@ services:
       - redis-data:/data
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
 
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: streamhub-flaresolverr
+    restart: unless-stopped
+    ports:
+      - '8191:8191'
+    environment:
+      - LOG_LEVEL=info
+      - BROWSER_TIMEOUT=60000
+
   streamhub:
     build: .
     container_name: streamhub
@@ -22,6 +32,7 @@ services:
       - NODE_ENV=production
     depends_on:
       - redis
+      - flaresolverr
     restart: unless-stopped
 
 volumes:

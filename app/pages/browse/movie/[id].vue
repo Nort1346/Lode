@@ -47,7 +47,7 @@
       }"
     >
       <div
-        class="h-full w-full bg-linear-to-b from-white/70 via-white/40 to-[var(--ui-bg)] dark:from-black/95 dark:via-black/70"
+        class="h-full w-full bg-linear-to-b from-white/70 via-white/40 to-default dark:from-black/95 dark:via-black/70"
       />
     </div>
 

@@ -50,7 +50,8 @@ export default defineNuxtConfig({
     trackerPolskieEnabled: true,
     trackerPolskieCookie: '',
     torrentSyncIntervalMs: 10000,
-    discordWebhookUrl: ''
+    discordWebhookUrl: '',
+    flaresolverrUrl: ''
   },
 
   routeRules: {

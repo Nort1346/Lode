@@ -24,15 +24,17 @@ const serviceIcons: Record<string, string> = {
   Prowlarr: 'i-lucide-search',
   Jellyfin: 'i-lucide-play',
   Redis: 'i-lucide-database',
-  Discord: 'i-lucide-message-square'
+  Discord: 'i-lucide-message-square',
+  FlareSolverr: 'i-lucide-shield'
 }
 
 const serviceColors: Record<string, string> = {
   qBittorrent: 'text-blue-600 dark:text-blue-400',
-  Prowlarr: 'i-lucide-search text-purple-600 dark:text-purple-400',
+  Prowlarr: 'text-purple-600 dark:text-purple-400',
   Jellyfin: 'text-pink-600 dark:text-pink-400',
   Redis: 'text-red-600 dark:text-red-400',
-  Discord: 'text-indigo-600 dark:text-indigo-400'
+  Discord: 'text-indigo-600 dark:text-indigo-400',
+  FlareSolverr: 'text-orange-600 dark:text-orange-400'
 }
 
 const statusColors: Record<string, string> = {
@@ -58,7 +60,8 @@ const envVars = {
     { name: 'NUXT_PROWLARR_URL', desc: 'Prowlarr URL' },
     { name: 'NUXT_PROWLARR_API_KEY', desc: 'Prowlarr API Key' },
     { name: 'NUXT_JELLYFIN_URL', desc: 'Jellyfin URL' },
-    { name: 'NUXT_JELLYFIN_API_KEY', desc: 'Jellyfin API Key' }
+    { name: 'NUXT_JELLYFIN_API_KEY', desc: 'Jellyfin API Key' },
+    { name: 'NUXT_FLARESOLVERR_URL', desc: 'FlareSolverr URL (Cloudflare bypass)' }
   ],
   paths: [
     { name: 'NUXT_SAVE_PATH_MOVIES', desc: '🎬 Movies' },
@@ -107,10 +110,10 @@ onMounted(fetchStatus)
 
     <div class="mb-6">
       <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('settings.systemStatus') }}</h2>
-      <div v-if="loadingServices" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <USkeleton v-for="i in 5" :key="i" class="h-24 rounded-xl" />
+      <div v-if="loadingServices" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <USkeleton v-for="i in 6" :key="i" class="h-24 rounded-xl" />
       </div>
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <div v-for="s in services" :key="s.name" class="card p-4">
           <div class="flex items-center gap-3 mb-3">
             <div class="flex justify-center items-center p-2 rounded-lg bg-zinc-100 dark:bg-white/5">

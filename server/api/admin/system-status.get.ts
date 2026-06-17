@@ -132,6 +132,32 @@ async function checkDiscord(config: ReturnType<typeof useRuntimeConfig>): Promis
   }
 }
 
+async function checkFlareSolverr(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
+  const url = config.flaresolverrUrl as string
+  if (!url) {
+    return { name: 'FlareSolverr', configured: false, status: 'not_configured' }
+  }
+
+  const start = Date.now()
+  try {
+    const res = await fetch(normalizeUrl(url), { signal: AbortSignal.timeout(5000) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return {
+      name: 'FlareSolverr',
+      configured: true,
+      status: 'up',
+      latencyMs: Date.now() - start
+    }
+  } catch {
+    return {
+      name: 'FlareSolverr',
+      configured: true,
+      status: 'down',
+      latencyMs: Date.now() - start
+    }
+  }
+}
+
 async function checkRedis(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
   const url = config.redisUrl as string
   if (!url) {
@@ -177,7 +203,8 @@ export default defineEventHandler(async (event: H3Event) => {
     checkProwlarr(config),
     checkJellyfin(config),
     checkRedis(config),
-    checkDiscord(config)
+    checkDiscord(config),
+    checkFlareSolverr(config)
   ])
 
   return { services }

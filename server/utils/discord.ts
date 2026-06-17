@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { ContainerBuilder, SectionBuilder } from '@discordjs/builders'
+import { ContainerBuilder } from '@discordjs/builders'
 import type { SeparatorBuilder, TextDisplayBuilder } from '@discordjs/builders'
 import { REST } from '@discordjs/rest'
 import { Routes, MessageFlags } from 'discord-api-types/v10'
