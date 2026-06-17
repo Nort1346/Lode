@@ -26,6 +26,7 @@
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.10.1",
     "drizzle-orm": "^0.45.2",
+    "got-scraping": "^4.2.1",
     "ioredis": "^5.11.1",
     "nuxt": "^4.4.8",
     "nuxt-auth-utils": "^0.5.29",

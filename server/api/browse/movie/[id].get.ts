@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
       originalTitle: movie.original_title,
       overview: movie.overview,
       posterUrl: getImageUrl(movie.poster_path, 'w780'),
-      backdropUrl: getImageUrl(movie.backdrop_path, 'w1280'),
+      backdropUrl: getImageUrl(movie.backdrop_path, 'original'),
       releaseDate: movie.release_date,
       rating: movie.vote_average,
       voteCount: movie.vote_count,

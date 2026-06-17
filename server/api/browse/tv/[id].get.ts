@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
       originalName: show.original_name,
       overview: show.overview,
       posterUrl: getImageUrl(show.poster_path, 'w780'),
-      backdropUrl: getImageUrl(show.backdrop_path, 'w1280'),
+      backdropUrl: getImageUrl(show.backdrop_path, 'original'),
       firstAirDate: show.first_air_date,
       rating: show.vote_average,
       voteCount: show.vote_count,
