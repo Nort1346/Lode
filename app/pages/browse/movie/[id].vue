@@ -448,7 +448,8 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
         label: movie.value?.title ?? 'Film',
         savePath: 'movies',
         tmdbId: movie.value?.id ?? null,
-        mediaType: 'movie'
+        mediaType: 'movie',
+        torrentSize: torrent.size
       }
     })
     const toast = useToast()

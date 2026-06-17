@@ -181,7 +181,8 @@
                     'pack',
                     pack.guid,
                     pack.indexer,
-                    pack.downloadUrl
+                    pack.downloadUrl,
+                    pack.size
                   )
                 "
               >
@@ -327,7 +328,8 @@
                           undefined,
                           tr.guid,
                           tr.indexer,
-                          tr.downloadUrl
+                          tr.downloadUrl,
+                          tr.size
                         )
                       "
                     />
@@ -556,7 +558,8 @@ async function downloadTorrent(
   type?: string,
   guid?: string | null,
   indexer?: string,
-  downloadUrl?: string | null
+  downloadUrl?: string | null,
+  torrentSize?: number
 ) {
   const hasMagnet = magnetLink !== null && magnetLink.length > 0
   const hasGuid = guid !== null && guid !== undefined && guid.length > 0
@@ -580,7 +583,8 @@ async function downloadTorrent(
         label,
         savePath: 'series',
         tmdbId: show.value?.id ?? null,
-        mediaType: 'tv'
+        mediaType: 'tv',
+        torrentSize: torrentSize ?? 0
       }
     })
     const toast = useToast()

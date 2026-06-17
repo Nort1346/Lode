@@ -202,7 +202,16 @@
     "discordDesc": "Powiadomienia o ukończonych pobraniach wysyłane na kanał Discord.",
     "discordLocale": "Język embedów Discord",
     "discordLocaleDesc": "Język opisów filmów/seriali w powiadomieniach Discord.",
-    "discord": "Discord"
+    "discord": "Discord",
+    "diskStatus": "Status dysków",
+    "diskStatusDesc": "Wolne miejsce na dyskach magazynowych",
+    "diskFree": "Wolne",
+    "diskUsed": "Użyte",
+    "diskTotal": "Całkowite",
+    "diskOk": "Wystarczająco miejsca",
+    "diskLow": "Mało miejsca!",
+    "diskUnavailable": "Dysk niedostępny",
+    "diskMinRequired": "Wymagane minimum"
   },
   "requests": {
     "title": "Żądania",
@@ -247,6 +256,7 @@
     "status_pending": "Oczekujące",
     "status_failed": "Błąd",
     "status_paused": "Wstrzymane",
+    "status_disk_full": "Brak miejsca",
     "status_removed": "Usunięte",
     "eta": "ETA",
     "savePath_movies": "🎬 Filmy",

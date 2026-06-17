@@ -24,7 +24,7 @@ export const downloads = sqliteTable('downloads', {
   torrentName: text('torrent_name').notNull().default(''),
   magnetLink: text('magnet_link').notNull(),
   savePath: text('save_path', { enum: ['movies', 'series', 'games', 'books', 'music'] }).notNull(),
-  status: text('status', { enum: ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed'] })
+  status: text('status', { enum: ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed', 'disk_full'] })
     .notNull()
     .default('pending'),
   torrentHash: text('torrent_hash'),

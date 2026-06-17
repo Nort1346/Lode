@@ -233,7 +233,9 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
 
     if (tmdb.genres.length > 0) {
       const genres = tmdb.genres.join(', ')
-      container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(`${bold(str.genres)}: ${genres}`))
+      container.addTextDisplayComponents((text: TextDisplayBuilder) =>
+        text.setContent(`${bold(str.genres)}: ${genres}`)
+      )
     }
 
     const metaParts: string[] = []

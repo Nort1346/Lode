@@ -26,6 +26,8 @@ services:
       - '3000:3000'
     volumes:
       - ./data:/app/.data
+      - /mnt/storage/streaming:/mnt/storage/streaming:ro
+      - /:/host-root:ro
     env_file:
       - .env
     environment:

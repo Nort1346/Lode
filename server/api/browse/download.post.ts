@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { POLISH_TRACKERS, getTrackerCookieConfig } from '#server/utils/prowlarr'
 import { gotScraping } from 'got-scraping'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
+import { checkAllDisks } from '#server/utils/disk'
+import { formatSize } from '#server/utils/torrent-ranker'
 
 interface DownloadBody {
   magnetLink?: string
@@ -14,6 +16,7 @@ interface DownloadBody {
   savePath: string
   tmdbId?: number
   mediaType?: string
+  torrentSize?: number
 }
 
 const SAVE_PATH_KEYS = ['movies', 'series', 'games', 'music', 'books'] as const
@@ -148,6 +151,36 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 500, statusMessage: 'Save path not configured' })
     }
     console.log(`[Download:4:PATH] savePath=${savePath} → ${targetPath}`)
+
+    // ── 4b: DISK SPACE CHECK ─────────────────────────────────
+    if (config.diskSpaceCheckEnabled === true) {
+      const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
+      if (disks.length > 0) {
+        const torrentSize = body.torrentSize ?? 0
+        const allStatuses = checkAllDisks(disks, config.minFreeSpaceGb as number)
+        for (const disk of allStatuses) {
+          if (disk.available) {
+            console.log(
+              `[Download:4b:DISK] ${disk.path}: ${disk.freeFormatted} free (${disk.usedPercent}% used)${torrentSize > 0 ? `, torrentSize=${formatSize(torrentSize)}` : ''}`
+            )
+          } else {
+            console.log(`[Download:4b:DISK] ${disk.path}: unavailable`)
+          }
+        }
+        const lowDisk = allStatuses.find((d) => {
+          if (!d.available) return false
+          const effectiveFree = d.freeBytes - torrentSize
+          return effectiveFree < (config.minFreeSpaceGb as number) * 1024 ** 3
+        })
+        if (lowDisk !== undefined) {
+          console.log(`[Download:4b:DISK] ✗ BLOCKED — ${lowDisk.path}: ${lowDisk.freeFormatted} free`)
+          throw createError({
+            statusCode: 507,
+            statusMessage: `Insufficient disk space${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''} (${lowDisk.freeFormatted} free, minimum ${config.minFreeSpaceGb} GB required)`
+          })
+        }
+      }
+    }
 
     // ── 5: TRACKER (Polish) ───────────────────────────────────
     const qui = useQui()
@@ -304,6 +337,46 @@ export default defineEventHandler(async (event) => {
           statusCode: 413,
           statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${session.user.maxTorrentSizeGb} GB`
         })
+      }
+    }
+
+    // ── 9b: DISK CHECK POST-ADD ──────────────────────────────
+    if (torrent !== null && torrent.size > 0 && config.diskSpaceCheckEnabled === true) {
+      const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
+      if (disks.length > 0) {
+        const allStatuses = checkAllDisks(disks, config.minFreeSpaceGb as number)
+        const lowDisk = allStatuses.find((d) => {
+          if (!d.available) return false
+          return torrent.size > d.freeBytes
+        })
+        if (lowDisk !== undefined) {
+          console.log(
+            `[Download:9b:DISK] ✗ POST-ADD DELETE — ${lowDisk.path}: ${lowDisk.freeFormatted} free, torrent=${formatSize(torrent.size)}`
+          )
+          await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+          const id = randomUUID()
+          db.insert(downloads)
+            .values({
+              id,
+              userId: session.user.id,
+              label,
+              torrentName: torrent.name,
+              magnetLink: storedMagnetLink,
+              savePath: savePath as SavePathKey,
+              status: 'disk_full',
+              torrentHash: torrent.hash,
+              sizeBytes: torrent.size,
+              posterUrl: null,
+              tmdbId,
+              mediaType: mediaType as 'movie' | 'tv' | null,
+              createdAt: new Date().toISOString()
+            })
+            .run()
+          throw createError({
+            statusCode: 507,
+            statusMessage: `Torrent too large for disk (${formatSize(torrent.size)}). Free: ${lowDisk.freeFormatted}${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''}`
+          })
+        }
       }
     }
 

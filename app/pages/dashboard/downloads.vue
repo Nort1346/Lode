@@ -170,6 +170,7 @@ const statusColors: Record<string, string> = {
   completed: 'bg-green-500/15 text-green-700 dark:text-green-400',
   pending: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
   failed: 'bg-red-500/15 text-red-700 dark:text-red-400',
+  disk_full: 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
   paused: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400',
   removed: 'bg-zinc-500/15 text-zinc-500 dark:text-zinc-500'
 }

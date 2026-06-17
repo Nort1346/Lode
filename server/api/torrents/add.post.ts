@@ -2,6 +2,8 @@ import { downloads } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
+import { checkAllDisks } from '#server/utils/disk'
+import { formatSize } from '#server/utils/torrent-ranker'
 
 interface AddTorrentBody {
   magnetLink?: string
@@ -11,6 +13,7 @@ interface AddTorrentBody {
   label?: string
   tmdbId?: number
   mediaType?: string
+  torrentSize?: number
 }
 
 const SAVE_PATH_KEYS = ['movies', 'series', 'games', 'music', 'books'] as const
@@ -108,6 +111,25 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Save path not configured' })
   }
 
+  if (config.diskSpaceCheckEnabled === true) {
+    const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
+    if (disks.length > 0) {
+      const torrentSize = body.torrentSize ?? 0
+      const allStatuses = checkAllDisks(disks, config.minFreeSpaceGb as number)
+      const lowDisk = allStatuses.find((d) => {
+        if (!d.available) return false
+        const effectiveFree = d.freeBytes - torrentSize
+        return effectiveFree < (config.minFreeSpaceGb as number) * 1024 ** 3
+      })
+      if (lowDisk !== undefined) {
+        throw createError({
+          statusCode: 507,
+          statusMessage: `Insufficient disk space${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''} (${lowDisk.freeFormatted} free, minimum ${config.minFreeSpaceGb} GB required)`
+        })
+      }
+    }
+  }
+
   const qui = useQui()
 
   const dlTag = `dl-${randomUUID().slice(0, 8)}`
@@ -131,6 +153,21 @@ export default defineEventHandler(async (event) => {
         statusCode: 413,
         statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${session.user.maxTorrentSizeGb} GB`
       })
+    }
+
+    if (torrent.size > 0 && config.diskSpaceCheckEnabled === true) {
+      const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
+      if (disks.length > 0) {
+        const allStatuses = checkAllDisks(disks, config.minFreeSpaceGb as number)
+        const lowDisk = allStatuses.find((d) => d.available && torrent.size > d.freeBytes)
+        if (lowDisk !== undefined) {
+          await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+          throw createError({
+            statusCode: 507,
+            statusMessage: `Torrent too large for disk (${formatSize(torrent.size)}). Free: ${lowDisk.freeFormatted}${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''}`
+          })
+        }
+      }
     }
   }
 

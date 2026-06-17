@@ -202,7 +202,16 @@
     "discordDesc": "Download completion notifications sent to a Discord channel.",
     "discordLocale": "Discord embed language",
     "discordLocaleDesc": "Language of movie/TV show descriptions in Discord notifications.",
-    "discord": "Discord"
+    "discord": "Discord",
+    "diskStatus": "Disk Status",
+    "diskStatusDesc": "Free space on storage disks",
+    "diskFree": "Free",
+    "diskUsed": "Used",
+    "diskTotal": "Total",
+    "diskOk": "Sufficient space",
+    "diskLow": "Low disk space!",
+    "diskUnavailable": "Disk unavailable",
+    "diskMinRequired": "Minimum required"
   },
   "requests": {
     "title": "Requests",
@@ -247,6 +256,7 @@
     "status_pending": "Pending",
     "status_failed": "Failed",
     "status_paused": "Paused",
+    "status_disk_full": "Disk full",
     "status_removed": "Removed",
     "eta": "ETA",
     "savePath_movies": "🎬 Movies",

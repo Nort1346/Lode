@@ -61,7 +61,10 @@ export default defineNuxtConfig({
     trackerPolskieCookie: '',
     torrentSyncIntervalMs: 10000,
     discordWebhookUrl: '',
-    flaresolverrUrl: ''
+    flaresolverrUrl: '',
+    disks: '',
+    minFreeSpaceGb: 7,
+    diskSpaceCheckEnabled: true
   },
 
   routeRules: {

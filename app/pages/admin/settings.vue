@@ -19,6 +19,24 @@ const services = ref<ServiceStatus[]>([])
 const loadingServices = ref(true)
 const discordLocale = ref('pl')
 
+interface DiskStatus {
+  path: string
+  totalBytes: number
+  freeBytes: number
+  usedBytes: number
+  totalFormatted: string
+  freeFormatted: string
+  usedFormatted: string
+  usedPercent: number
+  hasEnoughSpace: boolean
+  available: boolean
+}
+
+const diskStatuses = ref<DiskStatus[]>([])
+const loadingDisks = ref(true)
+const diskMinFreeGb = ref(7)
+const diskCheckEnabled = ref(true)
+
 const serviceIcons: Record<string, string> = {
   qBittorrent: 'i-lucide-download',
   Prowlarr: 'i-lucide-search',
@@ -78,17 +96,23 @@ const envVars = {
 
 async function fetchStatus() {
   loadingServices.value = true
+  loadingDisks.value = true
   try {
-    const [statusData, localeData] = await Promise.all([
+    const [statusData, localeData, diskData] = await Promise.all([
       $fetch<{ services: ServiceStatus[] }>('/api/admin/system-status'),
-      $fetch<{ locale: string }>('/api/admin/discord-locale')
+      $fetch<{ locale: string }>('/api/admin/discord-locale'),
+      $fetch<{ disks: DiskStatus[]; minFreeSpaceGb: number; checkEnabled: boolean }>('/api/admin/disk-status')
     ])
     services.value = statusData.services
     discordLocale.value = localeData.locale
+    diskStatuses.value = diskData.disks
+    diskMinFreeGb.value = diskData.minFreeSpaceGb
+    diskCheckEnabled.value = diskData.checkEnabled
   } catch {
     services.value = []
   } finally {
     loadingServices.value = false
+    loadingDisks.value = false
   }
 }
 
@@ -165,7 +189,61 @@ onMounted(fetchStatus)
     </div>
 
     <div class="card p-6 mb-4">
-      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('settings.userLimits') }}</h2>
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('settings.diskStatus') }}</h2>
+      <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">{{ t('settings.diskStatusDesc') }}</p>
+      <div v-if="loadingDisks" class="space-y-3">
+        <USkeleton v-for="i in 2" :key="i" class="h-20 w-full rounded-xl" />
+      </div>
+      <div v-else-if="diskStatuses.length === 0" class="text-sm text-zinc-500 dark:text-zinc-400">
+        {{ t('settings.notConfigured') }} — NUXT_DISKS
+      </div>
+      <div v-else class="space-y-4">
+        <div class="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+          <UIcon
+            :name="diskCheckEnabled ? 'i-lucide-check-circle' : 'i-lucide-x-circle'"
+            class="size-4"
+            :class="diskCheckEnabled ? 'text-green-500' : 'text-zinc-400'"
+          />
+          {{ t('settings.diskMinRequired') }}: {{ diskMinFreeGb }} GB
+        </div>
+        <div v-for="disk in diskStatuses" :key="disk.path" class="space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-zinc-900 dark:text-white">{{ disk.path }}</span>
+              <span
+                v-if="!disk.available"
+                class="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400"
+              >
+                {{ t('settings.diskUnavailable') }}
+              </span>
+              <span
+                v-else-if="!disk.hasEnoughSpace"
+                class="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400"
+              >
+                {{ t('settings.diskLow') }}
+              </span>
+              <span
+                v-else
+                class="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400"
+              >
+                {{ t('settings.diskOk') }}
+              </span>
+            </div>
+            <span class="text-xs text-zinc-500 dark:text-zinc-400">
+              {{ t('settings.diskFree') }}: {{ disk.freeFormatted }} / {{ t('settings.diskTotal') }}:
+              {{ disk.totalFormatted }}
+            </span>
+          </div>
+          <UProgress
+            :model-value="disk.usedPercent"
+            :color="!disk.available ? 'neutral' : disk.hasEnoughSpace ? 'primary' : 'error'"
+            size="sm"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-6 mb-4">
       <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">{{ t('settings.userLimitsDesc') }}</p>
       <div class="space-y-2 text-sm">
         <div class="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
