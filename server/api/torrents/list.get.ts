@@ -22,8 +22,8 @@ export default defineEventHandler(async (event) => {
       ? (rawStatus as SupportedStatus)
       : undefined
 
-  // Trigger sync in background (non-blocking) — data will be fresh on next request
-  void syncTorrentStatus().catch(() => {})
+  // Sync before reading — data will be fresh on this request
+  await syncTorrentStatus().catch(() => {})
   void notifyJellyfinIfNeeded().catch(() => {})
 
   let results: DownloadRow[]

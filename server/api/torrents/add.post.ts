@@ -155,9 +155,10 @@ export default defineEventHandler(async (event) => {
       id,
       userId: session.user.id,
       label: label ?? '',
+      torrentName: torrent?.name ?? '',
       magnetLink: storedMagnetLink,
       savePath: savePath as SavePathKey,
-      status: torrent !== null ? 'downloading' : 'pending',
+      status: 'downloading',
       torrentHash: torrent?.hash ?? null,
       progress: torrent !== null ? torrent.progress * 100 : 0,
       etaSeconds: torrent?.eta ?? 0,
@@ -171,13 +172,6 @@ export default defineEventHandler(async (event) => {
       posterUrl
     })
     .run()
-
-  if (torrent === null) {
-    throw createError({
-      statusCode: 502,
-      statusMessage: 'Torrent was sent to qBittorrent but could not be confirmed. It may appear shortly.'
-    })
-  }
 
   logActivity(event, {
     action: 'torrent_add',

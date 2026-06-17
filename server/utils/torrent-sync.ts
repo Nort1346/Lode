@@ -42,12 +42,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
   const db = useDb()
   const result: SyncResult = { synced: 0, completed: 0, failed: 0 }
 
-  const activeDownloads = db
-    .select()
-    .from(downloads)
-    .where(eq(downloads.status, 'downloading'))
-    .all()
-    .filter((d) => d.torrentHash !== null)
+  const activeDownloads = db.select().from(downloads).where(eq(downloads.status, 'downloading')).all()
 
   if (activeDownloads.length === 0) return result
 
@@ -64,14 +59,10 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
   }
 
   for (const dl of activeDownloads) {
-    if (dl.torrentHash === null) continue
+    let quiTorrent = dl.torrentHash !== null ? quiTorrents.find((t) => t.hash === dl.torrentHash) : undefined
 
-    let quiTorrent = quiTorrents.find((t) => t.hash === dl.torrentHash)
-
-    if (quiTorrent === undefined && quiTorrents.length > 0) {
-      quiTorrent = quiTorrents.find(
-        (t) => t.name === dl.torrentName || (dl.torrentName !== '' && t.name.includes(dl.torrentName))
-      )
+    if (quiTorrent === undefined && quiTorrents.length > 0 && dl.torrentName !== '') {
+      quiTorrent = quiTorrents.find((t) => t.name === dl.torrentName || t.name.includes(dl.torrentName))
 
       if (quiTorrent !== undefined) {
         db.update(downloads).set({ torrentHash: quiTorrent.hash }).where(eq(downloads.id, dl.id)).run()

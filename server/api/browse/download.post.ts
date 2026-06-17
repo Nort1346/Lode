@@ -324,17 +324,16 @@ export default defineEventHandler(async (event) => {
     }
 
     const id = randomUUID()
-    console.log(
-      `[Download:10:DB] inserting: id=${id} status=${torrent !== null ? 'downloading' : 'pending'} hash=${torrent?.hash ?? 'null'}`
-    )
+    console.log(`[Download:10:DB] inserting: id=${id} status=downloading hash=${torrent?.hash ?? 'null'}`)
     db.insert(downloads)
       .values({
         id,
         userId: session.user.id,
         label: label ?? '',
+        torrentName: torrent?.name ?? '',
         magnetLink: storedMagnetLink,
         savePath: savePath as SavePathKey,
-        status: torrent !== null ? 'downloading' : 'pending',
+        status: 'downloading',
         torrentHash: torrent?.hash ?? null,
         progress: torrent !== null ? torrent.progress * 100 : 0,
         etaSeconds: torrent?.eta ?? 0,
