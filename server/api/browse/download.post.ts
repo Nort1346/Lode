@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { POLISH_TRACKERS, getTrackerCookieConfig } from '../../utils/prowlarr'
 import { gotScraping } from 'got-scraping'
+import { getMovieDetails, getTvShowDetails, getImageUrl } from '../../utils/tmdb'
 
 interface DownloadBody {
   magnetLink?: string
@@ -307,6 +308,21 @@ export default defineEventHandler(async (event) => {
     }
 
     // ── 10: DB ────────────────────────────────────────────────
+    let posterUrl: string | null = null
+    if (tmdbId !== null && mediaType !== null) {
+      try {
+        if (mediaType === 'movie') {
+          const movie = await getMovieDetails(tmdbId)
+          posterUrl = getImageUrl(movie.poster_path, 'w185')
+        } else {
+          const show = await getTvShowDetails(tmdbId)
+          posterUrl = getImageUrl(show.poster_path, 'w185')
+        }
+      } catch {
+        // ignore — poster is optional
+      }
+    }
+
     const id = randomUUID()
     console.log(
       `[Download:10:DB] inserting: id=${id} status=${torrent !== null ? 'downloading' : 'pending'} hash=${torrent?.hash ?? 'null'}`
@@ -328,7 +344,8 @@ export default defineEventHandler(async (event) => {
         downloadedBytes: torrent?.downloaded ?? 0,
         createdAt: new Date().toISOString(),
         tmdbId,
-        mediaType
+        mediaType,
+        posterUrl
       })
       .run()
 

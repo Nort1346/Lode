@@ -39,7 +39,8 @@ export const downloads = sqliteTable('downloads', {
   createdAt: text('created_at').notNull().default(''),
   completedAt: text('completed_at'),
   tmdbId: integer('tmdb_id'),
-  mediaType: text('media_type', { enum: ['movie', 'tv'] })
+  mediaType: text('media_type', { enum: ['movie', 'tv'] }),
+  posterUrl: text('poster_url')
 })
 
 export const settings = sqliteTable('settings', {

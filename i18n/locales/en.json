@@ -34,7 +34,9 @@
     "noResults": "No results found for",
     "enterTitle": "Enter a title to find a movie or TV show",
     "popularMovies": "Popular Movies",
-    "popularTv": "Popular TV Shows"
+    "popularTv": "Popular TV Shows",
+    "trending": "Trending",
+    "topRated": "Top Rated"
   },
   "mediaCard": {
     "movie": "Movie",

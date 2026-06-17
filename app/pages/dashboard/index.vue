@@ -19,6 +19,7 @@ interface Download {
   numLeechs: number
   createdAt: string
   completedAt: string | null
+  posterUrl: string | null
 }
 
 definePageMeta({
@@ -254,73 +255,94 @@ const savePathLabels: Record<string, string> = {
         <div
           v-for="dl in activeDownloads"
           :key="dl.id"
-          class="p-4 rounded-xl border transition-all bg-zinc-50 dark:bg-white/2"
+          class="flex gap-3 p-3 rounded-xl border transition-all bg-zinc-50 dark:bg-white/2 sm:gap-4 sm:p-4"
           :class="
             getTorrentQuality(dl) === 'ok'
               ? 'border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/10'
               : qualityConfig[getTorrentQuality(dl)].border
           "
         >
-          <div class="flex items-start justify-between mb-2">
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-zinc-900 dark:text-white truncate">
-                {{ getDisplayName(dl) }}
-              </p>
-              <div class="flex items-center gap-2 mt-1.5 flex-wrap">
-                <span
-                  v-if="dl.username"
-                  class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"
-                >
-                  @{{ dl.username }}
-                </span>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400">
-                  {{ savePathLabels[dl.savePath] || dl.savePath }}
-                </span>
-                <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
-                  {{ capitalize(dl.status) }}
-                </span>
-                <span
-                  v-if="getTorrentQuality(dl) !== 'ok'"
-                  class="text-xs px-2 py-0.5 rounded-full"
-                  :class="qualityConfig[getTorrentQuality(dl)].badge"
-                >
-                  {{ qualityConfig[getTorrentQuality(dl)].badgeText }}
-                </span>
-              </div>
+          <div
+            class="shrink-0 w-12 h-[72px] rounded-lg overflow-hidden bg-zinc-200 dark:bg-white/5 shadow-sm dark:shadow-black/20 sm:w-[80px] sm:h-[120px]"
+          >
+            <img v-if="dl.posterUrl" :src="dl.posterUrl" class="w-full h-full object-cover" loading="lazy" />
+            <div v-else class="flex items-center justify-center w-full h-full">
+              <UIcon name="i-lucide-film" class="w-5 h-5 text-zinc-300 dark:text-zinc-600 sm:w-8 sm:h-8" />
             </div>
-            <UButton
-              icon="i-lucide-trash-2"
-              color="error"
-              :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
-              size="xs"
-              :loading="cancelling === dl.id"
-              :label="t('download.delete')"
-              @click="cancelTorrent(dl.id)"
-            />
           </div>
 
-          <div class="space-y-2">
-            <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-              <span class="font-medium text-zinc-900 dark:text-white">{{ dl.progress.toFixed(1) }}%</span>
-              <div class="flex items-center gap-3">
-                <span v-if="dl.numSeeds > 0" class="text-zinc-500 dark:text-zinc-400">
-                  <UIcon name="i-lucide-arrow-up" class="inline size-3" />{{ dl.numSeeds }}
-                </span>
-                <span
-                  >ETA: <span class="text-zinc-900 dark:text-white">{{ formatEta(dl.etaSeconds) }}</span></span
-                >
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between mb-2">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-zinc-900 dark:text-white truncate">
+                  {{ getDisplayName(dl) }}
+                </p>
+                <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <span
+                    v-if="dl.username"
+                    class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"
+                  >
+                    @{{ dl.username }}
+                  </span>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                    {{ savePathLabels[dl.savePath] || dl.savePath }}
+                  </span>
+                  <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
+                    {{ capitalize(dl.status) }}
+                  </span>
+                  <span
+                    v-if="getTorrentQuality(dl) !== 'ok'"
+                    class="text-xs px-2 py-0.5 rounded-full"
+                    :class="qualityConfig[getTorrentQuality(dl)].badge"
+                  >
+                    {{ qualityConfig[getTorrentQuality(dl)].badgeText }}
+                  </span>
+                </div>
               </div>
-            </div>
-            <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
-              <div
-                class="h-full min-w-0.5 rounded-full bg-gradient-to-r"
-                :class="qualityConfig[getTorrentQuality(dl)].bar"
-                :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
+                size="xs"
+                :loading="cancelling === dl.id"
+                :label="t('download.delete')"
+                class="hidden sm:inline-flex"
+                @click="cancelTorrent(dl.id)"
+              />
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
+                size="xs"
+                :loading="cancelling === dl.id"
+                class="sm:hidden"
+                @click="cancelTorrent(dl.id)"
               />
             </div>
-            <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
-              <span>↓ {{ formatSpeed(dl.downloadSpeed) }} · ↑ {{ formatSpeed(dl.uploadSpeed) }}</span>
-              <span>{{ formatSize(dl.downloadedBytes) }} / {{ formatSize(dl.sizeBytes) }}</span>
+
+            <div class="space-y-2">
+              <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+                <span class="font-medium text-zinc-900 dark:text-white">{{ dl.progress.toFixed(1) }}%</span>
+                <div class="flex items-center gap-3">
+                  <span v-if="dl.numSeeds > 0" class="text-zinc-500 dark:text-zinc-400">
+                    <UIcon name="i-lucide-arrow-up" class="inline size-3" />{{ dl.numSeeds }}
+                  </span>
+                  <span
+                    >ETA: <span class="text-zinc-900 dark:text-white">{{ formatEta(dl.etaSeconds) }}</span></span
+                  >
+                </div>
+              </div>
+              <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
+                <div
+                  class="h-full min-w-0.5 rounded-full bg-gradient-to-r"
+                  :class="qualityConfig[getTorrentQuality(dl)].bar"
+                  :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
+                />
+              </div>
+              <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+                <span>↓ {{ formatSpeed(dl.downloadSpeed) }} · ↑ {{ formatSpeed(dl.uploadSpeed) }}</span>
+                <span>{{ formatSize(dl.downloadedBytes) }} / {{ formatSize(dl.sizeBytes) }}</span>
+              </div>
             </div>
           </div>
         </div>

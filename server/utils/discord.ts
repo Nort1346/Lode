@@ -52,7 +52,11 @@ const DISCORD_STRINGS = {
     series: '📺 Serial',
     games: '🎮 Gry',
     books: '📚 Książki',
-    music: '🎵 Muzyka'
+    music: '🎵 Muzyka',
+    resolution: 'Rozdzielczość',
+    source: 'Źródło',
+    language: 'Język',
+    codec: 'Kodek'
   },
   en: {
     genres: 'Genres',
@@ -67,7 +71,11 @@ const DISCORD_STRINGS = {
     series: '📺 Series',
     games: '🎮 Games',
     books: '📚 Books',
-    music: '🎵 Music'
+    music: '🎵 Music',
+    resolution: 'Resolution',
+    source: 'Source',
+    language: 'Language',
+    codec: 'Codec'
   }
 } as const
 
@@ -141,6 +149,46 @@ function addSeparator(container: ContainerBuilder): void {
   container.addSeparatorComponents((sep: SeparatorBuilder) => sep.setSpacing(2))
 }
 
+interface TorrentMeta {
+  resolution: string | null
+  source: string | null
+  language: string | null
+  codec: string | null
+}
+
+function parseTorrentName(name: string): TorrentMeta {
+  const lower = name.toLowerCase()
+
+  let resolution: string | null = null
+  if (/\b(2160p|4k|uhd)\b/.test(lower)) resolution = '4K'
+  else if (/\b1080p\b/.test(lower)) resolution = '1080p'
+  else if (/\b720p\b/.test(lower)) resolution = '720p'
+  else if (/\b480p\b/.test(lower)) resolution = '480p'
+
+  let source: string | null = null
+  if (/\b(bluray|blu-ray|bdrip|bdremux)\b/.test(lower)) source = 'BluRay'
+  else if (/\b(web-dl|webdl)\b/.test(lower)) source = 'WEB-DL'
+  else if (/\b(webrip|web-rip)\b/.test(lower)) source = 'WEBRip'
+  else if (/\b(hdrip)\b/.test(lower)) source = 'HDRip'
+  else if (/\b(dvdrip|dvd)\b/.test(lower)) source = 'DVD'
+  else if (/\b(hdtv)\b/.test(lower)) source = 'HDTV'
+  else if (/\b(remux)\b/.test(lower)) source = 'Remux'
+
+  let language: string | null = null
+  if (/\b(pldub|polish)\b/.test(lower)) language = 'PL'
+  else if (/\b(lektor|pl)\b/.test(lower)) language = 'PL'
+  else if (/\b(dual[\s.]?audio|dual[\s.]?audio)\b/.test(lower)) language = 'Dual'
+  else if (/\b(eng|english)\b/.test(lower)) language = 'EN'
+
+  let codec: string | null = null
+  if (/\bx264|h\.?264|avc\b/.test(lower)) codec = 'x264'
+  else if (/\bx265|h\.?265|hevc\b/.test(lower)) codec = 'x265'
+  else if (/\bxvid\b/.test(lower)) codec = 'XviD'
+  else if (/\bav1\b/.test(lower)) codec = 'AV1'
+
+  return { resolution, source, language, codec }
+}
+
 export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): Promise<void> {
   const config = useRuntimeConfig()
   const webhookUrl = config.discordWebhookUrl as string
@@ -203,11 +251,16 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   }
 
   addSeparator(container)
+  const meta = parseTorrentName(data.torrentName)
   const infoParts: string[] = [
     `**${str.size}:** ${formatSize(data.sizeBytes)}`,
     `**${str.category}:** ${savePathLabel(data.savePath, str)}`,
     `**${str.downloadedBy}:** ${data.username}`
   ]
+  if (meta.resolution !== null) infoParts.push(`**${str.resolution}:** ${meta.resolution}`)
+  if (meta.source !== null) infoParts.push(`**${str.source}:** ${meta.source}`)
+  if (meta.language !== null) infoParts.push(`**${str.language}:** ${meta.language}`)
+  if (meta.codec !== null) infoParts.push(`**${str.codec}:** ${meta.codec}`)
   container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(infoParts.join(' · ')))
 
   const match = webhookUrl.match(/\/webhooks\/(\d+)\/(.+?)(?:\/|$)/)

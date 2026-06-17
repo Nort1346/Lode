@@ -34,7 +34,9 @@
     "noResults": "Nie znaleziono wyników dla",
     "enterTitle": "Wpisz tytuł aby znaleźć film lub serial",
     "popularMovies": "Popularne filmy",
-    "popularTv": "Popularne seriale"
+    "popularTv": "Popularne seriale",
+    "trending": "Trendujące",
+    "topRated": "Najwyżej oceniane"
   },
   "mediaCard": {
     "movie": "Film",

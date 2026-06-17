@@ -19,6 +19,7 @@ interface Download {
   numLeechs: number
   createdAt: string
   completedAt: string | null
+  posterUrl: string | null
 }
 
 definePageMeta({
@@ -189,94 +190,122 @@ const savePathLabels = computed<Record<string, string>>(() => ({
       <div
         v-for="dl in downloads"
         :key="dl.id"
-        class="card p-5"
-        :class="getTorrentQuality(dl) !== 'ok' ? qualityConfig[getTorrentQuality(dl)].border : ''"
+        class="flex gap-3 p-3 rounded-xl border transition-all bg-zinc-50 dark:bg-white/2 sm:gap-4 sm:p-5"
+        :class="
+          getTorrentQuality(dl) !== 'ok'
+            ? qualityConfig[getTorrentQuality(dl)].border
+            : 'border-zinc-200 dark:border-white/5'
+        "
       >
-        <div class="flex items-start justify-between mb-3">
-          <div class="flex-1 min-w-0">
-            <p class="font-medium text-zinc-900 dark:text-white truncate">
-              {{ getDisplayName(dl) }}
-            </p>
-            <div class="flex items-center gap-2 mt-1.5 flex-wrap">
-              <span
-                v-if="dl.username"
-                class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"
-              >
-                @{{ dl.username }}
-              </span>
-              <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
-                {{ t(`common.status_${dl.status}`) }}
-              </span>
-              <span
-                class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400"
-              >
-                {{ savePathLabels[dl.savePath] }}
-              </span>
-              <span
-                v-if="getTorrentQuality(dl) !== 'ok' && dl.status === 'downloading'"
-                class="text-xs px-2 py-0.5 rounded-full"
-                :class="qualityConfig[getTorrentQuality(dl)].badge"
-              >
-                {{
-                  qualityConfig[getTorrentQuality(dl)].badgeKey ? t(qualityConfig[getTorrentQuality(dl)].badgeKey) : ''
-                }}
-              </span>
-              <span class="text-xs text-zinc-400 dark:text-zinc-500">
-                {{ formatDate(dl.createdAt) }}
-              </span>
-            </div>
+        <div
+          class="shrink-0 w-12 h-[72px] rounded-lg overflow-hidden bg-zinc-200 dark:bg-white/5 shadow-sm dark:shadow-black/20 sm:w-[80px] sm:h-[120px]"
+        >
+          <img v-if="dl.posterUrl" :src="dl.posterUrl" class="w-full h-full object-cover" loading="lazy" />
+          <div v-else class="flex items-center justify-center w-full h-full">
+            <UIcon name="i-lucide-film" class="w-5 h-5 text-zinc-300 dark:text-zinc-600 sm:w-8 sm:h-8" />
           </div>
-
-          <UButton
-            v-if="dl.status === 'downloading' || dl.status === 'pending'"
-            icon="i-lucide-trash-2"
-            color="error"
-            :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
-            size="xs"
-            :label="getTorrentQuality(dl) !== 'ok' ? t('common.deleteBad') : t('common.delete')"
-            :loading="cancelling === dl.id"
-            @click="cancelTorrent(dl.id)"
-          />
         </div>
 
-        <div v-if="dl.status === 'downloading'" class="space-y-2">
-          <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-            <span class="font-medium text-zinc-900 dark:text-white">{{ dl.progress.toFixed(1) }}%</span>
-            <div class="flex items-center gap-3">
-              <span v-if="dl.numSeeds > 0" class="text-zinc-500 dark:text-zinc-400">
-                <UIcon name="i-lucide-arrow-up" class="inline size-3" />{{ dl.numSeeds }}
-              </span>
-              <span v-if="dl.numLeechs > 0" class="text-zinc-400 dark:text-zinc-500">
-                <UIcon name="i-lucide-arrow-down" class="inline size-3" />{{ dl.numLeechs }}
-              </span>
-              <span
-                >{{ t('common.eta') }}:
-                <span class="text-zinc-900 dark:text-white font-medium">{{ formatEta(dl.etaSeconds) }}</span></span
-              >
+        <div class="flex-1 min-w-0">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-zinc-900 dark:text-white truncate">
+                {{ getDisplayName(dl) }}
+              </p>
+              <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span
+                  v-if="dl.username"
+                  class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"
+                >
+                  @{{ dl.username }}
+                </span>
+                <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
+                  {{ t(`common.status_${dl.status}`) }}
+                </span>
+                <span
+                  class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400"
+                >
+                  {{ savePathLabels[dl.savePath] }}
+                </span>
+                <span
+                  v-if="getTorrentQuality(dl) !== 'ok' && dl.status === 'downloading'"
+                  class="text-xs px-2 py-0.5 rounded-full"
+                  :class="qualityConfig[getTorrentQuality(dl)].badge"
+                >
+                  {{
+                    qualityConfig[getTorrentQuality(dl)].badgeKey
+                      ? t(qualityConfig[getTorrentQuality(dl)].badgeKey)
+                      : ''
+                  }}
+                </span>
+                <span class="text-xs text-zinc-400 dark:text-zinc-500">
+                  {{ formatDate(dl.createdAt) }}
+                </span>
+              </div>
             </div>
-          </div>
-          <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
-            <div
-              class="h-full min-w-0.5 rounded-full bg-gradient-to-r"
-              :class="qualityConfig[getTorrentQuality(dl)].bar"
-              :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
+
+            <UButton
+              v-if="dl.status === 'downloading' || dl.status === 'pending'"
+              icon="i-lucide-trash-2"
+              color="error"
+              :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
+              size="xs"
+              :label="getTorrentQuality(dl) !== 'ok' ? t('common.deleteBad') : t('common.delete')"
+              :loading="cancelling === dl.id"
+              class="hidden sm:inline-flex"
+              @click="cancelTorrent(dl.id)"
+            />
+            <UButton
+              v-if="dl.status === 'downloading' || dl.status === 'pending'"
+              icon="i-lucide-trash-2"
+              color="error"
+              :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
+              size="xs"
+              :loading="cancelling === dl.id"
+              class="sm:hidden"
+              @click="cancelTorrent(dl.id)"
             />
           </div>
-          <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
-            <span>↓ {{ formatSpeed(dl.downloadSpeed) }} · ↑ {{ formatSpeed(dl.uploadSpeed) }}</span>
-            <span>{{ formatSize(dl.downloadedBytes) }} / {{ formatSize(dl.sizeBytes) }}</span>
-          </div>
-        </div>
 
-        <div
-          v-else-if="dl.status === 'completed'"
-          class="flex items-center gap-2 text-sm"
-          :class="dl.completedAt ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'"
-        >
-          <UIcon :name="dl.completedAt ? 'i-lucide-clock' : 'i-lucide-check-circle'" class="w-4 h-4" />
-          <span v-if="dl.completedAt">{{ formatPrepTime(dl.completedAt, dl.sizeBytes) }}</span>
-          <span v-else>{{ t('dashboard.completed') }}</span>
-          <span class="text-zinc-400 dark:text-zinc-500">· {{ formatSize(dl.sizeBytes) }}</span>
+          <div v-if="dl.status === 'downloading'" class="space-y-2">
+            <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+              <span class="font-medium text-zinc-900 dark:text-white">{{ dl.progress.toFixed(1) }}%</span>
+              <div class="flex items-center gap-3">
+                <span v-if="dl.numSeeds > 0" class="text-zinc-500 dark:text-zinc-400">
+                  <UIcon name="i-lucide-arrow-up" class="inline size-3" />{{ dl.numSeeds }}
+                </span>
+                <span v-if="dl.numLeechs > 0" class="text-zinc-400 dark:text-zinc-500">
+                  <UIcon name="i-lucide-arrow-down" class="inline size-3" />{{ dl.numLeechs }}
+                </span>
+                <span
+                  >{{ t('common.eta') }}:
+                  <span class="text-zinc-900 dark:text-white font-medium">{{ formatEta(dl.etaSeconds) }}</span></span
+                >
+              </div>
+            </div>
+            <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
+              <div
+                class="h-full min-w-0.5 rounded-full bg-gradient-to-r"
+                :class="qualityConfig[getTorrentQuality(dl)].bar"
+                :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
+              />
+            </div>
+            <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+              <span>↓ {{ formatSpeed(dl.downloadSpeed) }} · ↑ {{ formatSpeed(dl.uploadSpeed) }}</span>
+              <span>{{ formatSize(dl.downloadedBytes) }} / {{ formatSize(dl.sizeBytes) }}</span>
+            </div>
+          </div>
+
+          <div
+            v-else-if="dl.status === 'completed'"
+            class="flex items-center gap-2 text-sm"
+            :class="dl.completedAt ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'"
+          >
+            <UIcon :name="dl.completedAt ? 'i-lucide-clock' : 'i-lucide-check-circle'" class="w-4 h-4" />
+            <span v-if="dl.completedAt">{{ formatPrepTime(dl.completedAt, dl.sizeBytes) }}</span>
+            <span v-else>{{ t('dashboard.completed') }}</span>
+            <span class="text-zinc-400 dark:text-zinc-500">· {{ formatSize(dl.sizeBytes) }}</span>
+          </div>
         </div>
       </div>
     </div>

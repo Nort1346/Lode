@@ -231,3 +231,52 @@ export async function getPopularTvShows(locale = 'pl', page = 1): Promise<TmdbSe
   await cacheSet(cacheKey, result, CACHE_TTL.TMDB_POPULAR)
   return result
 }
+
+export interface TmdbTrendingItem {
+  id: number
+  media_type: 'movie' | 'tv'
+  title?: string
+  name?: string
+  overview: string
+  poster_path: string | null
+  backdrop_path: string | null
+  release_date?: string
+  first_air_date?: string
+  vote_average: number
+  genre_ids: number[]
+}
+
+export async function getTrending(locale = 'pl'): Promise<TmdbTrendingItem[]> {
+  const cacheKey = `tmdb:trending:all:week:${locale}`
+  const cached = await cacheGet<TmdbTrendingItem[]>(cacheKey)
+  if (cached !== null) return cached
+
+  const url = new URL(`${TMDB_BASE}/trending/all/week`)
+  url.searchParams.set('api_key', getApiKey())
+
+  const response = await fetch(url.toString())
+  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+
+  const data = (await response.json()) as { results: TmdbTrendingItem[] }
+  await cacheSet(cacheKey, data.results, CACHE_TTL.TMDB_POPULAR)
+  return data.results
+}
+
+export async function getTopRatedMovies(locale = 'pl', page = 1): Promise<TmdbSearchResult<TmdbMovie>> {
+  const lang = resolveTmdbLanguage(locale)
+  const cacheKey = `tmdb:top_rated:movie:${lang}:${page}`
+  const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
+  if (cached !== null) return cached
+
+  const url = new URL(`${TMDB_BASE}/movie/top_rated`)
+  url.searchParams.set('api_key', getApiKey())
+  url.searchParams.set('language', lang)
+  url.searchParams.set('page', String(page))
+
+  const response = await fetch(url.toString())
+  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+
+  const result = (await response.json()) as TmdbSearchResult<TmdbMovie>
+  await cacheSet(cacheKey, result, CACHE_TTL.TMDB_POPULAR)
+  return result
+}

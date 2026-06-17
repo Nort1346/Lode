@@ -1,6 +1,7 @@
 import { downloads } from '../../database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
+import { getMovieDetails, getTvShowDetails, getImageUrl } from '../../utils/tmdb'
 
 interface AddTorrentBody {
   magnetLink?: string
@@ -133,6 +134,21 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  let posterUrl: string | null = null
+  if (tmdbId !== null && mediaType !== null) {
+    try {
+      if (mediaType === 'movie') {
+        const movie = await getMovieDetails(tmdbId)
+        posterUrl = getImageUrl(movie.poster_path, 'w185')
+      } else {
+        const show = await getTvShowDetails(tmdbId)
+        posterUrl = getImageUrl(show.poster_path, 'w185')
+      }
+    } catch {
+      // ignore — poster is optional
+    }
+  }
+
   const id = randomUUID()
   db.insert(downloads)
     .values({
@@ -151,7 +167,8 @@ export default defineEventHandler(async (event) => {
       downloadedBytes: torrent?.downloaded ?? 0,
       createdAt: new Date().toISOString(),
       tmdbId,
-      mediaType
+      mediaType,
+      posterUrl
     })
     .run()
 

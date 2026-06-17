@@ -106,6 +106,9 @@ function initDb() {
   if (!columns.includes('media_type')) {
     sqlite.exec(`ALTER TABLE downloads ADD COLUMN media_type TEXT`)
   }
+  if (!columns.includes('poster_url')) {
+    sqlite.exec(`ALTER TABLE downloads ADD COLUMN poster_url TEXT`)
+  }
 
   _db = drizzle(sqlite, { schema })
   return _db
