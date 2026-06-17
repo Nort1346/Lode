@@ -1,4 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { fileURLToPath } from 'node:url'
+
+const rootDir = fileURLToPath(new URL('.', import.meta.url))
+
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@nuxtjs/i18n'],
 
@@ -23,9 +27,9 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   alias: {
-    '#server': '../server',
-    '#db': '../server/database',
-    '#utils': '../server/utils'
+    '#server': rootDir + 'server',
+    '#db': rootDir + 'server/database',
+    '#utils': rootDir + 'server/utils'
   },
 
   icon: {
