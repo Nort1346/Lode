@@ -36,7 +36,11 @@
     "popularMovies": "Popular Movies",
     "popularTv": "Popular TV Shows",
     "trending": "Trending",
-    "topRated": "Top Rated"
+    "topRated": "Top Rated",
+    "limitReached": "Daily download limit reached",
+    "limitActive": "Active: {active}/{limit}",
+    "limitToday": "Downloaded today: {today}/{limit}",
+    "limitResetInfo": "The limit resets daily at midnight."
   },
   "mediaCard": {
     "movie": "Movie",

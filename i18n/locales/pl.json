@@ -36,7 +36,11 @@
     "popularMovies": "Popularne filmy",
     "popularTv": "Popularne seriale",
     "trending": "Trendujące",
-    "topRated": "Najwyżej oceniane"
+    "topRated": "Najwyżej oceniane",
+    "limitReached": "Dzienny limit pobierania wykorzystany",
+    "limitActive": "Aktywne: {active}/{limit}",
+    "limitToday": "Pobrane dziś: {today}/{limit}",
+    "limitResetInfo": "Limit odnawia się codziennie o północy."
   },
   "mediaCard": {
     "movie": "Film",

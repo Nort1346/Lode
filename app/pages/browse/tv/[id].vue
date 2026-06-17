@@ -126,6 +126,24 @@
         <USkeleton class="h-32 w-full rounded-xl" />
       </div>
 
+      <div
+        v-else-if="seasonLimitInfo"
+        class="rounded-xl border border-amber-500/50 bg-amber-500/10 p-8 text-center dark:bg-amber-500/5"
+      >
+        <UIcon name="i-lucide-alert-triangle" class="mx-auto mb-3 size-10 text-amber-500" />
+        <h3 class="mb-2 text-lg font-bold text-amber-600 dark:text-amber-400">
+          {{ t('browse.limitReached') }}
+        </h3>
+        <div class="mb-2 flex items-center justify-center gap-4 text-sm text-zinc-700 dark:text-zinc-300">
+          <span>{{
+            t('browse.limitActive', { active: seasonLimitInfo.activeCount, limit: seasonLimitInfo.limit })
+          }}</span>
+          <span class="text-zinc-400 dark:text-zinc-500">·</span>
+          <span>{{ t('browse.limitToday', { today: seasonLimitInfo.todayCount, limit: seasonLimitInfo.limit }) }}</span>
+        </div>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ t('browse.limitResetInfo') }}</p>
+      </div>
+
       <div v-else-if="seasonData">
         <div v-if="seasonData.seasonPacks.length > 0" class="mb-6">
           <h3 class="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ t('tv.seasonPacks') }}</h3>
@@ -510,10 +528,26 @@ const seasonOptions = computed(() => {
   }))
 })
 
-const { data: seasonData, pending: seasonPending } = useLazyFetch<SeasonData>(
+const {
+  data: seasonData,
+  pending: seasonPending,
+  error: seasonError
+} = useLazyFetch<SeasonData>(
   computed(() => `/api/browse/tv/${route.params.id}/season/${selectedSeason.value}?locale=${locale.value}`),
   { watch: [selectedSeason, locale] }
 )
+
+const seasonLimitInfo = computed(() => {
+  if (seasonError.value === null || seasonError.value === undefined) return null
+  const err = seasonError.value as unknown as Record<string, unknown>
+  const status = err.status ?? err.statusCode
+  if (status !== 429) return null
+  const body = err.data as Record<string, unknown> | undefined
+  if (body !== null && body !== undefined && 'activeCount' in body) return body
+  const nested = body?.data as Record<string, unknown> | undefined
+  if (nested !== null && nested !== undefined && 'activeCount' in nested) return nested
+  return null
+})
 
 async function downloadTorrent(
   magnetLink: string | null,

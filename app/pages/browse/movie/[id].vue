@@ -126,6 +126,22 @@
       </div>
 
       <div
+        v-else-if="limitInfo"
+        class="rounded-xl border border-amber-500/50 bg-amber-500/10 p-8 text-center dark:bg-amber-500/5"
+      >
+        <UIcon name="i-lucide-alert-triangle" class="mx-auto mb-3 size-10 text-amber-500" />
+        <h3 class="mb-2 text-lg font-bold text-amber-600 dark:text-amber-400">
+          {{ t('browse.limitReached') }}
+        </h3>
+        <div class="mb-2 flex items-center justify-center gap-4 text-sm text-zinc-700 dark:text-zinc-300">
+          <span>{{ t('browse.limitActive', { active: limitInfo.activeCount, limit: limitInfo.limit }) }}</span>
+          <span class="text-zinc-400 dark:text-zinc-500">·</span>
+          <span>{{ t('browse.limitToday', { today: limitInfo.todayCount, limit: limitInfo.limit }) }}</span>
+        </div>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ t('browse.limitResetInfo') }}</p>
+      </div>
+
+      <div
         v-else-if="torrents.length === 0"
         class="rounded-xl bg-zinc-100/50 py-8 text-center text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
       >
@@ -342,13 +358,28 @@ const { data, pending, error } = await useFetch<{ movie: MovieData }>(
   { watch: [locale] }
 )
 
-const { data: torrentData, pending: torrentsPending } = useLazyFetch<{ torrents: Torrent[] }>(
+const {
+  data: torrentData,
+  pending: torrentsPending,
+  error: torrentError
+} = useLazyFetch<{ torrents: Torrent[] }>(
   computed(() => `/api/browse/movie/${route.params.id}/torrents?locale=${locale.value}`),
   { watch: [locale] }
 )
 
 const movie = computed(() => data.value?.movie ?? null)
 const torrents = computed(() => torrentData.value?.torrents ?? [])
+const limitInfo = computed(() => {
+  if (torrentError.value === null || torrentError.value === undefined) return null
+  const err = torrentError.value as unknown as Record<string, unknown>
+  const status = err.status ?? err.statusCode
+  if (status !== 429) return null
+  const body = err.data as Record<string, unknown> | undefined
+  if (body !== null && body !== undefined && 'activeCount' in body) return body
+  const nested = body?.data as Record<string, unknown> | undefined
+  if (nested !== null && nested !== undefined && 'activeCount' in nested) return nested
+  return null
+})
 
 function formatLanguage(lang: string): string {
   const map: Record<string, string> = {

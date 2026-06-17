@@ -1,6 +1,7 @@
 import { getSeasonDetails, getTvShowDetails, getImageUrl } from '../../../../../utils/tmdb'
 import { useProwlarr } from '../../../../../utils/prowlarr'
 import { rankTorrents, formatSize, parseTorrentTitle } from '../../../../../utils/torrent-ranker'
+import { checkDailyLimit } from '../../../../../utils/limits'
 import type { ProwlarrResult } from '../../../../../utils/prowlarr'
 
 function episodeRangeMatches(title: string, seasonNumber: number, episodeNumber: number): boolean {
@@ -44,6 +45,14 @@ export default defineEventHandler(async (event) => {
   }
 
   const locale = (getQuery(event).locale as string | undefined) ?? 'pl'
+
+  const limit = checkDailyLimit(session)
+  if (limit.reached) {
+    throw createError({
+      statusCode: 429,
+      data: { activeCount: limit.activeCount, todayCount: limit.todayCount, limit: limit.limit }
+    })
+  }
 
   let show, season
   try {
