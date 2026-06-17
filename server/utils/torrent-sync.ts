@@ -94,10 +94,11 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
 
     const progressPct = quiTorrent.progress * 100
     const isComplete =
-      quiTorrent.completion_on > 0 ||
-      quiTorrent.downloaded >= quiTorrent.size ||
-      progressPct >= 99.9 ||
-      completedStates.has(quiTorrent.state)
+      quiTorrent.size > 0 &&
+      (quiTorrent.completion_on > 0 ||
+        quiTorrent.downloaded >= quiTorrent.size ||
+        progressPct >= 99.9 ||
+        completedStates.has(quiTorrent.state))
 
     if (isComplete) {
       db.update(downloads)
