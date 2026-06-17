@@ -2,6 +2,11 @@
   "name": "streamhub",
   "private": true,
   "type": "module",
+  "author": {
+    "name": "Nort1346",
+    "email": "contact@nort.space",
+    "url": "https://nort.space"
+  },
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",

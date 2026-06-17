@@ -44,12 +44,12 @@
     </div>
 
     <template v-else>
-      <div v-if="popularPending || trendingPending || topRatedPending" class="flex justify-center py-20">
+      <div v-if="popularPending || trendingPending || topRatedPending" class="flex justify-center py-30">
         <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-amber-500" />
       </div>
       <template v-else>
         <section v-if="trendingItems.length > 0" class="mb-10">
-          <h2 class="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
+          <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">
             {{ t('browse.trending') }}
           </h2>
           <div class="group/carousel relative">
@@ -59,7 +59,7 @@
             >
               <UIcon name="i-lucide-chevron-left" class="size-5 text-zinc-700 dark:text-zinc-300" />
             </button>
-            <div ref="trendingCarouselRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 pb-2 scrollbar-hide">
+            <div ref="trendingCarouselRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 py-4 pb-2 scrollbar-hide">
               <div
                 v-for="item in trendingItems"
                 :key="`trending-${item.type}-${item.id}`"
@@ -87,7 +87,7 @@
         </section>
 
         <section v-if="popularMovies.length > 0" class="mb-10">
-          <h2 class="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
+          <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">
             {{ t('browse.popularMovies') }}
           </h2>
           <div class="group/carousel relative">
@@ -97,7 +97,7 @@
             >
               <UIcon name="i-lucide-chevron-left" class="size-5 text-zinc-700 dark:text-zinc-300" />
             </button>
-            <div ref="movieCarouselRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 pb-2 scrollbar-hide">
+            <div ref="movieCarouselRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 py-4 pb-2 scrollbar-hide">
               <div
                 v-for="item in popularMovies"
                 :key="`movie-${item.id}`"
@@ -125,7 +125,7 @@
         </section>
 
         <section v-if="popularTvShows.length > 0" class="mb-10">
-          <h2 class="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
+          <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">
             {{ t('browse.popularTv') }}
           </h2>
           <div class="group/carousel relative">
@@ -135,7 +135,7 @@
             >
               <UIcon name="i-lucide-chevron-left" class="size-5 text-zinc-700 dark:text-zinc-300" />
             </button>
-            <div ref="tvCarouselRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 pb-2 scrollbar-hide">
+            <div ref="tvCarouselRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 py-4 scrollbar-hide">
               <div v-for="item in popularTvShows" :key="`tv-${item.id}`" class="w-36 flex-none sm:w-44 md:w-48 lg:w-52">
                 <MediaCard
                   :id="item.id"
@@ -159,7 +159,7 @@
         </section>
 
         <section v-if="topRatedMovies.length > 0" class="mb-10">
-          <h2 class="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
+          <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">
             {{ t('browse.topRated') }}
           </h2>
           <div class="group/carousel relative">
@@ -169,7 +169,7 @@
             >
               <UIcon name="i-lucide-chevron-left" class="size-5 text-zinc-700 dark:text-zinc-300" />
             </button>
-            <div ref="topRatedCarouselRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 pb-2 scrollbar-hide">
+            <div ref="topRatedCarouselRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 py-4 pb-2 scrollbar-hide">
               <div
                 v-for="item in topRatedMovies"
                 :key="`toprated-${item.id}`"
