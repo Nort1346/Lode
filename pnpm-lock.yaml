@@ -11,6 +11,9 @@ importers:
       '@discordjs/builders':
         specifier: ^1.14.1
         version: 1.14.1
+      '@discordjs/formatters':
+        specifier: ^0.6.2
+        version: 0.6.2
       '@discordjs/rest':
         specifier: ^2.6.1
         version: 2.6.1

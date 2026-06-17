@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ContainerBuilder } from '@discordjs/builders'
 import type { SeparatorBuilder, TextDisplayBuilder } from '@discordjs/builders'
+import { bold, heading, HeadingLevel } from '@discordjs/formatters'
 import { REST } from '@discordjs/rest'
 import { Routes, MessageFlags } from 'discord-api-types/v10'
 import { settings } from '#server/database/schema'
@@ -210,7 +211,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
 
   const container = new ContainerBuilder()
 
-  container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(`# ${title}`))
+  container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(heading(title, HeadingLevel.One)))
 
   let posterFile: Buffer | null = null
   if (tmdb !== null && tmdb.posterUrl !== null && tmdb.posterUrl !== undefined && tmdb.posterUrl.length > 0) {
@@ -232,7 +233,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
 
     if (tmdb.genres.length > 0) {
       const genres = tmdb.genres.join(', ')
-      container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(`**${str.genres}:** ${genres}`))
+      container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(`${bold(str.genres)}: ${genres}`))
     }
 
     const metaParts: string[] = []
@@ -253,14 +254,14 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   addSeparator(container)
   const meta = parseTorrentName(data.torrentName)
   const infoParts: string[] = [
-    `**${str.size}:** ${formatSize(data.sizeBytes)}`,
-    `**${str.category}:** ${savePathLabel(data.savePath, str)}`,
-    `**${str.downloadedBy}:** ${data.username}`
+    `${bold(str.size)}: ${formatSize(data.sizeBytes)}`,
+    `${bold(str.category)}: ${savePathLabel(data.savePath, str)}`,
+    `${bold(str.downloadedBy)}: ${data.username}`
   ]
-  if (meta.resolution !== null) infoParts.push(`**${str.resolution}:** ${meta.resolution}`)
-  if (meta.source !== null) infoParts.push(`**${str.source}:** ${meta.source}`)
-  if (meta.language !== null) infoParts.push(`**${str.language}:** ${meta.language}`)
-  if (meta.codec !== null) infoParts.push(`**${str.codec}:** ${meta.codec}`)
+  if (meta.resolution !== null) infoParts.push(`${bold(str.resolution)}: ${meta.resolution}`)
+  if (meta.source !== null) infoParts.push(`${bold(str.source)}: ${meta.source}`)
+  if (meta.language !== null) infoParts.push(`${bold(str.language)}: ${meta.language}`)
+  if (meta.codec !== null) infoParts.push(`${bold(str.codec)}: ${meta.codec}`)
   container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(infoParts.join(' · ')))
 
   const match = webhookUrl.match(/\/webhooks\/(\d+)\/(.+?)(?:\/|$)/)

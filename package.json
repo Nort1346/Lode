@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@discordjs/builders": "^1.14.1",
+    "@discordjs/formatters": "^0.6.2",
     "@discordjs/rest": "^2.6.1",
     "@iconify-json/lucide": "^1.2.112",
     "@iconify-json/simple-icons": "^1.2.86",
