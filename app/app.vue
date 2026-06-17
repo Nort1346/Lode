@@ -1,6 +1,9 @@
 <script setup lang="ts">
 useHead({
-  meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
+  meta: [
+    { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+    { name: 'google', content: 'notranslate' }
+  ],
   link: [
     { rel: 'icon', href: '/favicon.ico' },
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -12,10 +15,11 @@ useHead({
   ],
   htmlAttrs: {
     lang: 'en',
-    class: 'dark'
+    class: 'dark',
+    translate: 'no'
   },
   bodyAttrs: {
-    class: 'bg-gradient-main'
+    class: 'bg-gradient-main notranslate'
   }
 })
 
