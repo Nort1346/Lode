@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ConfirmDialog from '~/components/ConfirmDialog.vue'
+
 interface Download {
   id: string
   userId: string
@@ -28,6 +30,7 @@ definePageMeta({
 
 const { user } = useUserSession()
 const { t } = useI18n()
+const overlay = useOverlay()
 
 const stats = ref({
   activeTorrents: 0,
@@ -70,10 +73,21 @@ onUnmounted(() => {
   if (intervalId.value) clearInterval(intervalId.value)
 })
 
-async function cancelTorrent(id: string) {
-  cancelling.value = id
+async function cancelTorrent(dl: Download) {
+  const modal = overlay.create(ConfirmDialog, {
+    props: {
+      title: t('download.confirmTitle'),
+      description: t('download.confirmDelete'),
+      confirmLabel: t('download.delete'),
+      cancelLabel: t('common.cancel')
+    }
+  })
+  const confirmed = await modal.open()
+  if (!confirmed) return
+
+  cancelling.value = dl.id
   try {
-    await $fetch(`/api/torrents/${id}`, { method: 'DELETE' })
+    await $fetch(`/api/torrents/${dl.id}`, { method: 'DELETE' })
     await fetchData()
   } catch {
     // silently fail
@@ -307,7 +321,7 @@ const savePathLabels: Record<string, string> = {
                 :loading="cancelling === dl.id"
                 :label="t('download.delete')"
                 class="hidden sm:inline-flex"
-                @click="cancelTorrent(dl.id)"
+                @click="cancelTorrent(dl)"
               />
               <UButton
                 icon="i-lucide-trash-2"
@@ -316,7 +330,7 @@ const savePathLabels: Record<string, string> = {
                 size="xs"
                 :loading="cancelling === dl.id"
                 class="sm:hidden"
-                @click="cancelTorrent(dl.id)"
+                @click="cancelTorrent(dl)"
               />
             </div>
 

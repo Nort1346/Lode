@@ -96,7 +96,9 @@
     "addedDesc": "{label} został dodany do kolejki.",
     "error": "Błąd pobierania",
     "errorDesc": "Nie udało się dodać torrenta.",
-    "delete": "Usuń"
+    "delete": "Usuń",
+    "confirmDelete": "Czy na pewno chcesz usunąć ten torrent? Stracisz cały postęp pobierania.",
+    "confirmTitle": "Potwierdź usunięcie"
   },
   "dashboard": {
     "welcome": "Witaj ponownie,",

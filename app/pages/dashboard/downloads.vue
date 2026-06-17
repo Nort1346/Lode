@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ConfirmDialog from '~/components/ConfirmDialog.vue'
+
 interface Download {
   id: string
   userId: string
@@ -28,6 +30,7 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+const overlay = useOverlay()
 
 const downloads = ref<Download[]>([])
 const loading = ref(true)
@@ -55,10 +58,21 @@ onUnmounted(() => {
   if (intervalId.value) clearInterval(intervalId.value)
 })
 
-async function cancelTorrent(id: string) {
-  cancelling.value = id
+async function cancelTorrent(dl: Download) {
+  const modal = overlay.create(ConfirmDialog, {
+    props: {
+      title: t('download.confirmTitle'),
+      description: t('download.confirmDelete'),
+      confirmLabel: t('download.delete'),
+      cancelLabel: t('common.cancel')
+    }
+  })
+  const confirmed = await modal.open()
+  if (!confirmed) return
+
+  cancelling.value = dl.id
   try {
-    await $fetch(`/api/torrents/${id}`, { method: 'DELETE' })
+    await $fetch(`/api/torrents/${dl.id}`, { method: 'DELETE' })
     await fetchDownloads()
   } catch {
     // silently fail
@@ -253,7 +267,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
               :label="getTorrentQuality(dl) !== 'ok' ? t('common.deleteBad') : t('common.delete')"
               :loading="cancelling === dl.id"
               class="hidden sm:inline-flex"
-              @click="cancelTorrent(dl.id)"
+              @click="cancelTorrent(dl)"
             />
             <UButton
               v-if="dl.status === 'downloading' || dl.status === 'pending'"
@@ -263,7 +277,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
               size="xs"
               :loading="cancelling === dl.id"
               class="sm:hidden"
-              @click="cancelTorrent(dl.id)"
+              @click="cancelTorrent(dl)"
             />
           </div>
 
