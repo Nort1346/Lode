@@ -5,17 +5,20 @@ Torrent request manager for streaming services. Users submit magnet links, Strea
 ## Features
 
 - **Torrent management** — submit magnet links or `.torrent` files, track progress, delete with disk cleanup
-- **Background torrent sync** — continuous 10s server-side sync via Nitro plugin, no client dependency
-- **Browse & search** — TMDB-powered movie/TV search with poster cards, detail pages, popular carousels
-- **Torrent download from browse** — Prowlarr integration, one-click download with quality/seeder info
+- **Download tile posters** — TMDB poster on download tiles, responsive mobile layout (48×72px small, 80×120px desktop), quality badges (dead/poor/slow)
+- **Background torrent sync** — continuous 10s server-side sync via Nitro plugin, await sync on list endpoint for fresh data
+- **Browse & search** — TMDB-powered movie/TV search with poster cards, detail pages, 4 carousels (Trending, Popular Movies, Popular TV, Top Rated), larger card sizes
+- **Torrent download from browse** — Prowlarr integration, one-click download with quality/seeder info, got-scraping Cloudflare bypass for Polish trackers
 - **Polish private trackers** — Devil-Torrents / Polskie-Torrenty with cookie auth, guid-based download, per-user daily limits
 - **Title requests** — users request movies/TV they want, admin accepts/rejects with notes
 - **User system** — roles, daily download limits, active torrent limits, max size per user, private tracker limits
+- **Discord webhook notifications** — ContainerBuilder with TMDB metadata (genres, runtime, rating), poster fallback, locale-aware (PL/EN)
 - **Jellyfin integration** — auto-notifies Jellyfin after torrent completes, configurable prep delay
 - **Label system** — categorize downloads (movies, series, games, books, music)
 - **Admin panel** — user CRUD, activate/deactivate, per-user limit configuration, request management
-- **System dashboard** — live service health checks (qBittorrent, Prowlarr, Jellyfin, Redis) at `/admin/settings`
-- **i18n** — Polish/English language switching, TMDB locale-aware results
+- **System dashboard** — live service health checks (qBittorrent, Prowlarr, Jellyfin, Redis, FlareSolverr, Discord) at `/admin/settings`
+- **Cloudflare bypass** — got-scraping (Chrome TLS impersonation) for Polish tracker .torrent downloads, optional FlareSolverr service
+- **i18n** — Polish/English language switching, TMDB locale-aware results, Discord locale config
 - **Activity logs** — track user actions with action/user filtering
 - **Skeleton loading** — loading skeletons on movie/TV detail pages
 - **Redis caching** — cached TMDB/Prowlarr results with configurable TTL
@@ -34,6 +37,8 @@ Torrent request manager for streaming services. Users submit magnet links, Strea
 | Cache | Redis ([ioredis](https://github.com/redis/ioredis)) |
 | Movie data | [TMDB API](https://www.themoviedb.org/documentation/api) |
 | Torrent search | [Prowlarr](https://prowlarr.com/) (Newznab-compatible) |
+| Cloudflare bypass | [got-scraping](https://github.com/sindresorhus/got-scraping) (Chrome TLS impersonation) |
+| Notifications | [discord.js](https://discord.js.org/) REST + ContainerBuilder |
 | i18n | [@nuxtjs/i18n v10](https://i18n.nuxtjs.org/) |
 | Language | TypeScript 6 |
 
@@ -120,6 +125,8 @@ The SQLite database is persisted in `./data` on the host.
 | `NUXT_TRACKER_POLSKIE_ENABLED` | Enable Polskie-Torrenty tracker | `true` |
 | `NUXT_TRACKER_POLSKIE_COOKIE` | Polskie-Torrenty session cookie | — |
 | `NUXT_TORRENT_SYNC_INTERVAL_MS` | Background torrent sync interval (ms) | `10000` |
+| `NUXT_DISCORD_WEBHOOK_URL` | Discord webhook for download notifications | — |
+| `NUXT_FLARESOLVERR_URL` | FlareSolverr URL for Cloudflare bypass | — |
 
 ## Scripts
 
