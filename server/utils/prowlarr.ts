@@ -74,6 +74,61 @@ function hasDownloadMethod(item: ProwlarrRelease): boolean {
   return item.magnetUrl !== null || item.downloadUrl !== null || POLISH_TRACKERS.includes(item.indexer)
 }
 
+function deduplicateResults(results: ProwlarrResult[]): ProwlarrResult[] {
+  const byUrl = new Map<string, ProwlarrResult[]>()
+  for (const r of results) {
+    if (r.downloadUrl === null) continue
+    const group = byUrl.get(r.downloadUrl)
+    if (group !== undefined) {
+      group.push(r)
+    } else {
+      byUrl.set(r.downloadUrl, [r])
+    }
+  }
+
+  const urlDeduped: ProwlarrResult[] = []
+  for (const group of byUrl.values()) {
+    group.sort((a, b) => b.seeders - a.seeders)
+    const best = group[0]
+    if (best !== undefined) urlDeduped.push(best)
+  }
+
+  const noUrl = results.filter((r) => r.downloadUrl === null)
+  const combined = [...urlDeduped, ...noUrl]
+
+  const byTitleSize = new Map<string, ProwlarrResult[]>()
+  for (const r of combined) {
+    const key = `${r.title.toLowerCase()}:${r.size}`
+    const group = byTitleSize.get(key)
+    if (group !== undefined) {
+      group.push(r)
+    } else {
+      byTitleSize.set(key, [r])
+    }
+  }
+
+  const deduplicated: ProwlarrResult[] = []
+  for (const group of byTitleSize.values()) {
+    if (group.length === 1) {
+      const first = group[0]
+      if (first !== undefined) deduplicated.push(first)
+      continue
+    }
+
+    group.sort((a, b) => {
+      const aMagnet = a.magnetLink !== null ? 1 : 0
+      const bMagnet = b.magnetLink !== null ? 1 : 0
+      if (aMagnet !== bMagnet) return bMagnet - aMagnet
+      return b.seeders - a.seeders
+    })
+
+    const best = group[0]
+    if (best !== undefined) deduplicated.push(best)
+  }
+
+  return deduplicated
+}
+
 export class ProwlarrClient {
   private baseUrl: string
   private apiKey: string
@@ -108,7 +163,7 @@ export class ProwlarrClient {
       query: `{imdbid:${imdbId}}`
     })) as ProwlarrRelease[]
 
-    const results = (raw ?? []).filter(hasDownloadMethod).map(normalizeResult)
+    const results = deduplicateResults((raw ?? []).filter(hasDownloadMethod).map(normalizeResult))
 
     await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
     return results
@@ -124,12 +179,7 @@ export class ProwlarrClient {
       query
     })) as ProwlarrRelease[]
 
-    // const devilTorrent = raw.find((item) => item.indexer === 'Devil-Torrents')
-    // if (devilTorrent !== undefined) {
-    //  console.log('[Prowlarr Query] Devil-Torrents result:', JSON.stringify(devilTorrent, null, 2))
-    // }
-
-    const results = (raw ?? []).filter(hasDownloadMethod).map(normalizeResult)
+    const results = deduplicateResults((raw ?? []).filter(hasDownloadMethod).map(normalizeResult))
 
     await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
     return results
