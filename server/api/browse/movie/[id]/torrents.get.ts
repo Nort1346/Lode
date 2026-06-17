@@ -1,7 +1,7 @@
-import { getMovieDetails } from '../../../../utils/tmdb'
-import { useProwlarr } from '../../../../utils/prowlarr'
-import { rankTorrents, formatSize } from '../../../../utils/torrent-ranker'
-import { checkDailyLimit } from '../../../../utils/limits'
+import { getMovieDetails } from '#server/utils/tmdb'
+import { useProwlarr } from '#server/utils/prowlarr'
+import { rankTorrents, formatSize } from '#server/utils/torrent-ranker'
+import { checkDailyLimit } from '#server/utils/limits'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

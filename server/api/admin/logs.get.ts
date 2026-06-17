@@ -1,4 +1,4 @@
-import { activityLogs } from '../../database/schema'
+import { activityLogs } from '#server/database/schema'
 import { desc, eq, and, sql } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {

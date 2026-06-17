@@ -4,7 +4,7 @@ import { ContainerBuilder } from '@discordjs/builders'
 import type { SeparatorBuilder, TextDisplayBuilder } from '@discordjs/builders'
 import { REST } from '@discordjs/rest'
 import { Routes, MessageFlags } from 'discord-api-types/v10'
-import { settings } from '../database/schema'
+import { settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from './tmdb'
 

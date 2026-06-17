@@ -22,6 +22,12 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  alias: {
+    '#server': '../server',
+    '#db': '../server/database',
+    '#utils': '../server/utils'
+  },
+
   icon: {
     size: '24px'
   },

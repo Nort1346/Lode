@@ -1,7 +1,7 @@
-import { downloads, users } from '../../database/schema'
+import { downloads, users } from '#server/database/schema'
 import { eq, and, desc } from 'drizzle-orm'
 import type { InferSelectModel } from 'drizzle-orm'
-import { syncTorrentStatus, notifyJellyfinIfNeeded } from '../../utils/torrent-sync'
+import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrent-sync'
 
 type DownloadRow = InferSelectModel<typeof downloads> & { username?: string }
 

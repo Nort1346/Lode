@@ -1,4 +1,4 @@
-import { activityLogs } from '../database/schema'
+import { activityLogs } from '#server/database/schema'
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
 

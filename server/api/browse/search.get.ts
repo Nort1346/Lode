@@ -1,4 +1,4 @@
-import { searchMovies, searchTvShows, getImageUrl } from '../../utils/tmdb'
+import { searchMovies, searchTvShows, getImageUrl } from '#server/utils/tmdb'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

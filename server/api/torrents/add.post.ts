@@ -1,7 +1,7 @@
-import { downloads } from '../../database/schema'
+import { downloads } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { getMovieDetails, getTvShowDetails, getImageUrl } from '../../utils/tmdb'
+import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 
 interface AddTorrentBody {
   magnetLink?: string

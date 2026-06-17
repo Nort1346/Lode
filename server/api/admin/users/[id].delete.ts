@@ -1,4 +1,4 @@
-import { users } from '../../../database/schema'
+import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {

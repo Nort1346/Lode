@@ -1,4 +1,4 @@
-import { downloads, users } from '../database/schema'
+import { downloads, users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { sendDownloadCompleteWebhook } from './discord'
 

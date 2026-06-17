@@ -1,4 +1,4 @@
-import { activityLogs } from '../database/schema'
+import { activityLogs } from '#server/database/schema'
 import { lt } from 'drizzle-orm'
 
 export default defineNitroPlugin(() => {

@@ -1,4 +1,4 @@
-import { getTopRatedMovies, getImageUrl } from '../../utils/tmdb'
+import { getTopRatedMovies, getImageUrl } from '#server/utils/tmdb'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

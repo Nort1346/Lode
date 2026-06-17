@@ -1,4 +1,4 @@
-import { downloads } from '../database/schema'
+import { downloads } from '#server/database/schema'
 import { and, eq } from 'drizzle-orm'
 
 export interface DailyLimitResult {

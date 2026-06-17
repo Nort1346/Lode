@@ -1,4 +1,4 @@
-import { syncTorrentStatus, notifyJellyfinIfNeeded } from '../utils/torrent-sync'
+import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrent-sync'
 
 export default defineNitroPlugin((nitroApp) => {
   const config = useRuntimeConfig()

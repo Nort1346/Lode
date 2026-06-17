@@ -1,8 +1,8 @@
-import { getSeasonDetails, getTvShowDetails, getImageUrl } from '../../../../../utils/tmdb'
-import { useProwlarr } from '../../../../../utils/prowlarr'
-import { rankTorrents, formatSize, parseTorrentTitle } from '../../../../../utils/torrent-ranker'
-import { checkDailyLimit } from '../../../../../utils/limits'
-import type { ProwlarrResult } from '../../../../../utils/prowlarr'
+import { getSeasonDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
+import { useProwlarr } from '#server/utils/prowlarr'
+import { rankTorrents, formatSize, parseTorrentTitle } from '#server/utils/torrent-ranker'
+import { checkDailyLimit } from '#server/utils/limits'
+import type { ProwlarrResult } from '#server/utils/prowlarr'
 
 function episodeRangeMatches(title: string, seasonNumber: number, episodeNumber: number): boolean {
   const lower = title.toLowerCase()

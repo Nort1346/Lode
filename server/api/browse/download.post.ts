@@ -1,9 +1,9 @@
-import { downloads } from '../../database/schema'
+import { downloads } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { POLISH_TRACKERS, getTrackerCookieConfig } from '../../utils/prowlarr'
+import { POLISH_TRACKERS, getTrackerCookieConfig } from '#server/utils/prowlarr'
 import { gotScraping } from 'got-scraping'
-import { getMovieDetails, getTvShowDetails, getImageUrl } from '../../utils/tmdb'
+import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 
 interface DownloadBody {
   magnetLink?: string

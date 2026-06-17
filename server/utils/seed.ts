@@ -1,4 +1,4 @@
-import { users } from '../database/schema'
+import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcrypt'
 import { randomUUID } from 'node:crypto'

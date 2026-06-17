@@ -1,4 +1,4 @@
-import { getTvShowDetails, getImageUrl } from '../../../utils/tmdb'
+import { getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

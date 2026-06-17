@@ -1,4 +1,4 @@
-import { ensureAdminExists } from '../utils/seed'
+import { ensureAdminExists } from '#server/utils/seed'
 
 export default defineNitroPlugin(() => {
   void ensureAdminExists()
