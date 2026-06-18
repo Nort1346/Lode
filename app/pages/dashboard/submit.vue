@@ -7,9 +7,10 @@ definePageMeta({
 const { user } = useUserSession()
 const { t } = useI18n()
 
-const inputMode = ref<'magnet' | 'file'>('magnet')
+const inputMode = ref<'magnet' | 'file' | 'url'>('magnet')
 const form = reactive({
   magnetLink: '',
+  torrentUrl: '',
   savePath: 'movies',
   label: ''
 })
@@ -28,6 +29,7 @@ const savePathOptions = computed(() => [
 
 const inputModeOptions = computed(() => [
   { label: t('submit.inputModeMagnet'), value: 'magnet' },
+  { label: t('submit.inputModeUrl'), value: 'url' },
   { label: t('submit.inputModeFile'), value: 'file' }
 ])
 
@@ -76,6 +78,15 @@ async function handleSubmit() {
           label: form.label.trim()
         }
       })
+    } else if (inputMode.value === 'url') {
+      await $fetch('/api/torrents/add', {
+        method: 'POST',
+        body: {
+          downloadUrl: form.torrentUrl.trim(),
+          savePath: form.savePath,
+          label: form.label.trim()
+        }
+      })
     } else {
       if (!selectedFile.value) {
         error.value = 'Please select a .torrent file'
@@ -97,6 +108,7 @@ async function handleSubmit() {
 
     success.value = true
     form.magnetLink = ''
+    form.torrentUrl = ''
     form.label = ''
     setTimeout(() => {
       success.value = false
@@ -124,7 +136,7 @@ async function handleSubmit() {
             <UInput v-model="form.label" :placeholder="t('submit.labelPlaceholder')" class="w-full" />
           </UFormField>
 
-          <UFormField label="Input method">
+          <UFormField :label="t('submit.inputMethod')">
             <USelect v-model="inputMode" :items="inputModeOptions" class="w-full" />
           </UFormField>
 
@@ -139,6 +151,10 @@ async function handleSubmit() {
               :rows="3"
               class="w-full"
             />
+          </UFormField>
+
+          <UFormField v-else-if="inputMode === 'url'" :label="t('submit.urlLabel')" :description="t('submit.urlDesc')">
+            <UTextarea v-model="form.torrentUrl" :placeholder="t('submit.urlPlaceholder')" :rows="3" class="w-full" />
           </UFormField>
 
           <UFormField v-else :label="t('submit.fileLabel')" :description="t('submit.fileDesc')">

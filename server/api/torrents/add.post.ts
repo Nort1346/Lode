@@ -7,6 +7,7 @@ import { formatSize } from '#server/utils/torrent-ranker'
 
 interface AddTorrentBody {
   magnetLink?: string
+  downloadUrl?: string
   torrentFile?: string
   fileName?: string
   savePath: string
@@ -27,6 +28,7 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody<AddTorrentBody>(event)
   const rawMagnetLink = body.magnetLink ?? ''
+  const rawDownloadUrl = body.downloadUrl ?? ''
   const torrentFileBase64 = body.torrentFile ?? ''
   const fileName = body.fileName ?? ''
   const savePath = body.savePath
@@ -38,13 +40,22 @@ export default defineEventHandler(async (event) => {
 
   const hasMagnet = magnetLink.length > 0
   const hasFile = torrentFileBase64.length > 0
+  const hasDownloadUrl = rawDownloadUrl.length > 0
 
-  if (!hasMagnet && !hasFile) {
-    throw createError({ statusCode: 400, statusMessage: 'Magnet link or .torrent file is required' })
+  if (!hasMagnet && !hasFile && !hasDownloadUrl) {
+    throw createError({ statusCode: 400, statusMessage: 'Magnet link, torrent URL, or .torrent file is required' })
   }
 
   if (hasMagnet && !magnetLink.startsWith('magnet:')) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid magnet link' })
+  }
+
+  let downloadUrl = ''
+  if (hasDownloadUrl) {
+    if (!rawDownloadUrl.startsWith('http://') && !rawDownloadUrl.startsWith('https://')) {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid torrent URL' })
+    }
+    downloadUrl = rawDownloadUrl
   }
 
   if (hasFile) {
@@ -136,7 +147,32 @@ export default defineEventHandler(async (event) => {
   let torrent
   let storedMagnetLink: string
 
-  if (hasFile) {
+  if (hasDownloadUrl) {
+    let isHtml = false
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 3000)
+      const headRes = await fetch(downloadUrl, { method: 'GET', signal: controller.signal, redirect: 'follow' })
+      clearTimeout(timeout)
+      if (!headRes.ok) {
+        console.warn(`[Add] URL returned ${headRes.status}, passing to qBittorrent anyway`)
+      } else {
+        const contentType = headRes.headers.get('content-type') ?? ''
+        if (contentType.includes('text/html')) {
+          isHtml = true
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn(`[Add] URL fetch failed, passing to qBittorrent anyway: ${msg}`)
+    }
+    if (isHtml) {
+      throw createError({ statusCode: 400, statusMessage: 'URL returned HTML, not a torrent file' })
+    }
+
+    storedMagnetLink = `download:${downloadUrl}`
+    torrent = await qui.addTorrent(downloadUrl, targetPath, savePath, dlTag)
+  } else if (hasFile) {
     const fileBuffer = Buffer.from(torrentFileBase64, 'base64')
     storedMagnetLink = `file:${fileName}`
     torrent = await qui.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag)
