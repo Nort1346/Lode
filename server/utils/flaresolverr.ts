@@ -1,3 +1,7 @@
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('FlareSolverr')
+
 export interface FlareSolverrSolution {
   cookies: string
   userAgent: string
@@ -11,8 +15,8 @@ export class FlareSolverrClient {
   }
 
   async solveChallenge(url: string, maxTimeout = 60_000): Promise<FlareSolverrSolution> {
-    console.log(`[FlareSolverr] → POST ${this.baseUrl}/v1`)
-    console.log(`[FlareSolverr]   target=${url}, maxTimeout=${maxTimeout}`)
+    log.info(`→ POST ${this.baseUrl}/v1`)
+    log.info(`  target=${url}, maxTimeout=${maxTimeout}`)
 
     const start = Date.now()
     let response: Response
@@ -29,15 +33,15 @@ export class FlareSolverrClient {
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      console.error(`[FlareSolverr] ✗ fetch failed after ${Date.now() - start}ms: ${msg}`)
+      log.error(`✗ fetch failed after ${Date.now() - start}ms: ${msg}`)
       throw new Error(`FlareSolverr connection failed: ${msg}`, { cause: err })
     }
 
-    console.log(`[FlareSolverr] ← HTTP ${response.status} (${Date.now() - start}ms)`)
+    log.info(`← HTTP ${response.status} (${Date.now() - start}ms)`)
 
     if (!response.ok) {
       const text = await response.text().catch(() => 'unable to read body')
-      console.error(`[FlareSolverr] ✗ HTTP ${response.status}: ${text.substring(0, 200)}`)
+      log.error(`✗ HTTP ${response.status}: ${text.substring(0, 200)}`)
       throw new Error(`FlareSolverr HTTP ${response.status}: ${text.substring(0, 100)}`)
     }
 
@@ -53,24 +57,24 @@ export class FlareSolverrClient {
       }
     }
 
-    console.log(`[FlareSolverr]   status=${data.status}, message=${data.message ?? ''}`)
+    log.info(`  status=${data.status}, message=${data.message ?? ''}`)
     if (data.solution !== undefined) {
-      console.log(`[FlareSolverr]   solution.url=${data.solution.url}`)
-      console.log(`[FlareSolverr]   solution.status=${data.solution.status}`)
-      console.log(`[FlareSolverr]   solution.cookies=${data.solution.cookies.length}`)
-      console.log(`[FlareSolverr]   solution.userAgent=${data.solution.userAgent.substring(0, 80)}`)
+      log.info(`  solution.url=${data.solution.url}`)
+      log.info(`  solution.status=${data.solution.status}`)
+      log.info(`  solution.cookies=${data.solution.cookies.length}`)
+      log.info(`  solution.userAgent=${data.solution.userAgent.substring(0, 80)}`)
       if (data.solution.response !== undefined) {
-        console.log(`[FlareSolverr]   solution.response.length=${data.solution.response.length}`)
+        log.info(`  solution.response.length=${data.solution.response.length}`)
       }
     }
 
     if (data.status !== 'ok' || data.solution === undefined) {
-      console.error(`[FlareSolverr] ✗ failed: status=${data.status}, message=${data.message ?? 'unknown'}`)
+      log.error(`✗ failed: status=${data.status}, message=${data.message ?? 'unknown'}`)
       throw new Error(`FlareSolverr failed: ${data.status} — ${data.message ?? 'unknown'}`)
     }
 
     const cookieString = data.solution.cookies.map((c) => `${c.name}=${c.value}`).join('; ')
-    console.log(`[FlareSolverr] ✓ solved: ${data.solution.cookies.length} cookies, ready`)
+    log.info(`✓ solved: ${data.solution.cookies.length} cookies, ready`)
 
     return {
       cookies: cookieString,
@@ -94,11 +98,11 @@ export function useFlareSolverr(): FlareSolverrClient | null {
   const config = useRuntimeConfig()
   const url = config.flaresolverrUrl as string
   if (!url) {
-    console.log('[FlareSolverr] not configured (NUXT_FLARESOLVERR_URL is empty)')
+    log.info('not configured (NUXT_FLARESOLVERR_URL is empty)')
     return null
   }
 
-  console.log(`[FlareSolverr] initialized: ${url}`)
+  log.info(`initialized: ${url}`)
   if (_client === null) {
     _client = new FlareSolverrClient(url)
   }

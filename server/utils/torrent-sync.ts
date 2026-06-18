@@ -1,6 +1,9 @@
 import { downloads, users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { sendDownloadCompleteWebhook } from './discord'
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('TorrentSync')
 
 interface SyncResult {
   synced: number
@@ -35,7 +38,7 @@ function notifyDiscord(
     username: userMap.get(dl.userId) ?? 'unknown',
     tmdbId: dl.tmdbId,
     mediaType: dl.mediaType
-  }).catch((err) => console.error('[torrent-sync] webhook failed:', err))
+  }).catch((err) => log.error(err, 'webhook failed'))
 }
 
 export async function syncTorrentStatus(): Promise<SyncResult> {
@@ -53,8 +56,8 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
   try {
     const qui = useQui()
     quiTorrents = await qui.getAllTorrents()
-  } catch (err) {
-    console.error('[torrent-sync] qui fetch failed:', err)
+  } catch (err: unknown) {
+    log.error(err instanceof Error ? err : new Error(String(err)), 'qui fetch failed')
     return result
   }
 

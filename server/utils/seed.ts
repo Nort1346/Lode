@@ -2,6 +2,9 @@ import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import bcrypt from 'bcrypt'
 import { randomUUID } from 'node:crypto'
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('DB')
 
 export async function ensureAdminExists() {
   const db = useDb()
@@ -26,6 +29,6 @@ export async function ensureAdminExists() {
       })
       .run()
 
-    console.log('[DB] Admin user created (username: admin, password: admin)')
+    log.info('Admin user created (username: admin, password: admin)')
   }
 }

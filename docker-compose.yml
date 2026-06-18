@@ -37,5 +37,14 @@ services:
       - flaresolverr
     restart: unless-stopped
 
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: streamhub-dozzle
+    restart: unless-stopped
+    ports:
+      - '8082:8080'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
 volumes:
   redis-data:

@@ -8,6 +8,9 @@ import { Routes, MessageFlags } from 'discord-api-types/v10'
 import { settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from './tmdb'
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('Discord')
 
 export interface DownloadCompleteData {
   id: string
@@ -194,7 +197,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   const config = useRuntimeConfig()
   const webhookUrl = config.discordWebhookUrl as string
   if (!webhookUrl) {
-    console.warn('[discord] webhook URL not configured')
+    log.warn('webhook URL not configured')
     return
   }
 
@@ -268,7 +271,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
 
   const match = webhookUrl.match(/\/webhooks\/(\d+)\/(.+?)(?:\/|$)/)
   if (match === null || match[1] === undefined || match[2] === undefined) {
-    console.error('[discord] webhook URL format invalid:', webhookUrl)
+    log.error({ url: webhookUrl }, 'webhook URL format invalid')
     return
   }
 
@@ -290,8 +293,8 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
       files,
       query: new URLSearchParams({ with_components: 'true' })
     })
-  } catch (err) {
-    console.error('[discord] webhook post failed:', err)
+  } catch (err: unknown) {
+    log.error(err instanceof Error ? err : new Error(String(err)), 'webhook post failed')
   }
 }
 

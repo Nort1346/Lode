@@ -6,6 +6,9 @@ import { gotScraping } from 'got-scraping'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { checkAllDisks } from '#server/utils/disk'
 import { formatSize } from '#server/utils/torrent-ranker'
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('Download')
 
 interface DownloadBody {
   magnetLink?: string
@@ -48,12 +51,12 @@ export default defineEventHandler(async (event) => {
     const hasGuid = guidUrl.length > 0
     const isPolishTracker = POLISH_TRACKERS.includes(indexer)
 
-    console.log(
+    log.info(
       `[Download:1:START] user=${session.user.username} role=${session.user.role} indexer="${indexer}" isPolish=${isPolishTracker} hasGuid=${hasGuid} hasMagnet=${hasMagnet} hasDownloadUrl=${hasDownloadUrl} label="${label}" savePath=${savePath}`
     )
-    if (hasGuid) console.log(`[Download:1:START]   guid=${guidUrl}`)
-    if (hasDownloadUrl) console.log(`[Download:1:START]   downloadUrl=${downloadUrl.substring(0, 120)}`)
-    if (hasMagnet) console.log(`[Download:1:START]   magnet=${rawMagnetLink.substring(0, 80)}`)
+    if (hasGuid) log.info(`[Download:1:START]   guid=${guidUrl}`)
+    if (hasDownloadUrl) log.info(`[Download:1:START]   downloadUrl=${downloadUrl.substring(0, 120)}`)
+    if (hasMagnet) log.info(`[Download:1:START]   magnet=${rawMagnetLink.substring(0, 80)}`)
 
     // ── 2: VALIDATE ───────────────────────────────────────────
     if (!hasMagnet && !hasGuid && !hasDownloadUrl) {
@@ -69,19 +72,19 @@ export default defineEventHandler(async (event) => {
     }
 
     if (!torrentUrl.startsWith('magnet:') && !torrentUrl.startsWith('http://') && !torrentUrl.startsWith('https://')) {
-      console.error(`[Download:2:VALIDATE] ✗ invalid torrentUrl prefix: ${torrentUrl.substring(0, 40)}`)
+      log.error(`[Download:2:VALIDATE] ✗ invalid torrentUrl prefix: ${torrentUrl.substring(0, 40)}`)
       throw createError({ statusCode: 400, statusMessage: 'Invalid magnet link or torrent URL' })
     }
 
     if (!savePath || !SAVE_PATH_KEYS.includes(savePath as SavePathKey)) {
-      console.error(`[Download:2:VALIDATE] ✗ invalid savePath: ${savePath}`)
+      log.error(`[Download:2:VALIDATE] ✗ invalid savePath: ${savePath}`)
       throw createError({
         statusCode: 400,
         statusMessage: 'Valid save path is required (movies, series, games, music, books)'
       })
     }
 
-    console.log(`[Download:2:VALIDATE] ✓ torrentUrl=${torrentUrl.substring(0, 100)}`)
+    log.info(`[Download:2:VALIDATE] ✓ torrentUrl=${torrentUrl.substring(0, 100)}`)
 
     // ── 3: LIMITS ─────────────────────────────────────────────
     const db = useDb()
@@ -94,7 +97,7 @@ export default defineEventHandler(async (event) => {
         .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, 'downloading')))
         .all()
 
-      console.log(`[Download:3:LIMITS] active=${userDownloads.length}/${session.user.activeTorrentLimit}`)
+      log.info(`[Download:3:LIMITS] active=${userDownloads.length}/${session.user.activeTorrentLimit}`)
 
       if (userDownloads.length >= session.user.activeTorrentLimit) {
         throw createError({
@@ -113,7 +116,7 @@ export default defineEventHandler(async (event) => {
         .all()
         .filter((d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed')
 
-      console.log(`[Download:3:LIMITS] today=${todayAll.length}/${session.user.dailyDownloadLimit}`)
+      log.info(`[Download:3:LIMITS] today=${todayAll.length}/${session.user.dailyDownloadLimit}`)
 
       if (todayAll.length >= session.user.dailyDownloadLimit) {
         throw createError({
@@ -124,7 +127,7 @@ export default defineEventHandler(async (event) => {
 
       if (isPolishTracker) {
         const todayPrivate = todayAll.filter((d) => d.magnetLink.startsWith('guid:'))
-        console.log(`[Download:3:LIMITS] todayPrivate=${todayPrivate.length}/${session.user.privateTrackerLimit}`)
+        log.info(`[Download:3:LIMITS] todayPrivate=${todayPrivate.length}/${session.user.privateTrackerLimit}`)
         if (todayPrivate.length >= session.user.privateTrackerLimit) {
           throw createError({
             statusCode: 429,
@@ -133,7 +136,7 @@ export default defineEventHandler(async (event) => {
         }
       }
     } else {
-      console.log(`[Download:3:LIMITS] admin — skipping all limits`)
+      log.info(`[Download:3:LIMITS] admin — skipping all limits`)
     }
 
     // ── 4: SAVE PATH ──────────────────────────────────────────
@@ -147,10 +150,10 @@ export default defineEventHandler(async (event) => {
 
     const targetPath = savePathMap[savePath as SavePathKey]
     if (!targetPath) {
-      console.error(`[Download:4:PATH] ✗ no path for savePath=${savePath}`)
+      log.error(`[Download:4:PATH] ✗ no path for savePath=${savePath}`)
       throw createError({ statusCode: 500, statusMessage: 'Save path not configured' })
     }
-    console.log(`[Download:4:PATH] savePath=${savePath} → ${targetPath}`)
+    log.info(`[Download:4:PATH] savePath=${savePath} → ${targetPath}`)
 
     // ── 4b: DISK SPACE CHECK ─────────────────────────────────
     if (config.diskSpaceCheckEnabled === true) {
@@ -160,11 +163,11 @@ export default defineEventHandler(async (event) => {
         const allStatuses = checkAllDisks(disks, config.minFreeSpaceGb as number)
         for (const disk of allStatuses) {
           if (disk.available) {
-            console.log(
+            log.info(
               `[Download:4b:DISK] ${disk.path}: ${disk.freeFormatted} free (${disk.usedPercent}% used)${torrentSize > 0 ? `, torrentSize=${formatSize(torrentSize)}` : ''}`
             )
           } else {
-            console.log(`[Download:4b:DISK] ${disk.path}: unavailable`)
+            log.info(`[Download:4b:DISK] ${disk.path}: unavailable`)
           }
         }
         const lowDisk = allStatuses.find((d) => {
@@ -173,7 +176,7 @@ export default defineEventHandler(async (event) => {
           return effectiveFree < (config.minFreeSpaceGb as number) * 1024 ** 3
         })
         if (lowDisk !== undefined) {
-          console.log(`[Download:4b:DISK] ✗ BLOCKED — ${lowDisk.path}: ${lowDisk.freeFormatted} free`)
+          log.warn(`[Download:4b:DISK] ✗ BLOCKED — ${lowDisk.path}: ${lowDisk.freeFormatted} free`)
           throw createError({
             statusCode: 507,
             statusMessage: `Insufficient disk space${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''} (${lowDisk.freeFormatted} free, minimum ${config.minFreeSpaceGb} GB required)`
@@ -189,17 +192,17 @@ export default defineEventHandler(async (event) => {
     let storedMagnetLink: string
 
     if (hasGuid && isPolishTracker) {
-      console.log(`[Download:5:TRACKER] entering Polish tracker path...`)
+      log.info(`[Download:5:TRACKER] entering Polish tracker path...`)
 
       const trackerConfig = getTrackerCookieConfig(indexer, config)
 
       if (trackerConfig === null) {
-        console.error(`[Download:5:TRACKER] ✗ unknown tracker: ${indexer}`)
+        log.error(`[Download:5:TRACKER] ✗ unknown tracker: ${indexer}`)
         throw createError({ statusCode: 400, statusMessage: `Unknown tracker: ${indexer}` })
       }
 
       if (!trackerConfig.enabled) {
-        console.error(`[Download:5:TRACKER] ✗ tracker disabled: ${indexer}`)
+        log.error(`[Download:5:TRACKER] ✗ tracker disabled: ${indexer}`)
         throw createError({
           statusCode: 400,
           statusMessage: `Tracker ${indexer} is disabled. Set NUXT_TRACKER_${indexer === 'Devil-Torrents' ? 'DEVIL' : 'POLSKIE'}_ENABLED=true`
@@ -207,19 +210,19 @@ export default defineEventHandler(async (event) => {
       }
 
       if (trackerConfig.cookie.length === 0) {
-        console.error(`[Download:5:TRACKER] ✗ no cookie for: ${indexer}`)
+        log.error(`[Download:5:TRACKER] ✗ no cookie for: ${indexer}`)
         throw createError({
           statusCode: 400,
           statusMessage: `No cookie configured for ${indexer}. Set NUXT_TRACKER_${indexer === 'Devil-Torrents' ? 'DEVIL' : 'POLSKIE'}_COOKIE`
         })
       }
 
-      console.log(
+      log.info(
         `[Download:5:TRACKER] config OK: enabled=${trackerConfig.enabled}, cookieLength=${trackerConfig.cookie.length}`
       )
 
       // ── 6: FETCH via got-scraping (Chrome TLS impersonation) ─
-      console.log(`[Download:6:FETCH] url=${guidUrl} (got-scraping, impersonate=chrome)`)
+      log.info(`[Download:6:FETCH] url=${guidUrl} (got-scraping, impersonate=chrome)`)
       const t2 = Date.now()
       let fileBuffer: Buffer
       try {
@@ -230,27 +233,27 @@ export default defineEventHandler(async (event) => {
           responseType: 'buffer'
         })
         fileBuffer = response.body
-        console.log(
+        log.info(
           `[Download:6:FETCH] ← HTTP ${response.statusCode} in ${Date.now() - t2}ms, size=${fileBuffer.length}, contentType=${response.headers['content-type'] ?? 'N/A'}`
         )
         if (response.statusCode !== 200) {
           const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
-          console.error(`[Download:6:FETCH] ✗ HTTP ${response.statusCode}: ${preview}`)
+          log.error(`[Download:6:FETCH] ✗ HTTP ${response.statusCode}: ${preview}`)
           throw createError({ statusCode: 502, statusMessage: `${indexer} returned ${response.statusCode}` })
         }
       } catch (err) {
         if (err instanceof Error && 'statusCode' in err) throw err
         const msg = err instanceof Error ? err.message : String(err)
-        console.error(`[Download:6:FETCH] ✗ failed in ${Date.now() - t2}ms: ${msg}`)
+        log.error(`[Download:6:FETCH] ✗ failed in ${Date.now() - t2}ms: ${msg}`)
         throw createError({ statusCode: 502, statusMessage: `Failed to connect to ${indexer}: ${msg}` })
       }
 
       // ── 7: VALIDATE response ────────────────────────────────
       const firstBytes = fileBuffer.subarray(0, 20).toString('hex')
-      console.log(`[Download:7:VALIDATE] size=${fileBuffer.length}, firstBytes=${firstBytes}`)
+      log.info(`[Download:7:VALIDATE] size=${fileBuffer.length}, firstBytes=${firstBytes}`)
 
       if (fileBuffer.length === 0) {
-        console.error(`[Download:7:VALIDATE] ✗ empty response — cookie may be invalid`)
+        log.error(`[Download:7:VALIDATE] ✗ empty response — cookie may be invalid`)
         throw createError({ statusCode: 401, statusMessage: `Empty response from ${indexer}. Cookie may be invalid.` })
       }
 
@@ -258,8 +261,8 @@ export default defineEventHandler(async (event) => {
       const firstByte = fileBuffer[0]!
       if (firstByte === 0x3c) {
         const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 500))
-        console.error(`[Download:7:VALIDATE] ✗ got HTML (0x3c) instead of torrent!`)
-        console.error(`[Download:7:VALIDATE]   preview: ${preview}`)
+        log.error(`[Download:7:VALIDATE] ✗ got HTML (0x3c) instead of torrent!`)
+        log.error(`[Download:7:VALIDATE]   preview: ${preview}`)
         throw createError({
           statusCode: 401,
           statusMessage: `Invalid or expired cookie for ${indexer}. Update NUXT_TRACKER_*_COOKIE`
@@ -268,23 +271,23 @@ export default defineEventHandler(async (event) => {
 
       if (firstByte !== 0x64) {
         const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 200))
-        console.error(
+        log.error(
           `[Download:7:VALIDATE] ✗ unexpected first byte: 0x${firstByte.toString(16)} (expected 0x64 = 'd' for bencode)`
         )
-        console.error(`[Download:7:VALIDATE]   preview: ${preview}`)
+        log.error(`[Download:7:VALIDATE]   preview: ${preview}`)
         throw createError({
           statusCode: 401,
           statusMessage: `Invalid response from ${indexer} (not a valid torrent file, first byte: 0x${firstByte.toString(16)})`
         })
       }
 
-      console.log(`[Download:7:VALIDATE] ✓ valid torrent file (${fileBuffer.length} bytes)`)
+      log.info(`[Download:7:VALIDATE] ✓ valid torrent file (${fileBuffer.length} bytes)`)
 
       // ── 8: QUI addTorrentFile ───────────────────────────────
       const fileName = `${label.replace(/[^a-zA-Z0-9._-]/g, '_')}.torrent`
       storedMagnetLink = `guid:${guidUrl}`
 
-      console.log(
+      log.info(
         `[Download:8:QUI] addTorrentFile: fileName=${fileName}, target=${targetPath}, cat=${savePath}, tag=${dlTag}`
       )
       const t3 = Date.now()
@@ -292,43 +295,43 @@ export default defineEventHandler(async (event) => {
         torrent = await qui.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        console.error(`[Download:8:QUI] ✗ addTorrentFile failed in ${Date.now() - t3}ms: ${msg}`)
+        log.error(`[Download:8:QUI] ✗ addTorrentFile failed in ${Date.now() - t3}ms: ${msg}`)
         throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
       }
 
       if (torrent !== null) {
-        console.log(
+        log.info(
           `[Download:8:QUI] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
         )
       } else {
-        console.log(`[Download:8:QUI] ⚠ addTorrentFile returned null after ${Date.now() - t3}ms`)
+        log.warn(`[Download:8:QUI] ⚠ addTorrentFile returned null after ${Date.now() - t3}ms`)
       }
     } else {
       // ── 8b: QUI addTorrent (magnet/downloadUrl) ─────────────
       storedMagnetLink = hasDownloadUrl ? `download:${downloadUrl}` : torrentUrl
-      console.log(`[Download:8:QUI] addTorrent (magnet/url): url=${torrentUrl.substring(0, 100)}, tag=${dlTag}`)
+      log.info(`[Download:8:QUI] addTorrent (magnet/url): url=${torrentUrl.substring(0, 100)}, tag=${dlTag}`)
       const t3 = Date.now()
       try {
         torrent = await qui.addTorrent(torrentUrl, targetPath, savePath, dlTag)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        console.error(`[Download:8:QUI] ✗ addTorrent failed in ${Date.now() - t3}ms: ${msg}`)
+        log.error(`[Download:8:QUI] ✗ addTorrent failed in ${Date.now() - t3}ms: ${msg}`)
         throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
       }
 
       if (torrent !== null) {
-        console.log(
+        log.info(
           `[Download:8:QUI] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
         )
       } else {
-        console.log(`[Download:8:QUI] ⚠ addTorrent returned null after ${Date.now() - t3}ms`)
+        log.warn(`[Download:8:QUI] ⚠ addTorrent returned null after ${Date.now() - t3}ms`)
       }
     }
 
     // ── 9: SIZE CHECK ────────────────────────────────────────
     if (torrent !== null) {
       const maxSizeBytes = session.user.maxTorrentSizeGb * 1024 * 1024 * 1024
-      console.log(
+      log.info(
         `[Download:9:SIZE] torrent.size=${torrent.size} (${(torrent.size / (1024 * 1024 * 1024)).toFixed(2)} GB) limit=${maxSizeBytes} (${session.user.maxTorrentSizeGb} GB)`
       )
       if (torrent.size > maxSizeBytes) {
@@ -350,7 +353,7 @@ export default defineEventHandler(async (event) => {
           return torrent.size > d.freeBytes
         })
         if (lowDisk !== undefined) {
-          console.log(
+          log.warn(
             `[Download:9b:DISK] ✗ POST-ADD DELETE — ${lowDisk.path}: ${lowDisk.freeFormatted} free, torrent=${formatSize(torrent.size)}`
           )
           await qui.deleteTorrent(torrent.hash, true).catch(() => {})
@@ -397,7 +400,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const id = randomUUID()
-    console.log(`[Download:10:DB] inserting: id=${id} status=downloading hash=${torrent?.hash ?? 'null'}`)
+    log.info(`[Download:10:DB] inserting: id=${id} status=downloading hash=${torrent?.hash ?? 'null'}`)
     db.insert(downloads)
       .values({
         id,
@@ -434,10 +437,10 @@ export default defineEventHandler(async (event) => {
     })
 
     // ── 11: DONE ──────────────────────────────────────────────
-    console.log(`[Download:11:DONE] ✓ success in ${Date.now() - t0}ms: id=${id} hash=${torrent?.hash ?? 'null'}`)
+    log.info(`[Download:11:DONE] ✓ success in ${Date.now() - t0}ms: id=${id} hash=${torrent?.hash ?? 'null'}`)
     return { success: true, id, torrent }
   } catch (err) {
-    console.error(`[Download:FATAL] ✗ handler failed in ${Date.now() - t0}ms:`, err)
+    log.error(err, `[Download:FATAL] ✗ handler failed in ${Date.now() - t0}ms:`)
     throw err
   }
 })

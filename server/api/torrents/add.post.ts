@@ -4,6 +4,9 @@ import { randomUUID } from 'node:crypto'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { checkAllDisks } from '#server/utils/disk'
 import { formatSize } from '#server/utils/torrent-ranker'
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('Add')
 
 interface AddTorrentBody {
   magnetLink?: string
@@ -158,9 +161,9 @@ export default defineEventHandler(async (event) => {
       const location = res.headers.get('location') ?? ''
       if (res.status >= 300 && res.status < 400) {
         if (location.startsWith('magnet:')) {
-          console.log(`[Add] URL redirects to magnet: — valid torrent URL`)
+          log.info('[Add] URL redirects to magnet: — valid torrent URL')
         } else {
-          console.log(`[Add] URL redirects to ${location.substring(0, 80)} — passing to qBittorrent`)
+          log.info(`[Add] URL redirects to ${location.substring(0, 80)} — passing to qBittorrent`)
         }
       } else if (res.ok) {
         const contentType = res.headers.get('content-type') ?? ''
@@ -168,11 +171,11 @@ export default defineEventHandler(async (event) => {
           isHtml = true
         }
       } else {
-        console.warn(`[Add] URL returned ${res.status}, passing to qBittorrent anyway`)
+        log.warn(`[Add] URL returned ${res.status}, passing to qBittorrent anyway`)
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      console.warn(`[Add] URL fetch failed, passing to qBittorrent anyway: ${msg}`)
+      log.warn(`[Add] URL fetch failed, passing to qBittorrent anyway: ${msg}`)
     }
     if (isHtml) {
       throw createError({ statusCode: 400, statusMessage: 'URL returned HTML, not a torrent file' })
