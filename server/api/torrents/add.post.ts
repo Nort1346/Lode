@@ -152,15 +152,23 @@ export default defineEventHandler(async (event) => {
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 3000)
-      const headRes = await fetch(downloadUrl, { method: 'GET', signal: controller.signal, redirect: 'follow' })
+      const res = await fetch(downloadUrl, { method: 'GET', signal: controller.signal, redirect: 'manual' })
       clearTimeout(timeout)
-      if (!headRes.ok) {
-        console.warn(`[Add] URL returned ${headRes.status}, passing to qBittorrent anyway`)
-      } else {
-        const contentType = headRes.headers.get('content-type') ?? ''
+
+      const location = res.headers.get('location') ?? ''
+      if (res.status >= 300 && res.status < 400) {
+        if (location.startsWith('magnet:')) {
+          console.log(`[Add] URL redirects to magnet: — valid torrent URL`)
+        } else {
+          console.log(`[Add] URL redirects to ${location.substring(0, 80)} — passing to qBittorrent`)
+        }
+      } else if (res.ok) {
+        const contentType = res.headers.get('content-type') ?? ''
         if (contentType.includes('text/html')) {
           isHtml = true
         }
+      } else {
+        console.warn(`[Add] URL returned ${res.status}, passing to qBittorrent anyway`)
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
