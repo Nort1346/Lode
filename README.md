@@ -271,6 +271,15 @@ NUXT_JELLYFIN_PREP_SPEED_MB=8
 
 Each shows: Online/Offline badge, latency in ms, Not Configured if env var missing.
 
+**Live logs viewer:**
+- Hidden terminal icon at the bottom of `/admin/settings`
+- Click to toggle — opens a 400px terminal panel with live logs
+- SSE (Server-Sent Events) streaming from server ring buffer (last 500 lines)
+- Color-coded by level: INFO (green), WARN (amber), ERROR (red)
+- Pause/Resume, Clear, Download as .txt
+- Auto-scrolls to newest logs
+- Admin-only access (403 for non-admins)
+
 ### i18n
 
 - Polish (pl, default) and English (en)
@@ -282,6 +291,11 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - Google Translate prevention: `<meta name="google" content="notranslate">`
 
 ### Technical Features
+
+**Pino logger:**
+- `server/utils/logger.ts` — pino + pino-pretty (dev: colorized, prod: JSON)
+- `createLogger(module)` returns a wrapper that logs to pino (stdout/Docker/Dozzle) AND to a ring buffer (500 lines) for SSE live streaming
+- Modules: Download, Add, FlareSolverr, Discord, TorrentSync, DB
 
 **Background torrent sync:**
 - Nitro plugin `server/plugins/torrent-sync.ts` runs every 10s (configurable via `NUXT_TORRENT_SYNC_INTERVAL_MS`)
@@ -403,6 +417,7 @@ docker compose down
 | `streamhub` | Custom (multi-stage) | 3000 | The application |
 | `redis` | `redis:7-alpine` | — | Caching (optional) |
 | `flaresolverr` | `ghcr.io/flaresolverr/flaresolverr` | 8191 | Cloudflare bypass (optional) |
+| `dozzle` | `amir20/dozzle:latest` | 8082 | Live container log viewer |
 
 **Volumes:**
 - `./data:/app/.data` — SQLite database persistence
@@ -599,6 +614,7 @@ Current keys: `discord_locale` (pl/en)
 | PUT | `/api/admin/users/:id` | Admin | Update user |
 | DELETE | `/api/admin/users/:id` | Admin | Delete user |
 | GET | `/api/admin/logs` | Admin | Activity logs |
+| GET | `/api/admin/logs-stream` | Admin | Live logs SSE stream |
 | GET | `/api/admin/discord-locale` | Admin | Get Discord locale |
 | PUT | `/api/admin/discord-locale` | Admin | Set Discord locale |
 | GET | `/api/admin/settings` | Admin | App settings |

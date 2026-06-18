@@ -216,7 +216,13 @@
     "diskOk": "Sufficient space",
     "diskLow": "Low disk space!",
     "diskUnavailable": "Disk unavailable",
-    "diskMinRequired": "Minimum required"
+    "diskMinRequired": "Minimum required",
+    "liveLogs": "Live Logs",
+    "logsPause": "Pause",
+    "logsResume": "Resume",
+    "logsClear": "Clear",
+    "logsDownload": "Download",
+    "logsEmpty": "Waiting for logs..."
   },
   "requests": {
     "title": "Requests",

@@ -216,7 +216,13 @@
     "diskOk": "Wystarczająco miejsca",
     "diskLow": "Mało miejsca!",
     "diskUnavailable": "Dysk niedostępny",
-    "diskMinRequired": "Wymagane minimum"
+    "diskMinRequired": "Wymagane minimum",
+    "liveLogs": "Logi na żywo",
+    "logsPause": "Pauza",
+    "logsResume": "Wznów",
+    "logsClear": "Wyczyść",
+    "logsDownload": "Pobierz",
+    "logsEmpty": "Oczekiwanie na logi..."
   },
   "requests": {
     "title": "Żądania",
