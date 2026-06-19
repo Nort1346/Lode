@@ -51,6 +51,7 @@
     "availableTorrents": "Available Torrents",
     "recommended": "Recommended",
     "download": "Download",
+    "limitReached": "Limit",
     "noImdb": "No IMDB ID — cannot search for torrents.",
     "noTorrents": "No torrents found.",
     "loadError": "Failed to load movie details."
@@ -60,6 +61,7 @@
     "seasonPacks": "Season Packs",
     "seasonPack": "Season Pack",
     "downloadSeason": "Download full season",
+    "limitReached": "Limit",
     "episodes": "ep.",
     "noTorrents": "No torrents available",
     "loadError": "Failed to load TV show details.",

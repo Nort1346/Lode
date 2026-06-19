@@ -168,9 +168,10 @@
                 </div>
               </div>
               <UButton
-                color="warning"
+                :color="isPrivateLimitExceeded(pack.isPrivate) ? 'error' : 'warning'"
                 icon="i-lucide-download"
                 size="sm"
+                class="cursor-pointer"
                 :loading="downloadingPackIdx === idx"
                 :disabled="
                   (pack.magnetLink === null && pack.guid === null && pack.downloadUrl === null) ||
@@ -189,7 +190,7 @@
                   )
                 "
               >
-                {{ t('tv.downloadSeason') }}
+                {{ isPrivateLimitExceeded(pack.isPrivate) ? t('tv.limitReached') : t('tv.downloadSeason') }}
               </UButton>
               <UButton
                 v-if="isDev"
@@ -318,9 +319,10 @@
                     </span>
                     <UButton
                       size="xs"
-                      color="warning"
-                      variant="ghost"
+                      :color="isPrivateLimitExceeded(tr.isPrivate) ? 'error' : 'warning'"
+                      :variant="isPrivateLimitExceeded(tr.isPrivate) ? 'solid' : 'ghost'"
                       icon="i-lucide-download"
+                      class="cursor-pointer"
                       :loading="downloadingKey === `ep-${ep.episodeNumber}-${tIdx}`"
                       :disabled="
                         (tr.magnetLink === null && tr.guid === null && tr.downloadUrl === null) ||
@@ -338,7 +340,11 @@
                           tr.size
                         )
                       "
-                    />
+                    >
+                      <template v-if="isPrivateLimitExceeded(tr.isPrivate)">
+                        {{ t('tv.limitReached') }}
+                      </template>
+                    </UButton>
                     <UButton
                       v-if="isDev"
                       size="xs"

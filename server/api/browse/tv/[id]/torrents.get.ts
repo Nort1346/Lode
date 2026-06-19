@@ -61,7 +61,8 @@ export default defineEventHandler(async (event) => {
       recommended: t.recommended,
       resolution: t.parsed.resolution,
       source: t.parsed.source,
-      language: t.parsed.language
+      language: t.parsed.language,
+      isPrivate: t.isPrivate
     }))
   }
 })

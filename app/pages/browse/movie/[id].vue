@@ -213,8 +213,9 @@
               </div>
             </div>
             <UButton
-              color="warning"
+              :color="isPrivateLimitExceeded(torrent) ? 'error' : 'warning'"
               icon="i-lucide-download"
+              class="cursor-pointer"
               :loading="downloadingIdx === idx"
               :disabled="
                 (torrent.magnetLink === null && torrent.guid === null && torrent.downloadUrl === null) ||
@@ -222,7 +223,7 @@
               "
               @click="downloadTorrent(torrent, idx)"
             >
-              {{ t('movie.download') }}
+              {{ isPrivateLimitExceeded(torrent) ? t('movie.limitReached') : t('movie.download') }}
             </UButton>
             <UButton
               v-if="isDev"

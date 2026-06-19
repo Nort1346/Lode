@@ -51,6 +51,7 @@
     "availableTorrents": "Dostępne torrenty",
     "recommended": "Polecany",
     "download": "Pobierz",
+    "limitReached": "Limit",
     "noImdb": "Brak identyfikatora IMDB — nie można wyszukać torrentów.",
     "noTorrents": "Nie znaleziono torrentów.",
     "loadError": "Nie udało się załadować szczegółów filmu."
@@ -60,6 +61,7 @@
     "seasonPacks": "Pakiety sezonowe",
     "seasonPack": "Pakiet sezonowy",
     "downloadSeason": "Pobierz cały sezon",
+    "limitReached": "Limit",
     "episodes": "odc.",
     "noTorrents": "Brak dostępnych torrentów",
     "loadError": "Nie udało się załadować szczegółów serialu.",
