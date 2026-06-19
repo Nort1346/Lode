@@ -34,7 +34,10 @@ const ACTION_KEYS: Record<string, string> = {
   torrent_add: 'action_torrent_add',
   torrent_delete: 'action_torrent_delete',
   user_update: 'action_user_update',
-  user_delete: 'action_user_delete'
+  user_delete: 'action_user_delete',
+  tracker_add: 'action_tracker_add',
+  tracker_update: 'action_tracker_update',
+  tracker_delete: 'action_tracker_delete'
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -45,7 +48,10 @@ const ACTION_COLORS: Record<string, string> = {
   torrent_add: 'blue',
   torrent_delete: 'orange',
   user_update: 'amber',
-  user_delete: 'red'
+  user_delete: 'red',
+  tracker_add: 'cyan',
+  tracker_update: 'amber',
+  tracker_delete: 'red'
 }
 
 const ACTION_OPTIONS = computed(() => [

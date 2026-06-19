@@ -1,4 +1,11 @@
 import { cacheGet, cacheSet, CACHE_TTL } from './cache'
+import { customTrackers } from '#server/database/schema'
+import { eq } from 'drizzle-orm'
+import { decryptAES } from '#server/utils/crypto'
+import { performTrackerLogin } from '#server/utils/tracker-auth'
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('Prowlarr')
 
 export const POLISH_TRACKERS: readonly string[] = ['Devil-Torrents', 'Polskie-Torrenty']
 
@@ -7,7 +14,48 @@ interface TrackerCookieConfig {
   cookie: string
 }
 
-export function getTrackerCookieConfig(indexer: string, config: Record<string, unknown>): TrackerCookieConfig | null {
+export type TrackerType = 'guid' | 'counting'
+
+export function getTrackerType(indexer: string): TrackerType | null {
+  if (POLISH_TRACKERS.includes(indexer)) return 'guid'
+  const db = useDb()
+  const row = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)).get()
+  if (row === undefined) return null
+  return row.trackerType as TrackerType
+}
+
+export async function getTrackerCookieConfig(
+  indexer: string,
+  config: Record<string, unknown>
+): Promise<TrackerCookieConfig | null> {
+  const db = useDb()
+  const row = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)).get()
+
+  if (row !== undefined) {
+    if (row.trackerType === 'counting') {
+      return { enabled: row.enabled, cookie: '' }
+    }
+    if (
+      row.loginUrl !== null &&
+      row.loginUrl.length > 0 &&
+      row.loginUsername !== null &&
+      row.loginUsername.length > 0 &&
+      row.loginPassword !== null &&
+      row.loginPassword.length > 0
+    ) {
+      try {
+        const password = decryptAES(row.loginPassword)
+        const cookie = await performTrackerLogin(row.loginUrl, row.loginUsername, password)
+        return { enabled: row.enabled, cookie }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        log.error(`[Prowlarr] Auto-login failed for ${indexer}: ${msg}`)
+        return null
+      }
+    }
+    return { enabled: row.enabled, cookie: row.cookie }
+  }
+
   if (indexer === 'Devil-Torrents') {
     return {
       enabled: config.trackerDevilEnabled !== false,
@@ -23,6 +71,19 @@ export function getTrackerCookieConfig(indexer: string, config: Record<string, u
   return null
 }
 
+export function isPrivateTracker(indexer: string): boolean {
+  if (POLISH_TRACKERS.includes(indexer)) return true
+  const db = useDb()
+  const row = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)).get()
+  return row !== undefined && row.enabled
+}
+
+export function getEnabledCustomTrackerNames(): string[] {
+  const db = useDb()
+  const rows = db.select().from(customTrackers).where(eq(customTrackers.enabled, true)).all()
+  return rows.map((r) => r.indexerName)
+}
+
 export interface ProwlarrResult {
   title: string
   indexer: string
@@ -36,6 +97,7 @@ export interface ProwlarrResult {
   categories: number[]
   infoUrl: string
   imdbId: number | null
+  isPrivate: boolean
 }
 
 interface ProwlarrRelease {
@@ -66,12 +128,18 @@ function normalizeResult(item: ProwlarrRelease): ProwlarrResult {
     publishDate: item.publishDate,
     categories: item.categories ?? [],
     infoUrl: item.infoUrl ?? '',
-    imdbId: item.imdbId ?? null
+    imdbId: item.imdbId ?? null,
+    isPrivate: isPrivateTracker(item.indexer)
   }
 }
 
-function hasDownloadMethod(item: ProwlarrRelease): boolean {
-  return item.magnetUrl !== null || item.downloadUrl !== null || POLISH_TRACKERS.includes(item.indexer)
+function hasDownloadMethod(item: ProwlarrRelease, customTrackerNames: string[]): boolean {
+  return (
+    item.magnetUrl !== null ||
+    item.downloadUrl !== null ||
+    POLISH_TRACKERS.includes(item.indexer) ||
+    customTrackerNames.includes(item.indexer)
+  )
 }
 
 function deduplicateResults(results: ProwlarrResult[]): ProwlarrResult[] {
@@ -163,7 +231,10 @@ export class ProwlarrClient {
       query: `{imdbid:${imdbId}}`
     })) as ProwlarrRelease[]
 
-    const results = deduplicateResults((raw ?? []).filter(hasDownloadMethod).map(normalizeResult))
+    const customNames = getEnabledCustomTrackerNames()
+    const results = deduplicateResults(
+      (raw ?? []).filter((item) => hasDownloadMethod(item, customNames)).map(normalizeResult)
+    )
 
     await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
     return results
@@ -179,7 +250,10 @@ export class ProwlarrClient {
       query
     })) as ProwlarrRelease[]
 
-    const results = deduplicateResults((raw ?? []).filter(hasDownloadMethod).map(normalizeResult))
+    const customNames = getEnabledCustomTrackerNames()
+    const results = deduplicateResults(
+      (raw ?? []).filter((item) => hasDownloadMethod(item, customNames)).map(normalizeResult)
+    )
 
     await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
     return results

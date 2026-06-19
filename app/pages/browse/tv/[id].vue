@@ -172,7 +172,10 @@
                 icon="i-lucide-download"
                 size="sm"
                 :loading="downloadingPackIdx === idx"
-                :disabled="pack.magnetLink === null && pack.guid === null && pack.downloadUrl === null"
+                :disabled="
+                  (pack.magnetLink === null && pack.guid === null && pack.downloadUrl === null) ||
+                  isPrivateLimitExceeded(pack.isPrivate)
+                "
                 @click="
                   downloadTorrent(
                     pack.magnetLink,
@@ -319,7 +322,10 @@
                       variant="ghost"
                       icon="i-lucide-download"
                       :loading="downloadingKey === `ep-${ep.episodeNumber}-${tIdx}`"
-                      :disabled="tr.magnetLink === null && tr.guid === null && tr.downloadUrl === null"
+                      :disabled="
+                        (tr.magnetLink === null && tr.guid === null && tr.downloadUrl === null) ||
+                        isPrivateLimitExceeded(tr.isPrivate)
+                      "
                       @click="
                         downloadTorrent(
                           tr.magnetLink,
@@ -434,6 +440,7 @@ interface SeasonPack {
   resolution: string | null
   language: string | null
   isSeasonPack: boolean
+  isPrivate: boolean
 }
 
 interface EpisodeTorrent {
@@ -450,6 +457,7 @@ interface EpisodeTorrent {
   recommended: boolean
   resolution: string | null
   language: string | null
+  isPrivate: boolean
 }
 
 interface Episode {
@@ -521,6 +529,7 @@ const {
 )
 
 const show = computed(() => showData.value?.show ?? null)
+const { data: limits } = useFetch('/api/user/limits')
 
 const seasonOptions = computed(() => {
   if (show.value === null) return []
@@ -550,6 +559,12 @@ const seasonLimitInfo = computed(() => {
   if (nested !== null && nested !== undefined && 'activeCount' in nested) return nested
   return null
 })
+
+function isPrivateLimitExceeded(isPrivate: boolean): boolean {
+  if (!isPrivate) return false
+  if (!limits.value) return false
+  return limits.value.todayPrivate >= limits.value.privateLimit
+}
 
 async function downloadTorrent(
   magnetLink: string | null,

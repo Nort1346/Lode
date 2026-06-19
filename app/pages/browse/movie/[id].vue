@@ -216,7 +216,10 @@
               color="warning"
               icon="i-lucide-download"
               :loading="downloadingIdx === idx"
-              :disabled="torrent.magnetLink === null && torrent.guid === null && torrent.downloadUrl === null"
+              :disabled="
+                (torrent.magnetLink === null && torrent.guid === null && torrent.downloadUrl === null) ||
+                isPrivateLimitExceeded(torrent)
+              "
               @click="downloadTorrent(torrent, idx)"
             >
               {{ t('movie.download') }}
@@ -318,6 +321,7 @@ interface Torrent {
   resolution: string | null
   source: string | null
   language: string | null
+  isPrivate: boolean
 }
 
 interface MovieData {
@@ -369,6 +373,7 @@ const {
 
 const movie = computed(() => data.value?.movie ?? null)
 const torrents = computed(() => torrentData.value?.torrents ?? [])
+const { data: limits } = useFetch('/api/user/limits')
 const limitInfo = computed(() => {
   if (torrentError.value === null || torrentError.value === undefined) return null
   const err = torrentError.value as unknown as Record<string, unknown>
@@ -380,6 +385,12 @@ const limitInfo = computed(() => {
   if (nested !== null && nested !== undefined && 'activeCount' in nested) return nested
   return null
 })
+
+function isPrivateLimitExceeded(torrent: Torrent): boolean {
+  if (!torrent.isPrivate) return false
+  if (!limits.value) return false
+  return limits.value.todayPrivate >= limits.value.privateLimit
+}
 
 function formatLanguage(lang: string): string {
   const map: Record<string, string> = {

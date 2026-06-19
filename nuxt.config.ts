@@ -64,7 +64,8 @@ export default defineNuxtConfig({
     flaresolverrUrl: '',
     disks: '',
     minFreeSpaceGb: 7,
-    diskSpaceCheckEnabled: true
+    diskSpaceCheckEnabled: true,
+    trackerEncryptionKey: ''
   },
 
   routeRules: {

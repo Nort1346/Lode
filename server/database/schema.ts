@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -40,7 +40,8 @@ export const downloads = sqliteTable('downloads', {
   completedAt: text('completed_at'),
   tmdbId: integer('tmdb_id'),
   mediaType: text('media_type', { enum: ['movie', 'tv'] }),
-  posterUrl: text('poster_url')
+  posterUrl: text('poster_url'),
+  isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false)
 })
 
 export const settings = sqliteTable('settings', {
@@ -73,3 +74,21 @@ export const requests = sqliteTable('requests', {
   note: text('note'),
   createdAt: text('created_at').notNull()
 })
+
+export const customTrackers = sqliteTable(
+  'custom_trackers',
+  {
+    id: text('id').primaryKey(),
+    indexerName: text('indexer_name').notNull(),
+    trackerType: text('tracker_type', { enum: ['guid', 'counting'] })
+      .notNull()
+      .default('counting'),
+    cookie: text('cookie').notNull().default(''),
+    loginUrl: text('login_url'),
+    loginUsername: text('login_username'),
+    loginPassword: text('login_password'),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    createdAt: text('created_at').notNull().default('')
+  },
+  (t) => [uniqueIndex('idx_custom_trackers_indexer').on(t.indexerName)]
+)

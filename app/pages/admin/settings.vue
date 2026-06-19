@@ -410,7 +410,7 @@ onMounted(fetchStatus)
             />
           </div>
         </div>
-        <div ref="logsContainer" class="h-[400px] overflow-y-auto bg-zinc-950 p-4 font-mono text-xs leading-relaxed">
+        <div ref="logsContainer" class="h-100 overflow-y-auto bg-zinc-950 p-4 font-mono text-xs leading-relaxed">
           <div v-if="logs.length === 0" class="text-zinc-600">{{ t('settings.logsEmpty') }}</div>
           <div v-for="(line, i) in logs" :key="i" :class="logLineColor(line)">{{ line }}</div>
         </div>

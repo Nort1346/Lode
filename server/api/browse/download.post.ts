@@ -1,7 +1,9 @@
-import { downloads } from '#server/database/schema'
+import { downloads, customTrackers } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { POLISH_TRACKERS, getTrackerCookieConfig } from '#server/utils/prowlarr'
+import { getTrackerCookieConfig, getTrackerType, isPrivateTracker } from '#server/utils/prowlarr'
+import { clearSessionCache, performTrackerLogin } from '#server/utils/tracker-auth'
+import { decryptAES } from '#server/utils/crypto'
 import { gotScraping } from 'got-scraping'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { checkAllDisks } from '#server/utils/disk'
@@ -49,10 +51,10 @@ export default defineEventHandler(async (event) => {
     const hasMagnet = rawMagnetLink.length > 0
     const hasDownloadUrl = downloadUrl.length > 0
     const hasGuid = guidUrl.length > 0
-    const isPolishTracker = POLISH_TRACKERS.includes(indexer)
+    const isPrivateTrackerEnabled = isPrivateTracker(indexer)
 
     log.info(
-      `[Download:1:START] user=${session.user.username} role=${session.user.role} indexer="${indexer}" isPolish=${isPolishTracker} hasGuid=${hasGuid} hasMagnet=${hasMagnet} hasDownloadUrl=${hasDownloadUrl} label="${label}" savePath=${savePath}`
+      `[Download:1:START] user=${session.user.username} role=${session.user.role} indexer="${indexer}" isPrivate=${isPrivateTrackerEnabled} hasGuid=${hasGuid} hasMagnet=${hasMagnet} hasDownloadUrl=${hasDownloadUrl} label="${label}" savePath=${savePath}`
     )
     if (hasGuid) log.info(`[Download:1:START]   guid=${guidUrl}`)
     if (hasDownloadUrl) log.info(`[Download:1:START]   downloadUrl=${downloadUrl.substring(0, 120)}`)
@@ -114,19 +116,21 @@ export default defineEventHandler(async (event) => {
         .from(downloads)
         .where(eq(downloads.userId, session.user.id))
         .all()
-        .filter((d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed')
+        .filter((d) => new Date(d.createdAt) >= todayStart)
 
-      log.info(`[Download:3:LIMITS] today=${todayAll.length}/${session.user.dailyDownloadLimit}`)
+      const todayActive = todayAll.filter((d) => d.status !== 'failed' && d.status !== 'removed')
 
-      if (todayAll.length >= session.user.dailyDownloadLimit) {
+      log.info(`[Download:3:LIMITS] today=${todayActive.length}/${session.user.dailyDownloadLimit}`)
+
+      if (todayActive.length >= session.user.dailyDownloadLimit) {
         throw createError({
           statusCode: 429,
           statusMessage: `Daily download limit reached (${session.user.dailyDownloadLimit})`
         })
       }
 
-      if (isPolishTracker) {
-        const todayPrivate = todayAll.filter((d) => d.magnetLink.startsWith('guid:'))
+      if (isPrivateTrackerEnabled) {
+        const todayPrivate = todayAll.filter((d) => d.isPrivate)
         log.info(`[Download:3:LIMITS] todayPrivate=${todayPrivate.length}/${session.user.privateTrackerLimit}`)
         if (todayPrivate.length >= session.user.privateTrackerLimit) {
           throw createError({
@@ -191,10 +195,10 @@ export default defineEventHandler(async (event) => {
     let torrent
     let storedMagnetLink: string
 
-    if (hasGuid && isPolishTracker) {
-      log.info(`[Download:5:TRACKER] entering Polish tracker path...`)
+    if (hasGuid && isPrivateTrackerEnabled && getTrackerType(indexer) === 'guid') {
+      log.info(`[Download:5:TRACKER] entering private tracker path...`)
 
-      const trackerConfig = getTrackerCookieConfig(indexer, config)
+      const trackerConfig = await getTrackerCookieConfig(indexer, config)
 
       if (trackerConfig === null) {
         log.error(`[Download:5:TRACKER] ✗ unknown tracker: ${indexer}`)
@@ -205,7 +209,7 @@ export default defineEventHandler(async (event) => {
         log.error(`[Download:5:TRACKER] ✗ tracker disabled: ${indexer}`)
         throw createError({
           statusCode: 400,
-          statusMessage: `Tracker ${indexer} is disabled. Set NUXT_TRACKER_${indexer === 'Devil-Torrents' ? 'DEVIL' : 'POLSKIE'}_ENABLED=true`
+          statusMessage: `Tracker ${indexer} is disabled. Enable it in admin panel → Trackers.`
         })
       }
 
@@ -213,7 +217,7 @@ export default defineEventHandler(async (event) => {
         log.error(`[Download:5:TRACKER] ✗ no cookie for: ${indexer}`)
         throw createError({
           statusCode: 400,
-          statusMessage: `No cookie configured for ${indexer}. Set NUXT_TRACKER_${indexer === 'Devil-Torrents' ? 'DEVIL' : 'POLSKIE'}_COOKIE`
+          statusMessage: `No cookie configured for ${indexer}. Add cookie in admin panel → Trackers.`
         })
       }
 
@@ -221,21 +225,44 @@ export default defineEventHandler(async (event) => {
         `[Download:5:TRACKER] config OK: enabled=${trackerConfig.enabled}, cookieLength=${trackerConfig.cookie.length}`
       )
 
+      // Store tracker row for retry in step 7
+      const trackerRow = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)).get()
+
       // ── 6: FETCH via got-scraping (Chrome TLS impersonation) ─
+      const cookiePreview = trackerConfig.cookie.substring(0, 20) + '...'
+      let referer: string
+      try {
+        const url = new URL(guidUrl)
+        referer = url.origin + url.pathname
+      } catch {
+        referer = guidUrl
+      }
       log.info(`[Download:6:FETCH] url=${guidUrl} (got-scraping, impersonate=chrome)`)
+      log.info(`[Download:6:FETCH] cookie="${cookiePreview}" referer="${referer}"`)
       const t2 = Date.now()
       let fileBuffer: Buffer
+      let responseContentType = ''
       try {
         const response = await gotScraping({
           url: guidUrl,
-          headers: { Cookie: trackerConfig.cookie },
+          headers: {
+            Cookie: trackerConfig.cookie,
+            Referer: referer
+          },
           timeout: { request: 30_000 },
           responseType: 'buffer'
         })
         fileBuffer = response.body
+        responseContentType = (response.headers['content-type'] as string | undefined) ?? ''
+        const respHeaders = Object.fromEntries(
+          Object.entries(response.headers).filter(([k]) =>
+            ['content-type', 'set-cookie', 'location', 'cf-ray', 'server'].includes(k)
+          )
+        )
         log.info(
           `[Download:6:FETCH] ← HTTP ${response.statusCode} in ${Date.now() - t2}ms, size=${fileBuffer.length}, contentType=${response.headers['content-type'] ?? 'N/A'}`
         )
+        log.info(`[Download:6:FETCH]   response headers: ${JSON.stringify(respHeaders)}`)
         if (response.statusCode !== 200) {
           const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
           log.error(`[Download:6:FETCH] ✗ HTTP ${response.statusCode}: ${preview}`)
@@ -259,14 +286,95 @@ export default defineEventHandler(async (event) => {
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- fileBuffer.length > 0 checked above
       const firstByte = fileBuffer[0]!
-      if (firstByte === 0x3c) {
+      const bodyPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 200))
+      const isHtml =
+        responseContentType.includes('text/html') || bodyPreview.includes('<!DOCTYPE') || bodyPreview.includes('<html')
+
+      if (isHtml) {
         const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 500))
-        log.error(`[Download:7:VALIDATE] ✗ got HTML (0x3c) instead of torrent!`)
+        log.error(`[Download:7:VALIDATE] ✗ got HTML instead of torrent! contentType=${responseContentType}`)
         log.error(`[Download:7:VALIDATE]   preview: ${preview}`)
-        throw createError({
-          statusCode: 401,
-          statusMessage: `Invalid or expired cookie for ${indexer}. Update NUXT_TRACKER_*_COOKIE`
-        })
+
+        // Retry: if tracker has login credentials, clear cache + re-login + retry once
+        if (
+          trackerRow !== undefined &&
+          trackerRow.loginUrl !== null &&
+          trackerRow.loginUrl.length > 0 &&
+          trackerRow.loginUsername !== null &&
+          trackerRow.loginUsername.length > 0 &&
+          trackerRow.loginPassword !== null &&
+          trackerRow.loginPassword.length > 0
+        ) {
+          log.info(`[Download:7:VALIDATE] Session may be expired — retrying login for ${indexer}...`)
+
+          clearSessionCache(trackerRow.loginUrl, trackerRow.loginUsername)
+
+          const decryptedPassword = decryptAES(trackerRow.loginPassword)
+          const freshCookie = await performTrackerLogin(
+            trackerRow.loginUrl,
+            trackerRow.loginUsername,
+            decryptedPassword
+          )
+
+          log.info(`[Download:7:VALIDATE] Retry fetch with fresh cookie (${freshCookie.length} chars)...`)
+          const t2Retry = Date.now()
+          try {
+            const retryResponse = await gotScraping({
+              url: guidUrl,
+              headers: {
+                Cookie: freshCookie,
+                Referer: referer
+              },
+              timeout: { request: 30_000 },
+              responseType: 'buffer'
+            })
+            fileBuffer = retryResponse.body
+            const retryContentType = (retryResponse.headers['content-type'] as string | undefined) ?? ''
+            const retryBodyPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 200))
+            const retryIsHtml =
+              retryContentType.includes('text/html') ||
+              retryBodyPreview.includes('<!DOCTYPE') ||
+              retryBodyPreview.includes('<html')
+            log.info(
+              `[Download:7:VALIDATE] Retry ← HTTP ${retryResponse.statusCode} in ${Date.now() - t2Retry}ms, size=${fileBuffer.length}, isHtml=${retryIsHtml}`
+            )
+            if (retryResponse.statusCode !== 200) {
+              const retryPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
+              log.error(`[Download:7:VALIDATE] ✗ Retry HTTP ${retryResponse.statusCode}: ${retryPreview}`)
+              throw createError({
+                statusCode: 502,
+                statusMessage: `${indexer} returned ${retryResponse.statusCode} after retry`
+              })
+            }
+            if (retryIsHtml) {
+              const retryHtmlPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
+              log.error(`[Download:7:VALIDATE] ✗ Retry also returned HTML — cookie truly invalid`)
+              log.error(`[Download:7:VALIDATE]   retry preview: ${retryHtmlPreview}`)
+              throw createError({
+                statusCode: 401,
+                statusMessage: `Cookie expired and re-login failed for ${indexer}. Update cookie in admin panel → Trackers.`
+              })
+            }
+          } catch (err) {
+            if (err instanceof Error && 'statusCode' in err) throw err
+            const msg = err instanceof Error ? err.message : String(err)
+            log.error(`[Download:7:VALIDATE] ✗ Retry failed in ${Date.now() - t2Retry}ms: ${msg}`)
+            throw createError({ statusCode: 502, statusMessage: `Retry to ${indexer} failed: ${msg}` })
+          }
+        } else {
+          // No login credentials — cannot retry
+          const hostname = (() => {
+            try {
+              return new URL(guidUrl).hostname
+            } catch {
+              return guidUrl
+            }
+          })()
+          throw createError({
+            statusCode: 401,
+            statusMessage: `Cookie expired or invalid for ${indexer}. Server returned login page for ${hostname}. Update cookie in admin panel → Trackers.`
+          })
+        }
       }
 
       if (firstByte !== 0x64) {
@@ -400,7 +508,10 @@ export default defineEventHandler(async (event) => {
     }
 
     const id = randomUUID()
-    log.info(`[Download:10:DB] inserting: id=${id} status=downloading hash=${torrent?.hash ?? 'null'}`)
+    const isPrivateDownload = getTrackerType(indexer) !== null
+    log.info(
+      `[Download:10:DB] inserting: id=${id} status=downloading hash=${torrent?.hash ?? 'null'} isPrivate=${isPrivateDownload}`
+    )
     db.insert(downloads)
       .values({
         id,
@@ -420,7 +531,8 @@ export default defineEventHandler(async (event) => {
         createdAt: new Date().toISOString(),
         tmdbId,
         mediaType,
-        posterUrl
+        posterUrl,
+        isPrivate: isPrivateDownload
       })
       .run()
 

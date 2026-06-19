@@ -109,6 +109,28 @@ function initDb() {
   if (!columns.includes('poster_url')) {
     sqlite.exec(`ALTER TABLE downloads ADD COLUMN poster_url TEXT`)
   }
+  if (!columns.includes('is_private')) {
+    sqlite.exec(`ALTER TABLE downloads ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0`)
+  }
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS custom_trackers (
+      id TEXT PRIMARY KEY,
+      indexer_name TEXT NOT NULL UNIQUE,
+      cookie TEXT NOT NULL DEFAULT '',
+      login_url TEXT,
+      login_username TEXT,
+      login_password TEXT,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT ''
+    );
+  `)
+
+  const trackerPragmaRows = sqlite.prepare('PRAGMA table_info(custom_trackers)').all() as Record<string, unknown>[]
+  const trackerColumns = trackerPragmaRows.map((c) => c.name as string)
+  if (!trackerColumns.includes('tracker_type')) {
+    sqlite.exec(`ALTER TABLE custom_trackers ADD COLUMN tracker_type TEXT NOT NULL DEFAULT 'counting'`)
+  }
 
   _db = drizzle(sqlite, { schema })
   return _db
