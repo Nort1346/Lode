@@ -2,6 +2,7 @@ import { downloads } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
+import { getFreshUser } from '#server/utils/user'
 import { checkAllDisks } from '#server/utils/disk'
 import { formatSize } from '#server/utils/torrent-ranker'
 import { createLogger } from '#server/utils/logger'
@@ -27,6 +28,11 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
+  }
+
+  const freshUser = getFreshUser(session.user.id)
+  if (freshUser === undefined) {
+    throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
 
   const body = await readBody<AddTorrentBody>(event)
@@ -87,10 +93,10 @@ export default defineEventHandler(async (event) => {
       .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, 'downloading')))
       .all()
 
-    if (userDownloads.length >= session.user.activeTorrentLimit) {
+    if (userDownloads.length >= freshUser.activeTorrentLimit) {
       throw createError({
         statusCode: 429,
-        statusMessage: `Active torrent limit reached (${session.user.activeTorrentLimit})`
+        statusMessage: `Active torrent limit reached (${freshUser.activeTorrentLimit})`
       })
     }
 
@@ -104,10 +110,10 @@ export default defineEventHandler(async (event) => {
       .all()
       .filter((d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed')
 
-    if (todayAll.length >= session.user.dailyDownloadLimit) {
+    if (todayAll.length >= freshUser.dailyDownloadLimit) {
       throw createError({
         statusCode: 429,
-        statusMessage: `Daily download limit reached (${session.user.dailyDownloadLimit})`
+        statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`
       })
     }
   }
@@ -193,12 +199,12 @@ export default defineEventHandler(async (event) => {
   }
 
   if (torrent !== null) {
-    const maxSizeBytes = session.user.maxTorrentSizeGb * 1024 * 1024 * 1024
+    const maxSizeBytes = freshUser.maxTorrentSizeGb * 1024 * 1024 * 1024
     if (torrent.size > maxSizeBytes) {
       await qui.deleteTorrent(torrent.hash, true).catch(() => {})
       throw createError({
         statusCode: 413,
-        statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${session.user.maxTorrentSizeGb} GB`
+        statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${freshUser.maxTorrentSizeGb} GB`
       })
     }
 

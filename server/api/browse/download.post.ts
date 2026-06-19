@@ -2,6 +2,7 @@ import { downloads, customTrackers } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { getTrackerCookieConfig, getTrackerType, isPrivateTracker } from '#server/utils/prowlarr'
+import { getFreshUser } from '#server/utils/user'
 import { clearSessionCache, performTrackerLogin } from '#server/utils/tracker-auth'
 import { decryptAES } from '#server/utils/crypto'
 import { gotScraping } from 'got-scraping'
@@ -35,6 +36,11 @@ export default defineEventHandler(async (event) => {
     const session = await getUserSession(event)
     if (!session.user) {
       throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
+    }
+
+    const freshUser = getFreshUser(session.user.id)
+    if (freshUser === undefined) {
+      throw createError({ statusCode: 404, statusMessage: 'User not found' })
     }
 
     const body = await readBody<DownloadBody>(event)
@@ -99,12 +105,12 @@ export default defineEventHandler(async (event) => {
         .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, 'downloading')))
         .all()
 
-      log.info(`[Download:3:LIMITS] active=${userDownloads.length}/${session.user.activeTorrentLimit}`)
+      log.info(`[Download:3:LIMITS] active=${userDownloads.length}/${freshUser.activeTorrentLimit}`)
 
-      if (userDownloads.length >= session.user.activeTorrentLimit) {
+      if (userDownloads.length >= freshUser.activeTorrentLimit) {
         throw createError({
           statusCode: 429,
-          statusMessage: `Active torrent limit reached (${session.user.activeTorrentLimit})`
+          statusMessage: `Active torrent limit reached (${freshUser.activeTorrentLimit})`
         })
       }
 
@@ -120,22 +126,22 @@ export default defineEventHandler(async (event) => {
 
       const todayActive = todayAll.filter((d) => d.status !== 'failed' && d.status !== 'removed')
 
-      log.info(`[Download:3:LIMITS] today=${todayActive.length}/${session.user.dailyDownloadLimit}`)
+      log.info(`[Download:3:LIMITS] today=${todayActive.length}/${freshUser.dailyDownloadLimit}`)
 
-      if (todayActive.length >= session.user.dailyDownloadLimit) {
+      if (todayActive.length >= freshUser.dailyDownloadLimit) {
         throw createError({
           statusCode: 429,
-          statusMessage: `Daily download limit reached (${session.user.dailyDownloadLimit})`
+          statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`
         })
       }
 
       if (isPrivateTrackerEnabled) {
         const todayPrivate = todayAll.filter((d) => d.isPrivate)
-        log.info(`[Download:3:LIMITS] todayPrivate=${todayPrivate.length}/${session.user.privateTrackerLimit}`)
-        if (todayPrivate.length >= session.user.privateTrackerLimit) {
+        log.info(`[Download:3:LIMITS] todayPrivate=${todayPrivate.length}/${freshUser.privateTrackerLimit}`)
+        if (todayPrivate.length >= freshUser.privateTrackerLimit) {
           throw createError({
             statusCode: 429,
-            statusMessage: `Private tracker daily limit reached (${session.user.privateTrackerLimit})`
+            statusMessage: `Private tracker daily limit reached (${freshUser.privateTrackerLimit})`
           })
         }
       }
@@ -438,15 +444,15 @@ export default defineEventHandler(async (event) => {
 
     // ── 9: SIZE CHECK ────────────────────────────────────────
     if (torrent !== null) {
-      const maxSizeBytes = session.user.maxTorrentSizeGb * 1024 * 1024 * 1024
+      const maxSizeBytes = freshUser.maxTorrentSizeGb * 1024 * 1024 * 1024
       log.info(
-        `[Download:9:SIZE] torrent.size=${torrent.size} (${(torrent.size / (1024 * 1024 * 1024)).toFixed(2)} GB) limit=${maxSizeBytes} (${session.user.maxTorrentSizeGb} GB)`
+        `[Download:9:SIZE] torrent.size=${torrent.size} (${(torrent.size / (1024 * 1024 * 1024)).toFixed(2)} GB) limit=${maxSizeBytes} (${freshUser.maxTorrentSizeGb} GB)`
       )
       if (torrent.size > maxSizeBytes) {
         await qui.deleteTorrent(torrent.hash, true).catch(() => {})
         throw createError({
           statusCode: 413,
-          statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${session.user.maxTorrentSizeGb} GB`
+          statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${freshUser.maxTorrentSizeGb} GB`
         })
       }
     }

@@ -1,5 +1,6 @@
 import { downloads } from '#server/database/schema'
 import { and, eq } from 'drizzle-orm'
+import { getFreshUser } from '#server/utils/user'
 
 export interface DailyLimitResult {
   reached: boolean
@@ -8,20 +9,18 @@ export interface DailyLimitResult {
   limit: number
 }
 
-export function checkDailyLimit(session: {
-  user?: { id: string; role: string; dailyDownloadLimit: number }
-}): DailyLimitResult {
-  if (session.user === undefined || session.user === null) {
+export function checkDailyLimit(userId: string): DailyLimitResult {
+  const freshUser = getFreshUser(userId)
+  if (freshUser === undefined) {
     return { reached: false, activeCount: 0, todayCount: 0, limit: 0 }
   }
 
-  if (session.user.role === 'admin') {
-    return { reached: false, activeCount: 0, todayCount: 0, limit: session.user.dailyDownloadLimit }
+  if (freshUser.role === 'admin') {
+    return { reached: false, activeCount: 0, todayCount: 0, limit: freshUser.dailyDownloadLimit }
   }
 
   const db = useDb()
-  const userId = session.user.id
-  const limit = session.user.dailyDownloadLimit
+  const limit = freshUser.dailyDownloadLimit
 
   const activeCount = db
     .select()
