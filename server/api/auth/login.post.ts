@@ -20,6 +20,7 @@ export default defineEventHandler(async (event) => {
 
   if (!user) {
     logActivity(event, { action: 'login_failed', username, details: 'User not found' })
+    await recordLoginAttempt(event, { username, success: false })
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
   }
 
@@ -30,14 +31,18 @@ export default defineEventHandler(async (event) => {
       username: user.username,
       details: 'Account deactivated'
     })
+    await recordLoginAttempt(event, { username: user.username, success: false })
     throw createError({ statusCode: 403, statusMessage: 'Account is deactivated' })
   }
 
   const valid = await bcrypt.compare(password, user.password)
   if (!valid) {
     logActivity(event, { action: 'login_failed', userId: user.id, username: user.username, details: 'Wrong password' })
+    await recordLoginAttempt(event, { username: user.username, success: false })
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
   }
+
+  await recordLoginAttempt(event, { username: user.username, success: true })
 
   await setUserSession(event, {
     user: {

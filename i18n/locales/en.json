@@ -8,7 +8,8 @@
     "logs": "Activity Logs",
     "settings": "Admin Settings",
     "requests": "Requests",
-    "trackers": "Trackers"
+    "trackers": "Trackers",
+    "bruteForce": "Security"
   },
   "theme": {
     "light": "Light Mode",
@@ -183,7 +184,9 @@
     "action_user_delete": "User Delete",
     "action_tracker_add": "Tracker Add",
     "action_tracker_update": "Tracker Update",
-    "action_tracker_delete": "Tracker Delete"
+    "action_tracker_delete": "Tracker Delete",
+    "action_brute_force_config_update": "Login Protection Config Update",
+    "action_brute_force_unblock_ip": "IP Unblocked"
   },
   "settings": {
     "title": "Settings",
@@ -331,5 +334,26 @@
     "saveChanges": "Save Changes",
     "create": "Create",
     "edit": "Edit"
+  },
+  "bruteForce": {
+    "title": "Login Protection",
+    "subtitle": "Monitor and manage login security",
+    "blockedIps": "Blocked IPs",
+    "recentAttempts": "Login Attempts (24h)",
+    "settings": "Settings",
+    "maxAttemptsPerIp": "Max attempts per IP",
+    "ipBlockDuration": "IP block duration (min)",
+    "windowMinutes": "Time window (min)",
+    "unblock": "Unblock IP",
+    "expiresAt": "Expires",
+    "reason": "Reason",
+    "failedAttempts": "failed attempts",
+    "actions": "Actions",
+    "save": "Save settings",
+    "saved": "Saved",
+    "saveError": "Save error",
+    "unblocked": "IP unblocked",
+    "expired": "Expired",
+    "noBlockedIps": "No blocked IPs"
   }
 }

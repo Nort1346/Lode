@@ -8,7 +8,8 @@
     "logs": "Logi",
     "settings": "Ustawienia Admina",
     "requests": "Żądania",
-    "trackers": "Trackery"
+    "trackers": "Trackery",
+    "bruteForce": "Ochrona"
   },
   "theme": {
     "light": "Tryb jasny",
@@ -183,7 +184,9 @@
     "action_user_delete": "Usunięcie użytkownika",
     "action_tracker_add": "Dodanie trackera",
     "action_tracker_update": "Aktualizacja trackera",
-    "action_tracker_delete": "Usunięcie trackera"
+    "action_tracker_delete": "Usunięcie trackera",
+    "action_brute_force_config_update": "Aktualizacja ochrony logowania",
+    "action_brute_force_unblock_ip": "Odblokowanie IP"
   },
   "settings": {
     "title": "Ustawienia",
@@ -331,5 +334,26 @@
     "saveChanges": "Zapisz zmiany",
     "create": "Utwórz",
     "edit": "Edytuj"
+  },
+  "bruteForce": {
+    "title": "Ochrona logowania",
+    "subtitle": "Monitoring i zarządzanie zabezpieczeniami logowania",
+    "blockedIps": "Zablokowane IP",
+    "recentAttempts": "Próby logowania (24h)",
+    "settings": "Ustawienia",
+    "maxAttemptsPerIp": "Max prób na IP",
+    "ipBlockDuration": "Czas blokady IP (min)",
+    "windowMinutes": "Okno czasowe (min)",
+    "unblock": "Odblokuj IP",
+    "expiresAt": "Wygasa",
+    "reason": "Powód",
+    "failedAttempts": "nieudanych prób",
+    "actions": "Akcje",
+    "save": "Zapisz ustawienia",
+    "saved": "Zapisano",
+    "saveError": "Błąd zapisu",
+    "unblocked": "IP odblokowane",
+    "expired": "Wygasł",
+    "noBlockedIps": "Brak zablokowanych IP"
   }
 }

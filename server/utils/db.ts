@@ -132,6 +132,27 @@ function initDb() {
     sqlite.exec(`ALTER TABLE custom_trackers ADD COLUMN tracker_type TEXT NOT NULL DEFAULT 'counting'`)
   }
 
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS login_attempts (
+      id TEXT PRIMARY KEY,
+      ip TEXT NOT NULL,
+      username TEXT,
+      success INTEGER NOT NULL DEFAULT 0,
+      user_agent TEXT,
+      created_at TEXT NOT NULL DEFAULT ''
+    );
+  `)
+
+  const laPragmaRows = sqlite.prepare('PRAGMA table_info(login_attempts)').all() as Record<string, unknown>[]
+  const laColumns = laPragmaRows.map((c) => c.name as string)
+  if (!laColumns.includes('user_agent')) {
+    sqlite.exec(`ALTER TABLE login_attempts ADD COLUMN user_agent TEXT`)
+  }
+
+  sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, created_at)`)
+  sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_login_attempts_username ON login_attempts(username, created_at)`)
+  sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_login_attempts_created ON login_attempts(created_at)`)
+
   _db = drizzle(sqlite, { schema })
   return _db
 }

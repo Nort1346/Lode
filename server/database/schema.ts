@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, real, uniqueIndex, index } from 'drizzle-orm/sqlite-core'
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -91,4 +91,21 @@ export const customTrackers = sqliteTable(
     createdAt: text('created_at').notNull().default('')
   },
   (t) => [uniqueIndex('idx_custom_trackers_indexer').on(t.indexerName)]
+)
+
+export const loginAttempts = sqliteTable(
+  'login_attempts',
+  {
+    id: text('id').primaryKey(),
+    ip: text('ip').notNull(),
+    username: text('username'),
+    success: integer('success', { mode: 'boolean' }).notNull().default(false),
+    userAgent: text('user_agent'),
+    createdAt: text('created_at').notNull().default('')
+  },
+  (t) => [
+    index('idx_login_attempts_ip').on(t.ip, t.createdAt),
+    index('idx_login_attempts_username').on(t.username, t.createdAt),
+    index('idx_login_attempts_created').on(t.createdAt)
+  ]
 )
