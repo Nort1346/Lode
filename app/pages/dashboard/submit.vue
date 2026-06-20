@@ -6,6 +6,7 @@ definePageMeta({
 
 const { user } = useUserSession()
 const { t } = useI18n()
+const toast = useToast()
 
 const inputMode = ref<'magnet' | 'file' | 'url'>('magnet')
 const form = reactive({
@@ -16,8 +17,6 @@ const form = reactive({
 })
 const selectedFile = ref<File | null>(null)
 const loading = ref(false)
-const error = ref('')
-const success = ref(false)
 
 const savePathOptions = computed(() => [
   { label: t('common.savePath_movies'), value: 'movies' },
@@ -37,17 +36,16 @@ function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0] ?? null
   if (file && !file.name.endsWith('.torrent')) {
-    error.value = 'Invalid file type. Only .torrent files are accepted.'
+    toast.add({ title: t('submit.invalidFileType'), color: 'error' })
     input.value = ''
     return
   }
   if (file && file.size > 5 * 1024 * 1024) {
-    error.value = 'File too large. Maximum size is 5MB.'
+    toast.add({ title: t('submit.fileTooLarge'), color: 'error' })
     input.value = ''
     return
   }
   selectedFile.value = file
-  error.value = ''
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -65,8 +63,6 @@ function fileToBase64(file: File): Promise<string> {
 
 async function handleSubmit() {
   loading.value = true
-  error.value = ''
-  success.value = false
 
   try {
     if (inputMode.value === 'magnet') {
@@ -89,7 +85,7 @@ async function handleSubmit() {
       })
     } else {
       if (!selectedFile.value) {
-        error.value = 'Please select a .torrent file'
+        toast.add({ title: t('submit.selectFile'), color: 'error' })
         loading.value = false
         return
       }
@@ -106,16 +102,11 @@ async function handleSubmit() {
       selectedFile.value = null
     }
 
-    success.value = true
-    form.magnetLink = ''
-    form.torrentUrl = ''
-    form.label = ''
-    setTimeout(() => {
-      success.value = false
-    }, 3000)
+    toast.add({ title: t('submit.success'), color: 'success' })
+    navigateTo('/dashboard/downloads')
   } catch (e: unknown) {
     const err = e as { data?: { statusMessage?: string } }
-    error.value = err.data?.statusMessage || t('submit.failed')
+    toast.add({ title: err.data?.statusMessage || t('submit.failed'), color: 'error' })
   } finally {
     loading.value = false
   }
@@ -207,10 +198,6 @@ async function handleSubmit() {
               </li>
             </ul>
           </div>
-
-          <UAlert v-if="error" :description="error" color="error" variant="subtle" />
-
-          <UAlert v-if="success" :description="t('submit.success')" color="success" variant="subtle" />
 
           <UButton
             type="submit"

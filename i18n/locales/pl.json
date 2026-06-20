@@ -97,7 +97,10 @@
     "activeTorrents": "Aktywne torrenty:",
     "success": "Torrent dodany pomyślnie!",
     "addButton": "Dodaj torrent",
-    "failed": "Nie udało się dodać torrenta"
+    "failed": "Nie udało się dodać torrenta",
+    "invalidFileType": "Nieprawidłowy typ pliku. Akceptowane: .torrent",
+    "fileTooLarge": "Plik jest za duży. Maks. 5MB",
+    "selectFile": "Wybierz plik .torrent"
   },
   "torrent": {
     "dead": "⚠ Brak seederów - rozważ usunięcie",
@@ -118,7 +121,7 @@
     "activeTorrents": "Aktywne torrenty",
     "downloadsToday": "Pobrania dziś",
     "completed": "Ukończone",
-    "newRequest": "Nowe żądanie",
+    "browse": "Przeglądaj",
     "noActive": "Brak aktywnych pobrań. Dodaj torrent aby rozpocząć!",
     "myDownloads": "Moje pobrania",
     "noDownloads": "Brak pobrań",

@@ -97,7 +97,10 @@
     "activeTorrents": "Active torrents:",
     "success": "Torrent added successfully!",
     "addButton": "Add Torrent",
-    "failed": "Failed to add torrent"
+    "failed": "Failed to add torrent",
+    "invalidFileType": "Invalid file type. Accepted: .torrent",
+    "fileTooLarge": "File too large. Max 5MB",
+    "selectFile": "Please select a .torrent file"
   },
   "torrent": {
     "dead": "⚠ No seeders - consider removing",
@@ -118,7 +121,7 @@
     "activeTorrents": "Active Torrents",
     "downloadsToday": "Downloads Today",
     "completed": "Completed",
-    "newRequest": "New Request",
+    "browse": "Browse",
     "noActive": "No active downloads. Submit a torrent to get started!",
     "myDownloads": "My Downloads",
     "noDownloads": "No downloads yet",
