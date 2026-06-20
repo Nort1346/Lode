@@ -16,6 +16,7 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+const toast = useToast()
 const logs = ref<ActivityLog[]>([])
 const loading = ref(true)
 const page = ref(1)
@@ -153,6 +154,12 @@ function shortenUA(ua: string | null): string {
   if (ua.length > 60) return ua.substring(0, 60) + '…'
   return ua
 }
+
+async function copyToClipboard(text: string) {
+  if (!text) return
+  await navigator.clipboard.writeText(text)
+  toast.add({ title: t('logs.copied'), color: 'success' })
+}
 </script>
 
 <template>
@@ -238,13 +245,22 @@ function shortenUA(ua: string | null): string {
                   {{ actionLabel(log.action) }}
                 </span>
               </td>
-              <td class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 hidden lg:table-cell max-w-xs truncate">
+              <td
+                class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 hidden lg:table-cell max-w-xs truncate cursor-pointer hover:text-zinc-900 dark:hover:text-white"
+                @click="copyToClipboard(log.details ?? '')"
+              >
                 {{ formatDetails(log.details) }}
               </td>
-              <td class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 hidden md:table-cell font-mono">
+              <td
+                class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 hidden md:table-cell font-mono cursor-pointer hover:text-zinc-900 dark:hover:text-white"
+                @click="copyToClipboard(log.ip ?? '')"
+              >
                 {{ log.ip ?? '-' }}
               </td>
-              <td class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 hidden xl:table-cell">
+              <td
+                class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 hidden xl:table-cell cursor-pointer hover:text-zinc-900 dark:hover:text-white"
+                @click="copyToClipboard(log.userAgent ?? '')"
+              >
                 {{ shortenUA(log.userAgent) }}
               </td>
             </tr>

@@ -186,7 +186,8 @@
     "action_tracker_update": "Aktualizacja trackera",
     "action_tracker_delete": "Usunięcie trackera",
     "action_brute_force_config_update": "Aktualizacja ochrony logowania",
-    "action_brute_force_unblock_ip": "Odblokowanie IP"
+    "action_brute_force_unblock_ip": "Odblokowanie IP",
+    "copied": "Skopiowano"
   },
   "settings": {
     "title": "Ustawienia",
