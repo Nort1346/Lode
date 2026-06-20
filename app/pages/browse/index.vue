@@ -73,6 +73,8 @@
 </template>
 
 <script setup lang="ts">
+import type { MediaCarouselItem } from '~/components/MediaCarousel.vue'
+
 const { t, locale } = useI18n()
 
 const searchQuery = ref('')
@@ -106,11 +108,21 @@ const { data: popularData, pending: popularPending } = await useFetch('/api/brow
 const popularMovies = computed(() => popularData.value?.movies ?? [])
 const popularTvShows = computed(() => popularData.value?.tv ?? [])
 
-const popularMoviesTyped = computed(() =>
-  popularMovies.value.map((m: Record<string, unknown>) => ({ ...m, type: 'movie' as const, logoUrl: null }))
+const popularMoviesTyped = computed(
+  () =>
+    popularMovies.value.map((m: Record<string, unknown>) => ({
+      ...m,
+      type: 'movie' as const,
+      logoUrl: null
+    })) as MediaCarouselItem[]
 )
-const popularTvShowsTyped = computed(() =>
-  popularTvShows.value.map((m: Record<string, unknown>) => ({ ...m, type: 'tv' as const, logoUrl: null }))
+const popularTvShowsTyped = computed(
+  () =>
+    popularTvShows.value.map((m: Record<string, unknown>) => ({
+      ...m,
+      type: 'tv' as const,
+      logoUrl: null
+    })) as MediaCarouselItem[]
 )
 
 const { data: trendingData, pending: trendingPending } = await useFetch('/api/browse/trending', {
@@ -127,8 +139,13 @@ const { data: topRatedData, pending: topRatedPending } = await useFetch('/api/br
 
 const topRatedMovies = computed(() => topRatedData.value?.movies ?? [])
 
-const topRatedMoviesTyped = computed(() =>
-  topRatedMovies.value.map((m: Record<string, unknown>) => ({ ...m, type: 'movie' as const, logoUrl: null }))
+const topRatedMoviesTyped = computed(
+  () =>
+    topRatedMovies.value.map((m: Record<string, unknown>) => ({
+      ...m,
+      type: 'movie' as const,
+      logoUrl: null
+    })) as MediaCarouselItem[]
 )
 
 async function doSearch() {

@@ -82,11 +82,21 @@ const trendingItems = computed<MediaCarouselItem[]>(() => trendingData.value?.it
 const { data: popularData } = useLazyFetch('/api/browse/popular', {
   query: computed(() => ({ locale: locale.value }))
 })
-const popularMovies = computed<MediaCarouselItem[]>(() =>
-  (popularData.value?.movies ?? []).map((m: Record<string, unknown>) => ({ ...m, type: 'movie' as const }))
+const popularMovies = computed(
+  () =>
+    (popularData.value?.movies ?? []).map((m: Record<string, unknown>) => ({
+      ...m,
+      type: 'movie' as const,
+      logoUrl: null
+    })) as MediaCarouselItem[]
 )
-const popularTvShows = computed<MediaCarouselItem[]>(() =>
-  (popularData.value?.tv ?? []).map((m: Record<string, unknown>) => ({ ...m, type: 'tv' as const }))
+const popularTvShows = computed(
+  () =>
+    (popularData.value?.tv ?? []).map((m: Record<string, unknown>) => ({
+      ...m,
+      type: 'tv' as const,
+      logoUrl: null
+    })) as MediaCarouselItem[]
 )
 
 const heroCurrent = ref<MediaCarouselItem | null>(null)
@@ -99,7 +109,7 @@ watch(
   trendingItems,
   (items) => {
     if (items.length === 0) return
-    heroCurrent.value = items[Math.floor(Math.random() * items.length)]
+    heroCurrent.value = items[Math.floor(Math.random() * items.length)] ?? null
 
     heroIntervalId.value = setInterval(() => {
       if (trendingItems.value.length === 0) return
@@ -107,7 +117,7 @@ watch(
         (i) => i.id === heroCurrent.value?.id && i.type === heroCurrent.value?.type
       )
       const nextIdx = (currentIdx + 1) % trendingItems.value.length
-      heroNext.value = trendingItems.value[nextIdx]
+      heroNext.value = trendingItems.value[nextIdx] ?? null
       transitioning.value = true
       setTimeout(() => {
         heroCurrent.value = heroNext.value
