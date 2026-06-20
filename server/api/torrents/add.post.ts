@@ -224,6 +224,10 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  if (torrent !== null && session.user.role === 'admin') {
+    await qui.moveToTop([torrent.hash]).catch(() => {})
+  }
+
   let posterUrl: string | null = null
   if (tmdbId !== null && mediaType !== null) {
     try {

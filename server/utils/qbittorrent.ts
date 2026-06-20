@@ -192,6 +192,15 @@ export class QuiClient {
       body: `hashes=${hash}&deleteFiles=${deleteFiles}`
     })
   }
+
+  async moveToTop(hashes: string[]): Promise<void> {
+    if (hashes.length === 0) return
+    await this.request('/api/v2/torrents/topPrio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `hashes=${hashes.join('|')}`
+    })
+  }
 }
 
 let _client: QuiClient | null = null

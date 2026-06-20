@@ -497,6 +497,11 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // ── 9c: ADMIN QUEUE PRIORITY ──────────────────────────────
+    if (torrent !== null && session.user.role === 'admin') {
+      await qui.moveToTop([torrent.hash]).catch(() => {})
+    }
+
     // ── 10: DB ────────────────────────────────────────────────
     let posterUrl: string | null = null
     if (tmdbId !== null && mediaType !== null) {
