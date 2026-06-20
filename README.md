@@ -1,6 +1,6 @@
 # StreamHub
 
-Torrent request manager for streaming services. Users submit magnet links, torrent URLs, or `.torrent` files. StreamHub communicates with qBittorrent via [qui](https://github.com/autobrr/qui) proxy. Admin panel manages users with configurable download limits, disk space monitoring, and Discord notifications.
+Torrent request manager for streaming services. Users submit magnet links, torrent URLs, or `.torrent` files. StreamHub communicates with qBittorrent via [qui](https://github.com/autobrr/qui) proxy. Admin panel manages users with configurable download limits, disk space monitoring, Discord notifications, and custom private tracker support.
 
 ## Features
 
@@ -37,16 +37,19 @@ Users can add torrents via three input methods on `/dashboard/submit`:
 - Disk space pre-check (507 if insufficient)
 - Post-add: max torrent size check (413 if too large, auto-deletes torrent)
 - Post-add: disk space re-check (507 if exceeded, auto-deletes + creates `disk_full` record)
+- Admin queue priority: admin torrents are moved to top of qBittorrent download queue via `/api/v2/torrents/topPrio`
 - TMDB poster fetch (if tmdbId provided)
 - Activity log recorded
 
 ### Browse & Search
 
 **Carousels on `/browse`:**
-- Trending (mixed movies + TV, from TMDB `/trending/all/week`)
+- Trending (mixed movies + TV, from TMDB `/trending/all/week`) with TMDB logo title treatments
 - Popular Movies (from TMDB `/movie/popular`)
 - Popular TV Shows (from TMDB `/tv/popular`)
 - Top Rated (from TMDB `/movie/top_rated`)
+
+Carousels use the reusable `MediaCarousel` component with scroll arrows (hover-reveal), skeleton loading, and `MediaCarouselItem` type (includes `logoUrl`).
 
 **Search:**
 - Full-text search across movies and TV shows
@@ -58,37 +61,40 @@ Users can add torrents via three input methods on `/dashboard/submit`:
 - Poster, title, original title, year, runtime, rating, genres
 - Overview, IMDB ID
 - "Request This" button (sends request to admin)
-- Available torrents from Prowlarr with 100-point scoring system
+- Available torrents from Prowlarr with 240-point scoring system
 - One-click download per torrent
+- Private tracker badge (`isPrivate`) and percentage display
 - Dev debug mode for admins (shows indexer, magnetLink, downloadUrl, guid)
 
 **TV show detail (`/browse/tv/:id`):**
 - Season selector dropdown
-- Per-episode torrent listing
+- Per-episode torrent listing with indexer name
 - Season pack highlighting (purple badge)
 - Same scoring and download system as movies
 
-**Torrent ranking (100-point system):**
+**Torrent ranking (240-point system):**
 | Factor | Points |
 |--------|--------|
+| Seeders (logarithmic) | 0–100 (`11 * log2(seeders + 1)`) |
+| Resolution: 4K/2160p | 40 |
 | Resolution: 1080p | 30 |
-| Resolution: 4K/2160p | 15 |
-| Resolution: 720p | 15 |
-| Language: PL Dubbing | 20 |
-| Language: PL Lektor | 20 |
-| Language: PL Napisy | 15 |
-| Language: English | 10 |
-| Seeders (scaled) | 0-25 |
-| Size sweet spot (2-15GB movies) | 0-15 |
+| Resolution: 720p | 20 |
+| Language: PL Dubbing | 30 |
+| Language: PL Lektor | 30 |
+| Language: PL Napisy | 25 |
+| Language: English | 15 |
+| Size sweet spot | 0–20 |
 | Source: Remux | 10 |
 | Source: BluRay | 9 |
 | Source: WEB-DL | 8 |
 | Known release groups | 5 |
-| Title relevance (word match) | -20 to +15 |
+| Title relevance (word match %) | 0–15 |
 | Year match | +10 |
 | Full title match | +10 |
 
-Top 3 results marked as "recommended" (amber star badge).
+`SCORE_MAX = 240`. Displayed as percentage (`score / 240 * 100`), color: green ≥80%, amber ≥60%. Top 3 results marked as "recommended" (amber star badge).
+
+Season packs are scored through `rankTorrents()` with adjusted size thresholds (<5GB=3, 5-20GB=7, 20-50GB=10, 50-100GB=8, >100GB=3).
 
 ### Download Management
 
@@ -97,15 +103,18 @@ Top 3 results marked as "recommended" (amber star badge).
 - Active downloads list with real-time progress (3s polling interval)
 - Progress bar with gradient colors based on torrent health
 - Quality badges: dead (red), poor (amber), slow (cyan), ok (none)
-- Delete button with confirmation modal (ConfirmDialog + useOverlay)
+- Delete button with confirmation dialog (ConfirmDialog + useOverlay)
 - Poster thumbnails (TMDB w185, 48×72px mobile, 80×120px desktop)
+- Hero banner: auto-rotating (8s) random trending movie with TMDB logo title treatment (fallback to plain text), backdrop image (original quality), crossfade transition (800ms), locale-aware overview, type badge, rating badge, CTA button
+- 3 carousels below hero: Trending, Popular Movies, Popular TV (using reusable `MediaCarousel` component)
 
 **Downloads page (`/dashboard/downloads`):**
-- Full list of all user's downloads
+- Server-side paginated list of all user's downloads (10 per page, `UPagination` with `showEdges` and `sibling-count=2`)
 - Same real-time progress and quality badges
 - Status badges with colors: downloading (cyan), completed (green), pending (amber), failed (red), disk_full (orange), paused (zinc), removed (zinc)
 - Prep-time countdown for completed downloads (estimates when Jellyfin will be ready)
 - Responsive layout (narrow on mobile, wider on tablet+)
+- Poster thumbnails on download tiles
 
 **Download statuses:**
 | Status | Meaning |
@@ -134,7 +143,9 @@ NUXT_DISK_SPACE_CHECK_ENABLED=true
 
 **Pre-download check (before adding torrent):**
 - Runs in `add.post.ts` and `download.post.ts`
-- If `freeBytes - torrentSize < minFreeSpaceGb × 1024³` → blocks with 507
+- Accounts for torrent size: `freeBytes - torrentSize < minFreeSpaceGb × 1024³`
+- If insufficient → blocks with 507
+- Admin bypass does NOT apply to disk space checks
 - Error message hides disk path from non-admin users
 
 **Post-download check (after qBittorrent adds torrent):**
@@ -168,17 +179,65 @@ NUXT_DISK_SPACE_CHECK_ENABLED=true
 | `max_torrent_size_gb` | 20 | Max size per torrent in GB |
 | `private_tracker_limit` | 5 | Max daily downloads from Polish private trackers |
 
+**Fresh user data from DB:**
+Limits are fetched directly from the `users` table via `getFreshUser(userId)`, not from the stale session cookie. This ensures admin changes to limits take effect immediately without requiring re-login.
+
 **Authentication:**
 - `nuxt-auth-utils` for session management (cookie-based)
 - bcrypt password hashing (12 rounds)
 - Session cookie: `secure: false` for HTTP access
 - Default admin: `admin` / `admin` (created on first run)
 
-### Polish Private Trackers
+### Brute Force Protection
 
-**Supported:** Devil-Torrents, Polskie-Torrenty
+**IP-only blocking** (no account lockout - admin can never be locked out).
 
-**Configuration:**
+**How it works:**
+1. Middleware (`server/middleware/brute-force.ts`) intercepts POST `/api/auth/login`
+2. Checks if IP is in blocked list (in-memory cache with auto-expiry)
+3. If blocked → 403 "Too many failed login attempts"
+4. On login failure → records attempt in `login_attempts` table
+5. When attempts exceed threshold within time window → blocks IP
+
+**Configuration (admin panel `/admin/brute-force`):**
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `maxAttemptsPerIp` | 5 | Max failed attempts before IP block |
+| `ipBlockDurationMinutes` | 60 | How long IP stays blocked |
+| `windowMinutes` | 15 | Time window for counting attempts |
+
+**Admin UI (`/admin/brute-force`):**
+- 2 stat cards: Blocked IPs count, Total login attempts
+- Blocked IPs table with IP, attempts, blocked since, unblock button
+- Config form with 3 inputs (maxAttempts, blockDuration, windowMinutes)
+- Toast notifications for all actions
+- Activity logs: `brute_force_config_update`, `brute_force_unblock_ip`
+
+### Custom Private Trackers
+
+**Admin-managed via `/admin/trackers`.**
+
+**Two auth methods:**
+- **Cookie**: Paste session cookie from browser DevTools (Application → Cookies)
+- **Login**: Auto-detect login form fields (HTML parsing), POST credentials, capture Set-Cookie headers. Works with most PHP trackers.
+
+**Tracker types (`trackerType`):**
+| Type | Description |
+|------|-------------|
+| `guid` | Cookie/login scraping with retry on HTML response |
+| `counting` | No auth required, just counts toward private tracker limit |
+
+**Features:**
+- AES-256-GCM encryption for tracker passwords in DB (`NUXT_TRACKER_ENCRYPTION_KEY`)
+- Session caching (1h) with auto-retry on HTML detection (expired session)
+- Auto-login flow in `prowlarr.ts` - `getTrackerCookieConfig()` is async
+- Test login endpoint (`POST /api/admin/trackers/[id]/test-login`) probes without saving
+- `got-scraping` for Cloudflare bypass (Chrome TLS impersonation)
+- Redirect cookie collection after login POST (follows 302 to collect additional Set-Cookie)
+
+**Supported built-in trackers:** Devil-Torrents, Polskie-Torrenty
+
+**Configuration (env vars for built-in trackers):**
 ```env
 NUXT_TRACKER_DEVIL_ENABLED=true
 NUXT_TRACKER_DEVIL_COOKIE=PHPSESSID=your_session_id
@@ -186,17 +245,18 @@ NUXT_TRACKER_POLSKIE_ENABLED=true
 NUXT_TRACKER_POLSKIE_COOKIE=PHPSESSID=your_session_id
 ```
 
-**How it works:**
+**How private tracker downloads work:**
 1. Prowlarr indexes these trackers, returns results with `indexer: 'Devil-Torrents'` etc.
 2. These trackers use GUID URLs (not magnet links) - `.torrent` file must be fetched directly
-3. Backend detects `isPolishTracker = POLISH_TRACKERS.includes(indexer)`
+3. Backend detects `isPrivateTracker(indexer)` and `getTrackerType(indexer) === 'guid'`
 4. Fetches `.torrent` from tracker's GUID URL using `got-scraping` (Chrome TLS impersonation)
 5. Passes cookie via `Cookie` header for authentication
 6. Validates response: first byte must be `0x64` (bencode 'd'), not `0x3c` (HTML = bad cookie)
-7. Uploads `.torrent` buffer to qBittorrent via `qui.addTorrentFile()`
-8. Stored in DB as `guid:<url>`
+7. On HTML response: clears session cache, re-logins, retries once
+8. Uploads `.torrent` buffer to qBittorrent via `qui.addTorrentFile()`
+9. Stored in DB as `guid:<url>` with `isPrivate: true`
 
-**Separate daily limit:** `privateTrackerLimit` (default 5/day) - counted by downloads where `magnetLink` starts with `guid:`. Admins bypass this limit.
+**Separate daily limit:** `privateTrackerLimit` (default 5/day) - counted by downloads where `isPrivate = true` (including removed/failed). Admins bypass this limit.
 
 ### Discord Webhook Notifications
 
@@ -209,15 +269,15 @@ NUXT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 
 **Message format (Components V2):**
 - Title heading (from TMDB or label)
-- Poster image (TMDB or fallback `poster_not_found.png`)
+- MediaGallery (poster/backdrop with fallback `poster_not_found.png`)
 - Overview description (truncated to 2000 chars)
 - Separator
-- TMDB details: genres, runtime, rating, release date
+- TMDB details: genres, runtime, rating, premiere date
 - Separator
 - Info: size, category (Movies/Series/etc), downloaded by username
 - Technical metadata parsed from torrent name: resolution, source, language, codec
 
-**Locale support:** Polish (pl) or English (en), configurable from admin settings page via `discord_locale` setting.
+**Locale support:** Polish (pl) or English (en), configurable from admin settings page via `discord_locale` setting. Decoupled from UI locale.
 
 ### Jellyfin Integration
 
@@ -249,13 +309,14 @@ NUXT_JELLYFIN_PREP_SPEED_MB=8
 
 ### Activity Logs
 
-**Tracked actions:** login, login_failed, logout, register, torrent_add, torrent_delete, user_update, user_delete
+**Tracked actions:** login, login_failed, logout, register, torrent_add, torrent_delete, user_update, user_delete, brute_force_config_update, brute_force_unblock_ip
 
 **Features:**
 - Paginated table with time, user, action, details, IP, user agent
 - Filter by action type and user
 - IP resolution from: CF-Connecting-IP, X-Forwarded-For, X-Real-IP
 - Auto-cleanup: logs older than 90 days deleted on startup
+- Click-to-copy: click details, IP, or user agent columns to copy full value to clipboard (toast: "Skopiowano"/"Copied")
 
 ### System Dashboard (`/admin/settings`)
 
@@ -270,6 +331,8 @@ NUXT_JELLYFIN_PREP_SPEED_MB=8
 | FlareSolverr | Version endpoint |
 
 Each shows: Online/Offline badge, latency in ms, Not Configured if env var missing.
+
+**Disk status:** Shows all configured disks with progress bars, free/used/total space, OK/Low/Unavailable badges.
 
 **Live logs viewer:**
 - Hidden terminal icon at the bottom of `/admin/settings`
@@ -287,8 +350,9 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - `restructureDir: '.'` in nuxt.config.ts
 - TMDB locale-aware: `pl` → `pl-PL`, `en` → `en-US`
 - Language selector in mobile header and desktop sidebar
-- Uses `setLocale()` from `useI18n()` for locale switching
-- Google Translate prevention: `<meta name="google" content="notranslate">`
+- Uses `setLocale()` from `useI18n()` for locale switching (not `locale.value =`)
+- Google Translate prevention: `<meta name="google" content="notranslate">`, `translate="no"` on `<html>`, `notranslate` class on `<body>`
+- TMDB logo title treatments: `getLogosForItems()` fetches `/movie/{id}/images` and `/tv/{id}/images` with `include_image_language={lang},null`, picks best logo per locale, cached in Redis (24h TTL)
 
 ### Technical Features
 
@@ -296,19 +360,22 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - `server/utils/logger.ts` - pino + pino-pretty (dev: colorized, prod: JSON)
 - `createLogger(module)` returns a wrapper that logs to pino (stdout/Docker/Dozzle) AND to a ring buffer (500 lines) for SSE live streaming
 - Modules: Download, Add, FlareSolverr, Discord, TorrentSync, DB
+- All server files use structured logger (no `console.log`)
 
 **Background torrent sync:**
 - Nitro plugin `server/plugins/torrent-sync.ts` runs every 10s (configurable via `NUXT_TORRENT_SYNC_INTERVAL_MS`)
 - Extracted sync logic into `server/utils/torrent-sync.ts`
 - Polls qBittorrent for active download progress
 - Detects completion via 4 signals: `completion_on > 0`, `downloaded >= size`, `progressPct >= 99.9`, state in completedStates
+- When torrent not found: `downloadedBytes >= sizeBytes` → completed, else → failed
 - Triggers Discord webhook on completion
 - Triggers Jellyfin library scan after prep delay
 
 **Redis caching (optional):**
 - TMDB search: 24h TTL
 - TMDB details: 7d TTL
-- Prowlarr results: 30min TTL
+- TMDB logos: 24h TTL per logo (with `__none__` sentinel for null logos)
+- Prowlarr results: 30min TTL (empty results not cached)
 - Popular/trending: 6h TTL
 - Graceful fallback if Redis unavailable
 
@@ -317,10 +384,19 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - Keeps highest seeders in each group
 - Runs before caching
 
+**Prowlarr search improvements:**
+- Parallel IMDB + text search for private trackers (both run simultaneously, results merged)
+- Polish season/episode detection: `sezon \d+`, `Odc.`, `Odcinek`, `Episode`, `Ep.`
+- Fallback queries for private trackers (multiple query variations)
+- Empty results not cached (prevents stale empty cache)
+- Season-specific cache keys (prevents collision)
+- Season packs scored through `rankTorrents()` (not manually mapped)
+
 **Torrent file validation (Polish trackers):**
 - Binary validation: torrent files start with `0x64` (d = bencode dictionary)
 - HTML starts with `0x3c` (<)
 - Response read as `arrayBuffer()` not `text()`
+- HTML detection: content-type + body check (not just first byte)
 
 **ESLint strict TypeScript:**
 - `projectService: true`
@@ -330,6 +406,13 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - `strict-boolean-expressions`
 - Server files: `'no-console': 'off'`
 - App files: `'no-console': 'warn'`
+
+**Path aliases:**
+| Alias | Resolves to |
+|-------|-------------|
+| `#server` | `./server/` |
+| `#db` | `./server/database/` |
+| `#utils` | `./server/utils/` |
 
 ## Tech Stack
 
@@ -342,12 +425,13 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 | Database | SQLite ([better-sqlite3](https://github.com/WiseLibs/better-sqlite3)) v12.10.1 |
 | Auth | [nuxt-auth-utils](https://github.com/atinoux/nuxt-auth-utils) v0.5.29 |
 | Cache | Redis ([ioredis](https://github.com/redis/ioredis)) v5.11.1 |
-| Password hashing | [bcrypt](https://github.comkelektiv/node.bcrypt.js) v6.0.0 |
+| Password hashing | [bcrypt](https://github.com/kelektiv/node.bcrypt.js) v6.0.0 |
 | Movie data | [TMDB API](https://www.themoviedb.org/documentation/api) v3 |
 | Torrent search | [Prowlarr](https://prowlarr.com/) (Newznab-compatible) |
 | Torrent client | [qBittorrent](https://www.qbittorrent.org/) via [qui](https://github.com/autobrr/qui) proxy |
 | Cloudflare bypass | [got-scraping](https://github.com/sindresorhus/got-scraping) v4.2.1 (Chrome TLS impersonation) |
-| Notifications | [discord.js](https://discord.js.org/) REST v2.6.1 + Buildlers v1.14.1 |
+| Notifications | [discord.js](https://discord.js.org/) REST v2.6.1 + Builders v1.14.1 |
+| Logging | [pino](https://getpino.io/) v10.3.1 + pino-pretty v13.1.3 |
 | Icons | [Iconify](https://iconify.design/) (Lucide + Simple Icons) |
 | i18n | [@nuxtjs/i18n](https://i18n.nuxtjs.org/) v10.4.0 |
 | Language | TypeScript v6.0.3 |
@@ -385,6 +469,12 @@ NUXT_SESSION_PASSWORD=your-random-32-char-string
 NUXT_TMDB_API_KEY=your-tmdb-api-key
 NUXT_PROWLARR_URL=http://127.0.0.1:9696
 NUXT_PROWLARR_API_KEY=your-prowlarr-api-key
+NUXT_TRACKER_ENCRYPTION_KEY=replace_me_with_64_hex_chars
+```
+
+Generate encryption key:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 ### Run
@@ -440,6 +530,7 @@ docker compose down
 | `NUXT_TMDB_API_KEY` | TMDB API v3 key (required for browse) |
 | `NUXT_PROWLARR_URL` | Prowlarr base URL |
 | `NUXT_PROWLARR_API_KEY` | Prowlarr API key |
+| `NUXT_TRACKER_ENCRYPTION_KEY` | AES-256-GCM key for tracker passwords (64 hex chars) |
 
 ### Optional - Paths
 
@@ -462,7 +553,7 @@ docker compose down
 | `NUXT_DISCORD_WEBHOOK_URL` | - | Discord webhook for download notifications |
 | `NUXT_FLARESOLVERR_URL` | - | FlareSolverr URL for Cloudflare bypass |
 
-### Optional - Polish Trackers
+### Optional - Polish Trackers (built-in)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -470,6 +561,8 @@ docker compose down
 | `NUXT_TRACKER_DEVIL_COOKIE` | - | Devil-Torrents session cookie |
 | `NUXT_TRACKER_POLSKIE_ENABLED` | `true` | Enable Polskie-Torrenty tracker |
 | `NUXT_TRACKER_POLSKIE_COOKIE` | - | Polskie-Torrenty session cookie |
+
+> Custom trackers are managed via admin panel at `/admin/trackers` (Cookie or Login method).
 
 ### Optional - Disk Space
 
@@ -484,6 +577,33 @@ docker compose down
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NUXT_TORRENT_SYNC_INTERVAL_MS` | `10000` | Background torrent sync interval (ms) |
+
+## Components
+
+| Component | Description |
+|-----------|-------------|
+| `MediaCard.vue` | TMDB media card with 3D tilt effect, used in browse carousels |
+| `MediaCarousel.vue` | Reusable carousel with title, scroll arrows (hover-reveal), skeleton loading, `MediaCarouselItem` type (includes `logoUrl`) |
+| `ConfirmDialog.vue` | Confirmation dialog with `close: [value: boolean]` emit for Nuxt UI overlay system |
+
+## Pages
+
+| Route | File | Description |
+|-------|------|-------------|
+| `/` | `index.vue` | Redirects to `/dashboard` or `/login` |
+| `/login` | `login.vue` | Login page |
+| `/dashboard` | `dashboard/index.vue` | Dashboard with stats, active downloads, hero banner, carousels |
+| `/dashboard/submit` | `dashboard/submit.vue` | Torrent submission (magnet/URL/file) |
+| `/dashboard/downloads` | `dashboard/downloads.vue` | User's paginated download list |
+| `/browse` | `browse/index.vue` | Search + carousels (Trending, Popular, Top Rated) |
+| `/browse/movie/:id` | `browse/movie/[id].vue` | Movie detail with Prowlarr torrents |
+| `/browse/tv/:id` | `browse/tv/[id].vue` | TV show detail with season selector |
+| `/admin/users` | `admin/users.vue` | User management |
+| `/admin/trackers` | `admin/trackers.vue` | Custom tracker management |
+| `/admin/requests` | `admin/requests.vue` | Media request management |
+| `/admin/settings` | `admin/settings.vue` | System status, disk status, live logs |
+| `/admin/logs` | `admin/logs.vue` | Activity logs with click-to-copy |
+| `/admin/brute-force` | `admin/brute-force.vue` | Brute force protection (blocked IPs, config) |
 
 ## Database Schema
 
@@ -528,7 +648,33 @@ docker compose down
 | `completed_at` | text | - | Completion timestamp |
 | `tmdb_id` | integer | - | TMDB media ID |
 | `media_type` | text | - | `movie` or `tv` |
-| `poster_url` | text | - | TMDB poster URL |
+| `poster_url` | text | - | TMDB poster URL (w185) |
+| `is_private` | integer (bool) | `false` | From private tracker |
+
+### `customTrackers`
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `id` | text (PK) | - | UUID |
+| `indexer_name` | text (unique) | - | Tracker name (e.g. "Devil-Torrents") |
+| `tracker_type` | text | `counting` | `guid` (cookie/login scraping) or `counting` (no auth) |
+| `cookie` | text | `''` | Session cookie (for Cookie method) |
+| `login_url` | text | - | Login page URL (for Login method) |
+| `login_username` | text | - | Login username (for Login method) |
+| `login_password` | text | - | AES-256-GCM encrypted password (for Login method) |
+| `enabled` | integer (bool) | `true` | Whether tracker is active |
+| `created_at` | text | - | ISO timestamp |
+
+### `loginAttempts`
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `id` | text (PK) | - | UUID |
+| `ip` | text | - | Client IP address |
+| `username` | text | - | Attempted username |
+| `success` | integer (bool) | `false` | Whether login succeeded |
+| `user_agent` | text | - | Client user agent |
+| `created_at` | text | - | ISO timestamp |
+
+Indexes: `(ip, created_at)`, `(username, created_at)`, `(created_at)`
 
 ### `settings`
 | Column | Type | Description |
@@ -536,9 +682,9 @@ docker compose down
 | `key` | text (PK) | Setting name |
 | `value` | text | Setting value |
 
-Current keys: `discord_locale` (pl/en)
+Known keys: `discord_locale` (pl/en), `brute_force_max_attempts_per_ip`, `brute_force_ip_block_duration_minutes`, `brute_force_window_minutes`
 
-### `activity_logs`
+### `activityLogs`
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | text (PK) | UUID |
@@ -569,31 +715,36 @@ Current keys: `discord_locale` (pl/en)
 ### Auth
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/api/auth/login` | No | Login with username/password |
+| POST | `/api/auth/login` | No | Login with username/password (records login attempts for brute force) |
 | POST | `/api/auth/logout` | Yes | Clear session |
 | POST | `/api/auth/register` | Admin | Create new user |
 | GET | `/api/auth/me` | Yes | Get current session |
 
+### User
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/user/limits` | Yes | Get user's current usage and limits (fresh from DB) |
+
 ### Torrents
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/api/torrents/add` | Yes | Add torrent (magnet/file/URL) |
-| GET | `/api/torrents/list` | Yes | List downloads (admin sees all) |
+| POST | `/api/torrents/add` | Yes | Add torrent (magnet/file/URL). Admin gets queue priority. |
+| GET | `/api/torrents/list` | Yes | List downloads with pagination (`page`, `limit` params). Admin sees all. |
 | GET | `/api/torrents/:id` | Yes | Get single download |
 | DELETE | `/api/torrents/:id` | Yes | Delete download |
 
 ### Browse
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/browse/search` | Yes | Search TMDB |
-| GET | `/api/browse/popular` | Yes | Popular movies + TV |
-| GET | `/api/browse/trending` | Yes | Trending content |
+| GET | `/api/browse/search` | Yes | Search TMDB (`q`, `type`, `page`, `locale` params) |
+| GET | `/api/browse/popular` | Yes | Popular movies + TV (with logo URLs) |
+| GET | `/api/browse/trending` | Yes | Trending content (with logo URLs) |
 | GET | `/api/browse/top-rated` | Yes | Top rated movies |
-| GET | `/api/browse/movie/:id` | Yes | Movie details |
-| GET | `/api/browse/movie/:id/torrents` | Yes | Prowlarr search for movie |
-| GET | `/api/browse/tv/:id` | Yes | TV show details |
-| GET | `/api/browse/tv/:id/torrents` | Yes | Prowlarr search for TV |
-| GET | `/api/browse/tv/:id/season/:season` | Yes | Season episodes + torrents |
+| GET | `/api/browse/movie/:id` | Yes | Movie details (`locale` param) |
+| GET | `/api/browse/movie/:id/torrents` | Yes | Prowlarr search for movie (with `isPrivate`, `percentage`) |
+| GET | `/api/browse/tv/:id` | Yes | TV show details (`locale` param) |
+| GET | `/api/browse/tv/:id/torrents` | Yes | Prowlarr search for TV (with `isPrivate`, `percentage`) |
+| GET | `/api/browse/tv/:id/season/:season` | Yes | Season episodes + torrents (with `isPrivate`, `percentage`) |
 | POST | `/api/browse/download` | Yes | Download from browse (11-step pipeline) |
 
 ### Requests
@@ -601,23 +752,54 @@ Current keys: `discord_locale` (pl/en)
 |--------|----------|------|-------------|
 | POST | `/api/requests/post` | Yes | Submit media request |
 | GET | `/api/requests/mine` | Yes | Check if user requested a title |
-| GET | `/api/requests/list` | Admin | List all requests |
+| GET | `/api/requests/list` | Admin | List all requests (paginated, filterable) |
 | PATCH | `/api/requests/:id` | Admin | Accept/reject request |
 
-### Admin
+### Debug
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/debug/prowlarr` | Admin | Raw Prowlarr search diagnostics |
+
+### Admin - General
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/api/admin/system-status` | Admin | Service health checks |
 | GET | `/api/admin/disk-status` | Admin | Disk space status |
+| GET | `/api/admin/settings` | Admin | App settings |
+| GET | `/api/admin/discord-locale` | Admin | Get Discord locale |
+| PUT | `/api/admin/discord-locale` | Admin | Set Discord locale |
+
+### Admin - Users
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
 | GET | `/api/admin/users` | Admin | List all users |
 | POST | `/api/admin/users` | Admin | Create user |
 | PUT | `/api/admin/users/:id` | Admin | Update user |
 | DELETE | `/api/admin/users/:id` | Admin | Delete user |
-| GET | `/api/admin/logs` | Admin | Activity logs |
-| GET | `/api/admin/logs-stream` | Admin | Live logs SSE stream |
-| GET | `/api/admin/discord-locale` | Admin | Get Discord locale |
-| PUT | `/api/admin/discord-locale` | Admin | Set Discord locale |
-| GET | `/api/admin/settings` | Admin | App settings |
+
+### Admin - Trackers
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/admin/trackers` | Admin | List all custom trackers |
+| POST | `/api/admin/trackers` | Admin | Create tracker (cookie or login method) |
+| PUT | `/api/admin/trackers/:id` | Admin | Update tracker |
+| DELETE | `/api/admin/trackers/:id` | Admin | Delete tracker |
+| POST | `/api/admin/trackers/[id]/test-login` | Admin | Test tracker login credentials |
+
+### Admin - Brute Force
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/admin/brute-force/config` | Admin | Get brute force config |
+| PUT | `/api/admin/brute-force/config` | Admin | Update brute force config |
+| GET | `/api/admin/brute-force/blocked-ips` | Admin | List blocked IPs |
+| DELETE | `/api/admin/brute-force/blocked-ips` | Admin | Unblock an IP |
+| GET | `/api/admin/brute-force/stats` | Admin | Brute force statistics |
+
+### Admin - Logs
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/admin/logs` | Admin | Paginated activity logs (filter by action, userId) |
+| GET | `/api/admin/logs-stream` | Admin | Live logs SSE stream (ring buffer, 500 lines) |
 
 ## Scripts
 
@@ -631,14 +813,6 @@ pnpm format       # Format with Prettier
 pnpm format:check # Check formatting
 pnpm typecheck    # Run Nuxt typecheck
 ```
-
-## Path Aliases
-
-| Alias | Resolves to |
-|-------|-------------|
-| `#server` | `./server/` |
-| `#db` | `./server/database/` |
-| `#utils` | `./server/utils/` |
 
 ## License
 
