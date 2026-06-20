@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
     const cookie = await performTrackerLogin(loginUrl, loginUsername, loginPassword)
     return {
       success: true,
-      message: `Login OK — ${cookie.split(';').length} session cookies received`,
+      message: `Login OK - ${cookie.split(';').length} session cookies received`,
       cookiePreview: cookie.substring(0, 40) + '...'
     }
   } catch (err) {

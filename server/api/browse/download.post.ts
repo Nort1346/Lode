@@ -146,7 +146,7 @@ export default defineEventHandler(async (event) => {
         }
       }
     } else {
-      log.info(`[Download:3:LIMITS] admin — skipping all limits`)
+      log.info(`[Download:3:LIMITS] admin - skipping all limits`)
     }
 
     // ── 4: SAVE PATH ──────────────────────────────────────────
@@ -186,7 +186,7 @@ export default defineEventHandler(async (event) => {
           return effectiveFree < (config.minFreeSpaceGb as number) * 1024 ** 3
         })
         if (lowDisk !== undefined) {
-          log.warn(`[Download:4b:DISK] ✗ BLOCKED — ${lowDisk.path}: ${lowDisk.freeFormatted} free`)
+          log.warn(`[Download:4b:DISK] ✗ BLOCKED - ${lowDisk.path}: ${lowDisk.freeFormatted} free`)
           throw createError({
             statusCode: 507,
             statusMessage: `Insufficient disk space${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''} (${lowDisk.freeFormatted} free, minimum ${config.minFreeSpaceGb} GB required)`
@@ -286,7 +286,7 @@ export default defineEventHandler(async (event) => {
       log.info(`[Download:7:VALIDATE] size=${fileBuffer.length}, firstBytes=${firstBytes}`)
 
       if (fileBuffer.length === 0) {
-        log.error(`[Download:7:VALIDATE] ✗ empty response — cookie may be invalid`)
+        log.error(`[Download:7:VALIDATE] ✗ empty response - cookie may be invalid`)
         throw createError({ statusCode: 401, statusMessage: `Empty response from ${indexer}. Cookie may be invalid.` })
       }
 
@@ -311,7 +311,7 @@ export default defineEventHandler(async (event) => {
           trackerRow.loginPassword !== null &&
           trackerRow.loginPassword.length > 0
         ) {
-          log.info(`[Download:7:VALIDATE] Session may be expired — retrying login for ${indexer}...`)
+          log.info(`[Download:7:VALIDATE] Session may be expired - retrying login for ${indexer}...`)
 
           clearSessionCache(trackerRow.loginUrl, trackerRow.loginUsername)
 
@@ -354,7 +354,7 @@ export default defineEventHandler(async (event) => {
             }
             if (retryIsHtml) {
               const retryHtmlPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
-              log.error(`[Download:7:VALIDATE] ✗ Retry also returned HTML — cookie truly invalid`)
+              log.error(`[Download:7:VALIDATE] ✗ Retry also returned HTML - cookie truly invalid`)
               log.error(`[Download:7:VALIDATE]   retry preview: ${retryHtmlPreview}`)
               throw createError({
                 statusCode: 401,
@@ -368,7 +368,7 @@ export default defineEventHandler(async (event) => {
             throw createError({ statusCode: 502, statusMessage: `Retry to ${indexer} failed: ${msg}` })
           }
         } else {
-          // No login credentials — cannot retry
+          // No login credentials - cannot retry
           const hostname = (() => {
             try {
               return new URL(guidUrl).hostname
@@ -468,7 +468,7 @@ export default defineEventHandler(async (event) => {
         })
         if (lowDisk !== undefined) {
           log.warn(
-            `[Download:9b:DISK] ✗ POST-ADD DELETE — ${lowDisk.path}: ${lowDisk.freeFormatted} free, torrent=${formatSize(torrent.size)}`
+            `[Download:9b:DISK] ✗ POST-ADD DELETE - ${lowDisk.path}: ${lowDisk.freeFormatted} free, torrent=${formatSize(torrent.size)}`
           )
           await qui.deleteTorrent(torrent.hash, true).catch(() => {})
           const id = randomUUID()
@@ -509,7 +509,7 @@ export default defineEventHandler(async (event) => {
           posterUrl = getImageUrl(show.poster_path, 'w185')
         }
       } catch {
-        // ignore — poster is optional
+        // ignore - poster is optional
       }
     }
 

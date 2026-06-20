@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
       ? (rawStatus as SupportedStatus)
       : undefined
 
-  // Sync before reading — data will be fresh on this request
+  // Sync before reading - data will be fresh on this request
   await syncTorrentStatus().catch(() => {})
   void notifyJellyfinIfNeeded().catch(() => {})
 

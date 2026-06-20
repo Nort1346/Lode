@@ -52,7 +52,7 @@
     "recommended": "Recommended",
     "download": "Download",
     "limitReached": "Limit",
-    "noImdb": "No IMDB ID — cannot search for torrents.",
+    "noImdb": "No IMDB ID - cannot search for torrents.",
     "noTorrents": "No torrents found.",
     "loadError": "Failed to load movie details."
   },
@@ -99,7 +99,7 @@
     "failed": "Failed to add torrent"
   },
   "torrent": {
-    "dead": "⚠ No seeders — consider removing",
+    "dead": "⚠ No seeders - consider removing",
     "poor": "Low seeders",
     "slow": "Slow connection"
   },
@@ -265,7 +265,7 @@
   "trackers": {
     "title": "Private Trackers",
     "subtitle": "Manage special semi-private/private trackers. These trackers allow downloading from closed indexers.",
-    "info1": "Private trackers are semi-private/private services that require session cookies for authorization. The system automatically fetches .torrent files from these trackers using got-scraping (Chrome TLS impersonation) — no technical knowledge required.",
+    "info1": "Private trackers are semi-private/private services that require session cookies for authorization. The system automatically fetches .torrent files from these trackers using got-scraping (Chrome TLS impersonation) - no technical knowledge required.",
     "info2": "The tracker name must exactly match the indexer name in Prowlarr (the \"indexer\" field in search results).",
     "listTitle": "Configured Trackers",
     "addTracker": "Add tracker",

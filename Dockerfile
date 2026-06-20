@@ -39,7 +39,7 @@ COPY --from=build --chown=appuser:nodejs /app/.output ./.output
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# No USER directive — entrypoint handles privilege dropping
+# No USER directive - entrypoint handles privilege dropping
 
 EXPOSE 3000
 

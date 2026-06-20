@@ -119,12 +119,12 @@ function prevPage() {
 }
 
 function formatTime(dateStr: string): string {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   return new Date(dateStr).toLocaleString()
 }
 
 function formatDetails(raw: string | null): string {
-  if (!raw) return '—'
+  if (!raw) return '-'
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>
     return Object.entries(parsed)
@@ -145,7 +145,7 @@ function actionLabel(action: string): string {
 }
 
 function shortenUA(ua: string | null): string {
-  if (!ua) return '—'
+  if (!ua) return '-'
   if (ua.length > 60) return ua.substring(0, 60) + '…'
   return ua
 }
@@ -223,7 +223,7 @@ function shortenUA(ua: string | null): string {
               </td>
               <td class="px-4 py-3">
                 <span class="text-sm font-medium text-zinc-900 dark:text-white">
-                  {{ log.username ?? '—' }}
+                  {{ log.username ?? '-' }}
                 </span>
               </td>
               <td class="px-4 py-3">
@@ -238,7 +238,7 @@ function shortenUA(ua: string | null): string {
                 {{ formatDetails(log.details) }}
               </td>
               <td class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 hidden md:table-cell font-mono">
-                {{ log.ip ?? '—' }}
+                {{ log.ip ?? '-' }}
               </td>
               <td class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 hidden xl:table-cell">
                 {{ shortenUA(log.userAgent) }}

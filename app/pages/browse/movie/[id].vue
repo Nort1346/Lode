@@ -253,7 +253,7 @@
                   class="max-w-xs truncate"
                   :class="torrent.magnetLink ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
                 >
-                  {{ torrent.magnetLink ?? '—' }}
+                  {{ torrent.magnetLink ?? '-' }}
                 </span>
                 <UButton
                   v-if="torrent.magnetLink"
@@ -270,7 +270,7 @@
                   class="max-w-xs truncate"
                   :class="torrent.downloadUrl ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
                 >
-                  {{ torrent.downloadUrl ?? '—' }}
+                  {{ torrent.downloadUrl ?? '-' }}
                 </span>
                 <UButton
                   v-if="torrent.downloadUrl"
@@ -287,7 +287,7 @@
                   class="max-w-xs truncate"
                   :class="torrent.guid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
                 >
-                  {{ torrent.guid ?? '—' }}
+                  {{ torrent.guid ?? '-' }}
                 </span>
                 <UButton
                   v-if="torrent.guid"

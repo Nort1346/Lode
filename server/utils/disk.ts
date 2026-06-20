@@ -48,9 +48,9 @@ export function checkDiskSpace(path: string, minFreeGb: number): DiskStatus {
       totalBytes: 0,
       freeBytes: 0,
       usedBytes: 0,
-      totalFormatted: '—',
-      freeFormatted: '—',
-      usedFormatted: '—',
+      totalFormatted: '-',
+      freeFormatted: '-',
+      usedFormatted: '-',
       usedPercent: 0,
       hasEnoughSpace: false,
       available: false

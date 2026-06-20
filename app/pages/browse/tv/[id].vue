@@ -165,6 +165,7 @@
                     <UIcon name="i-lucide-arrow-up" class="size-3" />
                     {{ pack.seeders }}
                   </span>
+                  <span>{{ pack.indexer }}</span>
                 </div>
               </div>
               <UButton
@@ -219,7 +220,7 @@
                       class="max-w-xs truncate"
                       :class="pack.magnetLink ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
                     >
-                      {{ pack.magnetLink ?? '—' }}
+                      {{ pack.magnetLink ?? '-' }}
                     </span>
                     <UButton
                       v-if="pack.magnetLink"
@@ -236,7 +237,7 @@
                       class="max-w-xs truncate"
                       :class="pack.downloadUrl ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
                     >
-                      {{ pack.downloadUrl ?? '—' }}
+                      {{ pack.downloadUrl ?? '-' }}
                     </span>
                     <UButton
                       v-if="pack.downloadUrl"
@@ -253,7 +254,7 @@
                       class="max-w-xs truncate"
                       :class="pack.guid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
                     >
-                      {{ pack.guid ?? '—' }}
+                      {{ pack.guid ?? '-' }}
                     </span>
                     <UButton
                       v-if="pack.guid"
@@ -317,6 +318,7 @@
                     <span class="flex items-center gap-1 text-xs text-emerald-500">
                       <UIcon name="i-lucide-arrow-up" class="size-3" />{{ tr.seeders }}
                     </span>
+                    <span class="text-xs text-zinc-500">{{ tr.indexer }}</span>
                     <UButton
                       size="xs"
                       :color="isPrivateLimitExceeded(tr.isPrivate) ? 'error' : 'warning'"
@@ -372,7 +374,7 @@
                             class="max-w-xs truncate"
                             :class="tr.magnetLink ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
                           >
-                            {{ tr.magnetLink ?? '—' }}
+                            {{ tr.magnetLink ?? '-' }}
                           </span>
                           <UButton
                             v-if="tr.magnetLink"
@@ -389,7 +391,7 @@
                             class="max-w-xs truncate"
                             :class="tr.downloadUrl ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
                           >
-                            {{ tr.downloadUrl ?? '—' }}
+                            {{ tr.downloadUrl ?? '-' }}
                           </span>
                           <UButton
                             v-if="tr.downloadUrl"
@@ -406,7 +408,7 @@
                             class="max-w-xs truncate"
                             :class="tr.guid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
                           >
-                            {{ tr.guid ?? '—' }}
+                            {{ tr.guid ?? '-' }}
                           </span>
                           <UButton
                             v-if="tr.guid"

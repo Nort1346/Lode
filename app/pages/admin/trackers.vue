@@ -201,7 +201,7 @@ function maskCookie(cookie: string): string {
 }
 
 function formatDate(dateStr: string): string {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString()
 }
 
@@ -297,7 +297,7 @@ function getMethodLabel(tracker: CustomTracker): string {
               <td class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 hidden md:table-cell font-mono">
                 {{
                   tracker.trackerType === 'counting'
-                    ? '—'
+                    ? '-'
                     : tracker.loginUrl
                       ? tracker.loginUsername
                       : maskCookie(tracker.cookie)

@@ -157,8 +157,8 @@ NUXT_DISK_SPACE_CHECK_ENABLED=true
 ### User System
 
 **Roles:**
-- `user` — standard user, subject to all limits
-- `admin` — bypasses active torrent limit, daily download limit, private tracker limit. Does NOT bypass disk space checks or max torrent size
+- `user` - standard user, subject to all limits
+- `admin` - bypasses active torrent limit, daily download limit, private tracker limit. Does NOT bypass disk space checks or max torrent size
 
 **Per-user limits:**
 | Limit | Default | Description |
@@ -188,7 +188,7 @@ NUXT_TRACKER_POLSKIE_COOKIE=PHPSESSID=your_session_id
 
 **How it works:**
 1. Prowlarr indexes these trackers, returns results with `indexer: 'Devil-Torrents'` etc.
-2. These trackers use GUID URLs (not magnet links) — `.torrent` file must be fetched directly
+2. These trackers use GUID URLs (not magnet links) - `.torrent` file must be fetched directly
 3. Backend detects `isPolishTracker = POLISH_TRACKERS.includes(indexer)`
 4. Fetches `.torrent` from tracker's GUID URL using `got-scraping` (Chrome TLS impersonation)
 5. Passes cookie via `Cookie` header for authentication
@@ -196,7 +196,7 @@ NUXT_TRACKER_POLSKIE_COOKIE=PHPSESSID=your_session_id
 7. Uploads `.torrent` buffer to qBittorrent via `qui.addTorrentFile()`
 8. Stored in DB as `guid:<url>`
 
-**Separate daily limit:** `privateTrackerLimit` (default 5/day) — counted by downloads where `magnetLink` starts with `guid:`. Admins bypass this limit.
+**Separate daily limit:** `privateTrackerLimit` (default 5/day) - counted by downloads where `magnetLink` starts with `guid:`. Admins bypass this limit.
 
 ### Discord Webhook Notifications
 
@@ -273,7 +273,7 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 
 **Live logs viewer:**
 - Hidden terminal icon at the bottom of `/admin/settings`
-- Click to toggle — opens a 400px terminal panel with live logs
+- Click to toggle - opens a 400px terminal panel with live logs
 - SSE (Server-Sent Events) streaming from server ring buffer (last 500 lines)
 - Color-coded by level: INFO (green), WARN (amber), ERROR (red)
 - Pause/Resume, Clear, Download as .txt
@@ -293,7 +293,7 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 ### Technical Features
 
 **Pino logger:**
-- `server/utils/logger.ts` — pino + pino-pretty (dev: colorized, prod: JSON)
+- `server/utils/logger.ts` - pino + pino-pretty (dev: colorized, prod: JSON)
 - `createLogger(module)` returns a wrapper that logs to pino (stdout/Docker/Dozzle) AND to a ring buffer (500 lines) for SSE live streaming
 - Modules: Download, Add, FlareSolverr, Discord, TorrentSync, DB
 
@@ -415,15 +415,15 @@ docker compose down
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
 | `streamhub` | Custom (multi-stage) | 3000 | The application |
-| `redis` | `redis:7-alpine` | — | Caching (optional) |
+| `redis` | `redis:7-alpine` | - | Caching (optional) |
 | `flaresolverr` | `ghcr.io/flaresolverr/flaresolverr` | 8191 | Cloudflare bypass (optional) |
 | `dozzle` | `amir20/dozzle:latest` | 8082 | Live container log viewer |
 
 **Volumes:**
-- `./data:/app/.data` — SQLite database persistence
-- `/mnt/storage/streaming:/mnt/storage/streaming:ro` — Media storage (read-only)
-- `/:/host-root:ro` — Host root for disk space checks (read-only)
-- `redis_data:/data` — Redis persistence
+- `./data:/app/.data` - SQLite database persistence
+- `/mnt/storage/streaming:/mnt/storage/streaming:ro` - Media storage (read-only)
+- `/:/host-root:ro` - Host root for disk space checks (read-only)
+- `redis_data:/data` - Redis persistence
 
 **Dockerfile stages:**
 1. **Build:** `node:22-bookworm` with pnpm, native deps (python3, make, g++, libsqlite3-dev)
@@ -441,7 +441,7 @@ docker compose down
 | `NUXT_PROWLARR_URL` | Prowlarr base URL |
 | `NUXT_PROWLARR_API_KEY` | Prowlarr API key |
 
-### Optional — Paths
+### Optional - Paths
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -451,35 +451,35 @@ docker compose down
 | `NUXT_SAVE_PATH_BOOKS` | `/mnt/storage/streaming/Books` | qBittorrent save path for books |
 | `NUXT_SAVE_PATH_MUSIC` | `/mnt/storage/streaming/Music` | qBittorrent save path for music |
 
-### Optional — Integrations
+### Optional - Integrations
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NUXT_REDIS_URL` | — | Redis connection URL (enables caching) |
-| `NUXT_JELLYFIN_URL` | — | Jellyfin server URL |
-| `NUXT_JELLYFIN_API_KEY` | — | Jellyfin API key |
+| `NUXT_REDIS_URL` | - | Redis connection URL (enables caching) |
+| `NUXT_JELLYFIN_URL` | - | Jellyfin server URL |
+| `NUXT_JELLYFIN_API_KEY` | - | Jellyfin API key |
 | `NUXT_JELLYFIN_PREP_SPEED_MB` | `8` | Prep speed in MB/s for delay calculation |
-| `NUXT_DISCORD_WEBHOOK_URL` | — | Discord webhook for download notifications |
-| `NUXT_FLARESOLVERR_URL` | — | FlareSolverr URL for Cloudflare bypass |
+| `NUXT_DISCORD_WEBHOOK_URL` | - | Discord webhook for download notifications |
+| `NUXT_FLARESOLVERR_URL` | - | FlareSolverr URL for Cloudflare bypass |
 
-### Optional — Polish Trackers
+### Optional - Polish Trackers
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NUXT_TRACKER_DEVIL_ENABLED` | `true` | Enable Devil-Torrents tracker |
-| `NUXT_TRACKER_DEVIL_COOKIE` | — | Devil-Torrents session cookie |
+| `NUXT_TRACKER_DEVIL_COOKIE` | - | Devil-Torrents session cookie |
 | `NUXT_TRACKER_POLSKIE_ENABLED` | `true` | Enable Polskie-Torrenty tracker |
-| `NUXT_TRACKER_POLSKIE_COOKIE` | — | Polskie-Torrenty session cookie |
+| `NUXT_TRACKER_POLSKIE_COOKIE` | - | Polskie-Torrenty session cookie |
 
-### Optional — Disk Space
+### Optional - Disk Space
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NUXT_DISKS` | — | Comma-separated mount paths for disk checks |
+| `NUXT_DISKS` | - | Comma-separated mount paths for disk checks |
 | `NUXT_MIN_FREE_SPACE_GB` | `7` | Minimum free GB required per disk |
 | `NUXT_DISK_SPACE_CHECK_ENABLED` | `true` | Enable/disable disk space checks |
 
-### Optional — Other
+### Optional - Other
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -492,9 +492,9 @@ docker compose down
 ### `users`
 | Column | Type | Default | Description |
 |--------|------|---------|-------------|
-| `id` | text (PK) | — | UUID |
-| `username` | text (unique) | — | Login name |
-| `password` | text | — | bcrypt hash |
+| `id` | text (PK) | - | UUID |
+| `username` | text (unique) | - | Login name |
+| `password` | text | - | bcrypt hash |
 | `role` | text | `user` | `user` or `admin` |
 | `is_active` | integer (bool) | `true` | Account enabled |
 | `daily_download_limit` | integer | `5` | Max downloads per day |
@@ -502,20 +502,20 @@ docker compose down
 | `max_torrent_size_gb` | integer | `20` | Max torrent size in GB |
 | `private_tracker_limit` | integer | `5` | Max daily private tracker downloads |
 | `downloads_today` | integer | `0` | Counter (legacy) |
-| `downloads_reset_at` | text | — | Last reset timestamp |
-| `created_at` | text | — | ISO timestamp |
+| `downloads_reset_at` | text | - | Last reset timestamp |
+| `created_at` | text | - | ISO timestamp |
 
 ### `downloads`
 | Column | Type | Default | Description |
 |--------|------|---------|-------------|
-| `id` | text (PK) | — | UUID |
-| `user_id` | text (FK) | — | Owner |
+| `id` | text (PK) | - | UUID |
+| `user_id` | text (FK) | - | Owner |
 | `label` | text | `''` | User-provided label |
 | `torrent_name` | text | `''` | qBittorrent torrent name |
-| `magnet_link` | text | — | `magnet:...`, `download:<url>`, `file:<name>`, or `guid:<url>` |
-| `save_path` | text | — | Category: movies/series/games/books/music |
+| `magnet_link` | text | - | `magnet:...`, `download:<url>`, `file:<name>`, or `guid:<url>` |
+| `save_path` | text | - | Category: movies/series/games/books/music |
 | `status` | text | `pending` | Status enum |
-| `torrent_hash` | text | — | qBittorrent hash |
+| `torrent_hash` | text | - | qBittorrent hash |
 | `progress` | real | `0` | Progress percentage (0-100) |
 | `eta_seconds` | integer | `0` | ETA in seconds |
 | `download_speed` | integer | `0` | Current download speed (bytes/s) |
@@ -524,11 +524,11 @@ docker compose down
 | `downloaded_bytes` | integer | `0` | Bytes downloaded |
 | `num_seeds` | integer | `0` | Current seeders |
 | `num_leechs` | integer | `0` | Current leechers |
-| `created_at` | text | — | ISO timestamp |
-| `completed_at` | text | — | Completion timestamp |
-| `tmdb_id` | integer | — | TMDB media ID |
-| `media_type` | text | — | `movie` or `tv` |
-| `poster_url` | text | — | TMDB poster URL |
+| `created_at` | text | - | ISO timestamp |
+| `completed_at` | text | - | Completion timestamp |
+| `tmdb_id` | integer | - | TMDB media ID |
+| `media_type` | text | - | `movie` or `tv` |
+| `poster_url` | text | - | TMDB poster URL |
 
 ### `settings`
 | Column | Type | Description |
@@ -642,4 +642,4 @@ pnpm typecheck    # Run Nuxt typecheck
 
 ## License
 
-[AGPL-3.0](LICENSE) — Copyright (C) 2025 Nort
+[AGPL-3.0](LICENSE) - Copyright (C) 2025 Nort

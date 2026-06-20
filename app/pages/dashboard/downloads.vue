@@ -86,7 +86,7 @@ function getDisplayName(dl: Download): string {
 }
 
 function formatEta(seconds: number): string {
-  if (seconds <= 0) return '—'
+  if (seconds <= 0) return '-'
   const hours = Math.floor(seconds / 3600)
   const mins = Math.floor((seconds % 3600) / 60)
   const secs = Math.floor(seconds % 60)
@@ -104,7 +104,7 @@ function formatSpeed(bytes: number): string {
 }
 
 function formatSize(bytes: number): string {
-  if (bytes <= 0) return '—'
+  if (bytes <= 0) return '-'
   const gb = bytes / (1024 * 1024 * 1024)
   if (gb >= 1) return `${gb.toFixed(2)} GB`
   const mb = bytes / (1024 * 1024)

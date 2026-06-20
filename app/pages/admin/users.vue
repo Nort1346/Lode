@@ -135,7 +135,7 @@ async function toggleActive(user: { id: string; isActive: boolean }) {
 }
 
 function formatDate(dateStr: string): string {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString()
 }
 

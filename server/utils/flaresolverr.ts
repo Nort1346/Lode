@@ -70,7 +70,7 @@ export class FlareSolverrClient {
 
     if (data.status !== 'ok' || data.solution === undefined) {
       log.error(`✗ failed: status=${data.status}, message=${data.message ?? 'unknown'}`)
-      throw new Error(`FlareSolverr failed: ${data.status} — ${data.message ?? 'unknown'}`)
+      throw new Error(`FlareSolverr failed: ${data.status} - ${data.message ?? 'unknown'}`)
     }
 
     const cookieString = data.solution.cookies.map((c) => `${c.name}=${c.value}`).join('; ')

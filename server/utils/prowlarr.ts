@@ -251,12 +251,122 @@ export class ProwlarrClient {
     })) as ProwlarrRelease[]
 
     const customNames = getEnabledCustomTrackerNames()
-    const results = deduplicateResults(
-      (raw ?? []).filter((item) => hasDownloadMethod(item, customNames)).map(normalizeResult)
+    const rawItems = raw ?? []
+    const downloadable = rawItems.filter((item) => hasDownloadMethod(item, customNames))
+    const filtered = rawItems.length - downloadable.length
+    if (filtered > 0) {
+      log.info(`[Prowlarr] searchByQuery: ${filtered}/${rawItems.length} results filtered (no download method)`)
+    }
+
+    const results = deduplicateResults(downloadable.map(normalizeResult))
+
+    // Don't cache empty results - retry on next request
+    if (results.length > 0) {
+      await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
+    }
+    return results
+  }
+
+  async searchTv(
+    showName: string,
+    originalName: string,
+    year: string,
+    imdbId: string | null,
+    seasonNumber: number | null,
+    locale = 'pl'
+  ): Promise<ProwlarrResult[]> {
+    const seasonPad = seasonNumber !== null ? String(seasonNumber).padStart(2, '0') : null
+    const seasonNum = seasonNumber !== null ? String(seasonNumber) : null
+    const nameKey = imdbId !== null && imdbId.length > 0 ? imdbId : `${showName}:${seasonPad ?? 'all'}`
+    const cacheKey = `prowlarr:tv:${nameKey}:${year}:${locale}`
+    const cached = await cacheGet<ProwlarrResult[]>(cacheKey)
+    if (cached !== null) return cached
+
+    log.info(
+      `[Prowlarr] searchTv: show="${showName}" season=${seasonPad ?? 'all'} year=${year} imdb=${imdbId ?? 'none'}`
     )
 
-    await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
-    return results
+    // Run IMDB and text search in parallel
+    const promises: Promise<ProwlarrResult[]>[] = []
+
+    // 1. IMDB tvsearch - covers public trackers
+    if (imdbId !== null && imdbId.length > 0) {
+      promises.push(
+        this.searchByImdb(imdbId, 'tv').catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err)
+          log.warn(`[Prowlarr] searchTv: IMDB search failed: ${msg}`)
+          return [] as ProwlarrResult[]
+        })
+      )
+    }
+
+    // 2. Text search - covers private trackers
+    promises.push(this.searchTvText(showName, originalName, seasonPad, seasonNum, year, locale))
+
+    const settled = await Promise.all(promises)
+    const hasImdb = imdbId !== null && imdbId.length > 0
+    const imdbResults = hasImdb ? (settled[0] as ProwlarrResult[]) : ([] as ProwlarrResult[])
+    const textResults = hasImdb ? (settled[1] as ProwlarrResult[]) : (settled[0] as ProwlarrResult[])
+
+    log.info(`[Prowlarr] searchTv: IMDB=${imdbResults.length} text=${textResults.length} (before dedup)`)
+
+    // Merge text results first (private trackers priority), then IMDB (public trackers)
+    const combined = deduplicateResults([...textResults, ...imdbResults])
+
+    log.info(`[Prowlarr] searchTv: combined=${combined.length} results`)
+
+    if (combined.length === 0) {
+      log.warn(`[Prowlarr] searchTv: ALL searches returned 0 results for "${showName}" season ${seasonPad ?? 'all'}`)
+    }
+
+    // Don't cache empty results
+    if (combined.length > 0) {
+      await cacheSet(cacheKey, combined, CACHE_TTL.PROWLARR_RESULTS)
+    }
+    return combined
+  }
+
+  private async searchTvText(
+    showName: string,
+    originalName: string,
+    seasonPad: string | null,
+    seasonNum: string | null,
+    year: string,
+    locale: string
+  ): Promise<ProwlarrResult[]> {
+    // Build focused queries - most specific first
+    const queries: string[] = []
+    if (seasonPad !== null && seasonNum !== null) {
+      queries.push(`${showName} S${seasonPad} ${year}`.trim())
+      queries.push(`${showName} Sezon ${seasonPad} ${year}`.trim())
+      queries.push(`${showName} S${seasonPad}`.trim())
+      queries.push(`${showName} Sezon ${seasonNum}`.trim())
+      queries.push(`${showName}`.trim())
+      if (originalName !== showName) {
+        queries.push(`${originalName} S${seasonPad} ${year}`.trim())
+        queries.push(`${originalName} S${seasonPad}`.trim())
+        queries.push(`${originalName}`.trim())
+      }
+    } else {
+      queries.push(`${showName} ${year}`.trim())
+      queries.push(`${showName}`.trim())
+      if (originalName !== showName) {
+        queries.push(`${originalName} ${year}`.trim())
+        queries.push(`${originalName}`.trim())
+      }
+    }
+
+    // Try queries sequentially - stop at first non-empty
+    for (const query of queries) {
+      log.info(`[Prowlarr] searchTv: text search "${query}"`)
+      const results = await this.searchByQuery(query, locale)
+      if (results.length > 0) {
+        log.info(`[Prowlarr] searchTv: "${query}" → ${results.length} results`)
+        return results
+      }
+    }
+
+    return []
   }
 }
 

@@ -167,9 +167,9 @@ export default defineEventHandler(async (event) => {
       const location = res.headers.get('location') ?? ''
       if (res.status >= 300 && res.status < 400) {
         if (location.startsWith('magnet:')) {
-          log.info('[Add] URL redirects to magnet: — valid torrent URL')
+          log.info('[Add] URL redirects to magnet: - valid torrent URL')
         } else {
-          log.info(`[Add] URL redirects to ${location.substring(0, 80)} — passing to qBittorrent`)
+          log.info(`[Add] URL redirects to ${location.substring(0, 80)} - passing to qBittorrent`)
         }
       } else if (res.ok) {
         const contentType = res.headers.get('content-type') ?? ''
@@ -235,7 +235,7 @@ export default defineEventHandler(async (event) => {
         posterUrl = getImageUrl(show.poster_path, 'w185')
       }
     } catch {
-      // ignore — poster is optional
+      // ignore - poster is optional
     }
   }
 

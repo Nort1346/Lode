@@ -260,7 +260,7 @@ onMounted(fetchStatus)
         <USkeleton v-for="i in 2" :key="i" class="h-20 w-full rounded-xl" />
       </div>
       <div v-else-if="diskStatuses.length === 0" class="text-sm text-zinc-500 dark:text-zinc-400">
-        {{ t('settings.notConfigured') }} — NUXT_DISKS
+        {{ t('settings.notConfigured') }} - NUXT_DISKS
       </div>
       <div v-else class="space-y-4">
         <div class="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 mb-3">
@@ -313,19 +313,19 @@ onMounted(fetchStatus)
       <div class="space-y-2 text-sm">
         <div class="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
           <UIcon name="i-lucide-check" class="w-4 h-4 text-amber-500" />
-          {{ t('settings.dailyDownloadLimit') }} — 5
+          {{ t('settings.dailyDownloadLimit') }} - 5
         </div>
         <div class="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
           <UIcon name="i-lucide-check" class="w-4 h-4 text-amber-500" />
-          {{ t('settings.activeTorrentLimit') }} — 3
+          {{ t('settings.activeTorrentLimit') }} - 3
         </div>
         <div class="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
           <UIcon name="i-lucide-check" class="w-4 h-4 text-amber-500" />
-          {{ t('settings.maxTorrentSize') }} — 20 GB
+          {{ t('settings.maxTorrentSize') }} - 20 GB
         </div>
         <div class="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
           <UIcon name="i-lucide-check" class="w-4 h-4 text-amber-500" />
-          {{ t('settings.privateTrackerLimit') }} — 5
+          {{ t('settings.privateTrackerLimit') }} - 5
         </div>
       </div>
       <UButton to="/admin/users" color="warning" variant="soft" icon="i-lucide-users" class="mt-4">
@@ -348,7 +348,7 @@ onMounted(fetchStatus)
             class="flex items-center gap-2 p-2 rounded-lg bg-zinc-50 dark:bg-white/3 border border-zinc-100 dark:border-white/5 font-mono text-xs overflow-x-auto"
           >
             <span class="text-zinc-400 dark:text-zinc-500 shrink-0">{{ v.name }}</span>
-            <span class="text-zinc-300 dark:text-zinc-600">—</span>
+            <span class="text-zinc-300 dark:text-zinc-600">-</span>
             <span class="text-zinc-500 dark:text-zinc-400 truncate">{{ v.desc }}</span>
           </div>
         </div>

@@ -218,10 +218,10 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
     if (allCookies.length === 0) {
       const preview = loginResponse.body.substring(0, 200)
       log.error(`[TrackerAuth] No cookies received. Response preview: ${preview}`)
-      throw new Error('Login failed — no session cookies received')
+      throw new Error('Login failed - no session cookies received')
     }
 
-    log.info(`[TrackerAuth] Login OK — cookies: ${allCookies.substring(0, 80)}...`)
+    log.info(`[TrackerAuth] Login OK - cookies: ${allCookies.substring(0, 80)}...`)
     sessionCache.set(cacheKey, { cookie: allCookies, expiresAt: Date.now() + SESSION_CACHE_TTL })
 
     return allCookies
@@ -232,15 +232,15 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
   if (allCookies.length === 0) {
     const preview = loginResponse.body.substring(0, 200)
     log.error(`[TrackerAuth] No cookies received. Response preview: ${preview}`)
-    throw new Error('Login failed — no session cookies received')
+    throw new Error('Login failed - no session cookies received')
   }
 
   if (loginResponse.statusCode === 200 && loginResponse.body.includes('Logowanie')) {
-    log.error(`[TrackerAuth] Login page returned again — credentials may be wrong`)
-    throw new Error('Login failed — still on login page (wrong credentials?)')
+    log.error(`[TrackerAuth] Login page returned again - credentials may be wrong`)
+    throw new Error('Login failed - still on login page (wrong credentials?)')
   }
 
-  log.info(`[TrackerAuth] Login OK — cookies: ${allCookies.substring(0, 80)}...`)
+  log.info(`[TrackerAuth] Login OK - cookies: ${allCookies.substring(0, 80)}...`)
   sessionCache.set(cacheKey, { cookie: allCookies, expiresAt: Date.now() + SESSION_CACHE_TTL })
 
   return allCookies

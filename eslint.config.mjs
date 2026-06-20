@@ -9,7 +9,7 @@ export default withNuxt(
   // Prettier must be last
   prettierConfig,
 
-  // Strict TypeScript — server files
+  // Strict TypeScript - server files
   {
     files: ['server/**/*.ts'],
     languageOptions: {
@@ -59,7 +59,7 @@ export default withNuxt(
     }
   },
 
-  // Strict TypeScript — app files
+  // Strict TypeScript - app files
   {
     files: ['app/**/*.ts'],
     languageOptions: {

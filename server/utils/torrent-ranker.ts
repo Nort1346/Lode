@@ -4,6 +4,7 @@ export interface RankedTorrent extends ProwlarrResult {
   score: number
   recommended: boolean
   parsed: ParsedTitle
+  isSeasonPack: boolean
 }
 
 export interface ParsedTitle {
@@ -144,6 +145,15 @@ export function parseTorrentTitle(title: string): ParsedTitle {
   return { resolution, source, language, group }
 }
 
+function detectSeasonPack(title: string): boolean {
+  const lower = title.toLowerCase()
+  // S01, S02, etc. without E0x (season pack, not single episode)
+  if (/s\d{2}(?!e\d)/.test(lower)) return true
+  if (/season\s+\d+/.test(lower)) return true
+  if (/sezon\s+\d+/.test(lower)) return true
+  return false
+}
+
 function scoreResolution(parsed: ParsedTitle): number {
   if (parsed.resolution === null) return 5
   return RESOLUTION_MAP[parsed.resolution] ?? 5
@@ -175,7 +185,7 @@ function scoreSeeders(seeders: number): number {
   return 4
 }
 
-function scoreSize(sizeBytes: number, type: 'movie' | 'series'): number {
+function scoreSize(sizeBytes: number, type: 'movie' | 'series', isSeasonPack = false): number {
   const sizeGB = sizeBytes / (1024 * 1024 * 1024)
 
   if (type === 'movie') {
@@ -188,7 +198,15 @@ function scoreSize(sizeBytes: number, type: 'movie' | 'series'): number {
     return 2
   }
 
-  // Series: per episode size (rough estimate: total / episodes in season)
+  if (isSeasonPack) {
+    if (sizeGB < 5) return 3
+    if (sizeGB <= 20) return 7
+    if (sizeGB <= 50) return 10
+    if (sizeGB <= 100) return 8
+    return 3
+  }
+
+  // Series: per episode size
   if (sizeGB < 0.2) return 2
   if (sizeGB < 0.5) return 5
   if (sizeGB <= 2) return 7
@@ -230,11 +248,12 @@ function scoreTitleRelevance(torrentTitle: string, mediaTitle: string, year: str
 
 function calculateScore(result: ProwlarrResult, type: 'movie' | 'series', mediaTitle: string, year: string): number {
   const parsed = parseTorrentTitle(result.title)
+  const isSeasonPack = type === 'series' && detectSeasonPack(result.title)
 
   const resolution = scoreResolution(parsed)
   const language = scoreLanguage(parsed)
   const seeders = scoreSeeders(result.seeders)
-  const size = scoreSize(result.size, type)
+  const size = scoreSize(result.size, type, isSeasonPack)
   const source = scoreSource(parsed)
   const group = scoreGroup(parsed)
   const titleRelevance = scoreTitleRelevance(result.title, mediaTitle, year)
@@ -251,7 +270,8 @@ export function rankTorrents(
   const ranked = results.map((result) => {
     const score = calculateScore(result, type, mediaTitle, year)
     const parsed = parseTorrentTitle(result.title)
-    return { ...result, score, recommended: false, parsed }
+    const isSeasonPack = type === 'series' && detectSeasonPack(result.title)
+    return { ...result, score, recommended: false, parsed, isSeasonPack }
   })
 
   ranked.sort((a, b) => b.score - a.score)

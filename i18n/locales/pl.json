@@ -52,7 +52,7 @@
     "recommended": "Polecany",
     "download": "Pobierz",
     "limitReached": "Limit",
-    "noImdb": "Brak identyfikatora IMDB — nie można wyszukać torrentów.",
+    "noImdb": "Brak identyfikatora IMDB - nie można wyszukać torrentów.",
     "noTorrents": "Nie znaleziono torrentów.",
     "loadError": "Nie udało się załadować szczegółów filmu."
   },
@@ -99,7 +99,7 @@
     "failed": "Nie udało się dodać torrenta"
   },
   "torrent": {
-    "dead": "⚠ Brak seederów — rozważ usunięcie",
+    "dead": "⚠ Brak seederów - rozważ usunięcie",
     "poor": "Mało seederów",
     "slow": "Wolne połączenie"
   },
@@ -265,7 +265,7 @@
   "trackers": {
     "title": "Trackery prywatne",
     "subtitle": "Zarządzaj specjalnymi trackerami semi-private/private. Te trackery pozwalają na pobieranie z zamkniętych indexerów.",
-    "info1": "Specjalne trackery to serwisy semi-private/private, które wymagają plików cookie do autoryzacji. System automatycznie pobiera pliki .torrent z tych trackerów używając got-scraping (impersonacja Chrome TLS) — nie musisz wiedzieć jak to działa technicznie.",
+    "info1": "Specjalne trackery to serwisy semi-private/private, które wymagają plików cookie do autoryzacji. System automatycznie pobiera pliki .torrent z tych trackerów używając got-scraping (impersonacja Chrome TLS) - nie musisz wiedzieć jak to działa technicznie.",
     "info2": "Nazwa trackera musi dokładnie pasować do nazwy indexera w Prowlarr (pole \"indexer\" w wynikach wyszukiwania).",
     "listTitle": "Skonfigurowane trackery",
     "addTracker": "Dodaj tracker",
