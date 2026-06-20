@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ConfirmDialog from '~/components/ConfirmDialog.vue'
+import type { MediaCarouselItem } from '~/components/MediaCarousel.vue'
 
 interface Download {
   id: string
@@ -29,7 +30,7 @@ definePageMeta({
 })
 
 const { user } = useUserSession()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const overlay = useOverlay()
 
 const stats = ref({
@@ -72,6 +73,79 @@ onMounted(() => {
 onUnmounted(() => {
   if (intervalId.value) clearInterval(intervalId.value)
 })
+
+const { data: trendingData } = useLazyFetch('/api/browse/trending', {
+  query: computed(() => ({ locale: locale.value }))
+})
+const trendingItems = computed<MediaCarouselItem[]>(() => trendingData.value?.items ?? [])
+
+const { data: popularData } = useLazyFetch('/api/browse/popular', {
+  query: computed(() => ({ locale: locale.value }))
+})
+const popularMovies = computed<MediaCarouselItem[]>(() =>
+  (popularData.value?.movies ?? []).map((m: Record<string, unknown>) => ({ ...m, type: 'movie' as const }))
+)
+const popularTvShows = computed<MediaCarouselItem[]>(() =>
+  (popularData.value?.tv ?? []).map((m: Record<string, unknown>) => ({ ...m, type: 'tv' as const }))
+)
+
+const heroCurrent = ref<MediaCarouselItem | null>(null)
+const heroNext = ref<MediaCarouselItem | null>(null)
+const heroOverview = ref<string>('')
+const transitioning = ref(false)
+const heroIntervalId = ref<ReturnType<typeof setInterval>>()
+
+watch(
+  trendingItems,
+  (items) => {
+    if (items.length === 0) return
+    heroCurrent.value = items[Math.floor(Math.random() * items.length)]
+
+    heroIntervalId.value = setInterval(() => {
+      if (trendingItems.value.length === 0) return
+      const currentIdx = trendingItems.value.findIndex(
+        (i) => i.id === heroCurrent.value?.id && i.type === heroCurrent.value?.type
+      )
+      const nextIdx = (currentIdx + 1) % trendingItems.value.length
+      heroNext.value = trendingItems.value[nextIdx]
+      transitioning.value = true
+      setTimeout(() => {
+        heroCurrent.value = heroNext.value
+        transitioning.value = false
+      }, 800)
+    }, 8000)
+  },
+  { once: true }
+)
+
+watch(
+  [heroCurrent, locale],
+  async ([item, loc]) => {
+    if (!item) return
+    try {
+      const endpoint = item.type === 'movie' ? `/api/browse/movie/${item.id}` : `/api/browse/tv/${item.id}`
+      const data = await $fetch<{ movie?: { overview: string }; show?: { overview: string } }>(endpoint, {
+        query: { locale: loc }
+      })
+      heroOverview.value = (data.movie ?? data.show)?.overview ?? item.overview
+    } catch {
+      heroOverview.value = item.overview
+    }
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  if (heroIntervalId.value) clearInterval(heroIntervalId.value)
+})
+
+function goToItem(item: { id: number; type: string }) {
+  if (item.type === 'movie') {
+    navigateTo(`/browse/movie/${item.id}`)
+  } else {
+    navigateTo(`/browse/tv/${item.id}`)
+  }
+}
 
 async function cancelTorrent(dl: Download) {
   const modal = overlay.create(ConfirmDialog, {
@@ -186,12 +260,14 @@ const savePathLabels: Record<string, string> = {
 
 <template>
   <div>
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">Dashboard</h1>
-      <p class="text-zinc-500 dark:text-zinc-400">
-        {{ t('dashboard.welcome') }}
-        <span class="text-amber-600 dark:text-amber-400 font-medium">{{ user?.username }}</span>
-      </p>
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-1">Dashboard</h1>
+        <p class="text-zinc-500 dark:text-zinc-400">
+          {{ t('dashboard.welcome') }}
+          <span class="text-amber-600 dark:text-amber-400 font-medium">{{ user?.username }}</span>
+        </p>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
@@ -251,7 +327,7 @@ const savePathLabels: Record<string, string> = {
       </div>
     </div>
 
-    <div class="card p-5 md:p-6">
+    <div class="card p-5 md:p-6 mb-8">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('dashboard.activeTorrents') }}</h2>
         <UButton to="/browse" icon="i-lucide-search" :label="t('dashboard.browse')" size="sm" />
@@ -363,5 +439,71 @@ const savePathLabels: Record<string, string> = {
         </div>
       </div>
     </div>
+
+    <div v-if="heroCurrent" class="relative mb-8 overflow-hidden rounded-2xl h-64 sm:h-80 md:h-96">
+      <img
+        :src="heroCurrent.backdropUrl || heroCurrent.posterUrl"
+        :alt="heroCurrent.title"
+        class="absolute inset-0 w-full h-full object-cover"
+      />
+      <img
+        v-if="heroNext"
+        :src="heroNext.backdropUrl || heroNext.posterUrl"
+        :alt="heroNext.title"
+        class="absolute inset-0 w-full h-full object-cover transition-opacity duration-800"
+        :class="transitioning ? 'opacity-100' : 'opacity-0'"
+      />
+      <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+      <div class="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+
+      <div
+        class="absolute inset-0 flex items-end p-6 sm:p-8 md:p-10 transition-opacity duration-800"
+        :class="transitioning ? 'opacity-0' : 'opacity-100'"
+      >
+        <div class="max-w-xl">
+          <img
+            v-if="heroCurrent.logoUrl"
+            :src="heroCurrent.logoUrl"
+            :alt="heroCurrent.title"
+            class="max-h-16 sm:max-h-20 md:max-h-24 mb-3 object-contain drop-shadow-lg"
+          />
+          <h2 v-else class="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">
+            {{ heroCurrent.title }}
+            <span v-if="heroCurrent.year" class="text-lg sm:text-xl font-normal text-white/60 ml-2">{{
+              heroCurrent.year
+            }}</span>
+          </h2>
+          <div class="flex items-center gap-2 mb-2">
+            <span
+              class="flex items-center rounded-md px-2 py-0.5 text-xs font-semibold backdrop-blur-sm"
+              :class="heroCurrent.type === 'movie' ? 'bg-blue-500/80 text-white' : 'bg-purple-500/80 text-white'"
+            >
+              {{ heroCurrent.type === 'movie' ? t('mediaCard.movie') : t('mediaCard.tv') }}
+            </span>
+            <span
+              v-if="heroCurrent.rating > 0"
+              class="flex items-center gap-1 rounded-md bg-amber-500/90 px-2 py-0.5 text-xs font-bold text-black backdrop-blur-sm"
+            >
+              <UIcon name="i-lucide-star" class="size-3" />
+              {{ heroCurrent.rating.toFixed(1) }}
+            </span>
+          </div>
+          <p class="text-sm sm:text-base text-white/70 line-clamp-2 sm:line-clamp-3 mb-4">
+            {{ heroOverview || heroCurrent.overview }}
+          </p>
+          <UButton
+            :label="t('dashboard.heroCTA')"
+            icon="i-lucide-play"
+            size="lg"
+            class="cursor-pointer"
+            @click="goToItem(heroCurrent)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <MediaCarousel :title="t('dashboard.trendingNow')" :items="trendingItems" @item-click="goToItem" />
+    <MediaCarousel :title="t('browse.popularMovies')" :items="popularMovies" @item-click="goToItem" />
+    <MediaCarousel :title="t('browse.popularTv')" :items="popularTvShows" @item-click="goToItem" />
   </div>
 </template>

@@ -109,8 +109,94 @@ export async function searchMovies(query: string, page = 1, locale = 'pl'): Prom
   if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
 
   const result = (await response.json()) as TmdbSearchResult<TmdbMovie>
-  await cacheSet(cacheKey, result, CACHE_TTL.TMDB_SEARCH)
+  await cacheSet(cacheKey, result, CACHE_TTL.TMDB_POPULAR)
   return result
+}
+
+interface TmdbImageLogo {
+  iso_639_1: string | null
+  file_path: string
+}
+
+interface TmdbImagesResponse {
+  logos: TmdbImageLogo[]
+}
+
+export async function getLogosForItems(
+  items: Array<{ id: number; media_type: string }>,
+  locale: string
+): Promise<Map<number, string | null>> {
+  const lang = resolveTmdbLanguage(locale)
+  const logoMap = new Map<number, string | null>()
+  const CONCURRENCY = 5
+  const LOGO_TTL = 86400
+  const NO_LOGO = '__none__'
+
+  const uncached: Array<{ id: number; media_type: string }> = []
+
+  for (const item of items) {
+    const type = item.media_type === 'tv' ? 'tv' : 'movie'
+    const cacheKey = `tmdb:logo:${type}:${item.id}:${lang}`
+    const cached = await cacheGet<string>(cacheKey)
+    if (cached !== null) {
+      logoMap.set(item.id, cached === NO_LOGO ? null : cached)
+    } else {
+      uncached.push(item)
+    }
+  }
+
+  if (uncached.length === 0) return logoMap
+
+  for (let i = 0; i < uncached.length; i += CONCURRENCY) {
+    const batch = uncached.slice(i, i + CONCURRENCY)
+    const results = await Promise.allSettled(
+      batch.map(async (item) => {
+        const type = item.media_type === 'tv' ? 'tv' : 'movie'
+        const cacheKey = `tmdb:logo:${type}:${item.id}:${lang}`
+
+        const url = new URL(`${TMDB_BASE}/${type}/${item.id}/images`)
+        url.searchParams.set('api_key', getApiKey())
+        url.searchParams.set('include_image_language', `${lang},null`)
+
+        const response = await fetch(url.toString())
+        if (!response.ok) {
+          await cacheSet(cacheKey, NO_LOGO, LOGO_TTL)
+          return { id: item.id, logo: null as string | null }
+        }
+
+        const data = (await response.json()) as TmdbImagesResponse
+        const logos = data.logos ?? []
+
+        let picked: string | null = null
+        const langMatch = logos.find((l) => l.iso_639_1 === lang)
+        if (langMatch) {
+          picked = langMatch.file_path
+        } else {
+          const nullMatch = logos.find((l) => l.iso_639_1 === null)
+          if (nullMatch) {
+            picked = nullMatch.file_path
+          } else {
+            const first = logos[0]
+            if (first !== undefined) {
+              picked = first.file_path
+            }
+          }
+        }
+
+        const logoUrl = picked !== null ? getImageUrl(picked, 'original') : null
+        await cacheSet(cacheKey, logoUrl ?? NO_LOGO, LOGO_TTL)
+        return { id: item.id, logo: logoUrl }
+      })
+    )
+
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value !== undefined) {
+        logoMap.set(r.value.id, r.value.logo)
+      }
+    }
+  }
+
+  return logoMap
 }
 
 export async function searchTvShows(query: string, page = 1, locale = 'pl'): Promise<TmdbSearchResult<TmdbTvShow>> {

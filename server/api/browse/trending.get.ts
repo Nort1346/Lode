@@ -1,10 +1,13 @@
-import { getTrending, getImageUrl } from '#server/utils/tmdb'
+import { getTrending, getLogosForItems, getImageUrl } from '#server/utils/tmdb'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
+
+  const query = getQuery(event)
+  const locale = (query.locale as string) ?? 'pl'
 
   type TrendingItem = {
     id: number
@@ -13,20 +16,28 @@ export default defineEventHandler(async (event) => {
     overview: string
     posterUrl: string | null
     backdropUrl: string | null
+    logoUrl: string | null
     year: string
     rating: number
   }
 
   try {
     const items = await getTrending()
+    const sliced = items.slice(0, 20)
 
-    const results: TrendingItem[] = items.slice(0, 20).map((item) => ({
+    const logoMap = await getLogosForItems(
+      sliced.map((item) => ({ id: item.id, media_type: item.media_type })),
+      locale
+    )
+
+    const results: TrendingItem[] = sliced.map((item) => ({
       id: item.id,
       type: item.media_type,
       title: item.title ?? item.name ?? '',
       overview: item.overview,
       posterUrl: getImageUrl(item.poster_path),
-      backdropUrl: getImageUrl(item.backdrop_path, 'w780'),
+      backdropUrl: getImageUrl(item.backdrop_path, 'original'),
+      logoUrl: logoMap.get(item.id) ?? null,
       year: (item.release_date ?? item.first_air_date ?? '').slice(0, 4),
       rating: item.vote_average
     }))

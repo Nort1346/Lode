@@ -37,7 +37,7 @@
     "enterTitle": "Wpisz tytuł aby znaleźć film lub serial",
     "popularMovies": "Popularne filmy",
     "popularTv": "Popularne seriale",
-    "trending": "Trendujące",
+    "trending": "Na czasie",
     "topRated": "Najwyżej oceniane",
     "limitReached": "Dzienny limit pobierania wykorzystany",
     "limitActive": "Aktywne: {active}/{limit}",
@@ -124,6 +124,8 @@
     "browse": "Przeglądaj",
     "noActive": "Brak aktywnych pobrań. Dodaj torrent aby rozpocząć!",
     "myDownloads": "Moje pobrania",
+    "heroCTA": "Oglądaj teraz",
+    "trendingNow": "Na czasie",
     "noDownloads": "Brak pobrań",
     "noDownloadsDesc": "Dodaj swój pierwszy torrent",
     "trackManage": "Śledź i zarządzaj swoimi torrentami"
