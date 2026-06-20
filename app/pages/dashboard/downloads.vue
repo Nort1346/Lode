@@ -35,18 +35,26 @@ const overlay = useOverlay()
 const downloads = ref<Download[]>([])
 const loading = ref(true)
 const cancelling = ref<string | null>(null)
+const page = ref(1)
+const total = ref(0)
+const PAGE_SIZE = 10
 
 async function fetchDownloads() {
   loading.value = true
   try {
-    const res = await $fetch<{ downloads: Download[] }>('/api/torrents/list')
+    const res = await $fetch<{ downloads: Download[]; total: number }>('/api/torrents/list', {
+      query: { page: page.value, limit: PAGE_SIZE }
+    })
     downloads.value = res.downloads || []
+    total.value = res.total
   } catch {
     // silently fail
   } finally {
     loading.value = false
   }
 }
+
+watch(page, () => fetchDownloads())
 
 onMounted(fetchDownloads)
 
@@ -74,6 +82,9 @@ async function cancelTorrent(dl: Download) {
   try {
     await $fetch(`/api/torrents/${dl.id}`, { method: 'DELETE' })
     await fetchDownloads()
+    if (downloads.value.length === 0 && page.value > 1) {
+      page.value--
+    }
   } catch {
     // silently fail
   } finally {
@@ -323,6 +334,10 @@ const savePathLabels = computed<Record<string, string>>(() => ({
           </div>
         </div>
       </div>
+    </div>
+
+    <div v-if="total > PAGE_SIZE" class="flex justify-center mt-6">
+      <UPagination v-model:page="page" :total="total" :items-per-page="PAGE_SIZE" :sibling-count="2" show-edges />
     </div>
   </div>
 </template>

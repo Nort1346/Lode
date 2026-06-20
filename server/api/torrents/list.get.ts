@@ -1,5 +1,5 @@
 import { downloads, users } from '#server/database/schema'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, sql } from 'drizzle-orm'
 import type { InferSelectModel } from 'drizzle-orm'
 import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrent-sync'
 
@@ -16,7 +16,15 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb()
   const query = getQuery(event)
+
+  const rawPage = query.page
+  const rawLimit = query.limit
   const rawStatus = query.status
+
+  const page = typeof rawPage === 'string' ? Math.max(1, Number.parseInt(rawPage, 10) || 1) : 1
+  const limit = typeof rawLimit === 'string' ? Math.min(100, Math.max(1, Number.parseInt(rawLimit, 10) || 10)) : 10
+  const offset = (page - 1) * limit
+
   const status =
     typeof rawStatus === 'string' && DOWNLOAD_STATUS_VALUES.includes(rawStatus as SupportedStatus)
       ? (rawStatus as SupportedStatus)
@@ -26,34 +34,40 @@ export default defineEventHandler(async (event) => {
   await syncTorrentStatus().catch(() => {})
   void notifyJellyfinIfNeeded().catch(() => {})
 
-  let results: DownloadRow[]
-  if (status !== undefined) {
-    results = db
-      .select()
-      .from(downloads)
-      .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, status)))
-      .orderBy(desc(downloads.createdAt))
-      .all()
-  } else {
-    results = db
-      .select()
-      .from(downloads)
-      .where(eq(downloads.userId, session.user.id))
-      .orderBy(desc(downloads.createdAt))
-      .all()
-  }
+  const isAdmin = session.user.role === 'admin'
 
-  const allUsers = db.select().from(users).all()
-  const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
-  userMap.set(session.user.id, session.user.username)
+  const whereClause = (() => {
+    if (isAdmin) return undefined
+    if (status !== undefined) return and(eq(downloads.userId, session.user.id), eq(downloads.status, status))
+    return eq(downloads.userId, session.user.id)
+  })()
 
-  if (session.user.role === 'admin') {
-    results = db.select().from(downloads).orderBy(desc(downloads.createdAt)).all()
+  const countResult = db
+    .select({ count: sql<number>`count(*)` })
+    .from(downloads)
+    .where(whereClause)
+    .get()
+
+  const total = countResult?.count ?? 0
+
+  const results: DownloadRow[] = db
+    .select()
+    .from(downloads)
+    .where(whereClause)
+    .orderBy(desc(downloads.createdAt))
+    .limit(limit)
+    .offset(offset)
+    .all()
+
+  if (isAdmin) {
+    const allUsers = db.select().from(users).all()
+    const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
+    userMap.set(session.user.id, session.user.username)
 
     for (const dl of results) {
       dl.username = userMap.get(dl.userId) ?? 'unknown'
     }
   }
 
-  return { downloads: results }
+  return { downloads: results, total, page, limit }
 })
