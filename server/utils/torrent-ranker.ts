@@ -2,10 +2,13 @@ import type { ProwlarrResult } from './prowlarr'
 
 export interface RankedTorrent extends ProwlarrResult {
   score: number
+  percentage: number
   recommended: boolean
   parsed: ParsedTitle
   isSeasonPack: boolean
 }
+
+const SCORE_MAX = 240
 
 export interface ParsedTitle {
   resolution: string | null
@@ -15,10 +18,10 @@ export interface ParsedTitle {
 }
 
 const RESOLUTION_MAP: Record<string, number> = {
-  '2160p': 15,
-  '4k': 15,
-  '1080p': 30,
-  '720p': 15,
+  '2160p': 20,
+  '4k': 20,
+  '1080p': 40,
+  '720p': 20,
   '480p': 5,
   '576p': 5
 }
@@ -162,57 +165,51 @@ function scoreResolution(parsed: ParsedTitle): number {
 function scoreLanguage(parsed: ParsedTitle): number {
   switch (parsed.language) {
     case 'pl-dub':
-      return 20
+      return 30
     case 'pl-sub':
-      return 15
+      return 22
     case 'pl-lektor':
-      return 20
+      return 25
     case 'en':
-      return 10
+      return 15
     default:
-      return 5
+      return 8
   }
 }
 
 function scoreSeeders(seeders: number): number {
   if (seeders <= 0) return 0
-  if (seeders >= 500) return 17
-  if (seeders >= 100) return 15
-  if (seeders >= 50) return 13
-  if (seeders >= 20) return 11
-  if (seeders >= 10) return 10
-  if (seeders >= 5) return 8
-  return 4
+  return Math.min(100, Math.round(11 * Math.log2(seeders + 1)))
 }
 
 function scoreSize(sizeBytes: number, type: 'movie' | 'series', isSeasonPack = false): number {
   const sizeGB = sizeBytes / (1024 * 1024 * 1024)
 
   if (type === 'movie') {
-    if (sizeGB < 0.5) return 2
-    if (sizeGB < 1) return 5
-    if (sizeGB < 2) return 7
-    if (sizeGB <= 15) return 10
-    if (sizeGB <= 30) return 8
-    if (sizeGB <= 50) return 5
-    return 2
-  }
-
-  if (isSeasonPack) {
-    if (sizeGB < 5) return 3
-    if (sizeGB <= 20) return 7
-    if (sizeGB <= 50) return 10
-    if (sizeGB <= 100) return 8
+    if (sizeGB < 0.5) return 3
+    if (sizeGB < 1) return 8
+    if (sizeGB < 2) return 12
+    if (sizeGB <= 15) return 20
+    if (sizeGB <= 30) return 15
+    if (sizeGB <= 50) return 8
     return 3
   }
 
+  if (isSeasonPack) {
+    if (sizeGB < 5) return 5
+    if (sizeGB <= 20) return 12
+    if (sizeGB <= 50) return 20
+    if (sizeGB <= 100) return 15
+    return 5
+  }
+
   // Series: per episode size
-  if (sizeGB < 0.2) return 2
-  if (sizeGB < 0.5) return 5
-  if (sizeGB <= 2) return 7
-  if (sizeGB <= 4) return 10
-  if (sizeGB <= 8) return 7
-  return 3
+  if (sizeGB < 0.2) return 3
+  if (sizeGB < 0.5) return 8
+  if (sizeGB <= 2) return 12
+  if (sizeGB <= 4) return 20
+  if (sizeGB <= 8) return 12
+  return 5
 }
 
 function scoreSource(parsed: ParsedTitle): number {
@@ -269,9 +266,10 @@ export function rankTorrents(
 ): RankedTorrent[] {
   const ranked = results.map((result) => {
     const score = calculateScore(result, type, mediaTitle, year)
+    const percentage = Math.min(100, Math.round((score / SCORE_MAX) * 100))
     const parsed = parseTorrentTitle(result.title)
     const isSeasonPack = type === 'series' && detectSeasonPack(result.title)
-    return { ...result, score, recommended: false, parsed, isSeasonPack }
+    return { ...result, score, percentage, recommended: false, parsed, isSeasonPack }
   })
 
   ranked.sort((a, b) => b.score - a.score)
@@ -296,5 +294,6 @@ export function formatSize(bytes: number): string {
 }
 
 export function formatScore(score: number): string {
-  return `${score}/100`
+  const pct = Math.min(100, Math.round((score / SCORE_MAX) * 100))
+  return `${pct}%`
 }

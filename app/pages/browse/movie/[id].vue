@@ -206,10 +206,14 @@
               <div
                 class="text-lg font-bold"
                 :class="
-                  torrent.score >= 80 ? 'text-emerald-500' : torrent.score >= 60 ? 'text-amber-500' : 'text-zinc-500'
+                  torrent.percentage >= 80
+                    ? 'text-emerald-500'
+                    : torrent.percentage >= 60
+                      ? 'text-amber-500'
+                      : 'text-zinc-500'
                 "
               >
-                {{ torrent.score }}
+                {{ torrent.percentage }}%
               </div>
             </div>
             <UButton
@@ -318,6 +322,7 @@ interface Torrent {
   downloadUrl: string | null
   guid: string | null
   score: number
+  percentage: number
   recommended: boolean
   resolution: string | null
   source: string | null

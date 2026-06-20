@@ -306,9 +306,15 @@
                   >
                     <span
                       class="text-xs font-bold"
-                      :class="tr.score >= 80 ? 'text-emerald-500' : tr.score >= 60 ? 'text-amber-500' : 'text-zinc-500'"
+                      :class="
+                        tr.percentage >= 80
+                          ? 'text-emerald-500'
+                          : tr.percentage >= 60
+                            ? 'text-amber-500'
+                            : 'text-zinc-500'
+                      "
                     >
-                      {{ tr.score }}
+                      {{ tr.percentage }}%
                     </span>
                     <span v-if="tr.recommended" class="text-xs text-amber-500">
                       <UIcon name="i-lucide-star" class="size-3" />
@@ -449,6 +455,7 @@ interface SeasonPack {
   language: string | null
   isSeasonPack: boolean
   isPrivate: boolean
+  percentage: number
 }
 
 interface EpisodeTorrent {
@@ -462,6 +469,7 @@ interface EpisodeTorrent {
   guid: string | null
   indexer: string
   score: number
+  percentage: number
   recommended: boolean
   resolution: string | null
   language: string | null

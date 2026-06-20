@@ -58,6 +58,7 @@ export default defineEventHandler(async (event) => {
       downloadUrl: t.downloadUrl,
       guid: t.guid,
       score: t.score,
+      percentage: t.percentage,
       recommended: t.recommended,
       resolution: t.parsed.resolution,
       source: t.parsed.source,
