@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 const rootDir = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@nuxtjs/i18n'],
+  modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@nuxtjs/i18n', '@vite-pwa/nuxt'],
 
   i18n: {
     locales: [
@@ -76,5 +76,52 @@ export default defineNuxtConfig({
 
   eslint: {
     config: {}
+  },
+
+  pwa: {
+    registerType: 'autoUpdate',
+    manifest: {
+      name: 'StreamHub',
+      short_name: 'StreamHub',
+      description: 'Browse, request, and download movies & TV shows',
+      theme_color: '#f59e0b',
+      background_color: '#09090b',
+      display: 'standalone',
+      scope: '/',
+      start_url: '/dashboard',
+      icons: [
+        {
+          src: 'pwa-64x64.png',
+          sizes: '64x64',
+          type: 'image/png'
+        },
+        {
+          src: 'pwa-192x192.png',
+          sizes: '192x192',
+          type: 'image/png'
+        },
+        {
+          src: 'pwa-512x512.png',
+          sizes: '512x512',
+          type: 'image/png'
+        },
+        {
+          src: 'maskable-icon-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable'
+        }
+      ]
+    },
+    workbox: {
+      globPatterns: ['**/*.{js,css,ico,png,svg,woff2}']
+    },
+    client: {
+      installPrompt: true,
+      periodicSyncForUpdates: 3600
+    },
+    devOptions: {
+      enabled: false
+    }
   }
 })

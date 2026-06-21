@@ -1,6 +1,6 @@
 # StreamHub
 
-Torrent request manager for streaming services. Users submit magnet links, torrent URLs, or `.torrent` files. StreamHub communicates with qBittorrent via [qui](https://github.com/autobrr/qui) proxy. Admin panel manages users with configurable download limits, disk space monitoring, Discord notifications, and custom private tracker support.
+Self-hosted streaming hub for managing torrent downloads. Browse movies and TV shows from TMDB, find torrents via Prowlarr, and download with one click. Admin panel with user management, per-user limits, private tracker support, and Discord notifications.
 
 ## Features
 
@@ -259,7 +259,7 @@ NUXT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 
 **Message format (Components V2):**
 - Title heading (from TMDB or label)
-- MediaGallery (poster/backdrop with fallback `poster_not_found.png`)
+- MediaGallery (poster/backdrop with fallback `poster-not-found.png`)
 - Overview description (truncated to 2000 chars)
 - Separator
 - TMDB details: genres, runtime, rating, premiere date
@@ -404,6 +404,35 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 | `#db` | `./server/database/` |
 | `#utils` | `./server/utils/` |
 
+### PWA (Progressive Web App)
+
+**Configuration:**
+- `@vite-pwa/nuxt` module with `autoUpdate` register type
+- Web manifest with StreamHub branding (amber theme, dark background)
+- Display: `standalone` (full-screen app experience)
+- Start URL: `/dashboard`
+
+**Icons:**
+| File | Size | Purpose |
+|------|------|---------|
+| `pwa-64x64.png` | 64×64 | Small icon |
+| `pwa-192x192.png` | 192×192 | Standard icon |
+| `pwa-512x512.png` | 512×512 | Large icon |
+| `maskable-icon-512x512.png` | 512×512 | Android adaptive icon |
+| `apple-touch-icon-180x180.png` | 180×180 | iOS home screen icon |
+
+**Service worker:**
+- Workbox-based with `generateSW` strategy
+- Navig fallback to `/dashboard`
+- Caches: JS, CSS, HTML, ICO, PNG, SVG, WOFF2
+- Periodic sync for updates: every 3600s (1 hour)
+
+**Features:**
+- Auto-update: new service worker activates automatically
+- Offline support: cached static assets available offline
+- Install prompt: intercepted via `$pwa.install()` for custom install UI
+- `NuxtPwaAssets` component handles manifest link, theme-color meta, and icon links
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -422,6 +451,7 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 | Cloudflare bypass | [got-scraping](https://github.com/sindresorhus/got-scraping) v4.2.1 (Chrome TLS impersonation) |
 | Notifications | [discord.js](https://discord.js.org/) REST v2.6.1 + Builders v1.14.1 |
 | Logging | [pino](https://getpino.io/) v10.3.1 + pino-pretty v13.1.3 |
+| PWA | [@vite-pwa/nuxt](https://github.com/vite-pwa/nuxt) v1.1.1 (Workbox) |
 | Icons | [Iconify](https://iconify.design/) (Lucide + Simple Icons) |
 | i18n | [@nuxtjs/i18n](https://i18n.nuxtjs.org/) v10.4.0 |
 | Language | TypeScript v6.0.3 |

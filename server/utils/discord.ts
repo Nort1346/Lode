@@ -38,7 +38,7 @@ export interface TmdbMeta {
 const LOCALE_OPTIONS = ['pl', 'en'] as const
 type DiscordLocale = (typeof LOCALE_OPTIONS)[number]
 
-const FALLBACK_POSTER_NAME = 'poster_not_found.png'
+const FALLBACK_POSTER_NAME = 'poster-not-found.png'
 const FALLBACK_POSTER_PATH = resolve(process.cwd(), 'public', FALLBACK_POSTER_NAME)
 const FALLBACK_POSTER_REF = `attachment://${FALLBACK_POSTER_NAME}`
 

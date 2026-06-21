@@ -45,6 +45,8 @@
     "@types/bcrypt": "^6.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.9.3",
+    "@vite-pwa/assets-generator": "^1.0.2",
+    "@vite-pwa/nuxt": "^1.1.1",
     "discord-api-types": "^0.38.48",
     "drizzle-kit": "^0.31.10",
     "eslint": "^10.5.0",
