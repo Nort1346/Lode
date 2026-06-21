@@ -14,6 +14,7 @@ definePageMeta({
 
 const { t } = useI18n()
 const { user } = useUserSession()
+const toast = useToast()
 
 const services = ref<ServiceStatus[]>([])
 const loadingServices = ref(true)
@@ -182,18 +183,21 @@ async function changeDiscordLocale(newLocale: string) {
   const valid = newLocale === 'pl' || newLocale === 'en' ? newLocale : 'pl'
   discordLocale.value = valid
   await $fetch('/api/admin/discord-locale', { method: 'PUT', body: { locale: valid } })
+  toast.add({ title: t('settings.discordLocaleSaved'), color: 'success' })
 }
 
 async function toggleDiscordMentions() {
   const newValue = !discordMentionsEnabled.value
   await $fetch('/api/admin/discord-mentions', { method: 'PUT', body: { enabled: newValue } })
   discordMentionsEnabled.value = newValue
+  toast.add({ title: t('settings.discordMentionsSaved'), color: 'success' })
 }
 
 async function toggleDiskCheck() {
   const newValue = !diskCheckEnabled.value
   await $fetch('/api/admin/disk-status', { method: 'PUT', body: { checkEnabled: newValue } })
   diskCheckEnabled.value = newValue
+  toast.add({ title: t('settings.diskCheckSaved'), color: 'success' })
 }
 
 async function changeMinFreeGb(event: Event) {
@@ -206,6 +210,7 @@ async function changeMinFreeGb(event: Event) {
     '/api/admin/disk-status'
   )
   diskStatuses.value = diskData.disks
+  toast.add({ title: t('settings.diskMinFreeSaved'), color: 'success' })
 }
 
 onMounted(fetchStatus)
