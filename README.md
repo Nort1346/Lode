@@ -60,7 +60,8 @@ Carousels use the reusable `MediaCarousel` component with scroll arrows (hover-r
 - Backdrop image with gradient overlay
 - Poster, title, original title, year, runtime, rating, genres
 - Overview, IMDB ID
-- "Request This" button (sends request to admin)
+- "Request This" button (sends request to admin) with cursor pointer
+- "Add to Wishlist" button (heart icon, toggle add/remove, cursor pointer)
 - Available torrents from Prowlarr with 240-point scoring system
 - One-click download per torrent
 - Private tracker badge (`isPrivate`) and percentage display
@@ -70,6 +71,7 @@ Carousels use the reusable `MediaCarousel` component with scroll arrows (hover-r
 - Season selector dropdown
 - Per-episode torrent listing with indexer name
 - Season pack highlighting (purple badge)
+- "Request This" and "Add to Wishlist" buttons (same as movie)
 - Same scoring and download system as movies
 
 **Torrent ranking (240-point system):**
@@ -105,8 +107,9 @@ Season packs are scored through `rankTorrents()` with adjusted size thresholds (
 - Quality badges: dead (red), poor (amber), slow (cyan), ok (none)
 - Delete button with confirmation dialog (ConfirmDialog + useOverlay)
 - Poster thumbnails (TMDB w185, 48×72px mobile, 80×120px desktop)
-- Hero banner: auto-rotating (8s) random trending movie with TMDB logo title treatment (fallback to plain text), backdrop image (original quality), crossfade transition (800ms), locale-aware overview, type badge, rating badge, CTA button
+- Hero banner: auto-rotating (8s) random trending movie with TMDB logo title treatment (fallback to plain text), backdrop image (original quality), crossfade transition (800ms), locale-aware overview, type badge, rating badge, CTA button. Responsive heights: 380px (mobile) → 480px (sm) → 560px (md) → 640px (lg) → 720px (xl)
 - 3 carousels below hero: Trending, Popular Movies, Popular TV (using reusable `MediaCarousel` component)
+- Navigation: Dashboard, Browse, Submit, Downloads, **Wishlist**
 
 **Downloads page (`/dashboard/downloads`):**
 - Server-side paginated list of all user's downloads (10 per page, `UPagination` with `showEdges` and `sibling-count=2`)
@@ -129,22 +132,26 @@ Season packs are scored through `rankTorrents()` with adjusted size thresholds (
 
 ### Disk Space Blocking
 
-**Configuration:**
+**Configuration (env vars or admin settings):**
 ```env
-NUXT_DISKS=/mnt/storage/streaming,/host-root
+NUXT_DISKS=D:\,E:\
 NUXT_MIN_FREE_SPACE_GB=7
 NUXT_DISK_SPACE_CHECK_ENABLED=true
 ```
+
+`minFreeSpaceGb` and `diskSpaceCheckEnabled` are stored in the `settings` DB table. Env vars serve as initial defaults. Changes from the admin settings panel take effect immediately without restart.
 
 **How it works:**
 
 1. Uses `fs.statfsSync()` to get real-time filesystem stats for each configured mount path
 2. Returns `DiskStatus`: path, totalBytes, freeBytes, usedBytes, usedPercent, available
+3. Unavailable disks (path error, permission denied) are treated as **blocked** — downloads cannot proceed
 
 **Pre-download check (before adding torrent):**
 - Runs in `add.post.ts` and `download.post.ts`
 - Accounts for torrent size: `freeBytes - torrentSize < minFreeSpaceGb × 1024³`
 - If insufficient → blocks with 507
+- Unavailable disk → blocks with 507 (not silently skipped)
 - Admin bypass does NOT apply to disk space checks
 - Error message hides disk path from non-admin users
 
@@ -154,11 +161,18 @@ NUXT_DISK_SPACE_CHECK_ENABLED=true
 - Creates a DB record with `status: 'disk_full'`
 - Throws 507 with torrent size and free space info
 
-**Admin settings page (`/admin/settings`):**
-- Shows all configured disks with progress bars
-- Free/used/total space display
-- OK/Low/Unavailable badges
-- Configurable minimum required space
+**Dangerous file auto-rejection (browse downloads):**
+- After torrent is added and metadata fetched, checks all files in the torrent
+- Blocks download if any file matches dangerous extensions: `.exe`, `.msi`, `.bat`, `.cmd`, `.sh`, `.ps1`, `.com`, `.vbs`, `.js`, `.jar`, `.apk`, `.dmg`, `.scr`, `.pif`, `.reg`, `.dll`, `.sys`, `.cpl`, `.hta`, `.lnk`, `.inf`, `.url`, `.wsh`, `.wsf`, `.xbap`, `.msh`, `.msh1`, `.msh2`, `.mshxml`, `.ps1xml`, `.psc1`, `.psc2`
+- Only applies to `/api/browse/download` (Movies/Series catalog), NOT to `/api/torrents/add` (manual submission)
+- Uses `getTorrentFiles(hash)` from qBittorrent API to inspect file list before download starts
+
+**Admin settings panel (`/admin/settings`):**
+- Toggle: enable/disable disk space check (USwitch)
+- Input: minimum required free space in GB (UInput number)
+- Disk status display: progress bars, free/used/total space, OK/Low/Unavailable badges
+- Toast notifications on changes
+- Changes take effect immediately (DB-backed)
 
 **Docker setup:**
 - Host root mounted read-only: `/:/host-root:ro`
@@ -258,6 +272,7 @@ NUXT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 **When triggered:** On download completion (detected by background torrent sync)
 
 **Message format (Components V2):**
+- TextDisplay mention: `<@discord_id>` (if user has Discord ID set and mentions are enabled)
 - Title heading (from TMDB or label)
 - MediaGallery (poster/backdrop with fallback `poster-not-found.png`)
 - Overview description (truncated to 2000 chars)
@@ -266,6 +281,13 @@ NUXT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 - Separator
 - Info: size, category (Movies/Series/etc), downloaded by username
 - Technical metadata parsed from torrent name: resolution, source, language, codec
+
+**User mentions:**
+- Each user can have a `discord_id` set in admin panel (`/admin/users`)
+- When enabled, download notifications mention the user who requested the download
+- Configurable from admin settings: toggle on/off (`discord_mentions_enabled`)
+- Uses Discord Components V2 TextDisplay component (not `content` field)
+- Mention only sent if user has a Discord ID AND mentions are enabled globally
 
 **Locale support:** Polish (pl) or English (en), configurable from admin settings page via `discord_locale` setting. Decoupled from UI locale.
 
@@ -297,9 +319,32 @@ NUXT_JELLYFIN_PREP_SPEED_MB=8
 3. Accept or reject with optional note
 4. Paginated table with user, title, type, status, date
 
+### Wishlist
+
+**Purpose:** Save titles to download later — useful when daily limit is reached or when browsing on mobile.
+
+**User flow:**
+1. Browse to movie/TV detail page
+2. Click "Add to Wishlist" (heart icon, toggles between add/remove)
+3. Title saved with TMDB metadata (mediaType, mediaId, title, poster)
+4. View saved titles at `/dashboard/wishlist`
+5. From wishlist: click card → navigate to detail page → pick torrent → download
+6. Remove from wishlist via hover action or detail page toggle
+
+**Duplicate prevention:** Unique index on `(user_id, media_type, media_id)` prevents saving the same title twice.
+
+**Detail page button:** Heart icon button next to "Request This". Changes to "In Wishlist" when saved. Available on both movie (`/browse/movie/:id`) and TV (`/browse/tv/:id`) detail pages.
+
+**Wishlist page (`/dashboard/wishlist`):**
+- Grid of poster cards (responsive: 2–5 columns)
+- Hover overlay with Download and Remove actions
+- Media type badge (movie = blue, tv = purple)
+- Empty state with link to Browse
+- Loading skeleton while fetching
+
 ### Activity Logs
 
-**Tracked actions:** login, login_failed, logout, register, torrent_add, torrent_delete, user_update, user_delete, brute_force_config_update, brute_force_unblock_ip
+**Tracked actions:** login, login_failed, logout, register, torrent_add, torrent_delete, user_update, user_delete, brute_force_config_update, brute_force_unblock_ip, discord_mentions_update, disk_config_update
 
 **Features:**
 - Paginated table with time, user, action, details, IP, user agent
@@ -309,6 +354,15 @@ NUXT_JELLYFIN_PREP_SPEED_MB=8
 - Click-to-copy: click details, IP, or user agent columns to copy full value to clipboard (toast: "Skopiowano"/"Copied")
 
 ### System Dashboard (`/admin/settings`)
+
+**Refactored into independent sub-components** (each fetches its own data):
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `SettingsSystemStatus` | `components/settings/SystemStatus.vue` | Service health checks |
+| `SettingsDiscordWebhook` | `components/settings/DiscordWebhook.vue` | Discord locale + mentions toggle |
+| `SettingsDiskStatus` | `components/settings/DiskStatus.vue` | Disk check toggle + min GB + progress bars |
+| `SettingsLiveLogs` | `components/settings/LiveLogs.vue` | SSE log viewer |
 
 **Service health checks (6 services):**
 | Service | Check method |
@@ -322,7 +376,9 @@ NUXT_JELLYFIN_PREP_SPEED_MB=8
 
 Each shows: Online/Offline badge, latency in ms, Not Configured if env var missing.
 
-**Disk status:** Shows all configured disks with progress bars, free/used/total space, OK/Low/Unavailable badges.
+**Disk status (`SettingsDiskStatus`):** Shows all configured disks with progress bars, free/used/total space, OK/Low/Unavailable badges. Toggle to enable/disable disk space check. Input to set minimum required free space in GB. Toast on save.
+
+**Discord webhook (`SettingsDiscordWebhook`):** Select Discord embed language (pl/en). Toggle user mentions on/off. Toast on save.
 
 **Live logs viewer:**
 - Hidden terminal icon at the bottom of `/admin/settings`
@@ -342,7 +398,9 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - Language selector in mobile header and desktop sidebar
 - Uses `setLocale()` from `useI18n()` for locale switching (not `locale.value =`)
 - Google Translate prevention: `<meta name="google" content="notranslate">`, `translate="no"` on `<html>`, `notranslate` class on `<body>`
-- TMDB logo title treatments: `getLogosForItems()` fetches `/movie/{id}/images` and `/tv/{id}/images` with `include_image_language={lang},null`, picks best logo per locale, cached in Redis (24h TTL)
+- TMDB logo title treatments: `getLogosForItems()` fetches `/movie/{id}/images` and `/tv/{id}/images` with `include_image_language={lang},null`, picks best logo per locale (ISO 639-1 codes: `en`, `pl`), cached in Redis (24h TTL)
+- Trending content now passes `language` param to TMDB API (titles are locale-aware, not always English)
+- Wishlist translations: `wishlist.*` namespace with title, buttons, empty state, toast messages
 
 ### Technical Features
 
@@ -594,6 +652,10 @@ docker compose down
 | `MediaCard.vue` | TMDB media card with 3D tilt effect, used in browse carousels |
 | `MediaCarousel.vue` | Reusable carousel with title, scroll arrows (hover-reveal), skeleton loading, `MediaCarouselItem` type (includes `logoUrl`) |
 | `ConfirmDialog.vue` | Confirmation dialog with `close: [value: boolean]` emit for Nuxt UI overlay system |
+| `settings/SystemStatus.vue` | Service health check cards (independent data fetching) |
+| `settings/DiscordWebhook.vue` | Discord locale + mentions toggle (independent data fetching) |
+| `settings/DiskStatus.vue` | Disk check toggle, min GB input, progress bars (independent data fetching) |
+| `settings/LiveLogs.vue` | SSE live log viewer with pause/clear/download (independent data fetching) |
 
 ## Pages
 
@@ -604,6 +666,7 @@ docker compose down
 | `/dashboard` | `dashboard/index.vue` | Dashboard with stats, active downloads, hero banner, carousels |
 | `/dashboard/submit` | `dashboard/submit.vue` | Torrent submission (magnet/URL/file) |
 | `/dashboard/downloads` | `dashboard/downloads.vue` | User's paginated download list |
+| `/dashboard/wishlist` | `dashboard/wishlist.vue` | User's saved titles for later download |
 | `/browse` | `browse/index.vue` | Search + carousels (Trending, Popular, Top Rated) |
 | `/browse/movie/:id` | `browse/movie/[id].vue` | Movie detail with Prowlarr torrents |
 | `/browse/tv/:id` | `browse/tv/[id].vue` | TV show detail with season selector |
@@ -633,6 +696,7 @@ docker compose down
 | `downloads_today` | integer | `0` | Counter (legacy) |
 | `downloads_reset_at` | text | - | Last reset timestamp |
 | `created_at` | text | - | ISO timestamp |
+| `discord_id` | text | - | Discord user ID for mentions in webhook notifications |
 
 ### `downloads`
 | Column | Type | Default | Description |
@@ -691,7 +755,7 @@ Indexes: `(ip, created_at)`, `(username, created_at)`, `(created_at)`
 | `key` | text (PK) | Setting name |
 | `value` | text | Setting value |
 
-Known keys: `discord_locale` (pl/en), `brute_force_max_attempts_per_ip`, `brute_force_ip_block_duration_minutes`, `brute_force_window_minutes`
+Known keys: `discord_locale` (pl/en), `discord_mentions_enabled` (true/false), `disk_check_enabled` (true/false), `disk_min_free_gb` (integer as string), `brute_force_max_attempts_per_ip`, `brute_force_ip_block_duration_minutes`, `brute_force_window_minutes`
 
 ### `activityLogs`
 | Column | Type | Description |
@@ -718,6 +782,19 @@ Known keys: `discord_locale` (pl/en), `brute_force_max_attempts_per_ip`, `brute_
 | `status` | text | `pending`/`accepted`/`rejected` |
 | `note` | text | Admin note (on reject) |
 | `created_at` | text | ISO timestamp |
+
+### `wishlist`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | text (PK) | UUID |
+| `user_id` | text (FK) | Owner |
+| `media_type` | text | `movie` or `tv` |
+| `media_id` | integer | TMDB media ID |
+| `media_title` | text | Title |
+| `media_poster` | text | TMDB poster URL |
+| `created_at` | text | ISO timestamp |
+
+Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists per user.
 
 ## API Endpoints
 
@@ -764,6 +841,14 @@ Known keys: `discord_locale` (pl/en), `brute_force_max_attempts_per_ip`, `brute_
 | GET | `/api/requests/list` | Admin | List all requests (paginated, filterable) |
 | PATCH | `/api/requests/:id` | Admin | Accept/reject request |
 
+### Wishlist
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/wishlist` | Yes | Add title to wishlist |
+| DELETE | `/api/wishlist` | Yes | Remove from wishlist (by id or mediaType+mediaId) |
+| GET | `/api/wishlist` | Yes | List user's wishlist items |
+| GET | `/api/wishlist/check` | Yes | Check if title is wishlisted (`mediaType`, `mediaId` params) |
+
 ### Debug
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
@@ -773,10 +858,13 @@ Known keys: `discord_locale` (pl/en), `brute_force_max_attempts_per_ip`, `brute_
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/api/admin/system-status` | Admin | Service health checks |
-| GET | `/api/admin/disk-status` | Admin | Disk space status |
+| GET | `/api/admin/disk-status` | Admin | Disk space status (reads from DB) |
+| PUT | `/api/admin/disk-status` | Admin | Update disk check settings (`checkEnabled`, `minFreeSpaceGb`) |
 | GET | `/api/admin/settings` | Admin | App settings |
 | GET | `/api/admin/discord-locale` | Admin | Get Discord locale |
 | PUT | `/api/admin/discord-locale` | Admin | Set Discord locale |
+| GET | `/api/admin/discord-mentions` | Admin | Get Discord mentions enabled status |
+| PUT | `/api/admin/discord-mentions` | Admin | Toggle Discord mentions enabled/disabled |
 
 ### Admin - Users
 | Method | Endpoint | Auth | Description |
