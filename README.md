@@ -235,16 +235,6 @@ Limits are fetched directly from the `users` table via `getFreshUser(userId)`, n
 - `got-scraping` for Cloudflare bypass (Chrome TLS impersonation)
 - Redirect cookie collection after login POST (follows 302 to collect additional Set-Cookie)
 
-**Supported built-in trackers:** Devil-Torrents, Polskie-Torrenty
-
-**Configuration (env vars for built-in trackers):**
-```env
-NUXT_TRACKER_DEVIL_ENABLED=true
-NUXT_TRACKER_DEVIL_COOKIE=PHPSESSID=your_session_id
-NUXT_TRACKER_POLSKIE_ENABLED=true
-NUXT_TRACKER_POLSKIE_COOKIE=PHPSESSID=your_session_id
-```
-
 **How private tracker downloads work:**
 1. Prowlarr indexes these trackers, returns results with `indexer: 'Devil-Torrents'` etc.
 2. These trackers use GUID URLs (not magnet links) - `.torrent` file must be fetched directly
@@ -552,17 +542,6 @@ docker compose down
 | `NUXT_JELLYFIN_PREP_SPEED_MB` | `8` | Prep speed in MB/s for delay calculation |
 | `NUXT_DISCORD_WEBHOOK_URL` | - | Discord webhook for download notifications |
 | `NUXT_FLARESOLVERR_URL` | - | FlareSolverr URL for Cloudflare bypass |
-
-### Optional - Polish Trackers (built-in)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NUXT_TRACKER_DEVIL_ENABLED` | `true` | Enable Devil-Torrents tracker |
-| `NUXT_TRACKER_DEVIL_COOKIE` | - | Devil-Torrents session cookie |
-| `NUXT_TRACKER_POLSKIE_ENABLED` | `true` | Enable Polskie-Torrenty tracker |
-| `NUXT_TRACKER_POLSKIE_COOKIE` | - | Polskie-Torrenty session cookie |
-
-> Custom trackers are managed via admin panel at `/admin/trackers` (Cookie or Login method).
 
 ### Optional - Disk Space
 

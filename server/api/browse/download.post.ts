@@ -9,6 +9,7 @@ import { gotScraping } from 'got-scraping'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { checkAllDisks } from '#server/utils/disk'
 import { formatSize } from '#server/utils/torrent-ranker'
+import { checkForDangerousFiles } from '#server/utils/safe-download'
 import { createLogger } from '#server/utils/logger'
 
 const log = createLogger('Download')
@@ -439,6 +440,38 @@ export default defineEventHandler(async (event) => {
         )
       } else {
         log.warn(`[Download:8:QUI] ⚠ addTorrent returned null after ${Date.now() - t3}ms`)
+      }
+    }
+
+    // ── 8c: DANGEROUS FILE CHECK ─────────────────────────────
+    if (torrent !== null) {
+      const t4 = Date.now()
+      let files = await qui.getTorrentFiles(torrent.hash).catch(() => [])
+
+      // Wait for metadata if file list is empty
+      if (files.length === 0) {
+        for (let i = 0; i < 5; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          files = await qui.getTorrentFiles(torrent.hash).catch(() => [])
+          if (files.length > 0) break
+        }
+      }
+
+      log.info(`[Download:8c:FILE_CHECK] hash=${torrent.hash} files=${files.length} (in ${Date.now() - t4}ms)`)
+
+      if (files.length > 0) {
+        const { safe, dangerousFiles } = checkForDangerousFiles(files)
+        if (!safe) {
+          log.warn(`[Download:8c:FILE_CHECK] ✗ BLOCKED - dangerous files: ${dangerousFiles.join(', ')}`)
+          await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+          throw createError({
+            statusCode: 403,
+            statusMessage: `Torrent contains dangerous files: ${dangerousFiles.map((f) => f.split('/').pop() ?? f).join(', ')} — rejected`
+          })
+        }
+        log.info(`[Download:8c:FILE_CHECK] ✓ all ${files.length} files safe`)
+      } else {
+        log.warn(`[Download:8c:FILE_CHECK] ⚠ no files found (metadata not ready?), skipping check`)
       }
     }
 

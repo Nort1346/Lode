@@ -1,3 +1,11 @@
+export interface TorrentFile {
+  index: number
+  name: string
+  size: number
+  progress: number
+  priority: number
+}
+
 export interface QuiTorrent {
   hash: string
   name: string
@@ -191,6 +199,13 @@ export class QuiClient {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `hashes=${hash}&deleteFiles=${deleteFiles}`
     })
+  }
+
+  async getTorrentFiles(hash: string): Promise<TorrentFile[]> {
+    const response = await this.request(`/api/v2/torrents/files?hash=${hash}`)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any
+    const data: TorrentFile[] = await response.json()
+    return data
   }
 
   async moveToTop(hashes: string[]): Promise<void> {

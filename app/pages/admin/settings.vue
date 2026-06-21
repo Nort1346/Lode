@@ -150,12 +150,6 @@ const envVars = {
     { name: 'NUXT_SAVE_PATH_MOVIES', desc: '🎬 Movies' },
     { name: 'NUXT_SAVE_PATH_SERIES', desc: '📺 Series' }
   ],
-  trackers: [
-    { name: 'NUXT_TRACKER_DEVIL_ENABLED', desc: 'Devil-Torrents' },
-    { name: 'NUXT_TRACKER_DEVIL_COOKIE', desc: 'Devil-Torrents Cookie' },
-    { name: 'NUXT_TRACKER_POLSKIE_ENABLED', desc: 'Polskie-Torrenty' },
-    { name: 'NUXT_TRACKER_POLSKIE_COOKIE', desc: 'Polskie-Torrenty Cookie' }
-  ],
   discord: [{ name: 'NUXT_DISCORD_WEBHOOK_URL', desc: 'Discord Webhook URL' }]
 }
 
