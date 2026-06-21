@@ -18,6 +18,7 @@ const { user } = useUserSession()
 const services = ref<ServiceStatus[]>([])
 const loadingServices = ref(true)
 const discordLocale = ref('pl')
+const discordMentionsEnabled = ref(false)
 
 const showLogs = ref(false)
 const logs = ref<string[]>([])
@@ -157,16 +158,18 @@ async function fetchStatus() {
   loadingServices.value = true
   loadingDisks.value = true
   try {
-    const [statusData, localeData, diskData] = await Promise.all([
+    const [statusData, localeData, diskData, mentionsData] = await Promise.all([
       $fetch<{ services: ServiceStatus[] }>('/api/admin/system-status'),
       $fetch<{ locale: string }>('/api/admin/discord-locale'),
-      $fetch<{ disks: DiskStatus[]; minFreeSpaceGb: number; checkEnabled: boolean }>('/api/admin/disk-status')
+      $fetch<{ disks: DiskStatus[]; minFreeSpaceGb: number; checkEnabled: boolean }>('/api/admin/disk-status'),
+      $fetch<{ enabled: boolean }>('/api/admin/discord-mentions')
     ])
     services.value = statusData.services
     discordLocale.value = localeData.locale
     diskStatuses.value = diskData.disks
     diskMinFreeGb.value = diskData.minFreeSpaceGb
     diskCheckEnabled.value = diskData.checkEnabled
+    discordMentionsEnabled.value = mentionsData.enabled
   } catch {
     services.value = []
   } finally {
@@ -179,6 +182,12 @@ async function changeDiscordLocale(newLocale: string) {
   const valid = newLocale === 'pl' || newLocale === 'en' ? newLocale : 'pl'
   discordLocale.value = valid
   await $fetch('/api/admin/discord-locale', { method: 'PUT', body: { locale: valid } })
+}
+
+async function toggleDiscordMentions() {
+  const newValue = !discordMentionsEnabled.value
+  await $fetch('/api/admin/discord-mentions', { method: 'PUT', body: { enabled: newValue } })
+  discordMentionsEnabled.value = newValue
 }
 
 onMounted(fetchStatus)
@@ -243,6 +252,15 @@ onMounted(fetchStatus)
             @update:model-value="changeDiscordLocale"
           />
           <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-4">{{ t('settings.discordLocaleDesc') }}</p>
+        </div>
+        <div>
+          <div class="flex items-center justify-between">
+            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+              t('admin.discordMentions')
+            }}</label>
+            <USwitch :model-value="discordMentionsEnabled" @update:model-value="toggleDiscordMentions" />
+          </div>
+          <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{{ t('admin.discordMentionsDesc') }}</p>
         </div>
       </div>
     </div>

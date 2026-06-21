@@ -12,6 +12,7 @@ interface UpdateUserBody {
   maxTorrentSizeGb?: number
   privateTrackerLimit?: number
   downloadsToday?: number
+  discordId?: string | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -67,6 +68,10 @@ export default defineEventHandler(async (event) => {
   if (body.downloadsToday !== undefined) {
     updates.downloadsToday = body.downloadsToday
     changedFields.push('downloadsToday')
+  }
+  if (body.discordId !== undefined) {
+    updates.discordId = body.discordId === '' ? null : body.discordId
+    changedFields.push('discordId')
   }
 
   if (Object.keys(updates).length > 0) {

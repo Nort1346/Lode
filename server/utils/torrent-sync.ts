@@ -25,7 +25,8 @@ function notifyDiscord(
     mediaType: string | null
     userId: string
   },
-  userMap: Map<string, string>
+  userMap: Map<string, string>,
+  discordIdMap: Map<string, string | null>
 ): void {
   const completedAt = dl.completedAt ?? new Date().toISOString()
   void sendDownloadCompleteWebhook({
@@ -37,7 +38,8 @@ function notifyDiscord(
     completedAt,
     username: userMap.get(dl.userId) ?? 'unknown',
     tmdbId: dl.tmdbId,
-    mediaType: dl.mediaType
+    mediaType: dl.mediaType,
+    discordId: discordIdMap.get(dl.userId) ?? null
   }).catch((err) => log.error(err, 'webhook failed'))
 }
 
@@ -51,6 +53,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
 
   const allUsers = db.select().from(users).all()
   const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
+  const discordIdMap = new Map(allUsers.map((u) => [u.id, u.discordId ?? null]))
 
   let quiTorrents
   try {
@@ -87,7 +90,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           .where(eq(downloads.id, dl.id))
           .run()
         result.completed++
-        void notifyDiscord(dl, userMap)
+        void notifyDiscord(dl, userMap, discordIdMap)
       } else {
         db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)).run()
         result.failed++
@@ -121,7 +124,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         .where(eq(downloads.id, dl.id))
         .run()
       result.completed++
-      void notifyDiscord(dl, userMap)
+      void notifyDiscord(dl, userMap, discordIdMap)
     } else {
       db.update(downloads)
         .set({

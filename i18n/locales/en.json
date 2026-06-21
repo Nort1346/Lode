@@ -161,6 +161,10 @@
     "cancel": "Cancel",
     "saveChanges": "Save Changes",
     "confirmDelete": "Are you sure you want to delete this user?",
+    "discordId": "Discord ID",
+    "discordIdDesc": "Discord user ID for mentions in download notifications",
+    "discordMentions": "Discord Mentions",
+    "discordMentionsDesc": "Mention users by Discord ID in download completion notifications",
     "saveFailed": "Failed to save user"
   },
   "logs": {
@@ -192,6 +196,7 @@
     "action_tracker_delete": "Tracker Delete",
     "action_brute_force_config_update": "Login Protection Config Update",
     "action_brute_force_unblock_ip": "IP Unblocked",
+    "action_discord_mentions_update": "Discord Mentions Update",
     "copied": "Copied"
   },
   "settings": {

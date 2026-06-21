@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { ContainerBuilder } from '@discordjs/builders'
-import type { SeparatorBuilder, TextDisplayBuilder } from '@discordjs/builders'
+import { ContainerBuilder, TextDisplayBuilder } from '@discordjs/builders'
+import type { SeparatorBuilder } from '@discordjs/builders'
 import { bold, heading, HeadingLevel } from '@discordjs/formatters'
 import { REST } from '@discordjs/rest'
 import { Routes, MessageFlags } from 'discord-api-types/v10'
+import type { APIContainerComponent, APITextDisplayComponent } from 'discord-api-types/v10'
 import { settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from './tmdb'
@@ -22,6 +23,7 @@ export interface DownloadCompleteData {
   username: string
   tmdbId: number | null
   mediaType: string | null
+  discordId: string | null
 }
 
 export interface TmdbMeta {
@@ -82,6 +84,12 @@ const DISCORD_STRINGS = {
     codec: 'Codec'
   }
 } as const
+
+export function isDiscordMentionsEnabled(): boolean {
+  const db = useDb()
+  const row = db.select().from(settings).where(eq(settings.key, 'discord_mentions_enabled')).get()
+  return row?.value === 'true'
+}
 
 export function getDiscordLocale(): DiscordLocale {
   const db = useDb()
@@ -279,8 +287,18 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   const webhookToken = match[2]
   const rest = new REST({ version: '10' }).setToken(webhookToken)
 
-  const payload = {
-    components: [container.toJSON()],
+  const components: (APIContainerComponent | APITextDisplayComponent)[] = [container.toJSON()]
+
+  if (data.discordId !== null && data.discordId.length > 0 && isDiscordMentionsEnabled()) {
+    const mentionText = new TextDisplayBuilder().setContent(`<@${data.discordId}>`)
+    components.unshift(mentionText.toJSON())
+  }
+
+  const payload: {
+    components: (APIContainerComponent | APITextDisplayComponent)[]
+    flags: number
+  } = {
+    components,
     flags: MessageFlags.IsComponentsV2
   }
 

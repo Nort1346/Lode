@@ -10,6 +10,7 @@ interface AdminUser {
   privateTrackerLimit: number
   downloadsToday: number
   createdAt: string
+  discordId: string | null
 }
 
 definePageMeta({
@@ -29,7 +30,8 @@ const form = reactive({
   dailyDownloadLimit: 5,
   activeTorrentLimit: 3,
   maxTorrentSizeGb: 20,
-  privateTrackerLimit: 5
+  privateTrackerLimit: 5,
+  discordId: ''
 })
 const saving = ref(false)
 const error = ref('')
@@ -57,6 +59,7 @@ function openCreate() {
   form.activeTorrentLimit = 3
   form.maxTorrentSizeGb = 20
   form.privateTrackerLimit = 5
+  form.discordId = ''
   error.value = ''
   showModal.value = true
 }
@@ -70,6 +73,7 @@ function openEdit(user: AdminUser) {
   form.activeTorrentLimit = user.activeTorrentLimit
   form.maxTorrentSizeGb = user.maxTorrentSizeGb
   form.privateTrackerLimit = user.privateTrackerLimit
+  form.discordId = user.discordId ?? ''
   error.value = ''
   showModal.value = true
 }
@@ -85,7 +89,8 @@ async function saveUser() {
         dailyDownloadLimit: form.dailyDownloadLimit,
         activeTorrentLimit: form.activeTorrentLimit,
         maxTorrentSizeGb: form.maxTorrentSizeGb,
-        privateTrackerLimit: form.privateTrackerLimit
+        privateTrackerLimit: form.privateTrackerLimit,
+        discordId: form.discordId || null
       }
       if (form.password) body.password = form.password
       if (form.username !== editingUser.value.username) body.username = form.username
@@ -308,6 +313,10 @@ const roleOptions = computed(() => [
 
           <UFormField :label="t('admin.privateTrackerLimit')">
             <UInput v-model.number="form.privateTrackerLimit" type="number" class="w-full" />
+          </UFormField>
+
+          <UFormField :label="t('admin.discordId')" :description="t('admin.discordIdDesc')">
+            <UInput v-model="form.discordId" :placeholder="'123456789012345678'" class="w-full" />
           </UFormField>
 
           <UAlert v-if="error" :description="error" color="error" variant="subtle" />

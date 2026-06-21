@@ -28,7 +28,8 @@ function initDb() {
       private_tracker_limit INTEGER NOT NULL DEFAULT 5,
       downloads_today INTEGER NOT NULL DEFAULT 0,
       downloads_reset_at TEXT,
-      created_at TEXT NOT NULL DEFAULT ''
+      created_at TEXT NOT NULL DEFAULT '',
+      discord_id TEXT
     );
 
     CREATE TABLE IF NOT EXISTS downloads (
@@ -98,6 +99,9 @@ function initDb() {
   const userColumns = userPragmaRows.map((c) => c.name as string)
   if (!userColumns.includes('private_tracker_limit')) {
     sqlite.exec(`ALTER TABLE users ADD COLUMN private_tracker_limit INTEGER NOT NULL DEFAULT 5`)
+  }
+  if (!userColumns.includes('discord_id')) {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN discord_id TEXT`)
   }
 
   if (!columns.includes('tmdb_id')) {

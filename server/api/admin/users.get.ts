@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
     maxTorrentSizeGb: u.maxTorrentSizeGb,
     privateTrackerLimit: u.privateTrackerLimit,
     downloadsToday: u.downloadsToday,
-    createdAt: u.createdAt
+    createdAt: u.createdAt,
+    discordId: u.discordId
   }))
 })

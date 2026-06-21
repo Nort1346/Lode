@@ -161,6 +161,10 @@
     "cancel": "Anuluj",
     "saveChanges": "Zapisz zmiany",
     "confirmDelete": "Czy na pewno chcesz usunąć tego użytkownika?",
+    "discordId": "Discord ID",
+    "discordIdDesc": "ID użytkownika Discord do wzmianek w powiadomieniach",
+    "discordMentions": "Wzmianki Discord",
+    "discordMentionsDesc": "Wzmianki użytkowników Discord w powiadomieniach o ukończonych pobraniach",
     "saveFailed": "Nie udało się zapisać użytkownika"
   },
   "logs": {
@@ -192,6 +196,7 @@
     "action_tracker_delete": "Usunięcie trackera",
     "action_brute_force_config_update": "Aktualizacja ochrony logowania",
     "action_brute_force_unblock_ip": "Odblokowanie IP",
+    "action_discord_mentions_update": "Aktualizacja wzmianek Discord",
     "copied": "Skopiowano"
   },
   "settings": {

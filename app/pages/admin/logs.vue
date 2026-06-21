@@ -40,7 +40,8 @@ const ACTION_KEYS: Record<string, string> = {
   tracker_update: 'action_tracker_update',
   tracker_delete: 'action_tracker_delete',
   brute_force_config_update: 'action_brute_force_config_update',
-  brute_force_unblock_ip: 'action_brute_force_unblock_ip'
+  brute_force_unblock_ip: 'action_brute_force_unblock_ip',
+  discord_mentions_update: 'action_discord_mentions_update'
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -56,7 +57,8 @@ const ACTION_COLORS: Record<string, string> = {
   tracker_update: 'amber',
   tracker_delete: 'red',
   brute_force_config_update: 'amber',
-  brute_force_unblock_ip: 'green'
+  brute_force_unblock_ip: 'green',
+  discord_mentions_update: 'indigo'
 }
 
 const ACTION_OPTIONS = computed(() => [

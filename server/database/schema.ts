@@ -14,7 +14,8 @@ export const users = sqliteTable('users', {
   privateTrackerLimit: integer('private_tracker_limit').notNull().default(5),
   downloadsToday: integer('downloads_today').notNull().default(0),
   downloadsResetAt: text('downloads_reset_at'),
-  createdAt: text('created_at').notNull().default('')
+  createdAt: text('created_at').notNull().default(''),
+  discordId: text('discord_id')
 })
 
 export const downloads = sqliteTable('downloads', {
