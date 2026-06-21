@@ -12,6 +12,11 @@ export function resolveTmdbLanguage(locale: string): string {
   return LOCALE_MAP[locale] ?? 'pl-PL'
 }
 
+function resolveTmdbLogoLanguage(locale: string): string {
+  const code = resolveTmdbLanguage(locale).split('-')
+  return code[0] ?? 'pl'
+}
+
 export interface TmdbMovie {
   id: number
   title: string
@@ -127,6 +132,7 @@ export async function getLogosForItems(
   locale: string
 ): Promise<Map<number, string | null>> {
   const lang = resolveTmdbLanguage(locale)
+  const logoLang = resolveTmdbLogoLanguage(locale)
   const logoMap = new Map<number, string | null>()
   const CONCURRENCY = 5
   const LOGO_TTL = 86400
@@ -156,7 +162,7 @@ export async function getLogosForItems(
 
         const url = new URL(`${TMDB_BASE}/${type}/${item.id}/images`)
         url.searchParams.set('api_key', getApiKey())
-        url.searchParams.set('include_image_language', `${lang},null`)
+        url.searchParams.set('include_image_language', `${logoLang},null`)
 
         const response = await fetch(url.toString())
         if (!response.ok) {
@@ -168,18 +174,13 @@ export async function getLogosForItems(
         const logos = data.logos ?? []
 
         let picked: string | null = null
-        const langMatch = logos.find((l) => l.iso_639_1 === lang)
+        const langMatch = logos.find((l) => l.iso_639_1 === logoLang)
         if (langMatch) {
           picked = langMatch.file_path
         } else {
           const nullMatch = logos.find((l) => l.iso_639_1 === null)
           if (nullMatch) {
             picked = nullMatch.file_path
-          } else {
-            const first = logos[0]
-            if (first !== undefined) {
-              picked = first.file_path
-            }
           }
         }
 
@@ -333,12 +334,14 @@ export interface TmdbTrendingItem {
 }
 
 export async function getTrending(locale = 'pl'): Promise<TmdbTrendingItem[]> {
+  const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:trending:all:week:${locale}`
   const cached = await cacheGet<TmdbTrendingItem[]>(cacheKey)
   if (cached !== null) return cached
 
   const url = new URL(`${TMDB_BASE}/trending/all/week`)
   url.searchParams.set('api_key', getApiKey())
+  url.searchParams.set('language', lang)
 
   const response = await fetch(url.toString())
   if (!response.ok) throw new Error(`TMDB API error ${response.status}`)

@@ -105,28 +105,30 @@ const heroOverview = ref<string>('')
 const transitioning = ref(false)
 const heroIntervalId = ref<ReturnType<typeof setInterval>>()
 
-watch(
-  trendingItems,
-  (items) => {
-    if (items.length === 0) return
-    heroCurrent.value = items[Math.floor(Math.random() * items.length)] ?? null
+function startHeroRotation() {
+  heroIntervalId.value = setInterval(() => {
+    if (trendingItems.value.length === 0) return
+    const currentIdx = trendingItems.value.findIndex(
+      (i) => i.id === heroCurrent.value?.id && i.type === heroCurrent.value?.type
+    )
+    const nextIdx = (currentIdx + 1) % trendingItems.value.length
+    heroNext.value = trendingItems.value[nextIdx] ?? null
+    transitioning.value = true
+    setTimeout(() => {
+      heroCurrent.value = heroNext.value
+      transitioning.value = false
+    }, 800)
+  }, 8000)
+}
 
-    heroIntervalId.value = setInterval(() => {
-      if (trendingItems.value.length === 0) return
-      const currentIdx = trendingItems.value.findIndex(
-        (i) => i.id === heroCurrent.value?.id && i.type === heroCurrent.value?.type
-      )
-      const nextIdx = (currentIdx + 1) % trendingItems.value.length
-      heroNext.value = trendingItems.value[nextIdx] ?? null
-      transitioning.value = true
-      setTimeout(() => {
-        heroCurrent.value = heroNext.value
-        transitioning.value = false
-      }, 800)
-    }, 8000)
-  },
-  { once: true }
-)
+function initHero() {
+  if (heroCurrent.value !== null || trendingItems.value.length === 0) return
+  heroCurrent.value = trendingItems.value[Math.floor(Math.random() * trendingItems.value.length)] ?? null
+  startHeroRotation()
+}
+
+watch(trendingItems, initHero)
+onMounted(initHero)
 
 watch(
   [heroCurrent, locale],
@@ -144,6 +146,12 @@ watch(
   },
   { immediate: true }
 )
+
+useHead(() => {
+  const img = heroCurrent.value?.backdropUrl ?? heroCurrent.value?.posterUrl
+  if (!img) return {}
+  return { link: [{ rel: 'preload', as: 'image', href: img }] }
+})
 
 onUnmounted(() => {
   if (heroIntervalId.value) clearInterval(heroIntervalId.value)
@@ -454,6 +462,7 @@ const savePathLabels: Record<string, string> = {
       <img
         :src="heroCurrent.backdropUrl || heroCurrent.posterUrl"
         :alt="heroCurrent.title"
+        loading="eager"
         class="absolute inset-0 w-full h-full object-cover"
       />
       <img

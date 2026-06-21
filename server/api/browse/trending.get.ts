@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const items = await getTrending()
+    const items = await getTrending(locale)
     const sliced = items.slice(0, 20)
 
     const logoMap = await getLogosForItems(
