@@ -458,7 +458,10 @@ const savePathLabels: Record<string, string> = {
       </div>
     </div>
 
-    <div v-if="heroCurrent" class="relative mb-8 overflow-hidden rounded-2xl h-64 sm:h-80 md:h-96">
+    <div
+      v-if="heroCurrent"
+      class="relative mb-8 overflow-hidden rounded-2xl h-[380px] sm:h-[480px] md:h-[560px] lg:h-[640px] xl:h-[720px]"
+    >
       <img
         :src="heroCurrent.backdropUrl || heroCurrent.posterUrl"
         :alt="heroCurrent.title"
