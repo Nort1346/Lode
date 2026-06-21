@@ -157,6 +157,19 @@ function initDb() {
   sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_login_attempts_username ON login_attempts(username, created_at)`)
   sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_login_attempts_created ON login_attempts(created_at)`)
 
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS wishlist (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      media_type TEXT NOT NULL,
+      media_id INTEGER NOT NULL,
+      media_title TEXT NOT NULL,
+      media_poster TEXT,
+      created_at TEXT NOT NULL
+    );
+  `)
+  sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_wishlist_user_media ON wishlist(user_id, media_type, media_id)`)
+
   _db = drizzle(sqlite, { schema })
   return _db
 }

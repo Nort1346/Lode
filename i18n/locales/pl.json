@@ -4,6 +4,7 @@
     "browse": "Przeglądaj",
     "submit": "Dodaj torrent",
     "downloads": "Moje pobrania",
+    "wishlist": "Lista życzeń",
     "users": "Użytkownicy",
     "logs": "Logi",
     "settings": "Ustawienia Admina",
@@ -372,5 +373,20 @@
     "unblocked": "IP odblokowane",
     "expired": "Wygasł",
     "noBlockedIps": "Brak zablokowanych IP"
+  },
+  "wishlist": {
+    "title": "Lista życzeń",
+    "subtitle": "Media, które chcesz pobrać później",
+    "addToWishlist": "Dodaj do listy",
+    "addedToWishlist": "Dodano do listy życzeń",
+    "addedToWishlistDesc": "{title} został dodany do Twojej listy życzeń.",
+    "removedFromWishlist": "Usunięto z listy życzeń",
+    "alreadyInWishlist": "Na liście",
+    "noItems": "Twoja lista życzeń jest pusta",
+    "noItemsDesc": "Przeglądaj i zapisuj tytuły na później",
+    "download": "Pobierz",
+    "remove": "Usuń",
+    "browse": "Przeglądaj",
+    "failed": "Nie udało się"
   }
 }

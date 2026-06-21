@@ -110,3 +110,17 @@ export const loginAttempts = sqliteTable(
     index('idx_login_attempts_created').on(t.createdAt)
   ]
 )
+
+export const wishlist = sqliteTable(
+  'wishlist',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    mediaType: text('media_type', { enum: ['movie', 'tv'] }).notNull(),
+    mediaId: integer('media_id').notNull(),
+    mediaTitle: text('media_title').notNull(),
+    mediaPoster: text('media_poster'),
+    createdAt: text('created_at').notNull()
+  },
+  (t) => [uniqueIndex('idx_wishlist_user_media').on(t.userId, t.mediaType, t.mediaId)]
+)

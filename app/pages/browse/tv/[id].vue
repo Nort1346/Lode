@@ -94,21 +94,35 @@
 
         <p class="mt-6 leading-relaxed text-zinc-700 dark:text-zinc-300">{{ show.overview }}</p>
 
-        <div class="mt-4">
+        <div class="mt-4 flex flex-wrap items-center gap-3">
           <UButton
             v-if="!alreadyRequested"
             color="primary"
             variant="outline"
             icon="i-lucide-message-square-plus"
+            class="cursor-pointer"
             :loading="requesting"
             @click="requestTitle"
           >
             {{ t('requests.requestThis') }}
           </UButton>
-          <span v-else class="inline-flex items-center gap-2 text-sm text-amber-500">
+          <span
+            v-else
+            class="inline-flex items-center gap-2 text-sm text-amber-500 cursor-pointer"
+            @click="requestTitle"
+          >
             <UIcon name="i-lucide-check-circle" class="size-4" />
             {{ t('requests.alreadyRequested') }}
           </span>
+          <UButton
+            color="error"
+            variant="outline"
+            class="cursor-pointer"
+            :icon="wishlisted ? 'i-lucide-heart-off' : 'i-lucide-heart'"
+            @click="toggleWishlist"
+          >
+            {{ wishlisted ? t('wishlist.alreadyInWishlist') : t('wishlist.addToWishlist') }}
+          </UButton>
         </div>
       </div>
     </div>
@@ -521,6 +535,8 @@ const downloadingKey = ref<string | null>(null)
 const downloadingPackIdx = ref<number | null>(null)
 const requesting = ref(false)
 const alreadyRequested = ref(false)
+const wishlisted = ref(false)
+const wishlistId = ref<string | null>(null)
 const debugOpenKey = ref<string | null>(null)
 const { t, locale } = useI18n()
 const { user } = useUserSession()
@@ -667,6 +683,51 @@ async function requestTitle() {
     toast.add({ title: t('requests.alreadyRequested'), description: msg, color: 'warning' })
   } finally {
     requesting.value = false
+  }
+}
+
+watchEffect(async () => {
+  if (!show.value) return
+  try {
+    const res = await $fetch<{ wishlisted: boolean; id: string | null }>(
+      `/api/wishlist/check?mediaType=tv&mediaId=${show.value.id}`
+    )
+    wishlisted.value = res.wishlisted
+    wishlistId.value = res.id
+  } catch {
+    // not logged in or error
+  }
+})
+
+async function toggleWishlist() {
+  if (!show.value) return
+  const toast = useToast()
+  try {
+    if (wishlisted.value) {
+      await $fetch('/api/wishlist', { method: 'DELETE', body: { mediaType: 'tv', mediaId: show.value.id } })
+      wishlisted.value = false
+      wishlistId.value = null
+      toast.add({ title: t('wishlist.removedFromWishlist'), color: 'success' })
+    } else {
+      const res = await $fetch<{ id: string }>('/api/wishlist', {
+        method: 'POST',
+        body: {
+          mediaType: 'tv',
+          mediaId: show.value.id,
+          mediaTitle: show.value.name,
+          mediaPoster: show.value.posterUrl
+        }
+      })
+      wishlisted.value = true
+      wishlistId.value = res.id
+      toast.add({
+        title: t('wishlist.addedToWishlist'),
+        description: t('wishlist.addedToWishlistDesc', { title: show.value.name }),
+        color: 'success'
+      })
+    }
+  } catch {
+    toast.add({ title: t('wishlist.failed'), color: 'error' })
   }
 }
 </script>

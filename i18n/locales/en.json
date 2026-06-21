@@ -4,6 +4,7 @@
     "browse": "Browse",
     "submit": "Submit Torrent",
     "downloads": "My Downloads",
+    "wishlist": "Wishlist",
     "users": "User Management",
     "logs": "Activity Logs",
     "settings": "Admin Settings",
@@ -372,5 +373,20 @@
     "unblocked": "IP unblocked",
     "expired": "Expired",
     "noBlockedIps": "No blocked IPs"
+  },
+  "wishlist": {
+    "title": "My Wishlist",
+    "subtitle": "Media you want to download later",
+    "addToWishlist": "Add to Wishlist",
+    "addedToWishlist": "Added to Wishlist",
+    "addedToWishlistDesc": "{title} has been added to your wishlist.",
+    "removedFromWishlist": "Removed from Wishlist",
+    "alreadyInWishlist": "In Wishlist",
+    "noItems": "Your wishlist is empty",
+    "noItemsDesc": "Browse and save titles for later",
+    "download": "Download",
+    "remove": "Remove",
+    "browse": "Browse",
+    "failed": "Failed"
   }
 }

@@ -24,7 +24,8 @@ const navigation = computed(() => {
     { label: t('nav.dashboard'), icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
     { label: t('nav.browse'), icon: 'i-lucide-film', to: '/browse' },
     { label: t('nav.submit'), icon: 'i-lucide-plus-circle', to: '/dashboard/submit' },
-    { label: t('nav.downloads'), icon: 'i-lucide-download', to: '/dashboard/downloads' }
+    { label: t('nav.downloads'), icon: 'i-lucide-download', to: '/dashboard/downloads' },
+    { label: t('nav.wishlist'), icon: 'i-lucide-heart', to: '/dashboard/wishlist' }
   ]
 
   if (isAdmin.value) {
