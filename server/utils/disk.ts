@@ -1,4 +1,6 @@
 import fs from 'node:fs'
+import { settings } from '#server/database/schema'
+import { eq } from 'drizzle-orm'
 
 export interface DiskStatus {
   path: string
@@ -73,4 +75,22 @@ export function findTargetDisk(disks: string[], targetPath: string, minFreeGb: n
     }
   }
   return null
+}
+
+export function isDiskCheckEnabled(): boolean {
+  const db = useDb()
+  const row = db.select().from(settings).where(eq(settings.key, 'disk_check_enabled')).get()
+  if (row?.value === 'true') return true
+  if (row?.value === 'false') return false
+  return useRuntimeConfig().diskSpaceCheckEnabled as boolean
+}
+
+export function getDiskMinFreeGb(): number {
+  const db = useDb()
+  const row = db.select().from(settings).where(eq(settings.key, 'disk_min_free_gb')).get()
+  if (row?.value !== undefined) {
+    const parsed = Number(row.value)
+    if (!Number.isNaN(parsed) && parsed >= 0) return parsed
+  }
+  return useRuntimeConfig().minFreeSpaceGb as number
 }

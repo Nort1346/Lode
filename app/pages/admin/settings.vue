@@ -190,6 +190,24 @@ async function toggleDiscordMentions() {
   discordMentionsEnabled.value = newValue
 }
 
+async function toggleDiskCheck() {
+  const newValue = !diskCheckEnabled.value
+  await $fetch('/api/admin/disk-status', { method: 'PUT', body: { checkEnabled: newValue } })
+  diskCheckEnabled.value = newValue
+}
+
+async function changeMinFreeGb(event: Event) {
+  const input = event.target as HTMLInputElement
+  const val = Number(input.value)
+  if (Number.isNaN(val) || val < 0) return
+  diskMinFreeGb.value = val
+  await $fetch('/api/admin/disk-status', { method: 'PUT', body: { minFreeSpaceGb: val } })
+  const diskData = await $fetch<{ disks: DiskStatus[]; minFreeSpaceGb: number; checkEnabled: boolean }>(
+    '/api/admin/disk-status'
+  )
+  diskStatuses.value = diskData.disks
+}
+
 onMounted(fetchStatus)
 </script>
 
@@ -275,13 +293,25 @@ onMounted(fetchStatus)
         {{ t('settings.notConfigured') }} - NUXT_DISKS
       </div>
       <div v-else class="space-y-4">
-        <div class="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-          <UIcon
-            :name="diskCheckEnabled ? 'i-lucide-check-circle' : 'i-lucide-x-circle'"
-            class="size-4"
-            :class="diskCheckEnabled ? 'text-green-500' : 'text-zinc-400'"
-          />
-          {{ t('settings.diskMinRequired') }}: {{ diskMinFreeGb }} GB
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <UIcon
+              :name="diskCheckEnabled ? 'i-lucide-check-circle' : 'i-lucide-x-circle'"
+              class="size-4"
+              :class="diskCheckEnabled ? 'text-green-500' : 'text-zinc-400'"
+            />
+            <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+              t('settings.diskCheckEnabled')
+            }}</label>
+          </div>
+          <USwitch :model-value="diskCheckEnabled" @update:model-value="toggleDiskCheck" />
+        </div>
+        <div class="flex items-center gap-3 mb-3">
+          <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300 shrink-0">{{
+            t('settings.diskMinRequired')
+          }}</label>
+          <UInput :model-value="diskMinFreeGb" type="number" :min="0" class="w-24" @change="changeMinFreeGb" />
+          <span class="text-sm text-zinc-500 dark:text-zinc-400">GB</span>
         </div>
         <div v-for="disk in diskStatuses" :key="disk.path" class="space-y-2">
           <div class="flex items-center justify-between">

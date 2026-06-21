@@ -197,6 +197,7 @@
     "action_brute_force_config_update": "Login Protection Config Update",
     "action_brute_force_unblock_ip": "IP Unblocked",
     "action_discord_mentions_update": "Discord Mentions Update",
+    "action_disk_config_update": "Disk Config Update",
     "copied": "Copied"
   },
   "settings": {
@@ -237,6 +238,7 @@
     "diskLow": "Low disk space!",
     "diskUnavailable": "Disk unavailable",
     "diskMinRequired": "Minimum required",
+    "diskCheckEnabled": "Disk space check",
     "liveLogs": "Live Logs",
     "logsPause": "Pause",
     "logsResume": "Resume",

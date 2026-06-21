@@ -197,6 +197,7 @@
     "action_brute_force_config_update": "Aktualizacja ochrony logowania",
     "action_brute_force_unblock_ip": "Odblokowanie IP",
     "action_discord_mentions_update": "Aktualizacja wzmianek Discord",
+    "action_disk_config_update": "Aktualizacja ustawień dysków",
     "copied": "Skopiowano"
   },
   "settings": {
@@ -237,6 +238,7 @@
     "diskLow": "Mało miejsca!",
     "diskUnavailable": "Dysk niedostępny",
     "diskMinRequired": "Wymagane minimum",
+    "diskCheckEnabled": "Sprawdzanie dysków",
     "liveLogs": "Logi na żywo",
     "logsPause": "Pauza",
     "logsResume": "Wznów",

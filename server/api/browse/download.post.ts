@@ -7,7 +7,7 @@ import { clearSessionCache, performTrackerLogin } from '#server/utils/tracker-au
 import { decryptAES } from '#server/utils/crypto'
 import { gotScraping } from 'got-scraping'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
-import { checkAllDisks } from '#server/utils/disk'
+import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { formatSize } from '#server/utils/torrent-ranker'
 import { checkForDangerousFiles } from '#server/utils/safe-download'
 import { createLogger } from '#server/utils/logger'
@@ -167,11 +167,12 @@ export default defineEventHandler(async (event) => {
     log.info(`[Download:4:PATH] savePath=${savePath} → ${targetPath}`)
 
     // ── 4b: DISK SPACE CHECK ─────────────────────────────────
-    if (config.diskSpaceCheckEnabled === true) {
+    if (isDiskCheckEnabled()) {
       const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
       if (disks.length > 0) {
         const torrentSize = body.torrentSize ?? 0
-        const allStatuses = checkAllDisks(disks, config.minFreeSpaceGb as number)
+        const minFreeGb = getDiskMinFreeGb()
+        const allStatuses = checkAllDisks(disks, minFreeGb)
         for (const disk of allStatuses) {
           if (disk.available) {
             log.info(
@@ -182,15 +183,17 @@ export default defineEventHandler(async (event) => {
           }
         }
         const lowDisk = allStatuses.find((d) => {
-          if (!d.available) return false
+          if (!d.available) return true
           const effectiveFree = d.freeBytes - torrentSize
-          return effectiveFree < (config.minFreeSpaceGb as number) * 1024 ** 3
+          return effectiveFree < minFreeGb * 1024 ** 3
         })
         if (lowDisk !== undefined) {
-          log.warn(`[Download:4b:DISK] ✗ BLOCKED - ${lowDisk.path}: ${lowDisk.freeFormatted} free`)
+          log.warn(
+            `[Download:4b:DISK] ✗ BLOCKED - ${lowDisk.path}: ${lowDisk.available ? lowDisk.freeFormatted + ' free' : 'unavailable'}`
+          )
           throw createError({
             statusCode: 507,
-            statusMessage: `Insufficient disk space${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''} (${lowDisk.freeFormatted} free, minimum ${config.minFreeSpaceGb} GB required)`
+            statusMessage: `Insufficient disk space${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''} (${lowDisk.freeFormatted} free, minimum ${minFreeGb} GB required)`
           })
         }
       }
@@ -491,17 +494,17 @@ export default defineEventHandler(async (event) => {
     }
 
     // ── 9b: DISK CHECK POST-ADD ──────────────────────────────
-    if (torrent !== null && torrent.size > 0 && config.diskSpaceCheckEnabled === true) {
+    if (torrent !== null && torrent.size > 0 && isDiskCheckEnabled()) {
       const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
       if (disks.length > 0) {
-        const allStatuses = checkAllDisks(disks, config.minFreeSpaceGb as number)
+        const allStatuses = checkAllDisks(disks, getDiskMinFreeGb())
         const lowDisk = allStatuses.find((d) => {
-          if (!d.available) return false
+          if (!d.available) return true
           return torrent.size > d.freeBytes
         })
         if (lowDisk !== undefined) {
           log.warn(
-            `[Download:9b:DISK] ✗ POST-ADD DELETE - ${lowDisk.path}: ${lowDisk.freeFormatted} free, torrent=${formatSize(torrent.size)}`
+            `[Download:9b:DISK] ✗ POST-ADD DELETE - ${lowDisk.path}: ${lowDisk.available ? lowDisk.freeFormatted + ' free' : 'unavailable'}, torrent=${formatSize(torrent.size)}`
           )
           await qui.deleteTorrent(torrent.hash, true).catch(() => {})
           const id = randomUUID()

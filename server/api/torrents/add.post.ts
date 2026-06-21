@@ -3,7 +3,7 @@ import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { getFreshUser } from '#server/utils/user'
-import { checkAllDisks } from '#server/utils/disk'
+import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { formatSize } from '#server/utils/torrent-ranker'
 import { createLogger } from '#server/utils/logger'
 
@@ -131,20 +131,21 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Save path not configured' })
   }
 
-  if (config.diskSpaceCheckEnabled === true) {
+  if (isDiskCheckEnabled()) {
     const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
     if (disks.length > 0) {
       const torrentSize = body.torrentSize ?? 0
-      const allStatuses = checkAllDisks(disks, config.minFreeSpaceGb as number)
+      const minFreeGb = getDiskMinFreeGb()
+      const allStatuses = checkAllDisks(disks, minFreeGb)
       const lowDisk = allStatuses.find((d) => {
-        if (!d.available) return false
+        if (!d.available) return true
         const effectiveFree = d.freeBytes - torrentSize
-        return effectiveFree < (config.minFreeSpaceGb as number) * 1024 ** 3
+        return effectiveFree < minFreeGb * 1024 ** 3
       })
       if (lowDisk !== undefined) {
         throw createError({
           statusCode: 507,
-          statusMessage: `Insufficient disk space${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''} (${lowDisk.freeFormatted} free, minimum ${config.minFreeSpaceGb} GB required)`
+          statusMessage: `Insufficient disk space${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''} (${lowDisk.freeFormatted} free, minimum ${minFreeGb} GB required)`
         })
       }
     }
@@ -208,11 +209,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (torrent.size > 0 && config.diskSpaceCheckEnabled === true) {
+    if (torrent.size > 0 && isDiskCheckEnabled()) {
       const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
       if (disks.length > 0) {
-        const allStatuses = checkAllDisks(disks, config.minFreeSpaceGb as number)
-        const lowDisk = allStatuses.find((d) => d.available && torrent.size > d.freeBytes)
+        const allStatuses = checkAllDisks(disks, getDiskMinFreeGb())
+        const lowDisk = allStatuses.find((d) => {
+          if (!d.available) return true
+          return torrent.size > d.freeBytes
+        })
         if (lowDisk !== undefined) {
           await qui.deleteTorrent(torrent.hash, true).catch(() => {})
           throw createError({
