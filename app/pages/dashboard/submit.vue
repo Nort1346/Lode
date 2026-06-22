@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { mapApiError } from '~/types/api'
+
 definePageMeta({
   middleware: 'auth',
   layout: 'default'
@@ -105,7 +107,7 @@ async function handleSubmit() {
     toast.add({ title: t('submit.success'), color: 'success' })
     navigateTo('/dashboard/downloads')
   } catch (e: unknown) {
-    const err = e as { data?: { statusMessage?: string } }
+    const err = mapApiError(e)
     toast.add({ title: err.data?.statusMessage || t('submit.failed'), color: 'error' })
   } finally {
     loading.value = false

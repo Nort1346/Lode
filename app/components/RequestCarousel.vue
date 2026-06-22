@@ -1,18 +1,5 @@
 <script setup lang="ts">
-interface Request {
-  id: string
-  userId: string
-  username: string
-  mediaType: 'movie' | 'tv'
-  mediaId: number
-  mediaTitle: string
-  mediaPoster: string | null
-  status: 'pending' | 'accepted' | 'rejected'
-  userNote: string | null
-  adminNote: string | null
-  createdAt: string
-  updatedAt: string | null
-}
+import type { Request } from '~/types/requests'
 
 const { t } = useI18n()
 

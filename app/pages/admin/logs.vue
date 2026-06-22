@@ -1,14 +1,5 @@
 <script setup lang="ts">
-interface ActivityLog {
-  id: string
-  userId: string | null
-  username: string | null
-  action: string
-  details: string | null
-  ip: string | null
-  userAgent: string | null
-  createdAt: string
-}
+import type { ActivityLog } from '~/types/admin'
 
 definePageMeta({
   middleware: ['auth', 'admin'],

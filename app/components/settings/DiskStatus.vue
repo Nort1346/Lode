@@ -1,16 +1,5 @@
 <script setup lang="ts">
-interface DiskStatus {
-  path: string
-  totalBytes: number
-  freeBytes: number
-  usedBytes: number
-  totalFormatted: string
-  freeFormatted: string
-  usedFormatted: string
-  usedPercent: number
-  hasEnoughSpace: boolean
-  available: boolean
-}
+import type { DiskStatus } from '~/types/settings'
 
 const { t } = useI18n()
 const toast = useToast()

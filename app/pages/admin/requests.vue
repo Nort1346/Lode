@@ -1,18 +1,6 @@
 <script setup lang="ts">
-interface Request {
-  id: string
-  userId: string
-  username: string
-  mediaType: 'movie' | 'tv'
-  mediaId: number
-  mediaTitle: string
-  mediaPoster: string | null
-  status: 'pending' | 'accepted' | 'rejected'
-  userNote: string | null
-  adminNote: string | null
-  createdAt: string
-  updatedAt: string | null
-}
+import type { Request } from '~/types/requests'
+import { formatDate } from '~/composables/useTorrentUtils'
 
 definePageMeta({
   middleware: ['auth', 'admin'],
@@ -80,11 +68,6 @@ function prevPage() {
     page.value--
     fetchRequests()
   }
-}
-
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString()
 }
 
 function statusColor(status: string): string {

@@ -1,17 +1,7 @@
 <script setup lang="ts">
 import ConfirmDialog from '~/components/ConfirmDialog.vue'
-
-interface CustomTracker {
-  id: string
-  indexerName: string
-  trackerType: 'guid' | 'counting'
-  cookie: string
-  loginUrl: string | null
-  loginUsername: string | null
-  loginPassword: string | null
-  enabled: boolean
-  createdAt: string
-}
+import type { CustomTracker } from '~/types/admin'
+import { formatDate } from '~/composables/useTorrentUtils'
 
 definePageMeta({
   middleware: ['auth', 'admin'],
@@ -198,11 +188,6 @@ async function toggleEnabled(tracker: CustomTracker) {
 function maskCookie(cookie: string): string {
   if (cookie.length <= 16) return '••••••••'
   return cookie.substring(0, 8) + '••••' + cookie.substring(cookie.length - 8)
-}
-
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString()
 }
 
 function getMethodLabel(tracker: CustomTracker): string {

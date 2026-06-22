@@ -501,87 +501,16 @@
 </template>
 
 <script setup lang="ts">
-interface SeasonPack {
-  title: string
-  size: number
-  sizeFormatted: string
-  seeders: number
-  leechers: number
-  magnetLink: string | null
-  downloadUrl: string | null
-  guid: string | null
-  indexer: string
-  resolution: string | null
-  language: string | null
-  isSeasonPack: boolean
-  isPrivate: boolean
-  percentage: number
-}
-
-interface EpisodeTorrent {
-  title: string
-  size: number
-  sizeFormatted: string
-  seeders: number
-  leechers: number
-  magnetLink: string | null
-  downloadUrl: string | null
-  guid: string | null
-  indexer: string
-  score: number
-  percentage: number
-  recommended: boolean
-  resolution: string | null
-  language: string | null
-  isPrivate: boolean
-}
-
-interface Episode {
-  id: number
-  episodeNumber: number
-  name: string
-  overview: string
-  stillUrl: string | null
-  airDate: string
-  rating: number
-  runtime: number | null
-  torrents: EpisodeTorrent[]
-}
-
-interface ShowData {
-  id: number
-  name: string
-  originalName: string
-  overview: string
-  posterUrl: string | null
-  backdropUrl: string | null
-  imdbId: string | null
-  firstAirDate: string
-  rating: number
-  genres: Array<{ id: number; name: string }>
-  numberOfSeasons: number
-  numberOfEpisodes: number
-  seasons: Array<{
-    id: number
-    seasonNumber: number
-    name: string
-    posterUrl: string | null
-    episodeCount: number
-  }>
-}
-
-interface SeasonData {
-  season: { seasonNumber: number; name: string; posterUrl: string | null }
-  episodes: Episode[]
-  seasonPacks: SeasonPack[]
-}
+import type { ShowData, SeasonData } from '~/types/browse'
+import type { RequestStatus } from '~/types/requests'
+import { useCopyToClipboard } from '~/composables/useClipboard'
 
 const route = useRoute()
 const selectedSeason = ref(1)
 const downloadingKey = ref<string | null>(null)
 const downloadingPackIdx = ref<number | null>(null)
 const requesting = ref(false)
-const requestStatus = ref<'pending' | 'accepted' | 'rejected' | null>(null)
+const requestStatus = ref<RequestStatus>(null)
 const rejectedAdminNote = ref<string | null>(null)
 const wishlisted = ref(false)
 const wishlistId = ref<string | null>(null)
@@ -597,9 +526,7 @@ function toggleDebug(key: string) {
   debugOpenKey.value = debugOpenKey.value === key ? null : key
 }
 
-async function copyToClipboard(text: string) {
-  await navigator.clipboard.writeText(text)
-}
+const { copyToClipboard } = useCopyToClipboard()
 
 const {
   data: showData,

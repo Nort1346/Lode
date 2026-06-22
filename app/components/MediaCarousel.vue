@@ -48,17 +48,7 @@
 </template>
 
 <script setup lang="ts">
-export interface MediaCarouselItem {
-  id: number
-  type: 'movie' | 'tv'
-  title: string
-  overview: string
-  posterUrl: string | null
-  backdropUrl: string | null
-  logoUrl: string | null
-  year: string
-  rating: number
-}
+import type { MediaCarouselItem } from '~/types/media'
 
 defineProps<{
   title: string

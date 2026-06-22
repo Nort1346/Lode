@@ -102,9 +102,11 @@
 </template>
 
 <script setup lang="ts">
-import type { MediaCarouselItem } from '~/components/MediaCarousel.vue'
+import type { MediaCarouselItem } from '~/types/media'
+import { useGoToItem } from '~/composables/useNavigate'
 
 const { t, locale } = useI18n()
+const { goToItem } = useGoToItem()
 
 const searchQuery = ref('')
 const searchType = ref('all')
@@ -184,14 +186,6 @@ async function doSearch() {
   lastQuery.value = q
   searched.value = true
   await execute()
-}
-
-function goToItem(item: { id: number; type: string }) {
-  if (item.type === 'movie') {
-    navigateTo(`/browse/movie/${item.id}`)
-  } else {
-    navigateTo(`/browse/tv/${item.id}`)
-  }
 }
 
 // Lazy visibility flags

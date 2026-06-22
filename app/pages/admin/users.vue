@@ -1,17 +1,6 @@
 <script setup lang="ts">
-interface AdminUser {
-  id: string
-  username: string
-  role: string
-  isActive: boolean
-  dailyDownloadLimit: number
-  activeTorrentLimit: number
-  maxTorrentSizeGb: number
-  privateTrackerLimit: number
-  downloadsToday: number
-  createdAt: string
-  discordId: string | null
-}
+import type { AdminUser } from '~/types/admin'
+import { formatDate } from '~/composables/useTorrentUtils'
 
 definePageMeta({
   middleware: ['auth', 'admin'],
@@ -137,11 +126,6 @@ async function toggleActive(user: { id: string; isActive: boolean }) {
   } catch {
     // silently fail
   }
-}
-
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString()
 }
 
 const roleOptions = computed(() => [

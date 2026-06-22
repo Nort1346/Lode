@@ -1,29 +1,12 @@
 <script setup lang="ts">
+import type { BlockedIp, BruteForceConfig, BruteForceStats } from '~/types/admin'
+
 definePageMeta({
   middleware: ['auth', 'admin'],
   layout: 'default'
 })
 
 const { t } = useI18n()
-
-interface BlockedIp {
-  ip: string
-  expiresAt: number
-  attemptsCount: number
-}
-
-interface BruteForceConfig {
-  maxAttemptsPerIp: number
-  ipBlockDurationMinutes: number
-  windowMinutes: number
-}
-
-interface BruteForceStats {
-  blockedIpsCount: number
-  recentAttempts24h: number
-  recentFailed24h: number
-  recentSuccess24h: number
-}
 
 const blockedIps = ref<BlockedIp[]>([])
 const config = ref<BruteForceConfig>({

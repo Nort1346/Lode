@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { mapApiError } from '~/types/api'
+
 definePageMeta({
   layout: false
 })
@@ -36,7 +38,7 @@ async function handleLogin() {
     await fetchSession()
     window.location.href = '/dashboard'
   } catch (e: unknown) {
-    const err = e as { data?: { statusMessage?: string } }
+    const err = mapApiError(e)
     error.value = err.data?.statusMessage || t('login.failed')
   } finally {
     loading.value = false

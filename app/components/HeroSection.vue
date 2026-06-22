@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { MediaCarouselItem } from '~/components/MediaCarousel.vue'
+import type { MediaCarouselItem } from '~/types/media'
 
 const props = defineProps<{
   trendingItems: MediaCarouselItem[]
 }>()
 
 const { t } = useI18n()
+const { goToItem } = useGoToItem()
 
 const heroCurrent = ref<MediaCarouselItem | null>(null)
 const heroNext = ref<MediaCarouselItem | null>(null)
@@ -72,14 +73,6 @@ useHead(() => {
 onUnmounted(() => {
   if (heroIntervalId.value) clearInterval(heroIntervalId.value)
 })
-
-function goToItem(item: { id: number; type: string }) {
-  if (item.type === 'movie') {
-    navigateTo(`/browse/movie/${item.id}`)
-  } else {
-    navigateTo(`/browse/tv/${item.id}`)
-  }
-}
 </script>
 
 <template>

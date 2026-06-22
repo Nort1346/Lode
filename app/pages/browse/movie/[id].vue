@@ -369,44 +369,15 @@
 </template>
 
 <script setup lang="ts">
-interface Torrent {
-  title: string
-  size: number
-  sizeFormatted: string
-  seeders: number
-  leechers: number
-  indexer: string
-  magnetLink: string | null
-  downloadUrl: string | null
-  guid: string | null
-  score: number
-  percentage: number
-  recommended: boolean
-  resolution: string | null
-  source: string | null
-  language: string | null
-  isPrivate: boolean
-}
-
-interface MovieData {
-  id: number
-  title: string
-  originalTitle: string
-  overview: string
-  posterUrl: string | null
-  backdropUrl: string | null
-  releaseDate: string
-  rating: number
-  voteCount: number
-  runtime: number | null
-  genres: Array<{ id: number; name: string }>
-  imdbId: string | null
-}
+import type { Torrent } from '~/types/media'
+import type { MovieData } from '~/types/browse'
+import type { RequestStatus } from '~/types/requests'
+import { useCopyToClipboard } from '~/composables/useClipboard'
 
 const route = useRoute()
 const downloadingIdx = ref<number | null>(null)
 const requesting = ref(false)
-const requestStatus = ref<'pending' | 'accepted' | 'rejected' | null>(null)
+const requestStatus = ref<RequestStatus>(null)
 const rejectedAdminNote = ref<string | null>(null)
 const wishlisted = ref(false)
 const wishlistId = ref<string | null>(null)
@@ -422,9 +393,7 @@ function toggleDebug(idx: number) {
   debugOpenIdx.value = debugOpenIdx.value === idx ? null : idx
 }
 
-async function copyToClipboard(text: string) {
-  await navigator.clipboard.writeText(text)
-}
+const { copyToClipboard } = useCopyToClipboard()
 
 const { data, pending, error } = await useFetch<{ movie: MovieData }>(
   computed(() => `/api/browse/movie/${route.params.id}?locale=${locale.value}`),

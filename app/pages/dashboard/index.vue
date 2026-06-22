@@ -1,29 +1,8 @@
 <script setup lang="ts">
 import ConfirmDialog from '~/components/ConfirmDialog.vue'
-import type { MediaCarouselItem } from '~/components/MediaCarousel.vue'
-
-interface Download {
-  id: string
-  userId: string
-  username?: string
-  label: string
-  torrentName: string
-  magnetLink: string
-  savePath: string
-  status: string
-  torrentHash: string | null
-  progress: number
-  etaSeconds: number
-  downloadSpeed: number
-  uploadSpeed: number
-  sizeBytes: number
-  downloadedBytes: number
-  numSeeds: number
-  numLeechs: number
-  createdAt: string
-  completedAt: string | null
-  posterUrl: string | null
-}
+import type { MediaCarouselItem } from '~/types/media'
+import type { Download } from '~/types/downloads'
+import { formatEta, formatSpeed, formatSize, getTorrentQuality, useQualityConfig } from '~/composables/useTorrentUtils'
 
 definePageMeta({
   middleware: 'auth'
@@ -134,70 +113,7 @@ function getDisplayName(dl: Download): string {
   return dl.label || dl.torrentName || dl.magnetLink.substring(0, 60) + '...'
 }
 
-function formatEta(seconds: number): string {
-  if (seconds <= 0) return '-'
-  const hours = Math.floor(seconds / 3600)
-  const mins = Math.floor((seconds % 3600) / 60)
-  const secs = Math.floor(seconds % 60)
-  if (hours > 0) return `${hours}h ${mins}m`
-  if (mins > 0) return `${mins}m ${secs}s`
-  return `${secs}s`
-}
-
-function formatSpeed(bytes: number): string {
-  if (bytes <= 0) return '0 B/s'
-  const kb = bytes / 1024
-  if (kb < 1024) return `${kb.toFixed(1)} KB/s`
-  const mb = kb / 1024
-  return `${mb.toFixed(1)} MB/s`
-}
-
-function formatSize(bytes: number): string {
-  if (bytes <= 0) return '-'
-  const gb = bytes / (1024 * 1024 * 1024)
-  if (gb >= 1) return `${gb.toFixed(2)} GB`
-  const mb = bytes / (1024 * 1024)
-  return `${mb.toFixed(1)} MB`
-}
-
-type TorrentQuality = 'dead' | 'poor' | 'slow' | 'ok'
-
-function getTorrentQuality(dl: Download): TorrentQuality {
-  if (dl.status !== 'downloading') return 'ok'
-  if (dl.numSeeds === 0 && dl.progress < 100) return 'dead'
-  if (dl.numSeeds <= 3 && dl.progress < 100) return 'poor'
-  if (dl.downloadSpeed === 0 && dl.etaSeconds > 0 && dl.progress < 100) return 'slow'
-  return 'ok'
-}
-
-const qualityConfig = computed<
-  Record<TorrentQuality, { border: string; badge: string; badgeText: string; bar: string }>
->(() => ({
-  dead: {
-    border: 'border-red-500/60 dark:border-red-500/40',
-    badge: 'bg-red-500/15 text-red-700 dark:text-red-400',
-    badgeText: t('torrent.dead'),
-    bar: 'from-red-500 to-red-600'
-  },
-  poor: {
-    border: 'border-amber-500/50 dark:border-amber-500/30',
-    badge: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-    badgeText: t('torrent.poor'),
-    bar: 'from-amber-500 to-orange-500'
-  },
-  slow: {
-    border: 'border-zinc-400/50 dark:border-zinc-500/30',
-    badge: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400',
-    badgeText: t('torrent.slow'),
-    bar: 'from-cyan-500 to-blue-500'
-  },
-  ok: {
-    border: 'border-zinc-200 dark:border-white/5',
-    badge: '',
-    badgeText: '',
-    bar: 'from-cyan-500 to-blue-500'
-  }
-}))
+const { qualityConfig } = useQualityConfig()
 
 const statusColors: Record<string, string> = {
   downloading: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400',

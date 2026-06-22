@@ -1,11 +1,5 @@
 <script setup lang="ts">
-interface ServiceStatus {
-  name: string
-  configured: boolean
-  status: 'up' | 'down' | 'not_configured'
-  latencyMs?: number
-  details?: string
-}
+import type { ServiceStatus } from '~/types/settings'
 
 const { t } = useI18n()
 
