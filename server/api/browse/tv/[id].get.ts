@@ -28,6 +28,7 @@ export default defineEventHandler(async (event) => {
       overview: show.overview,
       posterUrl: getImageUrl(show.poster_path, 'w780'),
       backdropUrl: getImageUrl(show.backdrop_path, 'original'),
+      imdbId: (show as unknown as { external_ids?: { imdb_id?: string } }).external_ids?.imdb_id ?? null,
       firstAirDate: show.first_air_date,
       rating: show.vote_average,
       voteCount: show.vote_count,

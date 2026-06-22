@@ -10,7 +10,8 @@
     "settings": "Admin Settings",
     "requests": "Requests",
     "trackers": "Trackers",
-    "bruteForce": "Security"
+    "bruteForce": "Security",
+    "language": "Language"
   },
   "theme": {
     "light": "Light Mode",

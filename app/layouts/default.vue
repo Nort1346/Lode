@@ -76,13 +76,6 @@ watch(
       </button>
       <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">StreamHub</NuxtLink>
       <div class="flex items-center gap-1">
-        <USelect
-          :model-value="locale"
-          :items="localeOptions"
-          size="xs"
-          class="w-20"
-          @update:model-value="setLocale($event as 'pl' | 'en')"
-        />
         <button
           class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
           @click="toggleTheme"
@@ -126,7 +119,7 @@ watch(
         </nav>
 
         <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4">
-          <div class="flex items-center gap-3 px-3 mb-3">
+          <div class="flex items-center gap-3 px-3 mb-2">
             <UAvatar :alt="user?.username" size="sm" />
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-zinc-900 dark:text-white truncate">
@@ -136,6 +129,15 @@ watch(
                 {{ user?.role }}
               </p>
             </div>
+          </div>
+          <div class="flex items-center gap-3 px-3 mb-2">
+            <USelect
+              :model-value="locale"
+              :items="localeOptions"
+              size="xs"
+              class="flex-1"
+              @update:model-value="setLocale($event as 'pl' | 'en')"
+            />
           </div>
           <UButton
             variant="ghost"
@@ -181,16 +183,6 @@ watch(
           {{ isDark ? t('theme.light') : t('theme.dark') }}
         </button>
 
-        <div class="px-3">
-          <USelect
-            :model-value="locale"
-            :items="localeOptions"
-            size="xs"
-            class="w-full"
-            @update:model-value="setLocale($event as 'pl' | 'en')"
-          />
-        </div>
-
         <div class="flex items-center gap-3 px-3">
           <UAvatar :alt="user?.username" size="sm" />
           <div class="flex-1 min-w-0">
@@ -201,6 +193,15 @@ watch(
               {{ user?.role }}
             </p>
           </div>
+        </div>
+        <div class="flex items-center gap-3 px-3">
+          <USelect
+            :model-value="locale"
+            :items="localeOptions"
+            size="xs"
+            class="flex-1"
+            @update:model-value="setLocale($event as 'pl' | 'en')"
+          />
         </div>
         <UButton
           variant="ghost"

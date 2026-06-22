@@ -92,7 +92,16 @@
 
         <p class="mt-6 leading-relaxed text-zinc-700 dark:text-zinc-300">{{ movie.overview }}</p>
 
-        <div v-if="movie.imdbId" class="mt-4 text-sm text-zinc-500 dark:text-zinc-400">IMDB: {{ movie.imdbId }}</div>
+        <a
+          v-if="movie.imdbId"
+          :href="`https://www.imdb.com/title/${movie.imdbId}/`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-4 inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-amber-500 transition-colors"
+        >
+          <UIcon name="i-lucide-external-link" class="size-3.5" />
+          IMDB: {{ movie.imdbId }}
+        </a>
 
         <div class="mt-4 flex flex-wrap items-center gap-3">
           <UButton

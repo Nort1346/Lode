@@ -10,7 +10,8 @@
     "settings": "Ustawienia Admina",
     "requests": "Żądania",
     "trackers": "Trackery",
-    "bruteForce": "Ochrona"
+    "bruteForce": "Ochrona",
+    "language": "Język"
   },
   "theme": {
     "light": "Tryb jasny",
