@@ -8,8 +8,10 @@ interface Request {
   mediaTitle: string
   mediaPoster: string | null
   status: 'pending' | 'accepted' | 'rejected'
-  note: string | null
+  userNote: string | null
+  adminNote: string | null
   createdAt: string
+  updatedAt: string | null
 }
 
 definePageMeta({
@@ -32,9 +34,10 @@ const STATUS_OPTIONS = computed(() => [
   { value: 'rejected', label: t('requests.filterRejected') }
 ])
 
-const rejectModalOpen = ref(false)
-const rejectNote = ref('')
-const rejectId = ref<string | null>(null)
+const actionModalOpen = ref(false)
+const actionType = ref<'accept' | 'reject'>('accept')
+const actionNote = ref('')
+const actionId = ref<string | null>(null)
 const processingId = ref<string | null>(null)
 
 async function fetchRequests() {
@@ -107,45 +110,38 @@ function typeLabel(mediaType: string): string {
   return mediaType === 'movie' ? t('mediaCard.movie') : t('mediaCard.tv')
 }
 
-async function acceptRequest(id: string) {
-  processingId.value = id
-  try {
-    await $fetch(`/api/requests/${id}`, {
-      method: 'PATCH',
-      body: { status: 'accepted' }
-    })
-    await fetchRequests()
-  } catch {
-    // silently fail
-  } finally {
-    processingId.value = null
-  }
+function openAcceptModal(id: string) {
+  actionId.value = id
+  actionType.value = 'accept'
+  actionNote.value = ''
+  actionModalOpen.value = true
 }
 
 function openRejectModal(id: string) {
-  rejectId.value = id
-  rejectNote.value = ''
-  rejectModalOpen.value = true
+  actionId.value = id
+  actionType.value = 'reject'
+  actionNote.value = ''
+  actionModalOpen.value = true
 }
 
-async function confirmReject() {
-  if (!rejectId.value) return
-  processingId.value = rejectId.value
+async function confirmAction() {
+  if (!actionId.value) return
+  processingId.value = actionId.value
   try {
-    await $fetch(`/api/requests/${rejectId.value}`, {
+    await $fetch(`/api/requests/${actionId.value}`, {
       method: 'PATCH',
       body: {
-        status: 'rejected',
-        note: rejectNote.value || undefined
+        status: actionType.value === 'accept' ? 'accepted' : 'rejected',
+        adminNote: actionNote.value || undefined
       }
     })
-    rejectModalOpen.value = false
+    actionModalOpen.value = false
     await fetchRequests()
   } catch {
     // silently fail
   } finally {
     processingId.value = null
-    rejectId.value = null
+    actionId.value = null
   }
 }
 </script>
@@ -188,6 +184,9 @@ async function confirmReject() {
                 {{ t('requests.tableType') }}
               </th>
               <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
+                {{ t('requests.tableMessage') }}
+              </th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
                 {{ t('requests.tableStatus') }}
               </th>
               <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
@@ -217,6 +216,15 @@ async function confirmReject() {
               <td class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
                 {{ typeLabel(req.mediaType) }}
               </td>
+              <td class="px-4 py-3 max-w-48">
+                <p v-if="req.userNote" class="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 italic">
+                  {{ req.userNote }}
+                </p>
+                <span v-else class="text-xs text-zinc-300 dark:text-zinc-600">-</span>
+                <p v-if="req.adminNote" class="text-xs text-amber-600 dark:text-amber-400 mt-1 line-clamp-2">
+                  {{ t('requests.adminNote') }}: {{ req.adminNote }}
+                </p>
+              </td>
               <td class="px-4 py-3">
                 <span
                   class="text-xs font-medium px-2 py-1 rounded-full"
@@ -236,7 +244,7 @@ async function confirmReject() {
                     variant="soft"
                     icon="i-lucide-check"
                     :loading="processingId === req.id"
-                    @click="acceptRequest(req.id)"
+                    @click="openAcceptModal(req.id)"
                   >
                     {{ t('requests.accept') }}
                   </UButton>
@@ -251,8 +259,8 @@ async function confirmReject() {
                     {{ t('requests.reject') }}
                   </UButton>
                 </div>
-                <span v-else-if="req.note" class="text-xs text-zinc-400 dark:text-zinc-500 italic line-clamp-1">
-                  {{ req.note }}
+                <span v-else-if="req.adminNote" class="text-xs text-zinc-400 dark:text-zinc-500 italic line-clamp-1">
+                  {{ req.adminNote }}
                 </span>
               </td>
             </tr>
@@ -271,23 +279,32 @@ async function confirmReject() {
       </div>
     </div>
 
-    <UModal v-model:open="rejectModalOpen">
+    <UModal v-model:open="actionModalOpen">
       <template #header>
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('requests.reject') }}</h3>
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">
+          {{ actionType === 'accept' ? t('requests.accept') : t('requests.reject') }}
+        </h3>
       </template>
       <template #body>
-        <UFormField :label="t('requests.rejectNote')">
-          <UInput v-model="rejectNote" :placeholder="t('requests.rejectNote')" class="w-full" />
+        <UFormField :label="t('requests.adminNoteLabel')">
+          <UInput
+            v-model="actionNote"
+            :placeholder="t('requests.adminNotePlaceholder')"
+            :maxlength="255"
+            class="w-full"
+            @keydown.enter.prevent
+          />
+          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500 text-right">{{ actionNote.length }}/255</p>
         </UFormField>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton :label="t('common.cancel')" variant="soft" @click="rejectModalOpen = false" />
+          <UButton :label="t('common.cancel')" variant="soft" @click="actionModalOpen = false" />
           <UButton
-            :label="t('requests.reject')"
-            color="error"
-            :loading="processingId === rejectId"
-            @click="confirmReject"
+            :label="actionType === 'accept' ? t('requests.accept') : t('requests.reject')"
+            :color="actionType === 'accept' ? 'success' : 'error'"
+            :loading="processingId === actionId"
+            @click="confirmAction"
           />
         </div>
       </template>

@@ -1,6 +1,7 @@
 import { eq, and } from 'drizzle-orm'
 import { useDb } from '#server/utils/db'
 import { requests } from '#server/database/schema'
+import { notifyRequestPending } from '#server/utils/discord'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -13,8 +14,9 @@ export default defineEventHandler(async (event) => {
     mediaId: number
     mediaTitle: string
     mediaPoster?: string | null
+    userNote?: string | null
   }
-  const { mediaType, mediaId, mediaTitle, mediaPoster } = body
+  const { mediaType, mediaId, mediaTitle, mediaPoster, userNote: rawUserNote } = body
 
   if (!mediaType || !mediaId || !mediaTitle) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
@@ -24,26 +26,29 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid media type' })
   }
 
+  const userNote =
+    rawUserNote !== null && rawUserNote !== undefined ? rawUserNote.replace(/\n/g, ' ').trim().slice(0, 255) : null
+
   const db = useDb()
 
   const existing = db
     .select()
     .from(requests)
-    .where(
-      and(
-        eq(requests.userId, session.user.id),
-        eq(requests.mediaType, mediaType),
-        eq(requests.mediaId, mediaId),
-        eq(requests.status, 'pending')
-      )
-    )
+    .where(and(eq(requests.userId, session.user.id), eq(requests.mediaType, mediaType), eq(requests.mediaId, mediaId)))
     .get()
 
   if (existing) {
-    throw createError({ statusCode: 409, statusMessage: 'Already requested' })
+    if (existing.status === 'pending') {
+      throw createError({ statusCode: 409, statusMessage: 'Already requested' })
+    }
+    if (existing.status === 'accepted') {
+      throw createError({ statusCode: 409, statusMessage: 'Already accepted' })
+    }
+    throw createError({ statusCode: 409, statusMessage: 'Request was rejected' })
   }
 
   const id = crypto.randomUUID()
+  const now = new Date().toISOString()
 
   db.insert(requests)
     .values({
@@ -54,10 +59,22 @@ export default defineEventHandler(async (event) => {
       mediaId,
       mediaTitle,
       mediaPoster: mediaPoster ?? null,
+      userNote: userNote ?? null,
       status: 'pending',
-      createdAt: new Date().toISOString()
+      createdAt: now,
+      updatedAt: now
     })
     .run()
+
+  notifyRequestPending({
+    id,
+    mediaType: mediaType as 'movie' | 'tv',
+    mediaId,
+    mediaTitle,
+    mediaPoster: mediaPoster ?? null,
+    username: session.user.username,
+    userNote: userNote ?? null
+  }).catch(() => {})
 
   return { success: true }
 })

@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm'
+import { eq, and, desc } from 'drizzle-orm'
 import { useDb } from '#server/utils/db'
 import { requests } from '#server/database/schema'
 
@@ -25,11 +25,15 @@ export default defineEventHandler(async (event) => {
       and(
         eq(requests.userId, session.user.id),
         eq(requests.mediaType, mediaType as 'movie' | 'tv'),
-        eq(requests.mediaId, mediaId),
-        eq(requests.status, 'pending')
+        eq(requests.mediaId, mediaId)
       )
     )
+    .orderBy(desc(requests.createdAt))
     .get()
 
-  return { requested: !!existing }
+  if (!existing) {
+    return { status: null, adminNote: null }
+  }
+
+  return { status: existing.status, adminNote: existing.adminNote ?? null }
 })

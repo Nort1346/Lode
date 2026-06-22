@@ -13,12 +13,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing request ID' })
   }
 
-  const body = (await readBody(event)) as { status: string; note?: string }
-  const { status, note } = body
+  const body = (await readBody(event)) as { status: string; adminNote?: string }
+  const { status, adminNote: rawAdminNote } = body
 
   if (status !== 'accepted' && status !== 'rejected') {
     throw createError({ statusCode: 400, statusMessage: 'Invalid status' })
   }
+
+  const adminNote =
+    rawAdminNote !== null && rawAdminNote !== undefined ? rawAdminNote.replace(/\n/g, ' ').trim().slice(0, 255) : null
 
   const db = useDb()
 
@@ -28,7 +31,11 @@ export default defineEventHandler(async (event) => {
   }
 
   db.update(requests)
-    .set({ status: status as 'accepted' | 'rejected', note: note ?? null })
+    .set({
+      status: status as 'accepted' | 'rejected',
+      adminNote: adminNote ?? null,
+      updatedAt: new Date().toISOString()
+    })
     .where(eq(requests.id, id))
     .run()
 

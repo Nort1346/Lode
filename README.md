@@ -109,6 +109,7 @@ Season packs are scored through `rankTorrents()` with adjusted size thresholds (
 - Poster thumbnails (TMDB w185, 48×72px mobile, 80×120px desktop)
 - Hero banner: auto-rotating (8s) random trending movie with TMDB logo title treatment (fallback to plain text), backdrop image (original quality), crossfade transition (800ms), locale-aware overview, type badge, rating badge, CTA button. Responsive heights: 380px (mobile) → 480px (sm) → 560px (md) → 640px (lg) → 720px (xl)
 - 3 carousels below hero: Trending, Popular Movies, Popular TV (using reusable `MediaCarousel` component)
+- "My Requests" carousel showing user's pending requests with status badges (pending, accepted, rejected)
 - Navigation: Dashboard, Browse, Submit, Downloads, **Wishlist**
 
 **Downloads page (`/dashboard/downloads`):**
@@ -269,7 +270,9 @@ Limits are fetched directly from the `users` table via `getFreshUser(userId)`, n
 NUXT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 ```
 
-**When triggered:** On download completion (detected by background torrent sync)
+**When triggered:**
+- `MEDIA_DOWNLOAD` — on download completion (detected by background torrent sync)
+- `MEDIA_PENDING` — when a user submits a new request (sent to admin channel)
 
 **Message format (Components V2):**
 - TextDisplay mention: `<@discord_id>` (if user has Discord ID set and mentions are enabled)
@@ -281,6 +284,12 @@ NUXT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 - Separator
 - Info: size, category (Movies/Series/etc), downloaded by username
 - Technical metadata parsed from torrent name: resolution, source, language, codec
+
+**MEDIA_PENDING notification content:**
+- Title (from TMDB)
+- Media type (movie/TV)
+- Requester username
+- Optional user note (if provided when requesting)
 
 **User mentions:**
 - Each user can have a `discord_id` set in admin panel (`/admin/users`)
@@ -310,13 +319,26 @@ NUXT_JELLYFIN_PREP_SPEED_MB=8
 **User flow:**
 1. Browse to movie/TV detail page
 2. Click "Request This" button
-3. Request created with status `pending`
-4. Duplicate prevention (can't request same title twice)
+3. Optionally add a message to admin (user note)
+4. Request created with status `pending`
+5. Duplicate prevention (can't request same title twice)
+
+**Request statuses:**
+| Status | Description |
+|--------|-------------|
+| `pending` | Awaiting admin review |
+| `accepted` | Admin approved the request |
+| `rejected` | Admin declined the request |
+
+**My Requests (`/dashboard`):**
+- Dedicated section showing the user's own requests
+- Each request displays a status badge (pending = amber, accepted = green, rejected = red)
+- Shows title, media type, date, and admin response note (if any)
 
 **Admin flow:**
 1. View all requests at `/admin/requests`
 2. Filter by status: All / Pending / Accepted / Rejected
-3. Accept or reject with optional note
+3. Accept or reject with optional admin response note
 4. Paginated table with user, title, type, status, date
 
 ### Wishlist
@@ -780,8 +802,10 @@ Known keys: `discord_locale` (pl/en), `discord_mentions_enabled` (true/false), `
 | `media_title` | text | Title |
 | `media_poster` | text | TMDB poster URL |
 | `status` | text | `pending`/`accepted`/`rejected` |
-| `note` | text | Admin note (on reject) |
+| `user_note` | text | Optional message from user to admin |
+| `admin_note` | text | Admin response note (on accept/reject) |
 | `created_at` | text | ISO timestamp |
+| `updated_at` | text | Last update timestamp |
 
 ### `wishlist`
 | Column | Type | Description |
@@ -836,10 +860,11 @@ Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists
 ### Requests
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/api/requests/post` | Yes | Submit media request |
+| POST | `/api/requests/post` | Yes | Submit media request (with optional user note) |
 | GET | `/api/requests/mine` | Yes | Check if user requested a title |
+| GET | `/api/requests/my` | Yes | Get user's own requests with status |
 | GET | `/api/requests/list` | Admin | List all requests (paginated, filterable) |
-| PATCH | `/api/requests/:id` | Admin | Accept/reject request |
+| PATCH | `/api/requests/:id` | Admin | Accept/reject request (with optional admin note) |
 
 ### Wishlist
 | Method | Endpoint | Auth | Description |

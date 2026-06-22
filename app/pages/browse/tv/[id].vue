@@ -107,24 +107,34 @@
 
         <div class="mt-4 flex flex-wrap items-center gap-3">
           <UButton
-            v-if="!alreadyRequested"
+            v-if="requestStatus === null"
             color="primary"
             variant="outline"
             icon="i-lucide-message-square-plus"
             class="cursor-pointer"
             :loading="requesting"
-            @click="requestTitle"
+            @click="openRequestModal"
           >
             {{ t('requests.requestThis') }}
           </UButton>
-          <span
-            v-else
-            class="inline-flex items-center gap-2 text-sm text-amber-500 cursor-pointer"
-            @click="requestTitle"
-          >
-            <UIcon name="i-lucide-check-circle" class="size-4" />
-            {{ t('requests.alreadyRequested') }}
+          <span v-else-if="requestStatus === 'pending'" class="inline-flex items-center gap-2 text-sm text-amber-500">
+            <UIcon name="i-lucide-clock" class="size-4" />
+            {{ t('requests.pending') }}
           </span>
+          <span v-else-if="requestStatus === 'accepted'" class="inline-flex items-center gap-2 text-sm text-green-500">
+            <UIcon name="i-lucide-check-circle" class="size-4" />
+            {{ t('requests.accepted') }}
+          </span>
+          <span v-else-if="requestStatus === 'rejected'" class="inline-flex items-center gap-2 text-sm text-red-500">
+            <UIcon name="i-lucide-x-circle" class="size-4" />
+            {{ t('requests.rejected') }}
+          </span>
+          <p
+            v-if="requestStatus === 'rejected' && rejectedAdminNote"
+            class="w-full text-xs text-zinc-500 dark:text-zinc-400 italic"
+          >
+            {{ t('requests.adminResponse') }}: {{ rejectedAdminNote }}
+          </p>
           <UButton
             color="error"
             variant="outline"
@@ -462,6 +472,31 @@
         </div>
       </div>
     </div>
+
+    <UModal v-model:open="requestModalOpen">
+      <template #header>
+        <h3 class="text-xl font-semibold text-zinc-900 dark:text-white">{{ t('requests.requestThis') }}</h3>
+      </template>
+      <template #body>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-3">{{ show?.name }}</p>
+        <UFormField :label="t('requests.messageToAdmin')">
+          <UInput
+            v-model="requestNote"
+            :placeholder="t('requests.messagePlaceholder')"
+            :maxlength="255"
+            class="w-full"
+            @keydown.enter.prevent
+          />
+          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500 text-right">{{ requestNote.length }}/255</p>
+        </UFormField>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton :label="t('common.cancel')" variant="soft" @click="requestModalOpen = false" />
+          <UButton :label="t('requests.requestThis')" :loading="requesting" @click="submitRequest" />
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -546,10 +581,13 @@ const selectedSeason = ref(1)
 const downloadingKey = ref<string | null>(null)
 const downloadingPackIdx = ref<number | null>(null)
 const requesting = ref(false)
-const alreadyRequested = ref(false)
+const requestStatus = ref<'pending' | 'accepted' | 'rejected' | null>(null)
+const rejectedAdminNote = ref<string | null>(null)
 const wishlisted = ref(false)
 const wishlistId = ref<string | null>(null)
 const debugOpenKey = ref<string | null>(null)
+const requestModalOpen = ref(false)
+const requestNote = ref('')
 const { t, locale } = useI18n()
 const { user } = useUserSession()
 
@@ -662,14 +700,22 @@ async function downloadTorrent(
 watchEffect(async () => {
   if (!show.value) return
   try {
-    const res = await $fetch<{ requested: boolean }>(`/api/requests/mine?mediaType=tv&mediaId=${show.value.id}`)
-    alreadyRequested.value = res.requested
+    const res = await $fetch<{ status: string | null; adminNote: string | null }>(
+      `/api/requests/mine?mediaType=tv&mediaId=${show.value.id}`
+    )
+    requestStatus.value = res.status as 'pending' | 'accepted' | 'rejected' | null
+    rejectedAdminNote.value = res.adminNote
   } catch {
     // not logged in or error
   }
 })
 
-async function requestTitle() {
+function openRequestModal() {
+  requestNote.value = ''
+  requestModalOpen.value = true
+}
+
+async function submitRequest() {
   if (!show.value) return
   requesting.value = true
   try {
@@ -679,10 +725,12 @@ async function requestTitle() {
         mediaType: 'tv',
         mediaId: show.value.id,
         mediaTitle: show.value.name,
-        mediaPoster: show.value.posterUrl
+        mediaPoster: show.value.posterUrl,
+        userNote: requestNote.value || null
       }
     })
-    alreadyRequested.value = true
+    requestStatus.value = 'pending'
+    requestModalOpen.value = false
     const toast = useToast()
     toast.add({
       title: t('requests.requestSuccess'),

@@ -72,8 +72,10 @@ export const requests = sqliteTable('requests', {
   status: text('status', { enum: ['pending', 'accepted', 'rejected'] })
     .notNull()
     .default('pending'),
-  note: text('note'),
-  createdAt: text('created_at').notNull()
+  userNote: text('user_note'),
+  adminNote: text('admin_note'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at')
 })
 
 export const customTrackers = sqliteTable(

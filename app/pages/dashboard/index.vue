@@ -524,6 +524,8 @@ const savePathLabels: Record<string, string> = {
       </div>
     </div>
 
+    <RequestCarousel />
+
     <MediaCarousel :title="t('dashboard.trendingNow')" :items="trendingItems" @item-click="goToItem" />
     <MediaCarousel :title="t('browse.popularMovies')" :items="popularMovies" @item-click="goToItem" />
     <MediaCarousel :title="t('browse.popularTv')" :items="popularTvShows" @item-click="goToItem" />

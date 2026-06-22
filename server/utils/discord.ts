@@ -317,3 +317,78 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
 }
 
 export { LOCALE_OPTIONS }
+
+export interface RequestPendingData {
+  id: string
+  mediaType: 'movie' | 'tv'
+  mediaId: number
+  mediaTitle: string
+  mediaPoster: string | null
+  username: string
+  userNote: string | null
+}
+
+export async function notifyRequestPending(data: RequestPendingData): Promise<void> {
+  const config = useRuntimeConfig()
+  const webhookUrl = config.discordWebhookUrl as string
+  if (!webhookUrl) return
+
+  const locale = getDiscordLocale()
+  const str = getStrings(locale)
+
+  let tmdb: TmdbMeta | null = null
+  try {
+    tmdb = await fetchTmdbMeta(data.mediaId, data.mediaType)
+  } catch {
+    // ignore
+  }
+
+  const title = (tmdb?.title ?? data.mediaTitle ?? '').trim() || data.mediaTitle
+  const typeEmoji = data.mediaType === 'movie' ? str.movies : str.series
+
+  const container = new ContainerBuilder()
+
+  container.addTextDisplayComponents((text: TextDisplayBuilder) =>
+    text.setContent(heading(`${title}`, HeadingLevel.One))
+  )
+
+  if (tmdb !== null && tmdb.posterUrl !== null && tmdb.posterUrl.length > 0) {
+    const posterUrl = tmdb.posterUrl
+    container.addMediaGalleryComponents((media) => media.addItems((item) => item.setURL(posterUrl)))
+  }
+
+  addSeparator(container)
+
+  const infoParts: string[] = [
+    `${bold(locale === 'pl' ? 'Typ' : 'Type')}: ${typeEmoji}`,
+    `${bold(locale === 'pl' ? 'Requestujący' : 'Requested by')}: ${data.username}`
+  ]
+  if (data.userNote !== null && data.userNote.length > 0) {
+    infoParts.push(`${bold(locale === 'pl' ? 'Wiadomość' : 'Message')}: ${data.userNote}`)
+  }
+  container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(infoParts.join('\n')))
+
+  const match = webhookUrl.match(/\/webhooks\/(\d+)\/(.+?)(?:\/|$)/)
+  if (match === null || match[1] === undefined || match[2] === undefined) return
+
+  const webhookId = match[1]
+  const webhookToken = match[2]
+  const rest = new REST({ version: '10' }).setToken(webhookToken)
+
+  const payload: {
+    components: (APIContainerComponent | APITextDisplayComponent)[]
+    flags: number
+  } = {
+    components: [container.toJSON()],
+    flags: MessageFlags.IsComponentsV2
+  }
+
+  try {
+    await rest.post(Routes.webhook(webhookId, webhookToken), {
+      body: payload,
+      query: new URLSearchParams({ with_components: 'true' })
+    })
+  } catch (err: unknown) {
+    log.error(err instanceof Error ? err : new Error(String(err)), 'request pending webhook failed')
+  }
+}

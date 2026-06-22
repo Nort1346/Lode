@@ -170,6 +170,18 @@ function initDb() {
   `)
   sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_wishlist_user_media ON wishlist(user_id, media_type, media_id)`)
 
+  const reqPragmaRows = sqlite.prepare('PRAGMA table_info(requests)').all() as Record<string, unknown>[]
+  const reqColumns = reqPragmaRows.map((c) => c.name as string)
+  if (!reqColumns.includes('user_note')) {
+    sqlite.exec(`ALTER TABLE requests ADD COLUMN user_note TEXT`)
+  }
+  if (!reqColumns.includes('admin_note')) {
+    sqlite.exec(`ALTER TABLE requests ADD COLUMN admin_note TEXT`)
+  }
+  if (!reqColumns.includes('updated_at')) {
+    sqlite.exec(`ALTER TABLE requests ADD COLUMN updated_at TEXT`)
+  }
+
   _db = drizzle(sqlite, { schema })
   return _db
 }
