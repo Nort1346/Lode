@@ -9,7 +9,8 @@ interface LoginBody {
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<LoginBody>(event)
-  const { username, password } = body
+  const username = body.username?.trim() ?? ''
+  const password = body.password?.trim() ?? ''
 
   if (!username || !password) {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })

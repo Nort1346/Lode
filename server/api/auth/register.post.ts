@@ -19,7 +19,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<RegisterBody>(event)
-  const { username, password, role, dailyDownloadLimit, activeTorrentLimit, maxTorrentSizeGb } = body
+  const username = body.username?.trim() ?? ''
+  const password = body.password?.trim() ?? ''
+  const { role, dailyDownloadLimit, activeTorrentLimit, maxTorrentSizeGb } = body
 
   if (!username || !password) {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })

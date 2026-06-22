@@ -34,11 +34,11 @@ export default defineEventHandler(async (event) => {
   const changedFields: string[] = []
   const updates: Record<string, unknown> = {}
   if (body.username !== undefined) {
-    updates.username = body.username
+    updates.username = body.username.trim()
     changedFields.push('username')
   }
   if (body.password !== undefined) {
-    updates.password = await bcrypt.hash(body.password, 12)
+    updates.password = await bcrypt.hash(body.password.trim(), 12)
     changedFields.push('password')
   }
   if (body.role !== undefined) {

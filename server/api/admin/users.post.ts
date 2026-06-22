@@ -18,16 +18,9 @@ export default defineEventHandler(async (event) => {
   await requireAdmin(event)
 
   const body = await readBody<CreateUserBody>(event)
-  const {
-    username,
-    password,
-    role,
-    dailyDownloadLimit,
-    activeTorrentLimit,
-    maxTorrentSizeGb,
-    privateTrackerLimit,
-    discordId
-  } = body
+  const username = body.username?.trim() ?? ''
+  const password = body.password?.trim() ?? ''
+  const { role, dailyDownloadLimit, activeTorrentLimit, maxTorrentSizeGb, privateTrackerLimit, discordId } = body
 
   if (!username || !password) {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })

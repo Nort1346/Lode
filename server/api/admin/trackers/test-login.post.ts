@@ -14,9 +14,9 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<TestLoginBody>(event)
 
   const trackerId = getRouterParam(event, 'id')
-  let loginUrl = body.loginUrl
-  let loginUsername = body.loginUsername
-  let loginPassword = body.loginPassword
+  let loginUrl = body.loginUrl?.trim()
+  let loginUsername = body.loginUsername?.trim()
+  let loginPassword = body.loginPassword?.trim()
 
   if (
     trackerId !== null &&
