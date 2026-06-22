@@ -369,3 +369,47 @@ export async function getTopRatedMovies(locale = 'pl', page = 1): Promise<TmdbSe
   await cacheSet(cacheKey, result, CACHE_TTL.TMDB_POPULAR)
   return result
 }
+
+export async function getMoviesByGenre(genreId: number, locale = 'pl', page = 1): Promise<TmdbSearchResult<TmdbMovie>> {
+  const lang = resolveTmdbLanguage(locale)
+  const cacheKey = `tmdb:genre:movie:${genreId}:${lang}:${page}`
+  const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
+  if (cached !== null) return cached
+
+  const url = new URL(`${TMDB_BASE}/discover/movie`)
+  url.searchParams.set('api_key', getApiKey())
+  url.searchParams.set('language', lang)
+  url.searchParams.set('with_genres', String(genreId))
+  url.searchParams.set('sort_by', 'vote_count.desc')
+  url.searchParams.set('vote_count.gte', '100')
+  url.searchParams.set('page', String(page))
+
+  const response = await fetch(url.toString())
+  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+
+  const result = (await response.json()) as TmdbSearchResult<TmdbMovie>
+  await cacheSet(cacheKey, result, CACHE_TTL.TMDB_GENRE)
+  return result
+}
+
+export async function getTvByGenre(genreId: number, locale = 'pl', page = 1): Promise<TmdbSearchResult<TmdbTvShow>> {
+  const lang = resolveTmdbLanguage(locale)
+  const cacheKey = `tmdb:genre:tv:${genreId}:${lang}:${page}`
+  const cached = await cacheGet<TmdbSearchResult<TmdbTvShow>>(cacheKey)
+  if (cached !== null) return cached
+
+  const url = new URL(`${TMDB_BASE}/discover/tv`)
+  url.searchParams.set('api_key', getApiKey())
+  url.searchParams.set('language', lang)
+  url.searchParams.set('with_genres', String(genreId))
+  url.searchParams.set('sort_by', 'vote_count.desc')
+  url.searchParams.set('vote_count.gte', '100')
+  url.searchParams.set('page', String(page))
+
+  const response = await fetch(url.toString())
+  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+
+  const result = (await response.json()) as TmdbSearchResult<TmdbTvShow>
+  await cacheSet(cacheKey, result, CACHE_TTL.TMDB_GENRE)
+  return result
+}

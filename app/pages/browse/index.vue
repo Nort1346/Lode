@@ -44,6 +44,7 @@
     </div>
 
     <template v-else>
+      <!-- Eagerly loaded -->
       <MediaCarousel
         :title="t('browse.trending')"
         :items="trendingItems"
@@ -56,18 +57,46 @@
         :loading="popularPending"
         @item-click="goToItem"
       />
-      <MediaCarousel
-        :title="t('browse.popularTv')"
-        :items="popularTvShowsTyped"
-        :loading="popularPending"
-        @item-click="goToItem"
-      />
-      <MediaCarousel
-        :title="t('browse.topRated')"
-        :items="topRatedMoviesTyped"
-        :loading="topRatedPending"
-        @item-click="goToItem"
-      />
+
+      <!-- Lazy: Popular TV -->
+      <InviewSection @visible="popularTvVisible = true">
+        <MediaCarousel
+          :title="t('browse.popularTv')"
+          :items="popularTvShowsTyped"
+          :loading="popularPending"
+          @item-click="goToItem"
+        />
+      </InviewSection>
+
+      <!-- Lazy: Movie genres -->
+      <InviewSection v-for="g in movieGenres" :key="`movie-${g.id}`" @visible="genreVisible[`movie-${g.id}`] = true">
+        <MediaCarousel
+          :title="t(g.key)"
+          :items="genreMovieItems[g.id] ?? []"
+          :loading="genreMoviePending[g.id]"
+          @item-click="goToItem"
+        />
+      </InviewSection>
+
+      <!-- Lazy: TV genres -->
+      <InviewSection v-for="g in tvGenres" :key="`tv-${g.id}`" @visible="genreVisible[`tv-${g.id}`] = true">
+        <MediaCarousel
+          :title="t(g.key)"
+          :items="genreTvItems[g.id] ?? []"
+          :loading="genreTvPending[g.id]"
+          @item-click="goToItem"
+        />
+      </InviewSection>
+
+      <!-- Lazy: Top Rated -->
+      <InviewSection @visible="topRatedVisible = true">
+        <MediaCarousel
+          :title="t('browse.topRated')"
+          :items="topRatedMoviesTyped"
+          :loading="topRatedPending"
+          @item-click="goToItem"
+        />
+      </InviewSection>
     </template>
   </div>
 </template>
@@ -134,6 +163,7 @@ const trendingItems = computed(() => trendingData.value?.items ?? [])
 
 const { data: topRatedData, pending: topRatedPending } = await useFetch('/api/browse/top-rated', {
   query: computed(() => ({ locale: locale.value })),
+  immediate: false,
   watch: [locale]
 })
 
@@ -162,5 +192,86 @@ function goToItem(item: { id: number; type: string }) {
   } else {
     navigateTo(`/browse/tv/${item.id}`)
   }
+}
+
+// Lazy visibility flags
+const popularTvVisible = ref(false)
+const topRatedVisible = ref(false)
+const genreVisible = reactive<Record<string, boolean>>({})
+
+// Genre definitions
+const movieGenres = [
+  { id: 28, key: 'browse.actionMovies' },
+  { id: 12, key: 'browse.adventureMovies' },
+  { id: 35, key: 'browse.comedyMovies' },
+  { id: 18, key: 'browse.dramaMovies' },
+  { id: 878, key: 'browse.scifiMovies' },
+  { id: 27, key: 'browse.horrorMovies' },
+  { id: 53, key: 'browse.thrillerMovies' },
+  { id: 16, key: 'browse.animatedMovies' }
+]
+
+const tvGenres = [
+  { id: 10759, key: 'browse.actionTv' },
+  { id: 35, key: 'browse.comedyTv' },
+  { id: 18, key: 'browse.dramaTv' },
+  { id: 10765, key: 'browse.scifiTv' },
+  { id: 80, key: 'browse.crimeTv' },
+  { id: 10762, key: 'browse.animatedTv' }
+]
+
+// Genre data stores
+const genreMovieItems = reactive<Record<number, MediaCarouselItem[]>>({})
+const genreMoviePending = reactive<Record<number, boolean>>({})
+const genreTvItems = reactive<Record<number, MediaCarouselItem[]>>({})
+const genreTvPending = reactive<Record<number, boolean>>({})
+
+// Watchers for lazy genre fetching
+for (const g of movieGenres) {
+  watch(
+    () => genreVisible[`movie-${g.id}`],
+    (visible) => {
+      if (!visible) return
+      const { data: d, pending: p } = useFetch('/api/browse/genre', {
+        query: computed(() => ({ genreId: g.id, mediaType: 'movie', locale: locale.value })),
+        watch: [locale]
+      })
+      watchEffect(() => {
+        genreMoviePending[g.id] = p.value
+        if (d.value?.items) {
+          genreMovieItems[g.id] = d.value.items.map((m: Record<string, unknown>) => ({
+            ...m,
+            type: 'movie' as const,
+            logoUrl: null
+          })) as MediaCarouselItem[]
+        }
+      })
+    },
+    { once: true }
+  )
+}
+
+for (const g of tvGenres) {
+  watch(
+    () => genreVisible[`tv-${g.id}`],
+    (visible) => {
+      if (!visible) return
+      const { data: d, pending: p } = useFetch('/api/browse/genre', {
+        query: computed(() => ({ genreId: g.id, mediaType: 'tv', locale: locale.value })),
+        watch: [locale]
+      })
+      watchEffect(() => {
+        genreTvPending[g.id] = p.value
+        if (d.value?.items) {
+          genreTvItems[g.id] = d.value.items.map((m: Record<string, unknown>) => ({
+            ...m,
+            type: 'tv' as const,
+            logoUrl: null
+          })) as MediaCarouselItem[]
+        }
+      })
+    },
+    { once: true }
+  )
 }
 </script>
