@@ -8,6 +8,7 @@ import { decryptAES } from '#server/utils/crypto'
 import { gotScraping } from 'got-scraping'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
+import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { formatSize } from '#server/utils/torrent-ranker'
 import { checkForDangerousFiles } from '#server/utils/safe-download'
 import { createLogger } from '#server/utils/logger'
@@ -23,7 +24,6 @@ interface DownloadBody {
   savePath: string
   tmdbId?: number
   mediaType?: string
-  torrentSize?: number
 }
 
 const SAVE_PATH_KEYS = ['movies', 'series', 'games', 'music', 'books'] as const
@@ -42,6 +42,14 @@ export default defineEventHandler(async (event) => {
     const freshUser = getFreshUser(session.user.id)
     if (freshUser === undefined) {
       throw createError({ statusCode: 404, statusMessage: 'User not found' })
+    }
+
+    const cooldown = checkCooldown(session.user.id)
+    if (!cooldown.ok) {
+      throw createError({
+        statusCode: 429,
+        statusMessage: `Please wait ${Math.ceil(cooldown.remainingMs / 1000)}s before adding another torrent`
+      })
     }
 
     const body = await readBody<DownloadBody>(event)
@@ -95,62 +103,8 @@ export default defineEventHandler(async (event) => {
 
     log.info(`[Download:2:VALIDATE] ✓ torrentUrl=${torrentUrl.substring(0, 100)}`)
 
-    // ── 3: LIMITS ─────────────────────────────────────────────
-    const db = useDb()
-    const config = useRuntimeConfig()
-
-    if (session.user.role !== 'admin') {
-      const userDownloads = db
-        .select()
-        .from(downloads)
-        .where(and(eq(downloads.userId, session.user.id), eq(downloads.status, 'downloading')))
-        .all()
-
-      log.info(`[Download:3:LIMITS] active=${userDownloads.length}/${freshUser.activeTorrentLimit}`)
-
-      if (userDownloads.length >= freshUser.activeTorrentLimit) {
-        throw createError({
-          statusCode: 429,
-          statusMessage: `Active torrent limit reached (${freshUser.activeTorrentLimit})`
-        })
-      }
-
-      const todayStart = new Date()
-      todayStart.setHours(0, 0, 0, 0)
-
-      const todayAll = db
-        .select()
-        .from(downloads)
-        .where(eq(downloads.userId, session.user.id))
-        .all()
-        .filter((d) => new Date(d.createdAt) >= todayStart)
-
-      const todayActive = todayAll.filter((d) => d.status !== 'failed' && d.status !== 'removed')
-
-      log.info(`[Download:3:LIMITS] today=${todayActive.length}/${freshUser.dailyDownloadLimit}`)
-
-      if (todayActive.length >= freshUser.dailyDownloadLimit) {
-        throw createError({
-          statusCode: 429,
-          statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`
-        })
-      }
-
-      if (isPrivateTrackerEnabled) {
-        const todayPrivate = todayAll.filter((d) => d.isPrivate)
-        log.info(`[Download:3:LIMITS] todayPrivate=${todayPrivate.length}/${freshUser.privateTrackerLimit}`)
-        if (todayPrivate.length >= freshUser.privateTrackerLimit) {
-          throw createError({
-            statusCode: 429,
-            statusMessage: `Private tracker daily limit reached (${freshUser.privateTrackerLimit})`
-          })
-        }
-      }
-    } else {
-      log.info(`[Download:3:LIMITS] admin - skipping all limits`)
-    }
-
     // ── 4: SAVE PATH ──────────────────────────────────────────
+    const config = useRuntimeConfig()
     const savePathMap: Record<SavePathKey, string> = {
       movies: config.savePathMovies,
       series: config.savePathSeries,
@@ -166,438 +120,474 @@ export default defineEventHandler(async (event) => {
     }
     log.info(`[Download:4:PATH] savePath=${savePath} → ${targetPath}`)
 
-    // ── 4b: DISK SPACE CHECK ─────────────────────────────────
-    if (isDiskCheckEnabled()) {
-      const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
-      if (disks.length > 0) {
-        const torrentSize = body.torrentSize ?? 0
-        const minFreeGb = getDiskMinFreeGb()
-        const allStatuses = checkAllDisks(disks, minFreeGb)
-        for (const disk of allStatuses) {
-          if (disk.available) {
-            log.info(
-              `[Download:4b:DISK] ${disk.path}: ${disk.freeFormatted} free (${disk.usedPercent}% used)${torrentSize > 0 ? `, torrentSize=${formatSize(torrentSize)}` : ''}`
-            )
-          } else {
-            log.info(`[Download:4b:DISK] ${disk.path}: unavailable`)
+    const userId = session.user.id
+    const userRole = session.user.role
+    const username = session.user.username
+
+    setCooldown(userId)
+
+    return await withTorrentAddLock(async () => {
+      // ── 3: LIMITS (inside lock) ───────────────────────────────
+      const db = useDb()
+
+      if (userRole !== 'admin') {
+        db.transaction(() => {
+          const userDownloads = db
+            .select()
+            .from(downloads)
+            .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
+            .all()
+
+          log.info(`[Download:3:LIMITS] active=${userDownloads.length}/${freshUser.activeTorrentLimit}`)
+
+          if (userDownloads.length >= freshUser.activeTorrentLimit) {
+            throw createError({
+              statusCode: 429,
+              statusMessage: `Active torrent limit reached (${freshUser.activeTorrentLimit})`
+            })
           }
-        }
-        const lowDisk = allStatuses.find((d) => {
-          if (!d.available) return true
-          const effectiveFree = d.freeBytes - torrentSize
-          return effectiveFree < minFreeGb * 1024 ** 3
+
+          const todayStart = new Date()
+          todayStart.setHours(0, 0, 0, 0)
+
+          const todayAll = db
+            .select()
+            .from(downloads)
+            .where(eq(downloads.userId, userId))
+            .all()
+            .filter((d) => new Date(d.createdAt) >= todayStart)
+
+          const todayActive = todayAll.filter((d) => d.status !== 'failed' && d.status !== 'removed')
+
+          log.info(`[Download:3:LIMITS] today=${todayActive.length}/${freshUser.dailyDownloadLimit}`)
+
+          if (todayActive.length >= freshUser.dailyDownloadLimit) {
+            throw createError({
+              statusCode: 429,
+              statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`
+            })
+          }
+
+          if (isPrivateTrackerEnabled) {
+            const todayPrivate = todayAll.filter((d) => d.isPrivate)
+            log.info(`[Download:3:LIMITS] todayPrivate=${todayPrivate.length}/${freshUser.privateTrackerLimit}`)
+            if (todayPrivate.length >= freshUser.privateTrackerLimit) {
+              throw createError({
+                statusCode: 429,
+                statusMessage: `Private tracker daily limit reached (${freshUser.privateTrackerLimit})`
+              })
+            }
+          }
         })
-        if (lowDisk !== undefined) {
-          log.warn(
-            `[Download:4b:DISK] ✗ BLOCKED - ${lowDisk.path}: ${lowDisk.available ? lowDisk.freeFormatted + ' free' : 'unavailable'}`
-          )
+      } else {
+        log.info(`[Download:3:LIMITS] admin - skipping all limits`)
+      }
+
+      // ── 5: TRACKER (Polish) ───────────────────────────────────
+      const qui = useQui()
+      const dlTag = `dl-${randomUUID().slice(0, 8)}`
+      let torrent
+      let storedMagnetLink: string
+
+      if (hasGuid && isPrivateTrackerEnabled && getTrackerType(indexer) === 'guid') {
+        log.info(`[Download:5:TRACKER] entering private tracker path...`)
+
+        const trackerConfig = await getTrackerCookieConfig(indexer, config)
+
+        if (trackerConfig === null) {
+          log.error(`[Download:5:TRACKER] ✗ unknown tracker: ${indexer}`)
+          throw createError({ statusCode: 400, statusMessage: `Unknown tracker: ${indexer}` })
+        }
+
+        if (!trackerConfig.enabled) {
+          log.error(`[Download:5:TRACKER] ✗ tracker disabled: ${indexer}`)
           throw createError({
-            statusCode: 507,
-            statusMessage: `Insufficient disk space${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''} (${lowDisk.freeFormatted} free, minimum ${minFreeGb} GB required)`
+            statusCode: 400,
+            statusMessage: `Tracker ${indexer} is disabled. Enable it in admin panel → Trackers.`
           })
         }
-      }
-    }
 
-    // ── 5: TRACKER (Polish) ───────────────────────────────────
-    const qui = useQui()
-    const dlTag = `dl-${randomUUID().slice(0, 8)}`
-    let torrent
-    let storedMagnetLink: string
-
-    if (hasGuid && isPrivateTrackerEnabled && getTrackerType(indexer) === 'guid') {
-      log.info(`[Download:5:TRACKER] entering private tracker path...`)
-
-      const trackerConfig = await getTrackerCookieConfig(indexer, config)
-
-      if (trackerConfig === null) {
-        log.error(`[Download:5:TRACKER] ✗ unknown tracker: ${indexer}`)
-        throw createError({ statusCode: 400, statusMessage: `Unknown tracker: ${indexer}` })
-      }
-
-      if (!trackerConfig.enabled) {
-        log.error(`[Download:5:TRACKER] ✗ tracker disabled: ${indexer}`)
-        throw createError({
-          statusCode: 400,
-          statusMessage: `Tracker ${indexer} is disabled. Enable it in admin panel → Trackers.`
-        })
-      }
-
-      if (trackerConfig.cookie.length === 0) {
-        log.error(`[Download:5:TRACKER] ✗ no cookie for: ${indexer}`)
-        throw createError({
-          statusCode: 400,
-          statusMessage: `No cookie configured for ${indexer}. Add cookie in admin panel → Trackers.`
-        })
-      }
-
-      log.info(
-        `[Download:5:TRACKER] config OK: enabled=${trackerConfig.enabled}, cookieLength=${trackerConfig.cookie.length}`
-      )
-
-      // Store tracker row for retry in step 7
-      const trackerRow = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)).get()
-
-      // ── 6: FETCH via got-scraping (Chrome TLS impersonation) ─
-      const cookiePreview = trackerConfig.cookie.substring(0, 20) + '...'
-      let referer: string
-      try {
-        const url = new URL(guidUrl)
-        referer = url.origin + url.pathname
-      } catch {
-        referer = guidUrl
-      }
-      log.info(`[Download:6:FETCH] url=${guidUrl} (got-scraping, impersonate=chrome)`)
-      log.info(`[Download:6:FETCH] cookie="${cookiePreview}" referer="${referer}"`)
-      const t2 = Date.now()
-      let fileBuffer: Buffer
-      let responseContentType = ''
-      try {
-        const response = await gotScraping({
-          url: guidUrl,
-          headers: {
-            Cookie: trackerConfig.cookie,
-            Referer: referer
-          },
-          timeout: { request: 30_000 },
-          responseType: 'buffer'
-        })
-        fileBuffer = response.body
-        responseContentType = (response.headers['content-type'] as string | undefined) ?? ''
-        const respHeaders = Object.fromEntries(
-          Object.entries(response.headers).filter(([k]) =>
-            ['content-type', 'set-cookie', 'location', 'cf-ray', 'server'].includes(k)
-          )
-        )
-        log.info(
-          `[Download:6:FETCH] ← HTTP ${response.statusCode} in ${Date.now() - t2}ms, size=${fileBuffer.length}, contentType=${response.headers['content-type'] ?? 'N/A'}`
-        )
-        log.info(`[Download:6:FETCH]   response headers: ${JSON.stringify(respHeaders)}`)
-        if (response.statusCode !== 200) {
-          const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
-          log.error(`[Download:6:FETCH] ✗ HTTP ${response.statusCode}: ${preview}`)
-          throw createError({ statusCode: 502, statusMessage: `${indexer} returned ${response.statusCode}` })
+        if (trackerConfig.cookie.length === 0) {
+          log.error(`[Download:5:TRACKER] ✗ no cookie for: ${indexer}`)
+          throw createError({
+            statusCode: 400,
+            statusMessage: `No cookie configured for ${indexer}. Add cookie in admin panel → Trackers.`
+          })
         }
-      } catch (err) {
-        if (err instanceof Error && 'statusCode' in err) throw err
-        const msg = err instanceof Error ? err.message : String(err)
-        log.error(`[Download:6:FETCH] ✗ failed in ${Date.now() - t2}ms: ${msg}`)
-        throw createError({ statusCode: 502, statusMessage: `Failed to connect to ${indexer}: ${msg}` })
-      }
 
-      // ── 7: VALIDATE response ────────────────────────────────
-      const firstBytes = fileBuffer.subarray(0, 20).toString('hex')
-      log.info(`[Download:7:VALIDATE] size=${fileBuffer.length}, firstBytes=${firstBytes}`)
+        log.info(
+          `[Download:5:TRACKER] config OK: enabled=${trackerConfig.enabled}, cookieLength=${trackerConfig.cookie.length}`
+        )
 
-      if (fileBuffer.length === 0) {
-        log.error(`[Download:7:VALIDATE] ✗ empty response - cookie may be invalid`)
-        throw createError({ statusCode: 401, statusMessage: `Empty response from ${indexer}. Cookie may be invalid.` })
-      }
+        // Store tracker row for retry in step 7
+        const trackerRow = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)).get()
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- fileBuffer.length > 0 checked above
-      const firstByte = fileBuffer[0]!
-      const bodyPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 200))
-      const isHtml =
-        responseContentType.includes('text/html') || bodyPreview.includes('<!DOCTYPE') || bodyPreview.includes('<html')
-
-      if (isHtml) {
-        const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 500))
-        log.error(`[Download:7:VALIDATE] ✗ got HTML instead of torrent! contentType=${responseContentType}`)
-        log.error(`[Download:7:VALIDATE]   preview: ${preview}`)
-
-        // Retry: if tracker has login credentials, clear cache + re-login + retry once
-        if (
-          trackerRow !== undefined &&
-          trackerRow.loginUrl !== null &&
-          trackerRow.loginUrl.length > 0 &&
-          trackerRow.loginUsername !== null &&
-          trackerRow.loginUsername.length > 0 &&
-          trackerRow.loginPassword !== null &&
-          trackerRow.loginPassword.length > 0
-        ) {
-          log.info(`[Download:7:VALIDATE] Session may be expired - retrying login for ${indexer}...`)
-
-          clearSessionCache(trackerRow.loginUrl, trackerRow.loginUsername)
-
-          const decryptedPassword = decryptAES(trackerRow.loginPassword)
-          const freshCookie = await performTrackerLogin(
-            trackerRow.loginUrl,
-            trackerRow.loginUsername,
-            decryptedPassword
-          )
-
-          log.info(`[Download:7:VALIDATE] Retry fetch with fresh cookie (${freshCookie.length} chars)...`)
-          const t2Retry = Date.now()
-          try {
-            const retryResponse = await gotScraping({
-              url: guidUrl,
-              headers: {
-                Cookie: freshCookie,
-                Referer: referer
-              },
-              timeout: { request: 30_000 },
-              responseType: 'buffer'
-            })
-            fileBuffer = retryResponse.body
-            const retryContentType = (retryResponse.headers['content-type'] as string | undefined) ?? ''
-            const retryBodyPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 200))
-            const retryIsHtml =
-              retryContentType.includes('text/html') ||
-              retryBodyPreview.includes('<!DOCTYPE') ||
-              retryBodyPreview.includes('<html')
-            log.info(
-              `[Download:7:VALIDATE] Retry ← HTTP ${retryResponse.statusCode} in ${Date.now() - t2Retry}ms, size=${fileBuffer.length}, isHtml=${retryIsHtml}`
+        // ── 6: FETCH via got-scraping (Chrome TLS impersonation) ─
+        const cookiePreview = trackerConfig.cookie.substring(0, 20) + '...'
+        let referer: string
+        try {
+          const url = new URL(guidUrl)
+          referer = url.origin + url.pathname
+        } catch {
+          referer = guidUrl
+        }
+        log.info(`[Download:6:FETCH] url=${guidUrl} (got-scraping, impersonate=chrome)`)
+        log.info(`[Download:6:FETCH] cookie="${cookiePreview}" referer="${referer}"`)
+        const t2 = Date.now()
+        let fileBuffer: Buffer
+        let responseContentType: string
+        try {
+          const response = await gotScraping({
+            url: guidUrl,
+            headers: {
+              Cookie: trackerConfig.cookie,
+              Referer: referer
+            },
+            timeout: { request: 30_000 },
+            responseType: 'buffer'
+          })
+          fileBuffer = response.body
+          responseContentType = (response.headers['content-type'] as string | undefined) ?? ''
+          const respHeaders = Object.fromEntries(
+            Object.entries(response.headers).filter(([k]) =>
+              ['content-type', 'set-cookie', 'location', 'cf-ray', 'server'].includes(k)
             )
-            if (retryResponse.statusCode !== 200) {
-              const retryPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
-              log.error(`[Download:7:VALIDATE] ✗ Retry HTTP ${retryResponse.statusCode}: ${retryPreview}`)
-              throw createError({
-                statusCode: 502,
-                statusMessage: `${indexer} returned ${retryResponse.statusCode} after retry`
-              })
-            }
-            if (retryIsHtml) {
-              const retryHtmlPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
-              log.error(`[Download:7:VALIDATE] ✗ Retry also returned HTML - cookie truly invalid`)
-              log.error(`[Download:7:VALIDATE]   retry preview: ${retryHtmlPreview}`)
-              throw createError({
-                statusCode: 401,
-                statusMessage: `Cookie expired and re-login failed for ${indexer}. Update cookie in admin panel → Trackers.`
-              })
-            }
-          } catch (err) {
-            if (err instanceof Error && 'statusCode' in err) throw err
-            const msg = err instanceof Error ? err.message : String(err)
-            log.error(`[Download:7:VALIDATE] ✗ Retry failed in ${Date.now() - t2Retry}ms: ${msg}`)
-            throw createError({ statusCode: 502, statusMessage: `Retry to ${indexer} failed: ${msg}` })
+          )
+          log.info(
+            `[Download:6:FETCH] ← HTTP ${response.statusCode} in ${Date.now() - t2}ms, size=${fileBuffer.length}, contentType=${response.headers['content-type'] ?? 'N/A'}`
+          )
+          log.info(`[Download:6:FETCH]   response headers: ${JSON.stringify(respHeaders)}`)
+          if (response.statusCode !== 200) {
+            const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
+            log.error(`[Download:6:FETCH] ✗ HTTP ${response.statusCode}: ${preview}`)
+            throw createError({ statusCode: 502, statusMessage: `${indexer} returned ${response.statusCode}` })
           }
-        } else {
-          // No login credentials - cannot retry
-          const hostname = (() => {
-            try {
-              return new URL(guidUrl).hostname
-            } catch {
-              return guidUrl
-            }
-          })()
+        } catch (err) {
+          if (err instanceof Error && 'statusCode' in err) throw err
+          const msg = err instanceof Error ? err.message : String(err)
+          log.error(`[Download:6:FETCH] ✗ failed in ${Date.now() - t2}ms: ${msg}`)
+          throw createError({ statusCode: 502, statusMessage: `Failed to connect to ${indexer}: ${msg}` })
+        }
+
+        // ── 7: VALIDATE response ────────────────────────────────
+        const firstBytes = fileBuffer.subarray(0, 20).toString('hex')
+        log.info(`[Download:7:VALIDATE] size=${fileBuffer.length}, firstBytes=${firstBytes}`)
+
+        if (fileBuffer.length === 0) {
+          log.error(`[Download:7:VALIDATE] ✗ empty response - cookie may be invalid`)
           throw createError({
             statusCode: 401,
-            statusMessage: `Cookie expired or invalid for ${indexer}. Server returned login page for ${hostname}. Update cookie in admin panel → Trackers.`
+            statusMessage: `Empty response from ${indexer}. Cookie may be invalid.`
           })
         }
-      }
 
-      if (firstByte !== 0x64) {
-        const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 200))
-        log.error(
-          `[Download:7:VALIDATE] ✗ unexpected first byte: 0x${firstByte.toString(16)} (expected 0x64 = 'd' for bencode)`
-        )
-        log.error(`[Download:7:VALIDATE]   preview: ${preview}`)
-        throw createError({
-          statusCode: 401,
-          statusMessage: `Invalid response from ${indexer} (not a valid torrent file, first byte: 0x${firstByte.toString(16)})`
-        })
-      }
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- fileBuffer.length > 0 checked above
+        const firstByte = fileBuffer[0]!
+        const bodyPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 200))
+        const isHtml =
+          responseContentType.includes('text/html') ||
+          bodyPreview.includes('<!DOCTYPE') ||
+          bodyPreview.includes('<html')
 
-      log.info(`[Download:7:VALIDATE] ✓ valid torrent file (${fileBuffer.length} bytes)`)
+        if (isHtml) {
+          const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 500))
+          log.error(`[Download:7:VALIDATE] ✗ got HTML instead of torrent! contentType=${responseContentType}`)
+          log.error(`[Download:7:VALIDATE]   preview: ${preview}`)
 
-      // ── 8: QUI addTorrentFile ───────────────────────────────
-      const fileName = `${label.replace(/[^a-zA-Z0-9._-]/g, '_')}.torrent`
-      storedMagnetLink = `guid:${guidUrl}`
+          // Retry: if tracker has login credentials, clear cache + re-login + retry once
+          if (
+            trackerRow !== undefined &&
+            trackerRow.loginUrl !== null &&
+            trackerRow.loginUrl.length > 0 &&
+            trackerRow.loginUsername !== null &&
+            trackerRow.loginUsername.length > 0 &&
+            trackerRow.loginPassword !== null &&
+            trackerRow.loginPassword.length > 0
+          ) {
+            log.info(`[Download:7:VALIDATE] Session may be expired - retrying login for ${indexer}...`)
 
-      log.info(
-        `[Download:8:QUI] addTorrentFile: fileName=${fileName}, target=${targetPath}, cat=${savePath}, tag=${dlTag}`
-      )
-      const t3 = Date.now()
-      try {
-        torrent = await qui.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        log.error(`[Download:8:QUI] ✗ addTorrentFile failed in ${Date.now() - t3}ms: ${msg}`)
-        throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
-      }
+            clearSessionCache(trackerRow.loginUrl, trackerRow.loginUsername)
 
-      if (torrent !== null) {
-        log.info(
-          `[Download:8:QUI] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
-        )
-      } else {
-        log.warn(`[Download:8:QUI] ⚠ addTorrentFile returned null after ${Date.now() - t3}ms`)
-      }
-    } else {
-      // ── 8b: QUI addTorrent (magnet/downloadUrl) ─────────────
-      storedMagnetLink = hasDownloadUrl ? `download:${downloadUrl}` : torrentUrl
-      log.info(`[Download:8:QUI] addTorrent (magnet/url): url=${torrentUrl.substring(0, 100)}, tag=${dlTag}`)
-      const t3 = Date.now()
-      try {
-        torrent = await qui.addTorrent(torrentUrl, targetPath, savePath, dlTag)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        log.error(`[Download:8:QUI] ✗ addTorrent failed in ${Date.now() - t3}ms: ${msg}`)
-        throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
-      }
+            const decryptedPassword = decryptAES(trackerRow.loginPassword)
+            const freshCookie = await performTrackerLogin(
+              trackerRow.loginUrl,
+              trackerRow.loginUsername,
+              decryptedPassword
+            )
 
-      if (torrent !== null) {
-        log.info(
-          `[Download:8:QUI] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
-        )
-      } else {
-        log.warn(`[Download:8:QUI] ⚠ addTorrent returned null after ${Date.now() - t3}ms`)
-      }
-    }
-
-    // ── 8c: DANGEROUS FILE CHECK ─────────────────────────────
-    if (torrent !== null) {
-      const t4 = Date.now()
-      let files = await qui.getTorrentFiles(torrent.hash).catch(() => [])
-
-      // Wait for metadata if file list is empty
-      if (files.length === 0) {
-        for (let i = 0; i < 5; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-          files = await qui.getTorrentFiles(torrent.hash).catch(() => [])
-          if (files.length > 0) break
-        }
-      }
-
-      log.info(`[Download:8c:FILE_CHECK] hash=${torrent.hash} files=${files.length} (in ${Date.now() - t4}ms)`)
-
-      if (files.length > 0) {
-        const { safe, dangerousFiles } = checkForDangerousFiles(files)
-        if (!safe) {
-          log.warn(`[Download:8c:FILE_CHECK] ✗ BLOCKED - dangerous files: ${dangerousFiles.join(', ')}`)
-          await qui.deleteTorrent(torrent.hash, true).catch(() => {})
-          throw createError({
-            statusCode: 403,
-            statusMessage: `Torrent contains dangerous files: ${dangerousFiles.map((f) => f.split('/').pop() ?? f).join(', ')} — rejected`
-          })
-        }
-        log.info(`[Download:8c:FILE_CHECK] ✓ all ${files.length} files safe`)
-      } else {
-        log.warn(`[Download:8c:FILE_CHECK] ⚠ no files found (metadata not ready?), skipping check`)
-      }
-    }
-
-    // ── 9: SIZE CHECK ────────────────────────────────────────
-    if (torrent !== null) {
-      const maxSizeBytes = freshUser.maxTorrentSizeGb * 1024 * 1024 * 1024
-      log.info(
-        `[Download:9:SIZE] torrent.size=${torrent.size} (${(torrent.size / (1024 * 1024 * 1024)).toFixed(2)} GB) limit=${maxSizeBytes} (${freshUser.maxTorrentSizeGb} GB)`
-      )
-      if (torrent.size > maxSizeBytes) {
-        await qui.deleteTorrent(torrent.hash, true).catch(() => {})
-        throw createError({
-          statusCode: 413,
-          statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${freshUser.maxTorrentSizeGb} GB`
-        })
-      }
-    }
-
-    // ── 9b: DISK CHECK POST-ADD ──────────────────────────────
-    if (torrent !== null && torrent.size > 0 && isDiskCheckEnabled()) {
-      const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
-      if (disks.length > 0) {
-        const allStatuses = checkAllDisks(disks, getDiskMinFreeGb())
-        const lowDisk = allStatuses.find((d) => {
-          if (!d.available) return true
-          return torrent.size > d.freeBytes
-        })
-        if (lowDisk !== undefined) {
-          log.warn(
-            `[Download:9b:DISK] ✗ POST-ADD DELETE - ${lowDisk.path}: ${lowDisk.available ? lowDisk.freeFormatted + ' free' : 'unavailable'}, torrent=${formatSize(torrent.size)}`
-          )
-          await qui.deleteTorrent(torrent.hash, true).catch(() => {})
-          const id = randomUUID()
-          db.insert(downloads)
-            .values({
-              id,
-              userId: session.user.id,
-              label,
-              torrentName: torrent.name,
-              magnetLink: storedMagnetLink,
-              savePath: savePath as SavePathKey,
-              status: 'disk_full',
-              torrentHash: torrent.hash,
-              sizeBytes: torrent.size,
-              posterUrl: null,
-              tmdbId,
-              mediaType: mediaType as 'movie' | 'tv' | null,
-              createdAt: new Date().toISOString()
+            log.info(`[Download:7:VALIDATE] Retry fetch with fresh cookie (${freshCookie.length} chars)...`)
+            const t2Retry = Date.now()
+            try {
+              const retryResponse = await gotScraping({
+                url: guidUrl,
+                headers: {
+                  Cookie: freshCookie,
+                  Referer: referer
+                },
+                timeout: { request: 30_000 },
+                responseType: 'buffer'
+              })
+              fileBuffer = retryResponse.body
+              const retryContentType = (retryResponse.headers['content-type'] as string | undefined) ?? ''
+              const retryBodyPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 200))
+              const retryIsHtml =
+                retryContentType.includes('text/html') ||
+                retryBodyPreview.includes('<!DOCTYPE') ||
+                retryBodyPreview.includes('<html')
+              log.info(
+                `[Download:7:VALIDATE] Retry ← HTTP ${retryResponse.statusCode} in ${Date.now() - t2Retry}ms, size=${fileBuffer.length}, isHtml=${retryIsHtml}`
+              )
+              if (retryResponse.statusCode !== 200) {
+                const retryPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
+                log.error(`[Download:7:VALIDATE] ✗ Retry HTTP ${retryResponse.statusCode}: ${retryPreview}`)
+                throw createError({
+                  statusCode: 502,
+                  statusMessage: `${indexer} returned ${retryResponse.statusCode} after retry`
+                })
+              }
+              if (retryIsHtml) {
+                const retryHtmlPreview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 300))
+                log.error(`[Download:7:VALIDATE] ✗ Retry also returned HTML - cookie truly invalid`)
+                log.error(`[Download:7:VALIDATE]   retry preview: ${retryHtmlPreview}`)
+                throw createError({
+                  statusCode: 401,
+                  statusMessage: `Cookie expired and re-login failed for ${indexer}. Update cookie in admin panel → Trackers.`
+                })
+              }
+            } catch (err) {
+              if (err instanceof Error && 'statusCode' in err) throw err
+              const msg = err instanceof Error ? err.message : String(err)
+              log.error(`[Download:7:VALIDATE] ✗ Retry failed in ${Date.now() - t2Retry}ms: ${msg}`)
+              throw createError({ statusCode: 502, statusMessage: `Retry to ${indexer} failed: ${msg}` })
+            }
+          } else {
+            // No login credentials - cannot retry
+            const hostname = (() => {
+              try {
+                return new URL(guidUrl).hostname
+              } catch {
+                return guidUrl
+              }
+            })()
+            throw createError({
+              statusCode: 401,
+              statusMessage: `Cookie expired or invalid for ${indexer}. Server returned login page for ${hostname}. Update cookie in admin panel → Trackers.`
             })
-            .run()
+          }
+        }
+
+        if (firstByte !== 0x64) {
+          const preview = fileBuffer.toString('utf-8', 0, Math.min(fileBuffer.length, 200))
+          log.error(
+            `[Download:7:VALIDATE] ✗ unexpected first byte: 0x${firstByte.toString(16)} (expected 0x64 = 'd' for bencode)`
+          )
+          log.error(`[Download:7:VALIDATE]   preview: ${preview}`)
           throw createError({
-            statusCode: 507,
-            statusMessage: `Torrent too large for disk (${formatSize(torrent.size)}). Free: ${lowDisk.freeFormatted}${session.user.role === 'admin' ? ` on ${lowDisk.path}` : ''}`
+            statusCode: 401,
+            statusMessage: `Invalid response from ${indexer} (not a valid torrent file, first byte: 0x${firstByte.toString(16)})`
+          })
+        }
+
+        log.info(`[Download:7:VALIDATE] ✓ valid torrent file (${fileBuffer.length} bytes)`)
+
+        // ── 8: QUI addTorrentFile ───────────────────────────────
+        const fileName = `${label.replace(/[^a-zA-Z0-9._-]/g, '_')}.torrent`
+        storedMagnetLink = `guid:${guidUrl}`
+
+        log.info(
+          `[Download:8:QUI] addTorrentFile: fileName=${fileName}, target=${targetPath}, cat=${savePath}, tag=${dlTag}`
+        )
+        const t3 = Date.now()
+        try {
+          torrent = await qui.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          log.error(`[Download:8:QUI] ✗ addTorrentFile failed in ${Date.now() - t3}ms: ${msg}`)
+          throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
+        }
+
+        if (torrent !== null) {
+          log.info(
+            `[Download:8:QUI] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
+          )
+        } else {
+          log.warn(`[Download:8:QUI] ⚠ addTorrentFile returned null after ${Date.now() - t3}ms`)
+        }
+      } else {
+        // ── 8b: QUI addTorrent (magnet/downloadUrl) ─────────────
+        storedMagnetLink = hasDownloadUrl ? `download:${downloadUrl}` : torrentUrl
+        log.info(`[Download:8:QUI] addTorrent (magnet/url): url=${torrentUrl.substring(0, 100)}, tag=${dlTag}`)
+        const t3 = Date.now()
+        try {
+          torrent = await qui.addTorrent(torrentUrl, targetPath, savePath, dlTag)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          log.error(`[Download:8:QUI] ✗ addTorrent failed in ${Date.now() - t3}ms: ${msg}`)
+          throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
+        }
+
+        if (torrent !== null) {
+          log.info(
+            `[Download:8:QUI] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
+          )
+        } else {
+          log.warn(`[Download:8:QUI] ⚠ addTorrent returned null after ${Date.now() - t3}ms`)
+        }
+      }
+
+      // ── 8c: DANGEROUS FILE CHECK ─────────────────────────────
+      if (torrent !== null) {
+        const t4 = Date.now()
+        let files = await qui.getTorrentFiles(torrent.hash).catch(() => [])
+
+        // Wait for metadata if file list is empty
+        if (files.length === 0) {
+          for (let i = 0; i < 5; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+            files = await qui.getTorrentFiles(torrent.hash).catch(() => [])
+            if (files.length > 0) break
+          }
+        }
+
+        log.info(`[Download:8c:FILE_CHECK] hash=${torrent.hash} files=${files.length} (in ${Date.now() - t4}ms)`)
+
+        if (files.length > 0) {
+          const { safe, dangerousFiles } = checkForDangerousFiles(files)
+          if (!safe) {
+            log.warn(`[Download:8c:FILE_CHECK] ✗ BLOCKED - dangerous files: ${dangerousFiles.join(', ')}`)
+            await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+            throw createError({
+              statusCode: 403,
+              statusMessage: `Torrent contains dangerous files: ${dangerousFiles.map((f) => f.split('/').pop() ?? f).join(', ')} — rejected`
+            })
+          }
+          log.info(`[Download:8c:FILE_CHECK] ✓ all ${files.length} files safe`)
+        } else {
+          log.warn(`[Download:8c:FILE_CHECK] ⚠ no files found (metadata not ready?), skipping check`)
+        }
+      }
+
+      // ── 9: SIZE CHECK ────────────────────────────────────────
+      if (torrent !== null) {
+        const maxSizeBytes = freshUser.maxTorrentSizeGb * 1024 * 1024 * 1024
+        log.info(
+          `[Download:9:SIZE] torrent.size=${torrent.size} (${(torrent.size / (1024 * 1024 * 1024)).toFixed(2)} GB) limit=${maxSizeBytes} (${freshUser.maxTorrentSizeGb} GB)`
+        )
+        if (torrent.size > maxSizeBytes) {
+          await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+          throw createError({
+            statusCode: 413,
+            statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${freshUser.maxTorrentSizeGb} GB`
           })
         }
       }
-    }
 
-    // ── 9c: ADMIN QUEUE PRIORITY ──────────────────────────────
-    if (torrent !== null && session.user.role === 'admin') {
-      await qui.moveToTop([torrent.hash]).catch(() => {})
-    }
-
-    // ── 10: DB ────────────────────────────────────────────────
-    let posterUrl: string | null = null
-    if (tmdbId !== null && mediaType !== null) {
-      try {
-        if (mediaType === 'movie') {
-          const movie = await getMovieDetails(tmdbId)
-          posterUrl = getImageUrl(movie.poster_path, 'w185')
-        } else {
-          const show = await getTvShowDetails(tmdbId)
-          posterUrl = getImageUrl(show.poster_path, 'w185')
+      // ── 9b: DISK CHECK POST-ADD ──────────────────────────────
+      if (torrent !== null && torrent.size > 0 && isDiskCheckEnabled()) {
+        const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
+        if (disks.length > 0) {
+          const allStatuses = checkAllDisks(disks, getDiskMinFreeGb())
+          const lowDisk = allStatuses.find((d) => {
+            if (!d.available) return true
+            return torrent.size > d.freeBytes
+          })
+          if (lowDisk !== undefined) {
+            log.warn(
+              `[Download:9b:DISK] ✗ POST-ADD DELETE - ${lowDisk.path}: ${lowDisk.available ? lowDisk.freeFormatted + ' free' : 'unavailable'}, torrent=${formatSize(torrent.size)}`
+            )
+            await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+            const id = randomUUID()
+            db.insert(downloads)
+              .values({
+                id,
+                userId,
+                label,
+                torrentName: torrent.name,
+                magnetLink: storedMagnetLink,
+                savePath: savePath as SavePathKey,
+                status: 'disk_full',
+                torrentHash: torrent.hash,
+                sizeBytes: torrent.size,
+                posterUrl: null,
+                tmdbId,
+                mediaType: mediaType as 'movie' | 'tv' | null,
+                createdAt: new Date().toISOString()
+              })
+              .run()
+            throw createError({
+              statusCode: 507,
+              statusMessage: `Torrent too large for disk (${formatSize(torrent.size)}). Free: ${lowDisk.freeFormatted}${userRole === 'admin' ? ` on ${lowDisk.path}` : ''}`
+            })
+          }
         }
-      } catch {
-        // ignore - poster is optional
       }
-    }
 
-    const id = randomUUID()
-    const isPrivateDownload = getTrackerType(indexer) !== null
-    log.info(
-      `[Download:10:DB] inserting: id=${id} status=downloading hash=${torrent?.hash ?? 'null'} isPrivate=${isPrivateDownload}`
-    )
-    db.insert(downloads)
-      .values({
-        id,
-        userId: session.user.id,
-        label: label ?? '',
-        torrentName: torrent?.name ?? '',
-        magnetLink: storedMagnetLink,
-        savePath: savePath as SavePathKey,
-        status: 'downloading',
-        torrentHash: torrent?.hash ?? null,
-        progress: torrent !== null ? torrent.progress * 100 : 0,
-        etaSeconds: torrent?.eta ?? 0,
-        downloadSpeed: torrent?.dlspeed ?? 0,
-        uploadSpeed: torrent?.upspeed ?? 0,
-        sizeBytes: torrent?.size ?? 0,
-        downloadedBytes: torrent?.downloaded ?? 0,
-        createdAt: new Date().toISOString(),
-        tmdbId,
-        mediaType,
-        posterUrl,
-        isPrivate: isPrivateDownload
-      })
-      .run()
+      // ── 9c: ADMIN QUEUE PRIORITY ──────────────────────────────
+      if (torrent !== null && userRole === 'admin') {
+        await qui.moveToTop([torrent.hash]).catch(() => {})
+      }
 
-    logActivity(event, {
-      action: 'torrent_add',
-      userId: session.user.id,
-      username: session.user.username,
-      details: JSON.stringify({
-        name: torrent?.name ?? 'unknown',
-        label: label ?? '',
-        savePath,
-        sizeBytes: torrent?.size ?? 0
+      // ── 10: DB ────────────────────────────────────────────────
+      let posterUrl: string | null = null
+      if (tmdbId !== null && mediaType !== null) {
+        try {
+          if (mediaType === 'movie') {
+            const movie = await getMovieDetails(tmdbId)
+            posterUrl = getImageUrl(movie.poster_path, 'w185')
+          } else {
+            const show = await getTvShowDetails(tmdbId)
+            posterUrl = getImageUrl(show.poster_path, 'w185')
+          }
+        } catch {
+          // ignore - poster is optional
+        }
+      }
+
+      const id = randomUUID()
+      const isPrivateDownload = getTrackerType(indexer) !== null
+      log.info(
+        `[Download:10:DB] inserting: id=${id} status=downloading hash=${torrent?.hash ?? 'null'} isPrivate=${isPrivateDownload}`
+      )
+      db.insert(downloads)
+        .values({
+          id,
+          userId,
+          label: label ?? '',
+          torrentName: torrent?.name ?? '',
+          magnetLink: storedMagnetLink,
+          savePath: savePath as SavePathKey,
+          status: 'downloading',
+          torrentHash: torrent?.hash ?? null,
+          progress: torrent !== null ? torrent.progress * 100 : 0,
+          etaSeconds: torrent?.eta ?? 0,
+          downloadSpeed: torrent?.dlspeed ?? 0,
+          uploadSpeed: torrent?.upspeed ?? 0,
+          sizeBytes: torrent?.size ?? 0,
+          downloadedBytes: torrent?.downloaded ?? 0,
+          createdAt: new Date().toISOString(),
+          tmdbId,
+          mediaType,
+          posterUrl,
+          isPrivate: isPrivateDownload
+        })
+        .run()
+
+      logActivity(event, {
+        action: 'torrent_add',
+        userId,
+        username,
+        details: JSON.stringify({
+          name: torrent?.name ?? 'unknown',
+          label: label ?? '',
+          savePath,
+          sizeBytes: torrent?.size ?? 0
+        })
       })
+
+      // ── 11: DONE ──────────────────────────────────────────────
+      log.info(`[Download:11:DONE] ✓ success in ${Date.now() - t0}ms: id=${id} hash=${torrent?.hash ?? 'null'}`)
+      return { success: true, id, torrent }
     })
-
-    // ── 11: DONE ──────────────────────────────────────────────
-    log.info(`[Download:11:DONE] ✓ success in ${Date.now() - t0}ms: id=${id} hash=${torrent?.hash ?? 'null'}`)
-    return { success: true, id, torrent }
   } catch (err) {
     log.error(err, `[Download:FATAL] ✗ handler failed in ${Date.now() - t0}ms:`)
     throw err
