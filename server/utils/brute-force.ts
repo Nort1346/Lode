@@ -146,6 +146,9 @@ export async function blockIp(ip: string, _reason: string, durationMinutes?: num
 
 export async function unblockIp(ip: string): Promise<void> {
   blockedIpsCache.delete(ip)
+
+  const db = useDb()
+  db.run(sql`DELETE FROM login_attempts WHERE ip = ${ip} AND success = 0`)
 }
 
 export interface BlockedIpEntry {
