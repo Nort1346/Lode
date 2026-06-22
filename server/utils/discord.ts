@@ -53,6 +53,7 @@ const DISCORD_STRINGS = {
     size: 'Rozmiar',
     category: 'Kategoria',
     downloadedBy: 'Dodane przez',
+    newRequest: '📨 Nowy request',
     min: 'min',
     movies: '🎬 Film',
     series: '📺 Serial',
@@ -72,6 +73,7 @@ const DISCORD_STRINGS = {
     size: 'Size',
     category: 'Category',
     downloadedBy: 'Downloaded by',
+    newRequest: '📨 New Request',
     min: 'min',
     movies: '🎬 Movies',
     series: '📺 Series',
@@ -347,6 +349,10 @@ export async function notifyRequestPending(data: RequestPendingData): Promise<vo
   const typeEmoji = data.mediaType === 'movie' ? str.movies : str.series
 
   const container = new ContainerBuilder()
+
+  container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(bold(str.newRequest)))
+
+  addSeparator(container)
 
   container.addTextDisplayComponents((text: TextDisplayBuilder) =>
     text.setContent(heading(`${title}`, HeadingLevel.One))
