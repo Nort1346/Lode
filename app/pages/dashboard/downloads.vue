@@ -224,7 +224,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
         "
       >
         <div
-          class="shrink-0 w-12 h-[72px] rounded-lg overflow-hidden bg-zinc-200 dark:bg-white/5 shadow-sm dark:shadow-black/20 sm:w-[80px] sm:h-[120px]"
+          class="shrink-0 w-12 h-18 rounded-lg overflow-hidden bg-zinc-200 dark:bg-white/5 shadow-sm dark:shadow-black/20 sm:w-20 sm:h-30"
         >
           <img v-if="dl.posterUrl" :src="dl.posterUrl" class="w-full h-full object-cover" loading="lazy" />
           <div v-else class="flex items-center justify-center w-full h-full">
@@ -311,7 +311,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
             </div>
             <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
               <div
-                class="h-full min-w-0.5 rounded-full bg-gradient-to-r"
+                class="h-full min-w-0.5 rounded-full bg-linear-to-r"
                 :class="qualityConfig[getTorrentQuality(dl)].bar"
                 :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
               />

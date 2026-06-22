@@ -47,7 +47,7 @@ function goToItem(item: WishlistItem) {
 
     <div v-if="pending" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       <div v-for="i in 10" :key="i" class="space-y-2">
-        <USkeleton class="aspect-[2/3] w-full rounded-xl" />
+        <USkeleton class="aspect-2/3 w-full rounded-xl" />
         <USkeleton class="h-4 w-3/4 rounded" />
         <USkeleton class="h-3 w-1/2 rounded" />
       </div>
@@ -69,13 +69,13 @@ function goToItem(item: WishlistItem) {
             v-if="item.mediaPoster"
             :src="item.mediaPoster"
             :alt="item.mediaTitle"
-            class="aspect-[2/3] w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            class="aspect-2/3 w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
-          <div v-else class="aspect-[2/3] w-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+          <div v-else class="aspect-2/3 w-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
             <UIcon name="i-lucide-film" class="w-12 h-12 text-zinc-400" />
           </div>
           <div
-            class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            class="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           />
           <div
             class="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300"

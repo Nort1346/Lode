@@ -11,7 +11,6 @@ useHead({
   ],
   htmlAttrs: {
     lang: 'en',
-    class: 'dark',
     translate: 'no'
   },
   bodyAttrs: {
