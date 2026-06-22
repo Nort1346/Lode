@@ -475,10 +475,9 @@
 
     <UModal v-model:open="requestModalOpen">
       <template #header>
-        <h3 class="text-xl font-semibold text-zinc-900 dark:text-white">{{ t('requests.requestThis') }}</h3>
+        <h3 class="text-xl font-semibold text-zinc-900 dark:text-white">{{ show?.name }}</h3>
       </template>
       <template #body>
-        <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-3">{{ show?.name }}</p>
         <UFormField :label="t('requests.messageToAdmin')">
           <UInput
             v-model="requestNote"
