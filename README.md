@@ -40,6 +40,9 @@ Users can add torrents via three input methods on `/dashboard/submit`:
 - Admin queue priority: admin torrents are moved to top of qBittorrent download queue via `/api/v2/torrents/topPrio`
 - TMDB poster fetch (if tmdbId provided)
 - Activity log recorded
+- **Mutex lock**: all torrent add operations are serialized via an in-memory async mutex to prevent disk race conditions
+- **5-second cooldown**: per-user cooldown set before mutex lock (prevents spam during long processing)
+- **DB transaction**: active + daily limit checks wrapped in transaction to prevent concurrent bypass
 
 ### Browse & Search
 
@@ -50,6 +53,13 @@ Users can add torrents via three input methods on `/dashboard/submit`:
 - Top Rated (from TMDB `/movie/top_rated`)
 
 Carousels use the reusable `MediaCarousel` component with scroll arrows (hover-reveal), skeleton loading, and `MediaCarouselItem` type (includes `logoUrl`).
+
+**Genre carousels:**
+- 14 genre-specific carousels (Action, Adventure, Animation, Comedy, Crime, Documentary, Drama, Fantasy, Horror, Mystery, Romance, Science Fiction, Thriller, War)
+- Uses TMDB discover endpoint with `vote_count.desc` sort and `vote_count.gte=100` filter
+- Lazy-loaded via `InviewSection` component (IntersectionObserver, 200px rootMargin)
+- 6h Redis cache per genre
+- Displays first 20 results per genre
 
 **Search:**
 - Full-text search across movies and TV shows
@@ -74,29 +84,38 @@ Carousels use the reusable `MediaCarousel` component with scroll arrows (hover-r
 - "Request This" and "Add to Wishlist" buttons (same as movie)
 - Same scoring and download system as movies
 
-**Torrent ranking (240-point system):**
-| Factor | Points |
-|--------|--------|
-| Seeders (logarithmic) | 0–100 (`11 * log2(seeders + 1)`) |
-| Resolution: 4K/2160p | 40 |
-| Resolution: 1080p | 30 |
-| Resolution: 720p | 20 |
-| Language: PL Dubbing | 30 |
-| Language: PL Lektor | 30 |
-| Language: PL Napisy | 25 |
-| Language: English | 15 |
-| Size sweet spot | 0–20 |
-| Source: Remux | 10 |
-| Source: BluRay | 9 |
-| Source: WEB-DL | 8 |
-| Known release groups | 5 |
-| Title relevance (word match %) | 0–15 |
-| Year match | +10 |
-| Full title match | +10 |
+**Torrent ranking (configurable via `/admin/ranking`):**
 
-`SCORE_MAX = 240`. Displayed as percentage (`score / 240 * 100`), color: green ≥80%, amber ≥60%. Top 3 results marked as "recommended" (amber star badge).
+The ranking system evaluates and sorts search results using a fully configurable scoring engine. Admins can tune every aspect via the admin panel.
 
-Season packs are scored through `rankTorrents()` with adjusted size thresholds (<5GB=3, 5-20GB=7, 20-50GB=10, 50-100GB=8, >100GB=3).
+**Configurable components:**
+| Component | Description |
+|-----------|-------------|
+| **Weights** | How many points each factor contributes (resolution, language, seeders, size, source, group) |
+| **Resolutions** | Map resolution strings to scores (e.g. `1080p` → 40) |
+| **Sources** | Map source types to scores (e.g. `blu-ray` → 9, `web-dl` → 8) |
+| **Languages** | Language detection via regex patterns with per-language scores and fallback |
+| **Known Groups** | Release group names that receive bonus points |
+| **Size Thresholds** | Per-type (movie/series/seasonPack) min/max GB ranges with scores, supports ∞ (unlimited) |
+| **Title Relevance** | Word match weight, year match weight, full title match weight, no-match penalty |
+| **Recommended Count** | How many top results to mark as recommended |
+
+**Admin UI features:**
+- Per-section reset buttons (restore individual sections to defaults)
+- Regex pattern validation with visual feedback (red badge on invalid patterns)
+- Infinity (∞) toggle for size threshold max values
+- Live scoreMax preview (computed from all weights)
+- Unsaved changes warning on page leave
+- Activity log tracking for config updates and resets
+
+**Scoring flow:**
+1. Parse torrent title → extract resolution, source, language, group
+2. Score each component against config (resolution + language + seeders + size + source + group + title relevance)
+3. Sort by total score descending
+4. Top N results marked as "recommended" (amber star badge)
+5. Display as percentage (`score / scoreMax * 100`), color: green ≥80%, amber ≥60%
+
+Season packs are scored through `rankTorrents()` with type-specific size thresholds.
 
 ### Download Management
 
@@ -366,7 +385,7 @@ NUXT_JELLYFIN_PREP_SPEED_MB=8
 
 ### Activity Logs
 
-**Tracked actions:** login, login_failed, logout, register, torrent_add, torrent_delete, user_update, user_delete, brute_force_config_update, brute_force_unblock_ip, discord_mentions_update, disk_config_update
+**Tracked actions:** login, login_failed, logout, register, torrent_add, torrent_delete, user_update, user_delete, tracker_add, tracker_update, tracker_delete, brute_force_config_update, brute_force_unblock_ip, discord_mentions_update, disk_config_update, ranking_config_update, ranking_config_reset
 
 **Features:**
 - Paginated table with time, user, action, details, IP, user agent
@@ -422,7 +441,10 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - Google Translate prevention: `<meta name="google" content="notranslate">`, `translate="no"` on `<html>`, `notranslate` class on `<body>`
 - TMDB logo title treatments: `getLogosForItems()` fetches `/movie/{id}/images` and `/tv/{id}/images` with `include_image_language={lang},null`, picks best logo per locale (ISO 639-1 codes: `en`, `pl`), cached in Redis (24h TTL)
 - Trending content now passes `language` param to TMDB API (titles are locale-aware, not always English)
+- Hero banner: locale-reactive (fetches overview in active locale, re-matches trendingItems on locale change)
 - Wishlist translations: `wishlist.*` namespace with title, buttons, empty state, toast messages
+- UI text: "Torrenty" → "Pobrania", "Pobierz" → "Dodaj", "Oglądaj teraz" → "Sprawdź"
+- Server-side i18n: `createT(locale)` utility loads from `i18n/locales/*.json` for Discord notifications
 
 ### Technical Features
 
@@ -461,6 +483,7 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - Empty results not cached (prevents stale empty cache)
 - Season-specific cache keys (prevents collision)
 - Season packs scored through `rankTorrents()` (not manually mapped)
+- Category filtering: `PROWLARR_CATEGORIES` const (`MOVIES: 2000`, `TV: 5000`), strict filtering per search method
 
 **Torrent file validation (Polish trackers):**
 - Binary validation: torrent files start with `0x64` (d = bencode dictionary)
@@ -476,6 +499,12 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - `strict-boolean-expressions`
 - Server files: `'no-console': 'off'`
 - App files: `'no-console': 'warn'`
+
+**Server types extraction:**
+- `server/types/` directory with 11 type modules (torrent, prowlarr, tmdb, discord, brute-force, disk, limits, logger, flaresolverr, i18n, status, ranking)
+- `server/utils/format.ts` — canonical `formatSize()` (was duplicated in 3 files)
+- `server/utils/ip.ts` — canonical `resolveIp()` (was duplicated in 2 files)
+- No type re-exports from utility files — each file imports types directly from `#server/types/`
 
 **Path aliases:**
 | Alias | Resolves to |
@@ -678,6 +707,8 @@ docker compose down
 | `settings/DiscordWebhook.vue` | Discord locale + mentions toggle (independent data fetching) |
 | `settings/DiskStatus.vue` | Disk check toggle, min GB input, progress bars (independent data fetching) |
 | `settings/LiveLogs.vue` | SSE live log viewer with pause/clear/download (independent data fetching) |
+| `HeroSection.vue` | Auto-rotating hero banner with Ken Burns zoom animation, locale-reactive |
+| `InviewSection.vue` | Lazy-load wrapper using IntersectionObserver (200px rootMargin) for browse carousels |
 
 ## Pages
 
@@ -698,6 +729,7 @@ docker compose down
 | `/admin/settings` | `admin/settings.vue` | System status, disk status, live logs |
 | `/admin/logs` | `admin/logs.vue` | Activity logs with click-to-copy |
 | `/admin/brute-force` | `admin/brute-force.vue` | Brute force protection (blocked IPs, config) |
+| `/admin/ranking` | `admin/ranking.vue` | Configurable torrent ranking (weights, languages, sources, thresholds) |
 
 ## Database Schema
 
@@ -777,7 +809,7 @@ Indexes: `(ip, created_at)`, `(username, created_at)`, `(created_at)`
 | `key` | text (PK) | Setting name |
 | `value` | text | Setting value |
 
-Known keys: `discord_locale` (pl/en), `discord_mentions_enabled` (true/false), `disk_check_enabled` (true/false), `disk_min_free_gb` (integer as string), `brute_force_max_attempts_per_ip`, `brute_force_ip_block_duration_minutes`, `brute_force_window_minutes`
+Known keys: `discord_locale` (pl/en), `discord_mentions_enabled` (true/false), `disk_check_enabled` (true/false), `disk_min_free_gb` (integer as string), `brute_force_max_attempts_per_ip`, `brute_force_ip_block_duration_minutes`, `brute_force_window_minutes`, `ranking_config` (JSON string with full ranking configuration)
 
 ### `activityLogs`
 | Column | Type | Description |
@@ -916,6 +948,13 @@ Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists
 | GET | `/api/admin/brute-force/blocked-ips` | Admin | List blocked IPs |
 | DELETE | `/api/admin/brute-force/blocked-ips` | Admin | Unblock an IP |
 | GET | `/api/admin/brute-force/stats` | Admin | Brute force statistics |
+
+### Admin - Ranking
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/admin/ranking/config` | Admin | Get ranking configuration |
+| PUT | `/api/admin/ranking/config` | Admin | Update ranking configuration |
+| POST | `/api/admin/ranking/config/reset` | Admin | Reset ranking to defaults |
 
 ### Admin - Logs
 | Method | Endpoint | Auth | Description |
