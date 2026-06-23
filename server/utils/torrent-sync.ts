@@ -116,7 +116,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           uploadSpeed: 0,
           sizeBytes: quiTorrent.size,
           downloadedBytes: quiTorrent.downloaded,
-          numSeeds: quiTorrent.num_seeds,
+          numSeeds: Math.max(quiTorrent.num_seeds, quiTorrent.num_complete > 0 ? quiTorrent.num_complete : 0),
           numLeechs: quiTorrent.num_leechs,
           status: 'completed',
           completedAt: new Date().toISOString()
@@ -135,7 +135,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           uploadSpeed: quiTorrent.upspeed,
           sizeBytes: quiTorrent.size,
           downloadedBytes: quiTorrent.downloaded,
-          numSeeds: quiTorrent.num_seeds,
+          numSeeds: Math.max(quiTorrent.num_seeds, quiTorrent.num_complete > 0 ? quiTorrent.num_complete : 0),
           numLeechs: quiTorrent.num_leechs
         })
         .where(eq(downloads.id, dl.id))

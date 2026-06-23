@@ -40,10 +40,15 @@ export function formatDate(dateStr: string): string {
   return d.toLocaleDateString('pl-PL', { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 
-export function getTorrentQuality(dl: { numSeeds: number }): TorrentQuality {
-  if (dl.numSeeds <= 0) return 'dead'
-  if (dl.numSeeds < 5) return 'poor'
-  if (dl.numSeeds < 20) return 'slow'
+export function getTorrentQuality(dl: { numSeeds: number; downloadSpeed: number }): TorrentQuality {
+  const seeds = dl.numSeeds
+  const speed = dl.downloadSpeed
+
+  if (speed > 0 && seeds > 0) return 'ok'
+  if (speed > 0 && seeds === 0) return 'slow'
+  if (seeds <= 0) return 'dead'
+  if (seeds < 5) return 'poor'
+  if (seeds < 20) return 'slow'
   return 'ok'
 }
 

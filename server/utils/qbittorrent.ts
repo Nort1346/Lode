@@ -16,6 +16,7 @@ export interface QuiTorrent {
   size: number
   downloaded: number
   num_seeds: number
+  num_complete: number
   num_leechs: number
   state: string
   save_path: string
