@@ -2,6 +2,7 @@ import { getMovieDetails } from '#server/utils/tmdb'
 import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents } from '#server/utils/torrent-ranker'
 import { checkDailyLimit } from '#server/utils/limits'
+import { getRankingConfig } from '#server/utils/ranking-config'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -35,6 +36,7 @@ export default defineEventHandler(async (event) => {
   const prowlarr = useProwlarr()
   if (prowlarr !== null) {
     try {
+      const rankingConfig = await getRankingConfig()
       const year = movie.release_date?.slice(0, 4) ?? ''
       let rawResults = await prowlarr.searchByQuery(`${movie.title} ${year}`.trim(), locale, [
         PROWLARR_CATEGORIES.MOVIES
@@ -44,7 +46,7 @@ export default defineEventHandler(async (event) => {
           PROWLARR_CATEGORIES.MOVIES
         ])
       }
-      torrents = rankTorrents(rawResults, 'movie', movie.title, year)
+      torrents = rankTorrents(rawResults, 'movie', movie.title, year, rankingConfig)
     } catch {
       // Prowlarr might be offline, return empty torrents
     }

@@ -11,7 +11,8 @@
     "requests": "Requests",
     "trackers": "Trackers",
     "bruteForce": "Security",
-    "language": "Language"
+    "language": "Language",
+    "ranking": "Ranking"
   },
   "theme": {
     "light": "Light Mode",
@@ -214,6 +215,8 @@
     "action_brute_force_unblock_ip": "IP Unblocked",
     "action_discord_mentions_update": "Discord Mentions Update",
     "action_disk_config_update": "Disk Config Update",
+    "action_ranking_config_update": "Ranking Config Update",
+    "action_ranking_config_reset": "Ranking Config Reset",
     "copied": "Copied"
   },
   "settings": {
@@ -434,5 +437,82 @@
     "source": "Source",
     "language": "Language",
     "codec": "Codec"
+  },
+  "ranking": {
+    "title": "Torrent Ranking",
+    "subtitle": "Configure how the system evaluates and sorts search results",
+    "weights": {
+      "title": "Component Weights",
+      "resolution": "Resolution",
+      "language": "Language",
+      "seeders": "Seeders",
+      "size": "Size",
+      "source": "Source",
+      "group": "Group"
+    },
+    "resolutions": {
+      "title": "Resolutions",
+      "add": "Add resolution"
+    },
+    "sources": {
+      "title": "Sources",
+      "add": "Add source"
+    },
+    "languages": {
+      "title": "Languages",
+      "add": "Add language",
+      "code": "Code",
+      "score": "Score",
+      "patterns": "Detection patterns",
+      "patternsHint": "Regex patterns separated by commas (e.g. pldub, pl[\\\\s.]?dub)",
+      "isFallback": "Default (fallback)"
+    },
+    "groups": {
+      "title": "Known Groups",
+      "add": "Add group",
+      "placeholder": "Group name"
+    },
+    "sizeThresholds": {
+      "title": "Size Thresholds",
+      "movie": "Movies",
+      "series": "Series",
+      "seasonPack": "Season Packs",
+      "min": "Min (GB)",
+      "max": "Max (GB)",
+      "score": "Score",
+      "add": "Add threshold",
+      "unlimited": "∞ (no limit)"
+    },
+    "titleRelevance": {
+      "title": "Title Relevance",
+      "wordWeight": "Word weight",
+      "yearWeight": "Year weight",
+      "fullTitleWeight": "Full title weight",
+      "penalty": "No-match penalty"
+    },
+    "recommendedCount": "Recommended count",
+    "scoreMax": "Maximum score",
+    "patternInvalid": "Invalid regex pattern",
+    "unsavedWarning": "You have unsaved changes. Are you sure you want to leave?",
+    "sections": {
+      "reset": "Reset"
+    },
+    "patterns": {
+      "add": "Add pattern",
+      "placeholder": "Regex pattern"
+    },
+    "weightsHint": "Weights determine how many points each component contributes to the final score (0-500)",
+    "resolutionsHint": "Resolution to score mapping",
+    "sourcesHint": "Source to score mapping",
+    "languagesHint": "Torrent language. First match wins. Patterns are regexes",
+    "groupsHint": "Known release groups receive bonus points",
+    "sizeThresholdsHint": "Size thresholds in GB. Points for matching a range",
+    "titleRelevanceHint": "How well the torrent title matches the movie/series title",
+    "recommendedCountHint": "How many torrents to mark as recommended",
+    "save": "Save configuration",
+    "reset": "Reset to defaults",
+    "saved": "Configuration saved",
+    "resetDone": "Default configuration restored",
+    "saveError": "Failed to save configuration"
   }
 }

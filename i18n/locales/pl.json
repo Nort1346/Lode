@@ -11,7 +11,8 @@
     "requests": "Żądania",
     "trackers": "Trackery",
     "bruteForce": "Ochrona",
-    "language": "Język"
+    "language": "Język",
+    "ranking": "Ranking"
   },
   "theme": {
     "light": "Tryb jasny",
@@ -214,6 +215,8 @@
     "action_brute_force_unblock_ip": "Odblokowanie IP",
     "action_discord_mentions_update": "Aktualizacja wzmianek Discord",
     "action_disk_config_update": "Aktualizacja ustawień dysków",
+    "action_ranking_config_update": "Aktualizacja konfiguracji rankingu",
+    "action_ranking_config_reset": "Reset konfiguracji rankingu",
     "copied": "Skopiowano"
   },
   "settings": {
@@ -434,5 +437,82 @@
     "source": "Źródło",
     "language": "Język",
     "codec": "Kodek"
+  },
+  "ranking": {
+    "title": "Ranking Torrentów",
+    "subtitle": "Konfiguruj jak system ocenia i sortuje wyniki wyszukiwania",
+    "weights": {
+      "title": "Wagi komponentów",
+      "resolution": "Rozdzielczość",
+      "language": "Język",
+      "seeders": "Seederzy",
+      "size": "Rozmiar",
+      "source": "Źródło",
+      "group": "Grupa"
+    },
+    "resolutions": {
+      "title": "Rozdzielczości",
+      "add": "Dodaj rozdzielczość"
+    },
+    "sources": {
+      "title": "Źródła",
+      "add": "Dodaj źródło"
+    },
+    "languages": {
+      "title": "Języki",
+      "add": "Dodaj język",
+      "code": "Kod",
+      "score": "Punktacja",
+      "patterns": "Wzorce detekcji",
+      "patternsHint": "Regex patterny oddzielone przecinkami (np. pldub, pl[\\\\s.]?dub)",
+      "isFallback": "Domyślny (fallback)"
+    },
+    "groups": {
+      "title": "Znane grupy",
+      "add": "Dodaj grupę",
+      "placeholder": "Nazwa grupy"
+    },
+    "sizeThresholds": {
+      "title": "Progi rozmiarów",
+      "movie": "Filmy",
+      "series": "Seriale",
+      "seasonPack": "Pakiety sezonowe",
+      "min": "Min (GB)",
+      "max": "Max (GB)",
+      "score": "Punktacja",
+      "add": "Dodaj próg",
+      "unlimited": "∞ (bez limitu)"
+    },
+    "titleRelevance": {
+      "title": "Dopasowanie tytułu",
+      "wordWeight": "Waga słów",
+      "yearWeight": "Waga roku",
+      "fullTitleWeight": "Waga pełnego tytułu",
+      "penalty": "Kara za brak dopasowania"
+    },
+    "recommendedCount": "Liczba rekomendowanych",
+    "scoreMax": "Maksymalny wynik",
+    "patternInvalid": "Nieprawidłowy regex",
+    "unsavedWarning": "Masz niezapisane zmiany. Na pewno chcesz wyjść?",
+    "sections": {
+      "reset": "Resetuj"
+    },
+    "patterns": {
+      "add": "Dodaj wzorzec",
+      "placeholder": "Regex pattern"
+    },
+    "weightsHint": "Wagi determinują ile punktów każdy komponent wnosi do końcowego wyniku (0-500)",
+    "resolutionsHint": "Mapowanie rozdzielczości na punkty",
+    "sourcesHint": "Mapowanie źródeł na punkty",
+    "languagesHint": "Język torrenta. Pierwsze dopasowanie wygrywa. Wzorce to regexy",
+    "groupsHint": "Znane grupy release'owe otrzymują bonusowe punkty",
+    "sizeThresholdsHint": "Progi rozmiarów w GB. Punkty za trafienie w przedział",
+    "titleRelevanceHint": "Jak bardzo tytuł torrenta pasuje do tytułu filmu/serialu",
+    "recommendedCountHint": "Ile torrentów oznaczyć jako rekomendowane",
+    "save": "Zapisz konfigurację",
+    "reset": "Resetuj do defaultów",
+    "saved": "Konfiguracja zapisana",
+    "resetDone": "Przywrócono domyślną konfigurację",
+    "saveError": "Błąd zapisu konfiguracji"
   }
 }

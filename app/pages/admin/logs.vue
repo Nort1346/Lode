@@ -33,7 +33,9 @@ const ACTION_KEYS: Record<string, string> = {
   brute_force_config_update: 'action_brute_force_config_update',
   brute_force_unblock_ip: 'action_brute_force_unblock_ip',
   discord_mentions_update: 'action_discord_mentions_update',
-  disk_config_update: 'action_disk_config_update'
+  disk_config_update: 'action_disk_config_update',
+  ranking_config_update: 'action_ranking_config_update',
+  ranking_config_reset: 'action_ranking_config_reset'
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -51,7 +53,9 @@ const ACTION_COLORS: Record<string, string> = {
   brute_force_config_update: 'amber',
   brute_force_unblock_ip: 'green',
   discord_mentions_update: 'indigo',
-  disk_config_update: 'cyan'
+  disk_config_update: 'cyan',
+  ranking_config_update: 'violet',
+  ranking_config_reset: 'orange'
 }
 
 const ACTION_OPTIONS = computed(() => [

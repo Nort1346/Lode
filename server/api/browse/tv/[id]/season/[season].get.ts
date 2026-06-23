@@ -4,6 +4,7 @@ import { rankTorrents } from '#server/utils/torrent-ranker'
 import { checkDailyLimit } from '#server/utils/limits'
 import { createLogger } from '#server/utils/logger'
 import type { ProwlarrResult } from '#server/types/prowlarr'
+import { getRankingConfig } from '#server/utils/ranking-config'
 
 const log = createLogger('Season')
 
@@ -127,12 +128,14 @@ export default defineEventHandler(async (event) => {
     log.warn(`[Season] Prowlarr not configured`)
   }
 
+  const rankingConfig = await getRankingConfig()
+
   const episodes = (season.episodes ?? []).map((ep) => {
     const episodeTorrents = rawTorrents.filter((t) => episodeRangeMatches(t.title, seasonNumber, ep.episode_number))
     if (episodeTorrents.length > 0) {
       log.info(`[Season] Episode ${ep.episode_number}: ${episodeTorrents.length} torrents matched`)
     }
-    const ranked = rankTorrents(episodeTorrents, 'series', show.name, year)
+    const ranked = rankTorrents(episodeTorrents, 'series', show.name, year, rankingConfig)
 
     return {
       id: ep.id,
@@ -169,7 +172,7 @@ export default defineEventHandler(async (event) => {
     log.info(`[Season] Season packs: ${seasonPackTorrents.length} found`)
   }
 
-  const seasonPacks = rankTorrents(seasonPackTorrents, 'series', show.name, year).map((t) => ({
+  const seasonPacks = rankTorrents(seasonPackTorrents, 'series', show.name, year, rankingConfig).map((t) => ({
     title: t.title,
     size: t.size,
     sizeFormatted: formatSize(t.size),
