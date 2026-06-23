@@ -22,7 +22,7 @@
         <UIcon name="i-lucide-chevron-left" class="size-5 text-zinc-700 dark:text-zinc-300" />
       </button>
 
-      <div ref="scrollRef" class="-mx-1 flex gap-4 overflow-x-auto px-1 py-4 pb-2 scrollbar-hide">
+      <div ref="scrollRef" class="-mx-1 flex gap-4 overflow-x-auto overflow-y-hidden px-1 py-4 pb-2 scrollbar-hide">
         <div v-for="item in items" :key="`${item.type}-${item.id}`" class="w-36 flex-none sm:w-44 md:w-48 lg:w-52">
           <MediaCard
             :id="item.id"
