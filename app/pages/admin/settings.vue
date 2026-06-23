@@ -42,6 +42,8 @@ const envVars = {
 
     <SettingsDiskStatus />
 
+    <SettingsPrepCountdown />
+
     <div class="card p-6 mb-4">
       <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">{{ t('settings.userLimitsDesc') }}</p>
       <div class="space-y-2 text-sm">

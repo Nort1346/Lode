@@ -49,7 +49,6 @@ export default defineNuxtConfig({
     quiProxyUrl: '',
     jellyfinUrl: '',
     jellyfinApiKey: '',
-    jellyfinPrepSpeedMb: 8,
     savePathMovies: '/mnt/storage/streaming/Movies',
     savePathSeries: '/mnt/storage/streaming/Series',
     savePathGames: '/mnt/storage/streaming/Games',

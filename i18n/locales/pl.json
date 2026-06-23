@@ -217,6 +217,7 @@
     "action_disk_config_update": "Aktualizacja ustawień dysków",
     "action_ranking_config_update": "Aktualizacja konfiguracji rankingu",
     "action_ranking_config_reset": "Reset konfiguracji rankingu",
+    "action_prep_config_update": "Aktualizacja ustawień odliczania",
     "copied": "Skopiowano"
   },
   "settings": {
@@ -262,6 +263,13 @@
     "discordMentionsSaved": "Zapisano wzmianki Discord",
     "diskCheckSaved": "Zapisano ustawienia dysków",
     "diskMinFreeSaved": "Zapisano minimum",
+    "prepCountdownTitle": "Odliczanie przed udostępnieniem",
+    "prepCountdownDesc": "Pokazuj użytkownikom szacowany czas pozostały do udostępnienia pliku w bibliotece. Gdy wyłączone, plik jest dostępny od razu po zakończeniu pobierania.",
+    "prepCountdownEnabled": "Odliczanie włączone",
+    "prepCountdownSpeed": "Prędkość kopiowania",
+    "prepCountdownSpeedHint": "Symulowana prędkość kopiowania pliku z dysku roboczego do docelowego. Wpływa na czas odliczania.",
+    "prepCountdownSaved": "Zapisano ustawienia odliczania",
+    "prepCountdownError": "Błąd zapisu ustawień odliczania",
     "liveLogs": "Logi na żywo",
     "logsPause": "Pauza",
     "logsResume": "Wznów",

@@ -35,7 +35,8 @@ const ACTION_KEYS: Record<string, string> = {
   discord_mentions_update: 'action_discord_mentions_update',
   disk_config_update: 'action_disk_config_update',
   ranking_config_update: 'action_ranking_config_update',
-  ranking_config_reset: 'action_ranking_config_reset'
+  ranking_config_reset: 'action_ranking_config_reset',
+  prep_config_update: 'action_prep_config_update'
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -55,7 +56,8 @@ const ACTION_COLORS: Record<string, string> = {
   discord_mentions_update: 'indigo',
   disk_config_update: 'cyan',
   ranking_config_update: 'violet',
-  ranking_config_reset: 'orange'
+  ranking_config_reset: 'orange',
+  prep_config_update: 'teal'
 }
 
 const ACTION_OPTIONS = computed(() => [

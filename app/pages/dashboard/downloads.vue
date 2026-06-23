@@ -24,6 +24,16 @@ const cancelling = ref<string | null>(null)
 const page = ref(1)
 const total = ref(0)
 const PAGE_SIZE = 10
+const prepSpeedMb = ref(15)
+
+async function fetchPrepConfig() {
+  try {
+    const data = await $fetch<{ enabled: boolean; speedMb: number }>('/api/prep-config')
+    prepSpeedMb.value = data.speedMb
+  } catch {
+    // keep default
+  }
+}
 
 async function fetchDownloads() {
   loading.value = true
@@ -42,7 +52,10 @@ async function fetchDownloads() {
 
 watch(page, () => fetchDownloads())
 
-onMounted(fetchDownloads)
+onMounted(() => {
+  fetchPrepConfig()
+  fetchDownloads()
+})
 
 const intervalId = ref<ReturnType<typeof setInterval>>()
 onMounted(() => {
@@ -86,7 +99,7 @@ const { qualityConfig } = useQualityConfig()
 
 function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
   if (!completedAt) return ''
-  const prepSpeedBytes = 8 * 1024 * 1024
+  const prepSpeedBytes = prepSpeedMb.value * 1024 * 1024
   const elapsed = (Date.now() - new Date(completedAt).getTime()) / 1000
   const delay = sizeBytes / prepSpeedBytes
   const remaining = Math.max(0, delay - elapsed)

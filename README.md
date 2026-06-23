@@ -325,7 +325,6 @@ NUXT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 ```env
 NUXT_JELLYFIN_URL=http://localhost:8096
 NUXT_JELLYFIN_API_KEY=your_api_key
-NUXT_JELLYFIN_PREP_SPEED_MB=8
 ```
 
 **How it works:**
@@ -678,7 +677,6 @@ docker compose down
 | `NUXT_REDIS_URL` | - | Redis connection URL (enables caching) |
 | `NUXT_JELLYFIN_URL` | - | Jellyfin server URL |
 | `NUXT_JELLYFIN_API_KEY` | - | Jellyfin API key |
-| `NUXT_JELLYFIN_PREP_SPEED_MB` | `8` | Prep speed in MB/s for delay calculation |
 | `NUXT_DISCORD_WEBHOOK_URL` | - | Discord webhook for download notifications |
 | `NUXT_FLARESOLVERR_URL` | - | FlareSolverr URL for Cloudflare bypass |
 

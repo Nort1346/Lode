@@ -1,4 +1,4 @@
-import { downloads, users } from '#server/database/schema'
+import { downloads, users, settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { sendDownloadCompleteWebhook } from './discord'
 import { createLogger } from '#server/utils/logger'
@@ -12,6 +12,20 @@ interface SyncResult {
 }
 
 const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
+
+function isPrepCountdownEnabled(): boolean {
+  const row = useDb()
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, 'prep_countdown_enabled'))
+    .get()
+  return row?.value === 'true'
+}
+
+function getPrepSpeedMb(): number {
+  const row = useDb().select({ value: settings.value }).from(settings).where(eq(settings.key, 'prep_speed_mb')).get()
+  return row !== undefined ? Number(row.value) : 15
+}
 
 function notifyDiscord(
   dl: {
@@ -55,6 +69,8 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
   const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
   const discordIdMap = new Map(allUsers.map((u) => [u.id, u.discordId ?? null]))
 
+  const countdownEnabled = isPrepCountdownEnabled()
+
   let quiTorrents
   try {
     const qui = useQui()
@@ -90,7 +106,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           .where(eq(downloads.id, dl.id))
           .run()
         result.completed++
-        void notifyDiscord(dl, userMap, discordIdMap)
+        if (!countdownEnabled) void notifyDiscord(dl, userMap, discordIdMap)
       } else {
         db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)).run()
         result.failed++
@@ -124,7 +140,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         .where(eq(downloads.id, dl.id))
         .run()
       result.completed++
-      void notifyDiscord(dl, userMap, discordIdMap)
+      if (!countdownEnabled) void notifyDiscord(dl, userMap, discordIdMap)
     } else {
       db.update(downloads)
         .set({
@@ -152,9 +168,10 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
   const db = useDb()
   const config = useRuntimeConfig()
   const jellyfin = useJellyfin()
-  if (jellyfin === null) return
 
-  const prepSpeedBytes = (config.jellyfinPrepSpeedMb ?? 8) * 1024 * 1024
+  const countdownEnabled = isPrepCountdownEnabled()
+  const prepSpeedMb = getPrepSpeedMb()
+  const prepSpeedBytes = prepSpeedMb * 1024 * 1024
 
   const savePathMap: Record<string, string> = {
     movies: config.savePathMovies,
@@ -171,16 +188,27 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
     .all()
     .filter((d) => d.completedAt !== null)
 
+  if (completedWithPrep.length === 0) return
+
+  const allUsers = db.select().from(users).all()
+  const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
+  const discordIdMap = new Map(allUsers.map((u) => [u.id, u.discordId ?? null]))
+
   for (const dl of completedWithPrep) {
     if (dl.completedAt === null) continue
 
     const elapsed = (Date.now() - new Date(dl.completedAt).getTime()) / 1000
-    const prepDelay = dl.sizeBytes / prepSpeedBytes
+    const prepDelay = countdownEnabled ? dl.sizeBytes / prepSpeedBytes : 0
 
     if (elapsed >= prepDelay) {
-      const targetPath = savePathMap[dl.savePath]
-      if (targetPath !== undefined) {
-        await jellyfin.notifyMediaUpdated([targetPath]).catch(() => {})
+      if (jellyfin !== null) {
+        const targetPath = savePathMap[dl.savePath]
+        if (targetPath !== undefined) {
+          await jellyfin.notifyMediaUpdated([targetPath]).catch(() => {})
+        }
+      }
+      if (countdownEnabled) {
+        void notifyDiscord(dl, userMap, discordIdMap)
       }
       db.update(downloads).set({ completedAt: null }).where(eq(downloads.id, dl.id)).run()
     }

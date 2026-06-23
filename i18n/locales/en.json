@@ -217,6 +217,7 @@
     "action_disk_config_update": "Disk Config Update",
     "action_ranking_config_update": "Ranking Config Update",
     "action_ranking_config_reset": "Ranking Config Reset",
+    "action_prep_config_update": "Prep Countdown Config Update",
     "copied": "Copied"
   },
   "settings": {
@@ -262,6 +263,13 @@
     "discordMentionsSaved": "Discord mentions saved",
     "diskCheckSaved": "Disk settings saved",
     "diskMinFreeSaved": "Minimum saved",
+    "prepCountdownTitle": "Prep Countdown",
+    "prepCountdownDesc": "Show users an estimated remaining time before the file is available in the library. When disabled, files are available immediately after download completes.",
+    "prepCountdownEnabled": "Countdown enabled",
+    "prepCountdownSpeed": "Copy speed",
+    "prepCountdownSpeedHint": "Simulated speed for copying files from working disk to storage. Affects countdown duration.",
+    "prepCountdownSaved": "Prep countdown settings saved",
+    "prepCountdownError": "Failed to save prep countdown settings",
     "liveLogs": "Live Logs",
     "logsPause": "Pause",
     "logsResume": "Resume",
