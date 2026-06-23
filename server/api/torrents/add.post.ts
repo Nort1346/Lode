@@ -5,7 +5,6 @@ import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tm
 import { getFreshUser } from '#server/utils/user'
 import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
-import { formatSize } from '#server/utils/torrent-ranker'
 import { createLogger } from '#server/utils/logger'
 
 const log = createLogger('Add')

@@ -1,21 +1,7 @@
-import type { ProwlarrResult } from './prowlarr'
-
-export interface RankedTorrent extends ProwlarrResult {
-  score: number
-  percentage: number
-  recommended: boolean
-  parsed: ParsedTitle
-  isSeasonPack: boolean
-}
+import type { ProwlarrResult } from '#server/types/prowlarr'
+import type { RankedTorrent, ParsedTitle } from '#server/types/torrent'
 
 const SCORE_MAX = 240
-
-export interface ParsedTitle {
-  resolution: string | null
-  source: string | null
-  language: string | null
-  group: string | null
-}
 
 const RESOLUTION_MAP: Record<string, number> = {
   '2160p': 20,
@@ -283,14 +269,6 @@ export function rankTorrents(
   }
 
   return ranked
-}
-
-export function formatSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  const size = (bytes / Math.pow(1024, i)).toFixed(1)
-  return `${size} ${units[i]}`
 }
 
 export function formatScore(score: number): string {

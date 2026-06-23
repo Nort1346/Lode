@@ -1,27 +1,8 @@
 import fs from 'node:fs'
 import { settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
-
-export interface DiskStatus {
-  path: string
-  totalBytes: number
-  freeBytes: number
-  usedBytes: number
-  totalFormatted: string
-  freeFormatted: string
-  usedFormatted: string
-  usedPercent: number
-  hasEnoughSpace: boolean
-  available: boolean
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  const size = (bytes / Math.pow(1024, i)).toFixed(1)
-  return `${size} ${units[i]}`
-}
+import type { DiskStatus } from '#server/types/disk'
+import { formatSize } from '#server/utils/format'
 
 export function checkDiskSpace(path: string, minFreeGb: number): DiskStatus {
   try {
@@ -37,9 +18,9 @@ export function checkDiskSpace(path: string, minFreeGb: number): DiskStatus {
       totalBytes,
       freeBytes,
       usedBytes,
-      totalFormatted: formatBytes(totalBytes),
-      freeFormatted: formatBytes(freeBytes),
-      usedFormatted: formatBytes(usedBytes),
+      totalFormatted: formatSize(totalBytes),
+      freeFormatted: formatSize(freeBytes),
+      usedFormatted: formatSize(usedBytes),
       usedPercent,
       hasEnoughSpace: freeGb >= minFreeGb,
       available: true

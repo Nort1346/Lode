@@ -1,4 +1,5 @@
 import pino from 'pino'
+import type { Logger } from '#server/types/logger'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -78,13 +79,6 @@ function formatLog(level: string, module: string, args: unknown[]): string {
 }
 
 // ── Logger wrapper ───────────────────────────────────────────
-export interface Logger {
-  info: (...args: unknown[]) => void
-  error: (...args: unknown[]) => void
-  warn: (...args: unknown[]) => void
-  debug: (...args: unknown[]) => void
-}
-
 export function createLogger(module: string): Logger {
   const child = baseLogger.child({ module })
 

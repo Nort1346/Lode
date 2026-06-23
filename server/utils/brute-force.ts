@@ -2,12 +2,8 @@ import { loginAttempts } from '#server/database/schema'
 import { sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
-
-export interface BruteForceConfig {
-  maxAttemptsPerIp: number
-  ipBlockDurationMinutes: number
-  windowMinutes: number
-}
+import type { BruteForceConfig, BlockedIpEntry, BruteForceStats } from '#server/types/brute-force'
+import { resolveIp } from '#server/utils/ip'
 
 const DEFAULT_CONFIG: BruteForceConfig = {
   maxAttemptsPerIp: 5,
@@ -151,12 +147,6 @@ export async function unblockIp(ip: string): Promise<void> {
   db.run(sql`DELETE FROM login_attempts WHERE ip = ${ip} AND success = 0`)
 }
 
-export interface BlockedIpEntry {
-  ip: string
-  expiresAt: number
-  attemptsCount: number
-}
-
 export async function getBlockedIps(): Promise<BlockedIpEntry[]> {
   startCacheCleanup()
   const entries: BlockedIpEntry[] = []
@@ -177,13 +167,6 @@ export async function getBlockedIps(): Promise<BlockedIpEntry[]> {
   }
 
   return entries.sort((a, b) => b.expiresAt - a.expiresAt)
-}
-
-export interface BruteForceStats {
-  blockedIpsCount: number
-  recentAttempts24h: number
-  recentFailed24h: number
-  recentSuccess24h: number
 }
 
 export async function getBruteForceStats(): Promise<BruteForceStats> {
@@ -221,20 +204,4 @@ export async function cleanupOldAttempts(): Promise<void> {
   const db = useDb()
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString()
   db.run(sql`DELETE FROM login_attempts WHERE created_at < ${cutoff}`)
-}
-
-export function resolveIp(event: H3Event): string | null {
-  const cf = getHeader(event, 'cf-connecting-ip')
-  if (cf !== undefined && cf !== null && cf !== '') return cf
-
-  const forwarded = getHeader(event, 'x-forwarded-for')
-  if (forwarded !== undefined && forwarded !== null && forwarded !== '') {
-    const first = forwarded.split(',')[0]
-    if (first !== undefined) return first.trim()
-  }
-
-  const realIp = getHeader(event, 'x-real-ip')
-  if (realIp !== undefined && realIp !== null && realIp !== '') return realIp
-
-  return null
 }

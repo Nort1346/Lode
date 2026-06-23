@@ -9,7 +9,6 @@ import { gotScraping } from 'got-scraping'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
-import { formatSize } from '#server/utils/torrent-ranker'
 import { checkForDangerousFiles } from '#server/utils/safe-download'
 import { createLogger } from '#server/utils/logger'
 

@@ -1,9 +1,9 @@
 import { getSeasonDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
-import { rankTorrents, formatSize } from '#server/utils/torrent-ranker'
+import { rankTorrents } from '#server/utils/torrent-ranker'
 import { checkDailyLimit } from '#server/utils/limits'
 import { createLogger } from '#server/utils/logger'
-import type { ProwlarrResult } from '#server/utils/prowlarr'
+import type { ProwlarrResult } from '#server/types/prowlarr'
 
 const log = createLogger('Season')
 

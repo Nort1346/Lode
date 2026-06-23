@@ -11,33 +11,11 @@ import { eq } from 'drizzle-orm'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from './tmdb'
 import { createLogger } from '#server/utils/logger'
 import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
-import type { DiscordLocale } from '#server/utils/i18n-server'
+import type { DiscordLocale } from '#server/types/i18n'
+import type { DownloadCompleteData, TmdbMeta, RequestPendingData } from '#server/types/discord'
+import { formatSize } from '#server/utils/format'
 
 const log = createLogger('Discord')
-
-export interface DownloadCompleteData {
-  id: string
-  label: string
-  torrentName: string
-  savePath: string
-  sizeBytes: number
-  completedAt: string
-  username: string
-  tmdbId: number | null
-  mediaType: string | null
-  discordId: string | null
-}
-
-export interface TmdbMeta {
-  title: string
-  overview: string
-  posterUrl: string | null
-  backdropUrl: string | null
-  runtime: number | null
-  genres: string[]
-  voteAverage: number
-  releaseDate: string
-}
 
 const FALLBACK_POSTER_NAME = 'poster-not-found.png'
 const FALLBACK_POSTER_PATH = resolve(process.cwd(), 'public', FALLBACK_POSTER_NAME)
@@ -92,14 +70,6 @@ export async function fetchTmdbMeta(tmdbId: number, mediaType: string): Promise<
     return null
   }
   return null
-}
-
-function formatSize(bytes: number): string {
-  if (bytes <= 0) return '-'
-  const gb = bytes / (1024 * 1024 * 1024)
-  if (gb >= 1) return `${gb.toFixed(2)} GB`
-  const mb = bytes / (1024 * 1024)
-  return `${mb.toFixed(1)} MB`
 }
 
 function savePathLabel(savePath: string, t: ReturnType<typeof createT>): string {
@@ -271,18 +241,6 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   } catch (err: unknown) {
     log.error(err instanceof Error ? err : new Error(String(err)), 'webhook post failed')
   }
-}
-
-export { DISCORD_LOCALE_OPTIONS }
-
-export interface RequestPendingData {
-  id: string
-  mediaType: 'movie' | 'tv'
-  mediaId: number
-  mediaTitle: string
-  mediaPoster: string | null
-  username: string
-  userNote: string | null
 }
 
 export async function notifyRequestPending(data: RequestPendingData): Promise<void> {

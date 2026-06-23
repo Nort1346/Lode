@@ -1,30 +1,4 @@
-export interface TorrentFile {
-  index: number
-  name: string
-  size: number
-  progress: number
-  priority: number
-}
-
-export interface QuiTorrent {
-  hash: string
-  name: string
-  progress: number
-  eta: number
-  dlspeed: number
-  upspeed: number
-  size: number
-  downloaded: number
-  num_seeds: number
-  num_complete: number
-  num_leechs: number
-  state: string
-  save_path: string
-  category: string
-  tags: string
-  added_on: number
-  completion_on: number
-}
+import type { TorrentFile, QuiTorrent } from '#server/types/torrent'
 
 function extractMagnetHash(magnetUrl: string): string | null {
   const match = magnetUrl.match(/btih:([a-fA-F0-9]{40})/i)

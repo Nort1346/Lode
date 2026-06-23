@@ -1,6 +1,6 @@
 import { getMovieDetails } from '#server/utils/tmdb'
 import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
-import { rankTorrents, formatSize } from '#server/utils/torrent-ranker'
+import { rankTorrents } from '#server/utils/torrent-ranker'
 import { checkDailyLimit } from '#server/utils/limits'
 
 export default defineEventHandler(async (event) => {

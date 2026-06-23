@@ -1,4 +1,4 @@
-import type { TorrentFile } from '#server/utils/qbittorrent'
+import type { TorrentFile } from '#server/types/torrent'
 
 const DANGEROUS_EXTENSIONS = new Set([
   // Windows executables

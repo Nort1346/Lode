@@ -1,13 +1,7 @@
 import { downloads } from '#server/database/schema'
 import { and, eq } from 'drizzle-orm'
 import { getFreshUser } from '#server/utils/user'
-
-export interface DailyLimitResult {
-  reached: boolean
-  activeCount: number
-  todayCount: number
-  limit: number
-}
+import type { DailyLimitResult } from '#server/types/limits'
 
 export function checkDailyLimit(userId: string): DailyLimitResult {
   const freshUser = getFreshUser(userId)

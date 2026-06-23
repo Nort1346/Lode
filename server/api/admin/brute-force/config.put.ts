@@ -1,3 +1,5 @@
+import type { BruteForceConfig } from '#server/types/brute-force'
+
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
   const body = await readBody<Partial<BruteForceConfig>>(event)

@@ -1,11 +1,7 @@
 import { createLogger } from '#server/utils/logger'
+import type { FlareSolverrSolution } from '#server/types/flaresolverr'
 
 const log = createLogger('FlareSolverr')
-
-export interface FlareSolverrSolution {
-  cookies: string
-  userAgent: string
-}
 
 export class FlareSolverrClient {
   private baseUrl: string

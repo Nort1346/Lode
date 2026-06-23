@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { decryptAES } from '#server/utils/crypto'
 import { performTrackerLogin } from '#server/utils/tracker-auth'
 import { createLogger } from '#server/utils/logger'
+import type { ProwlarrResult, ProwlarrRelease, TrackerType, TrackerCookieConfig } from '#server/types/prowlarr'
 
 const log = createLogger('Prowlarr')
 
@@ -15,13 +16,6 @@ export const PROWLARR_CATEGORIES = {
   MUSIC: 3000,
   BOOKS: 7000
 } as const
-
-interface TrackerCookieConfig {
-  enabled: boolean
-  cookie: string
-}
-
-export type TrackerType = 'guid' | 'counting'
 
 export function getTrackerType(indexer: string): TrackerType | null {
   if (POLISH_TRACKERS.includes(indexer)) return 'guid'
@@ -89,37 +83,6 @@ export function getEnabledCustomTrackerNames(): string[] {
   const db = useDb()
   const rows = db.select().from(customTrackers).where(eq(customTrackers.enabled, true)).all()
   return rows.map((r) => r.indexerName)
-}
-
-export interface ProwlarrResult {
-  title: string
-  indexer: string
-  size: number
-  seeders: number
-  leechers: number
-  magnetLink: string | null
-  downloadUrl: string | null
-  guid: string | null
-  publishDate: string
-  categories: number[]
-  infoUrl: string
-  imdbId: number | null
-  isPrivate: boolean
-}
-
-interface ProwlarrRelease {
-  title: string
-  indexer: string
-  size: number
-  seeders: number | null
-  leechers: number | null
-  magnetUrl: string | null
-  downloadUrl: string | null
-  guid: string
-  publishDate: string
-  categories: number[]
-  infoUrl: string
-  imdbId: number
 }
 
 function normalizeResult(item: ProwlarrRelease): ProwlarrResult {

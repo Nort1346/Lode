@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-
-type Messages = Record<string, string | Record<string, string>>
+import type { Messages } from '#server/types/i18n'
 
 const cache = new Map<string, Messages>()
 const localesDir = resolve(process.cwd(), 'i18n', 'locales')
