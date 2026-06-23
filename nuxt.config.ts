@@ -68,9 +68,7 @@ export default defineNuxtConfig({
     trackerEncryptionKey: ''
   },
 
-  routeRules: {
-    '/': { prerender: true }
-  },
+  routeRules: {},
 
   compatibilityDate: '2025-01-15',
 
