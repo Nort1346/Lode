@@ -119,11 +119,6 @@
     "fileTooLarge": "File too large. Max 5MB",
     "selectFile": "Please select a .torrent file"
   },
-  "torrent": {
-    "dead": "⚠ No seeders - consider removing",
-    "poor": "Low seeders",
-    "slow": "Slow connection"
-  },
   "download": {
     "added": "Download added",
     "addedDesc": "{label} has been added to the queue.",
@@ -145,7 +140,11 @@
     "trendingNow": "Trending Now",
     "noDownloads": "No downloads yet",
     "noDownloadsDesc": "Submit your first download",
-    "trackManage": "Track and manage your downloads"
+    "trackManage": "Track and manage your downloads",
+    "dead": "⚠ No seeders - consider removing",
+    "poor": "Low seeders",
+    "slow": "Slow connection",
+    "good": "OK"
   },
   "downloads": {
     "prepReady": "Ready",

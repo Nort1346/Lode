@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Messages } from '#server/types/i18n'
 
 const cache = new Map<string, Messages>()
-const localesDir = resolve(process.cwd(), 'i18n', 'locales')
+const localesDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../i18n/locales')
 
 function loadLocale(code: string): Messages {
   const cached = cache.get(code)
@@ -13,7 +14,8 @@ function loadLocale(code: string): Messages {
     const parsed = JSON.parse(raw) as Messages
     cache.set(code, parsed)
     return parsed
-  } catch {
+  } catch (err) {
+    console.error(`[i18n] Failed to load locale "${code}" from ${localesDir}:`, err)
     if (code !== 'pl') return loadLocale('pl')
     return {}
   }

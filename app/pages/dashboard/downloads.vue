@@ -150,7 +150,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
         :key="dl.id"
         class="flex gap-3 p-3 rounded-xl border transition-all bg-zinc-50 dark:bg-white/2 sm:gap-4 sm:p-5"
         :class="
-          getTorrentQuality(dl) !== 'ok'
+          dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok'
             ? qualityConfig[getTorrentQuality(dl)].border
             : 'border-zinc-200 dark:border-white/5'
         "
@@ -239,7 +239,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
             </div>
             <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
               <div
-                class="h-full min-w-0.5 rounded-full bg-linear-to-r"
+                class="h-full min-w-0.5 rounded-full bg-linear-to-r transition-[width] duration-1000 ease-linear"
                 :class="qualityConfig[getTorrentQuality(dl)].bar"
                 :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
               />

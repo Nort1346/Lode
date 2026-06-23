@@ -119,11 +119,6 @@
     "fileTooLarge": "Plik jest za duży. Maks. 5MB",
     "selectFile": "Wybierz plik .torrent"
   },
-  "torrent": {
-    "dead": "⚠ Brak seederów - rozważ usunięcie",
-    "poor": "Mało seederów",
-    "slow": "Wolne połączenie"
-  },
   "download": {
     "added": "Pobranie dodane",
     "addedDesc": "{label} został dodany do kolejki.",
@@ -145,12 +140,16 @@
     "trendingNow": "Na czasie",
     "noDownloads": "Brak pobrań",
     "noDownloadsDesc": "Dodaj swoje pierwsze pobranie",
-    "trackManage": "Śledź i zarządzaj swoimi pobraniami"
+    "trackManage": "Śledź i zarządzaj swoimi pobraniami",
+    "dead": "⚠ Brak seederów - rozważ usunięcie",
+    "poor": "Mało seederów",
+    "slow": "Wolne połączenie",
+    "good": "OK"
   },
   "downloads": {
     "prepReady": "Gotowe",
-    "prepRemainingSec": "~{s}s remaining",
-    "prepRemainingMin": "~{m}m remaining"
+    "prepRemainingSec": "~{s}s pozostało",
+    "prepRemainingMin": "~{m}m pozostało"
   },
   "admin": {
     "userTitle": "Zarządzanie użytkownikami",

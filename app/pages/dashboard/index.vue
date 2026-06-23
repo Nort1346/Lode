@@ -301,7 +301,7 @@ const savePathLabels: Record<string, string> = {
               </div>
               <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
                 <div
-                  class="h-full min-w-0.5 rounded-full bg-linear-to-r"
+                  class="h-full min-w-0.5 rounded-full bg-linear-to-r transition-[width] duration-1000 ease-linear"
                   :class="qualityConfig[getTorrentQuality(dl)].bar"
                   :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
                 />
