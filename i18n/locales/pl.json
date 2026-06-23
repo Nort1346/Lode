@@ -410,5 +410,29 @@
     "remove": "Usuń",
     "browse": "Przeglądaj",
     "failed": "Nie udało się"
+  },
+  "discord": {
+    "genres": "Gatunki",
+    "runtime": "Czas trwania",
+    "rating": "Ocena TMDB",
+    "premiere": "Premiera",
+    "size": "Rozmiar",
+    "category": "Kategoria",
+    "downloadedBy": "Dodane przez",
+    "downloaded": "Pobrane",
+    "newRequest": "📨 Nowy request",
+    "type": "Typ",
+    "requestedBy": "Requestujący",
+    "message": "Wiadomość",
+    "min": "min",
+    "movies": "🎬 Film",
+    "series": "📺 Serial",
+    "games": "🎮 Gry",
+    "books": "📚 Książki",
+    "music": "🎵 Muzyka",
+    "resolution": "Rozdzielczość",
+    "source": "Źródło",
+    "language": "Język",
+    "codec": "Kodek"
   }
 }

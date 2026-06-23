@@ -6,6 +6,13 @@ const discordLocale = ref('pl')
 const discordMentionsEnabled = ref(false)
 const loading = ref(true)
 
+const LOCALE_NAMES: Record<string, string> = {
+  pl: 'Polski',
+  en: 'English'
+}
+
+const localeOptions = computed(() => Object.entries(LOCALE_NAMES).map(([value, label]) => ({ label, value })))
+
 async function fetchData() {
   loading.value = true
   try {
@@ -23,7 +30,8 @@ async function fetchData() {
 }
 
 async function changeDiscordLocale(newLocale: string) {
-  const valid = newLocale === 'pl' || newLocale === 'en' ? newLocale : 'pl'
+  const validLocales = ['pl', 'en']
+  const valid = validLocales.includes(newLocale) ? newLocale : 'pl'
   discordLocale.value = valid
   await $fetch('/api/admin/discord-locale', { method: 'PUT', body: { locale: valid } })
   toast.add({ title: t('settings.discordLocaleSaved'), color: 'success' })
@@ -52,14 +60,7 @@ onMounted(fetchData)
         <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{{
           t('settings.discordLocale')
         }}</label>
-        <USelect
-          :model-value="discordLocale"
-          :items="[
-            { label: 'Polski', value: 'pl' },
-            { label: 'English', value: 'en' }
-          ]"
-          @update:model-value="changeDiscordLocale"
-        />
+        <USelect :model-value="discordLocale" :items="localeOptions" @update:model-value="changeDiscordLocale" />
         <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-4">{{ t('settings.discordLocaleDesc') }}</p>
       </div>
       <div>

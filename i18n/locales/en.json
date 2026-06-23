@@ -410,5 +410,29 @@
     "remove": "Remove",
     "browse": "Browse",
     "failed": "Failed"
+  },
+  "discord": {
+    "genres": "Genres",
+    "runtime": "Runtime",
+    "rating": "TMDB Rating",
+    "premiere": "Release",
+    "size": "Size",
+    "category": "Category",
+    "downloadedBy": "Downloaded by",
+    "downloaded": "Downloaded",
+    "newRequest": "📨 New Request",
+    "type": "Type",
+    "requestedBy": "Requested by",
+    "message": "Message",
+    "min": "min",
+    "movies": "🎬 Movies",
+    "series": "📺 Series",
+    "games": "🎮 Games",
+    "books": "📚 Books",
+    "music": "🎵 Music",
+    "resolution": "Resolution",
+    "source": "Source",
+    "language": "Language",
+    "codec": "Codec"
   }
 }

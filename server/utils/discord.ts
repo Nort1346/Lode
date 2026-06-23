@@ -10,6 +10,8 @@ import { settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from './tmdb'
 import { createLogger } from '#server/utils/logger'
+import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
+import type { DiscordLocale } from '#server/utils/i18n-server'
 
 const log = createLogger('Discord')
 
@@ -37,55 +39,9 @@ export interface TmdbMeta {
   releaseDate: string
 }
 
-const LOCALE_OPTIONS = ['pl', 'en'] as const
-type DiscordLocale = (typeof LOCALE_OPTIONS)[number]
-
 const FALLBACK_POSTER_NAME = 'poster-not-found.png'
 const FALLBACK_POSTER_PATH = resolve(process.cwd(), 'public', FALLBACK_POSTER_NAME)
 const FALLBACK_POSTER_REF = `attachment://${FALLBACK_POSTER_NAME}`
-
-const DISCORD_STRINGS = {
-  pl: {
-    genres: 'Gatunki',
-    runtime: 'Czas trwania',
-    rating: 'Ocena TMDB',
-    premiere: 'Premiera',
-    size: 'Rozmiar',
-    category: 'Kategoria',
-    downloadedBy: 'Dodane przez',
-    newRequest: '📨 Nowy request',
-    min: 'min',
-    movies: '🎬 Film',
-    series: '📺 Serial',
-    games: '🎮 Gry',
-    books: '📚 Książki',
-    music: '🎵 Muzyka',
-    resolution: 'Rozdzielczość',
-    source: 'Źródło',
-    language: 'Język',
-    codec: 'Kodek'
-  },
-  en: {
-    genres: 'Genres',
-    runtime: 'Runtime',
-    rating: 'TMDB Rating',
-    premiere: 'Release',
-    size: 'Size',
-    category: 'Category',
-    downloadedBy: 'Downloaded by',
-    newRequest: '📨 New Request',
-    min: 'min',
-    movies: '🎬 Movies',
-    series: '📺 Series',
-    games: '🎮 Games',
-    books: '📚 Books',
-    music: '🎵 Music',
-    resolution: 'Resolution',
-    source: 'Source',
-    language: 'Language',
-    codec: 'Codec'
-  }
-} as const
 
 export function isDiscordMentionsEnabled(): boolean {
   const db = useDb()
@@ -97,12 +53,10 @@ export function getDiscordLocale(): DiscordLocale {
   const db = useDb()
   const row = db.select().from(settings).where(eq(settings.key, 'discord_locale')).get()
   const val = row?.value
-  if (val === 'pl' || val === 'en') return val
+  if (val !== undefined && val !== null && DISCORD_LOCALE_OPTIONS.includes(val as DiscordLocale)) {
+    return val as DiscordLocale
+  }
   return 'pl'
-}
-
-function getStrings(locale: DiscordLocale) {
-  return DISCORD_STRINGS[locale]
 }
 
 export async function fetchTmdbMeta(tmdbId: number, mediaType: string): Promise<TmdbMeta | null> {
@@ -148,13 +102,13 @@ function formatSize(bytes: number): string {
   return `${mb.toFixed(1)} MB`
 }
 
-function savePathLabel(savePath: string, strings: ReturnType<typeof getStrings>): string {
+function savePathLabel(savePath: string, t: ReturnType<typeof createT>): string {
   const map: Record<string, string> = {
-    movies: strings.movies,
-    series: strings.series,
-    games: strings.games,
-    books: strings.books,
-    music: strings.music
+    movies: t('discord.movies'),
+    series: t('discord.series'),
+    games: t('discord.games'),
+    books: t('discord.books'),
+    music: t('discord.music')
   }
   return map[savePath] ?? savePath
 }
@@ -212,14 +166,15 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   }
 
   const locale = getDiscordLocale()
-  const str = getStrings(locale)
+  const t = createT(locale)
 
   let tmdb: TmdbMeta | null = null
   if (data.tmdbId !== null && data.mediaType !== null) {
     tmdb = await fetchTmdbMeta(data.tmdbId, data.mediaType)
   }
 
-  const title = (tmdb?.title ?? data.label ?? data.torrentName ?? 'Pobrane').trim() || 'Pobrane'
+  const title =
+    (tmdb?.title ?? data.label ?? data.torrentName ?? t('discord.downloaded')).trim() || t('discord.downloaded')
   const description = tmdb?.overview ?? ''
 
   const container = new ContainerBuilder()
@@ -247,19 +202,19 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
     if (tmdb.genres.length > 0) {
       const genres = tmdb.genres.join(', ')
       container.addTextDisplayComponents((text: TextDisplayBuilder) =>
-        text.setContent(`${bold(str.genres)}: ${genres}`)
+        text.setContent(`${bold(t('discord.genres'))}: ${genres}`)
       )
     }
 
     const metaParts: string[] = []
     if (tmdb.runtime !== null && tmdb.runtime !== undefined && tmdb.runtime > 0) {
-      metaParts.push(`${str.runtime}: ${tmdb.runtime} ${str.min}`)
+      metaParts.push(`${t('discord.runtime')}: ${tmdb.runtime} ${t('discord.min')}`)
     }
     if (tmdb.voteAverage !== null && tmdb.voteAverage !== undefined && tmdb.voteAverage > 0) {
-      metaParts.push(`${str.rating}: ${tmdb.voteAverage.toFixed(1)}/10`)
+      metaParts.push(`${t('discord.rating')}: ${tmdb.voteAverage.toFixed(1)}/10`)
     }
     if (tmdb.releaseDate !== null && tmdb.releaseDate !== undefined && tmdb.releaseDate.length > 0) {
-      metaParts.push(`${str.premiere}: ${tmdb.releaseDate}`)
+      metaParts.push(`${t('discord.premiere')}: ${tmdb.releaseDate}`)
     }
     if (metaParts.length > 0) {
       container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(metaParts.join(' · ')))
@@ -269,14 +224,14 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   addSeparator(container)
   const meta = parseTorrentName(data.torrentName)
   const infoParts: string[] = [
-    `${bold(str.size)}: ${formatSize(data.sizeBytes)}`,
-    `${bold(str.category)}: ${savePathLabel(data.savePath, str)}`,
-    `${bold(str.downloadedBy)}: ${data.username}`
+    `${bold(t('discord.size'))}: ${formatSize(data.sizeBytes)}`,
+    `${bold(t('discord.category'))}: ${savePathLabel(data.savePath, t)}`,
+    `${bold(t('discord.downloadedBy'))}: ${data.username}`
   ]
-  if (meta.resolution !== null) infoParts.push(`${bold(str.resolution)}: ${meta.resolution}`)
-  if (meta.source !== null) infoParts.push(`${bold(str.source)}: ${meta.source}`)
-  if (meta.language !== null) infoParts.push(`${bold(str.language)}: ${meta.language}`)
-  if (meta.codec !== null) infoParts.push(`${bold(str.codec)}: ${meta.codec}`)
+  if (meta.resolution !== null) infoParts.push(`${bold(t('discord.resolution'))}: ${meta.resolution}`)
+  if (meta.source !== null) infoParts.push(`${bold(t('discord.source'))}: ${meta.source}`)
+  if (meta.language !== null) infoParts.push(`${bold(t('discord.language'))}: ${meta.language}`)
+  if (meta.codec !== null) infoParts.push(`${bold(t('discord.codec'))}: ${meta.codec}`)
   container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(infoParts.join(' · ')))
 
   const match = webhookUrl.match(/\/webhooks\/(\d+)\/(.+?)(?:\/|$)/)
@@ -318,7 +273,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   }
 }
 
-export { LOCALE_OPTIONS }
+export { DISCORD_LOCALE_OPTIONS }
 
 export interface RequestPendingData {
   id: string
@@ -336,7 +291,7 @@ export async function notifyRequestPending(data: RequestPendingData): Promise<vo
   if (!webhookUrl) return
 
   const locale = getDiscordLocale()
-  const str = getStrings(locale)
+  const t = createT(locale)
 
   let tmdb: TmdbMeta | null = null
   try {
@@ -346,11 +301,11 @@ export async function notifyRequestPending(data: RequestPendingData): Promise<vo
   }
 
   const title = (tmdb?.title ?? data.mediaTitle ?? '').trim() || data.mediaTitle
-  const typeEmoji = data.mediaType === 'movie' ? str.movies : str.series
+  const typeEmoji = data.mediaType === 'movie' ? t('discord.movies') : t('discord.series')
 
   const container = new ContainerBuilder()
 
-  container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(bold(str.newRequest)))
+  container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(bold(t('discord.newRequest'))))
 
   addSeparator(container)
 
@@ -366,11 +321,11 @@ export async function notifyRequestPending(data: RequestPendingData): Promise<vo
   addSeparator(container)
 
   const infoParts: string[] = [
-    `${bold(locale === 'pl' ? 'Typ' : 'Type')}: ${typeEmoji}`,
-    `${bold(locale === 'pl' ? 'Requestujący' : 'Requested by')}: ${data.username}`
+    `${bold(t('discord.type'))}: ${typeEmoji}`,
+    `${bold(t('discord.requestedBy'))}: ${data.username}`
   ]
   if (data.userNote !== null && data.userNote.length > 0) {
-    infoParts.push(`${bold(locale === 'pl' ? 'Wiadomość' : 'Message')}: ${data.userNote}`)
+    infoParts.push(`${bold(t('discord.message'))}: ${data.userNote}`)
   }
   container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(infoParts.join('\n')))
 
