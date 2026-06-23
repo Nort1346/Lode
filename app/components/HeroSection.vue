@@ -5,7 +5,7 @@ const props = defineProps<{
   trendingItems: MediaCarouselItem[]
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { goToItem } = useGoToItem()
 
 const heroCurrent = ref<MediaCarouselItem | null>(null)
@@ -48,13 +48,24 @@ watch(() => props.trendingItems, initHero)
 onMounted(initHero)
 
 watch(
-  [heroCurrent],
+  () => props.trendingItems,
+  (items) => {
+    if (!heroCurrent.value || items.length === 0) return
+    const matched = items.find((i) => i.id === heroCurrent.value!.id && i.type === heroCurrent.value!.type)
+    if (matched) {
+      heroCurrent.value = matched
+    }
+  }
+)
+
+watch(
+  [heroCurrent, locale],
   async ([item]) => {
     if (!item) return
     try {
       const endpoint = item.type === 'movie' ? `/api/browse/movie/${item.id}` : `/api/browse/tv/${item.id}`
       const data = await $fetch<{ movie?: { overview: string }; show?: { overview: string } }>(endpoint, {
-        query: { locale: 'pl' }
+        query: { locale }
       })
       heroOverview.value = (data.movie ?? data.show)?.overview ?? item.overview
     } catch {
