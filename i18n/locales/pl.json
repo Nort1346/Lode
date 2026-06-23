@@ -57,7 +57,7 @@
     "animatedTv": "Seriale Animowane",
     "limitReached": "Dzienny limit pobierania wykorzystany",
     "limitActive": "Aktywne: {active}/{limit}",
-    "limitToday": "Pobrane dziś: {today}/{limit}",
+    "limitToday": "Pobrania dziś: {today}/{limit}",
     "limitResetInfo": "Limit odnawia się codziennie o północy."
   },
   "mediaCard": {
@@ -65,22 +65,22 @@
     "tv": "Serial"
   },
   "movie": {
-    "availableTorrents": "Dostępne torrenty",
+    "availableTorrents": "Dostępne pobrania",
     "recommended": "Polecany",
-    "download": "Pobierz",
+    "download": "Dodaj",
     "limitReached": "Limit",
     "noImdb": "Brak identyfikatora IMDB - nie można wyszukać torrentów.",
-    "noTorrents": "Nie znaleziono torrentów.",
+    "noTorrents": "Nie znaleziono pobrań.",
     "loadError": "Nie udało się załadować szczegółów filmu."
   },
   "tv": {
     "seasons": "Sezony",
     "seasonPacks": "Pakiety sezonowe",
     "seasonPack": "Pakiet sezonowy",
-    "downloadSeason": "Pobierz cały sezon",
+    "downloadSeason": "Dodaj cały sezon",
     "limitReached": "Limit",
     "episodes": "odc.",
-    "noTorrents": "Brak dostępnych torrentów",
+    "noTorrents": "Brak dostępnych pobrań",
     "loadError": "Nie udało się załadować szczegółów serialu.",
     "season_one": "sezon",
     "season_many": "sezonów"
@@ -124,27 +124,27 @@
     "slow": "Wolne połączenie"
   },
   "download": {
-    "added": "Torrent dodany",
+    "added": "Pobranie dodane",
     "addedDesc": "{label} został dodany do kolejki.",
     "error": "Błąd pobierania",
-    "errorDesc": "Nie udało się dodać torrenta.",
+    "errorDesc": "Nie udało się dodać pobrania.",
     "delete": "Usuń",
-    "confirmDelete": "Czy na pewno chcesz usunąć ten torrent? Stracisz cały postęp pobierania.",
+    "confirmDelete": "Czy na pewno chcesz usunąć to pobranie? Stracisz cały postęp pobierania.",
     "confirmTitle": "Potwierdź usunięcie"
   },
   "dashboard": {
     "welcome": "Witaj ponownie,",
-    "activeTorrents": "Aktywne torrenty",
+    "activeTorrents": "Aktywne pobrania",
     "downloadsToday": "Pobrania dziś",
     "completed": "Ukończone",
     "browse": "Przeglądaj",
-    "noActive": "Brak aktywnych pobrań. Dodaj torrent aby rozpocząć!",
+    "noActive": "Brak aktywnych pobrań. Dodaj pobranie aby rozpocząć!",
     "myDownloads": "Moje pobrania",
-    "heroCTA": "Oglądaj teraz",
+    "heroCTA": "Sprawdź",
     "trendingNow": "Na czasie",
     "noDownloads": "Brak pobrań",
-    "noDownloadsDesc": "Dodaj swój pierwszy torrent",
-    "trackManage": "Śledź i zarządzaj swoimi torrentami"
+    "noDownloadsDesc": "Dodaj swoje pierwsze pobranie",
+    "trackManage": "Śledź i zarządzaj swoimi pobraniami"
   },
   "downloads": {
     "prepReady": "Gotowe",
@@ -230,7 +230,7 @@
     "userLimitsDesc": "Domyślne limity dla nowych kont. Edytuj w panelu użytkowników.",
     "manageUsers": "Zarządzaj użytkownikami",
     "dailyDownloadLimit": "Dzienny limit pobierania",
-    "activeTorrentLimit": "Limit aktywnych torrentów",
+    "activeTorrentLimit": "Limit aktywnych pobrań",
     "maxTorrentSize": "Maks. rozmiar torrenta",
     "privateTrackerLimit": "Limit trackerów prywatnych",
     "envVars": "Zmienne środowiskowe",
@@ -406,7 +406,7 @@
     "alreadyInWishlist": "Na liście",
     "noItems": "Twoja lista życzeń jest pusta",
     "noItemsDesc": "Przeglądaj i zapisuj tytuły na później",
-    "download": "Pobierz",
+    "download": "Dodaj",
     "remove": "Usuń",
     "browse": "Przeglądaj",
     "failed": "Nie udało się"

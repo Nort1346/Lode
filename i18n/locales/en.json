@@ -65,22 +65,22 @@
     "tv": "TV Show"
   },
   "movie": {
-    "availableTorrents": "Available Torrents",
+    "availableTorrents": "Available Downloads",
     "recommended": "Recommended",
-    "download": "Download",
+    "download": "Add",
     "limitReached": "Limit",
     "noImdb": "No IMDB ID - cannot search for torrents.",
-    "noTorrents": "No torrents found.",
+    "noTorrents": "No downloads found.",
     "loadError": "Failed to load movie details."
   },
   "tv": {
     "seasons": "Seasons",
     "seasonPacks": "Season Packs",
     "seasonPack": "Season Pack",
-    "downloadSeason": "Download full season",
+    "downloadSeason": "Add full season",
     "limitReached": "Limit",
     "episodes": "ep.",
-    "noTorrents": "No torrents available",
+    "noTorrents": "No downloads available",
     "loadError": "Failed to load TV show details.",
     "season_one": "season",
     "season_many": "seasons"
@@ -124,27 +124,27 @@
     "slow": "Slow connection"
   },
   "download": {
-    "added": "Torrent added",
+    "added": "Download added",
     "addedDesc": "{label} has been added to the queue.",
     "error": "Download error",
-    "errorDesc": "Failed to add torrent.",
+    "errorDesc": "Failed to add download.",
     "delete": "Delete",
-    "confirmDelete": "Are you sure you want to delete this torrent? You will lose all download progress.",
+    "confirmDelete": "Are you sure you want to delete this download? You will lose all download progress.",
     "confirmTitle": "Confirm deletion"
   },
   "dashboard": {
     "welcome": "Welcome back,",
-    "activeTorrents": "Active Torrents",
+    "activeTorrents": "Active Downloads",
     "downloadsToday": "Downloads Today",
     "completed": "Completed",
     "browse": "Browse",
-    "noActive": "No active downloads. Submit a torrent to get started!",
+    "noActive": "No active downloads. Submit a download to get started!",
     "myDownloads": "My Downloads",
-    "heroCTA": "Watch now",
+    "heroCTA": "Check it out",
     "trendingNow": "Trending Now",
     "noDownloads": "No downloads yet",
-    "noDownloadsDesc": "Submit your first torrent",
-    "trackManage": "Track and manage your torrents"
+    "noDownloadsDesc": "Submit your first download",
+    "trackManage": "Track and manage your downloads"
   },
   "downloads": {
     "prepReady": "Ready",
@@ -230,7 +230,7 @@
     "userLimitsDesc": "Default limits for new accounts. Edit in the users panel.",
     "manageUsers": "Manage Users",
     "dailyDownloadLimit": "Daily download limit",
-    "activeTorrentLimit": "Active torrent limit",
+    "activeTorrentLimit": "Active download limit",
     "maxTorrentSize": "Max torrent size",
     "privateTrackerLimit": "Private tracker limit",
     "envVars": "Environment Variables",
@@ -406,7 +406,7 @@
     "alreadyInWishlist": "In Wishlist",
     "noItems": "Your wishlist is empty",
     "noItemsDesc": "Browse and save titles for later",
-    "download": "Download",
+    "download": "Add",
     "remove": "Remove",
     "browse": "Browse",
     "failed": "Failed"
