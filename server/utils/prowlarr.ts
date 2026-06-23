@@ -9,6 +9,13 @@ const log = createLogger('Prowlarr')
 
 export const POLISH_TRACKERS: readonly string[] = ['Devil-Torrents', 'Polskie-Torrenty']
 
+export const PROWLARR_CATEGORIES = {
+  MOVIES: 2000,
+  TV: 5000,
+  MUSIC: 3000,
+  BOOKS: 7000
+} as const
+
 interface TrackerCookieConfig {
   enabled: boolean
   cookie: string
@@ -220,16 +227,17 @@ export class ProwlarrClient {
     return response.json()
   }
 
-  async searchByImdb(imdbId: string, mediaType: 'movie' | 'tv'): Promise<ProwlarrResult[]> {
-    const cacheKey = `prowlarr:imdb:${mediaType}:${imdbId}`
+  async searchByImdb(imdbId: string, mediaType: 'movie' | 'tv', categories?: number[]): Promise<ProwlarrResult[]> {
+    const cacheKey = `prowlarr:imdb:${mediaType}:${imdbId}:${categories?.join(',') ?? 'all'}`
     const cached = await cacheGet<ProwlarrResult[]>(cacheKey)
     if (cached !== null) return cached
 
     const type = mediaType === 'movie' ? 'movie' : 'tvsearch'
-    const raw = (await this.request('/api/v1/search', {
-      type,
-      query: `{imdbid:${imdbId}}`
-    })) as ProwlarrRelease[]
+    const params: Record<string, string> = { type, query: `{imdbid:${imdbId}}` }
+    if (categories !== undefined && categories.length > 0) {
+      params.categories = categories.join(',')
+    }
+    const raw = (await this.request('/api/v1/search', params)) as ProwlarrRelease[]
 
     const customNames = getEnabledCustomTrackerNames()
     const results = deduplicateResults(
@@ -240,15 +248,17 @@ export class ProwlarrClient {
     return results
   }
 
-  async searchByQuery(query: string, locale = 'pl'): Promise<ProwlarrResult[]> {
-    const cacheKey = `prowlarr:query:${query}:${locale}`
+  async searchByQuery(query: string, locale = 'pl', categories?: number[]): Promise<ProwlarrResult[]> {
+    const catsKey = categories?.join(',') ?? 'all'
+    const cacheKey = `prowlarr:query:${query}:${locale}:${catsKey}`
     const cached = await cacheGet<ProwlarrResult[]>(cacheKey)
     if (cached !== null) return cached
 
-    const raw = (await this.request('/api/v1/search', {
-      type: 'search',
-      query
-    })) as ProwlarrRelease[]
+    const params: Record<string, string> = { type: 'search', query }
+    if (categories !== undefined && categories.length > 0) {
+      params.categories = categories.join(',')
+    }
+    const raw = (await this.request('/api/v1/search', params)) as ProwlarrRelease[]
 
     const customNames = getEnabledCustomTrackerNames()
     const rawItems = raw ?? []
@@ -273,7 +283,8 @@ export class ProwlarrClient {
     year: string,
     imdbId: string | null,
     seasonNumber: number | null,
-    locale = 'pl'
+    locale = 'pl',
+    categories?: number[]
   ): Promise<ProwlarrResult[]> {
     const seasonPad = seasonNumber !== null ? String(seasonNumber).padStart(2, '0') : null
     const seasonNum = seasonNumber !== null ? String(seasonNumber) : null
@@ -292,7 +303,7 @@ export class ProwlarrClient {
     // 1. IMDB tvsearch - covers public trackers
     if (imdbId !== null && imdbId.length > 0) {
       promises.push(
-        this.searchByImdb(imdbId, 'tv').catch((err) => {
+        this.searchByImdb(imdbId, 'tv', categories).catch((err) => {
           const msg = err instanceof Error ? err.message : String(err)
           log.warn(`[Prowlarr] searchTv: IMDB search failed: ${msg}`)
           return [] as ProwlarrResult[]
@@ -301,7 +312,7 @@ export class ProwlarrClient {
     }
 
     // 2. Text search - covers private trackers
-    promises.push(this.searchTvText(showName, originalName, seasonPad, seasonNum, year, locale))
+    promises.push(this.searchTvText(showName, originalName, seasonPad, seasonNum, year, locale, categories))
 
     const settled = await Promise.all(promises)
     const hasImdb = imdbId !== null && imdbId.length > 0
@@ -332,7 +343,8 @@ export class ProwlarrClient {
     seasonPad: string | null,
     seasonNum: string | null,
     year: string,
-    locale: string
+    locale: string,
+    categories?: number[]
   ): Promise<ProwlarrResult[]> {
     // Build focused queries - most specific first
     const queries: string[] = []
@@ -359,7 +371,7 @@ export class ProwlarrClient {
     // Try queries sequentially - stop at first non-empty
     for (const query of queries) {
       log.info(`[Prowlarr] searchTv: text search "${query}"`)
-      const results = await this.searchByQuery(query, locale)
+      const results = await this.searchByQuery(query, locale, categories)
       if (results.length > 0) {
         log.info(`[Prowlarr] searchTv: "${query}" → ${results.length} results`)
         return results

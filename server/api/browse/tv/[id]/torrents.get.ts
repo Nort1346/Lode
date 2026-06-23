@@ -1,5 +1,5 @@
 import { getTvShowDetails } from '#server/utils/tmdb'
-import { useProwlarr } from '#server/utils/prowlarr'
+import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents, formatSize } from '#server/utils/torrent-ranker'
 import { checkDailyLimit } from '#server/utils/limits'
 
@@ -37,9 +37,13 @@ export default defineEventHandler(async (event) => {
     try {
       const year = show.first_air_date?.slice(0, 4) ?? ''
       const imdbId = show.external_ids?.imdb_id ?? null
-      let rawResults = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, null, locale)
+      let rawResults = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, null, locale, [
+        PROWLARR_CATEGORIES.TV
+      ])
       if (rawResults.length === 0 && show.original_name !== show.name) {
-        rawResults = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, null, locale)
+        rawResults = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, null, locale, [
+          PROWLARR_CATEGORIES.TV
+        ])
       }
       torrents = rankTorrents(rawResults, 'series', show.name, year)
     } catch {
