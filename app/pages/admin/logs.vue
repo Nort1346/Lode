@@ -75,7 +75,6 @@ async function fetchLogs() {
       `/api/admin/logs?${params.toString()}`
     )
     logs.value = res.logs
-    page.value = res.page
     totalPages.value = res.totalPages
     total.value = res.total
   } catch {
@@ -94,6 +93,8 @@ onMounted(async () => {
   }
 })
 
+watch(page, () => fetchLogs())
+
 const USER_OPTIONS = computed(() => [
   { value: 'all', label: t('logs.allUsers') },
   ...users.value.map((u) => ({ value: u.id, label: u.username }))
@@ -102,20 +103,6 @@ const USER_OPTIONS = computed(() => [
 function applyFilters() {
   page.value = 1
   fetchLogs()
-}
-
-function nextPage() {
-  if (page.value < totalPages.value) {
-    page.value++
-    fetchLogs()
-  }
-}
-
-function prevPage() {
-  if (page.value > 1) {
-    page.value--
-    fetchLogs()
-  }
 }
 
 function formatTime(dateStr: string): string {
@@ -263,14 +250,8 @@ async function copyToClipboard(text: string) {
         </table>
       </div>
 
-      <div class="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-white/5">
-        <span class="text-sm text-zinc-500 dark:text-zinc-400">
-          {{ t('logs.pageInfo', { page, total: totalPages, count: total }) }}
-        </span>
-        <div class="flex gap-2">
-          <UButton :label="t('logs.previous')" variant="soft" :disabled="page <= 1" @click="prevPage" />
-          <UButton :label="t('logs.next')" variant="soft" :disabled="page >= totalPages" @click="nextPage" />
-        </div>
+      <div v-if="total > limit" class="flex justify-center px-4 py-3 border-t border-zinc-200 dark:border-white/5">
+        <UPagination v-model:page="page" :total="total" :items-per-page="limit" :sibling-count="2" show-edges />
       </div>
     </div>
   </div>
