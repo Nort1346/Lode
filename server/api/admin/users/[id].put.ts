@@ -13,6 +13,7 @@ interface UpdateUserBody {
   privateTrackerLimit?: number
   downloadsToday?: number
   discordId?: string | null
+  canSubmit?: boolean
 }
 
 export default defineEventHandler(async (event) => {
@@ -72,6 +73,10 @@ export default defineEventHandler(async (event) => {
   if (body.discordId !== undefined) {
     updates.discordId = body.discordId === '' ? null : body.discordId
     changedFields.push('discordId')
+  }
+  if (body.canSubmit !== undefined) {
+    updates.canSubmit = body.canSubmit
+    changedFields.push('canSubmit')
   }
 
   if (Object.keys(updates).length > 0) {

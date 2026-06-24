@@ -20,7 +20,8 @@ const form = reactive({
   activeTorrentLimit: 3,
   maxTorrentSizeGb: 20,
   privateTrackerLimit: 5,
-  discordId: ''
+  discordId: '',
+  canSubmit: false
 })
 const saving = ref(false)
 const error = ref('')
@@ -49,6 +50,7 @@ function openCreate() {
   form.maxTorrentSizeGb = 20
   form.privateTrackerLimit = 5
   form.discordId = ''
+  form.canSubmit = false
   error.value = ''
   showModal.value = true
 }
@@ -63,6 +65,7 @@ function openEdit(user: AdminUser) {
   form.maxTorrentSizeGb = user.maxTorrentSizeGb
   form.privateTrackerLimit = user.privateTrackerLimit
   form.discordId = user.discordId ?? ''
+  form.canSubmit = user.canSubmit
   error.value = ''
   showModal.value = true
 }
@@ -79,7 +82,8 @@ async function saveUser() {
         activeTorrentLimit: form.activeTorrentLimit,
         maxTorrentSizeGb: form.maxTorrentSizeGb,
         privateTrackerLimit: form.privateTrackerLimit,
-        discordId: form.discordId || null
+        discordId: form.discordId || null,
+        canSubmit: form.canSubmit
       }
       if (form.password) body.password = form.password
       if (form.username !== editingUser.value.username) body.username = form.username
@@ -181,6 +185,11 @@ const roleOptions = computed(() => [
               >
                 {{ t('admin.privateTrackerLimit') }}
               </th>
+              <th
+                class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden xl:table-cell"
+              >
+                {{ t('admin.canSubmit') }}
+              </th>
               <th class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
                 {{ t('admin.tableStatus') }}
               </th>
@@ -236,6 +245,18 @@ const roleOptions = computed(() => [
               </td>
               <td class="px-4 py-3 text-center text-sm text-zinc-600 dark:text-zinc-300 hidden lg:table-cell">
                 {{ u.privateTrackerLimit }}
+              </td>
+              <td class="px-4 py-3 text-center hidden xl:table-cell">
+                <span
+                  class="text-xs px-2 py-1 rounded-full"
+                  :class="
+                    u.canSubmit
+                      ? 'bg-green-500/10 text-green-700 dark:text-green-400'
+                      : 'bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400'
+                  "
+                >
+                  {{ u.canSubmit ? t('admin.canSubmitOn') : t('admin.canSubmitOff') }}
+                </span>
               </td>
               <td class="px-4 py-3 text-center">
                 <button
@@ -301,6 +322,10 @@ const roleOptions = computed(() => [
 
           <UFormField :label="t('admin.discordId')" :description="t('admin.discordIdDesc')">
             <UInput v-model="form.discordId" :placeholder="'123456789012345678'" class="w-full" />
+          </UFormField>
+
+          <UFormField :label="t('admin.canSubmit')">
+            <USwitch v-model="form.canSubmit" />
           </UFormField>
 
           <UAlert v-if="error" :description="error" color="error" variant="subtle" />

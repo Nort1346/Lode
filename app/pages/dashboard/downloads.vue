@@ -16,7 +16,11 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+const { user } = useUserSession()
+const { data: me } = useFetch('/api/user/me')
 const overlay = useOverlay()
+
+const canSubmit = computed(() => me.value?.canSubmit === true || user.value?.role === 'admin')
 
 const downloads = ref<Download[]>([])
 const loading = ref(true)
@@ -141,7 +145,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
     <div v-else-if="downloads.length === 0" class="card p-12 text-center">
       <UIcon name="i-lucide-inbox" class="w-16 h-16 mx-auto mb-4 text-zinc-300 dark:text-zinc-600" />
       <p class="text-zinc-500 dark:text-zinc-400 text-lg">{{ t('dashboard.noDownloads') }}</p>
-      <UButton to="/dashboard/submit" :label="t('dashboard.noDownloadsDesc')" class="mt-4" />
+      <UButton v-if="canSubmit" to="/dashboard/submit" :label="t('dashboard.noDownloadsDesc')" class="mt-4" />
     </div>
 
     <div v-else class="space-y-3">

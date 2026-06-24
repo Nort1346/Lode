@@ -181,6 +181,9 @@
     "discordIdDesc": "Discord user ID for mentions in download notifications",
     "discordMentions": "Discord Mentions",
     "discordMentionsDesc": "Mention users by Discord ID in download completion notifications",
+    "canSubmit": "Submit Access",
+    "canSubmitOn": "Yes",
+    "canSubmitOff": "No",
     "saveFailed": "Failed to save user"
   },
   "logs": {

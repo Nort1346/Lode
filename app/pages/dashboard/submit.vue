@@ -2,7 +2,7 @@
 import { mapApiError } from '~/types/api'
 
 definePageMeta({
-  middleware: 'auth',
+  middleware: ['auth', 'submit'],
   layout: 'default'
 })
 
@@ -14,19 +14,37 @@ const inputMode = ref<'magnet' | 'file' | 'url'>('magnet')
 const form = reactive({
   magnetLink: '',
   torrentUrl: '',
-  savePath: 'movies',
+  savePath: '',
   label: ''
 })
 const selectedFile = ref<File | null>(null)
 const loading = ref(false)
 
-const savePathOptions = computed(() => [
-  { label: t('common.savePath_movies'), value: 'movies' },
-  { label: t('common.savePath_series'), value: 'series' },
-  { label: t('common.savePath_games'), value: 'games' },
-  { label: t('common.savePath_music'), value: 'music' },
-  { label: t('common.savePath_books'), value: 'books' }
-])
+const CATEGORY_I18N: Record<string, string> = {
+  movies: 'common.savePath_movies',
+  series: 'common.savePath_series',
+  games: 'common.savePath_games',
+  music: 'common.savePath_music',
+  books: 'common.savePath_books'
+}
+
+const { data: availableCategories } = useFetch<string[]>('/api/categories')
+
+const savePathOptions = computed(() =>
+  (availableCategories.value ?? []).map((key) => ({
+    label: t(CATEGORY_I18N[key] ?? key),
+    value: key
+  }))
+)
+
+watch(availableCategories, (cats) => {
+  if (!cats || cats.length === 0) return
+  const first = cats[0]
+  if (first === undefined) return
+  if (!cats.includes(form.savePath)) {
+    form.savePath = first
+  }
+})
 
 const inputModeOptions = computed(() => [
   { label: t('submit.inputModeMagnet'), value: 'magnet' },

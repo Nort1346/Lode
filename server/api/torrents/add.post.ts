@@ -34,6 +34,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
 
+  if (session.user.role !== 'admin' && !freshUser.canSubmit) {
+    throw createError({ statusCode: 403, statusMessage: 'You do not have permission to submit torrents' })
+  }
+
   const cooldown = checkCooldown(session.user.id)
   if (!cooldown.ok) {
     throw createError({
@@ -103,7 +107,7 @@ export default defineEventHandler(async (event) => {
 
   const targetPath = savePathMap[savePath as SavePathKey]
   if (!targetPath) {
-    throw createError({ statusCode: 500, statusMessage: 'Save path not configured' })
+    throw createError({ statusCode: 400, statusMessage: `Category "${savePath}" is not configured` })
   }
 
   const userId = session.user.id

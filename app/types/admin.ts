@@ -10,6 +10,7 @@ export interface AdminUser {
   downloadsToday: number
   createdAt: string
   discordId: string | null
+  canSubmit: boolean
 }
 
 export interface ActivityLog {

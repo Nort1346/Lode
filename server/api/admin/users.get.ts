@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
     privateTrackerLimit: u.privateTrackerLimit,
     downloadsToday: u.downloadsToday,
     createdAt: u.createdAt,
-    discordId: u.discordId
+    discordId: u.discordId,
+    canSubmit: u.canSubmit
   }))
 })

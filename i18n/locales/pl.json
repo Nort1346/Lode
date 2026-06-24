@@ -181,6 +181,9 @@
     "discordIdDesc": "ID użytkownika Discord do wzmianek w powiadomieniach",
     "discordMentions": "Wzmianki Discord",
     "discordMentionsDesc": "Wzmianki użytkowników Discord w powiadomieniach o ukończonych pobraniach",
+    "canSubmit": "Dostęp do przesyłania",
+    "canSubmitOn": "Tak",
+    "canSubmitOff": "Nie",
     "saveFailed": "Nie udało się zapisać użytkownika"
   },
   "logs": {

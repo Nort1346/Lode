@@ -103,6 +103,9 @@ function initDb() {
   if (!userColumns.includes('discord_id')) {
     sqlite.exec(`ALTER TABLE users ADD COLUMN discord_id TEXT`)
   }
+  if (!userColumns.includes('can_submit')) {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN can_submit INTEGER NOT NULL DEFAULT 0`)
+  }
 
   if (!columns.includes('tmdb_id')) {
     sqlite.exec(`ALTER TABLE downloads ADD COLUMN tmdb_id INTEGER`)

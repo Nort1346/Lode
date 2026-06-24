@@ -8,9 +8,12 @@ const route = useRoute()
 const colorMode = useColorMode()
 const { t, locale, locales, setLocale } = useI18n()
 
+const { data: me } = useFetch('/api/user/me')
+
 const mobileOpen = ref(false)
 
 const isAdmin = computed(() => user.value?.role === 'admin')
+const canSubmit = computed(() => me.value?.canSubmit === true || isAdmin.value)
 
 const localeOptions = computed(() =>
   (locales.value as Array<{ code: string; name: string }>).map((l) => ({
@@ -23,10 +26,13 @@ const navigation = computed(() => {
   const items = [
     { label: t('nav.dashboard'), icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
     { label: t('nav.browse'), icon: 'i-lucide-film', to: '/browse' },
-    { label: t('nav.submit'), icon: 'i-lucide-plus-circle', to: '/dashboard/submit' },
     { label: t('nav.downloads'), icon: 'i-lucide-download', to: '/dashboard/downloads' },
     { label: t('nav.wishlist'), icon: 'i-lucide-heart', to: '/dashboard/wishlist' }
   ]
+
+  if (canSubmit.value) {
+    items.splice(2, 0, { label: t('nav.submit'), icon: 'i-lucide-plus-circle', to: '/dashboard/submit' })
+  }
 
   if (isAdmin.value) {
     items.push(
