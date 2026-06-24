@@ -68,6 +68,8 @@
         />
       </InviewSection>
 
+      <BrowseSpotlight v-if="spotlights[0]" :item="spotlights[0]" />
+
       <!-- Lazy: Movie genres -->
       <InviewSection v-for="g in movieGenres" :key="`movie-${g.id}`" @visible="genreVisible[`movie-${g.id}`] = true">
         <MediaCarousel
@@ -78,6 +80,8 @@
         />
       </InviewSection>
 
+      <BrowseSpotlight v-if="spotlights[1]" :item="spotlights[1]" />
+
       <!-- Lazy: TV genres -->
       <InviewSection v-for="g in tvGenres" :key="`tv-${g.id}`" @visible="genreVisible[`tv-${g.id}`] = true">
         <MediaCarousel
@@ -87,6 +91,8 @@
           @item-click="goToItem"
         />
       </InviewSection>
+
+      <BrowseSpotlight v-if="spotlights[2]" :item="spotlights[2]" />
 
       <!-- Lazy: Top Rated -->
       <InviewSection @visible="topRatedVisible = true">
@@ -129,6 +135,11 @@ const { data, pending, error, execute } = await useFetch('/api/browse/search', {
   watch: [locale]
 })
 
+// Lazy visibility flags
+const popularTvVisible = ref(false)
+const topRatedVisible = ref(false)
+const genreVisible = reactive<Record<string, boolean>>({})
+
 const results = computed(() => data.value?.results ?? [])
 
 const { data: popularData, pending: popularPending } = await useFetch('/api/browse/popular', {
@@ -163,10 +174,16 @@ const { data: trendingData, pending: trendingPending } = await useFetch('/api/br
 
 const trendingItems = computed(() => trendingData.value?.items ?? [])
 
+const { data: spotlightsData } = await useFetch('/api/browse/spotlights', {
+  query: computed(() => ({ locale: locale.value })),
+  watch: [locale]
+})
+const spotlights = computed(() => spotlightsData.value?.items ?? [])
+
 const { data: topRatedData, pending: topRatedPending } = await useFetch('/api/browse/top-rated', {
   query: computed(() => ({ locale: locale.value })),
   immediate: false,
-  watch: [locale]
+  watch: [locale, topRatedVisible]
 })
 
 const topRatedMovies = computed(() => topRatedData.value?.movies ?? [])
@@ -187,11 +204,6 @@ async function doSearch() {
   searched.value = true
   await execute()
 }
-
-// Lazy visibility flags
-const popularTvVisible = ref(false)
-const topRatedVisible = ref(false)
-const genreVisible = reactive<Record<string, boolean>>({})
 
 // Genre definitions
 const movieGenres = [

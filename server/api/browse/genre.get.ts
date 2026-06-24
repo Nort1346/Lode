@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
         title: m.title,
         overview: m.overview,
         posterUrl: getImageUrl(m.poster_path),
-        backdropUrl: getImageUrl(m.backdrop_path, 'w780'),
+        backdropUrl: getImageUrl(m.backdrop_path, 'original'),
         year: m.release_date?.slice(0, 4) ?? '',
         rating: m.vote_average
       }))
@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
       title: t.name,
       overview: t.overview,
       posterUrl: getImageUrl(t.poster_path),
-      backdropUrl: getImageUrl(t.backdrop_path, 'w780'),
+      backdropUrl: getImageUrl(t.backdrop_path, 'original'),
       year: t.first_air_date?.slice(0, 4) ?? '',
       rating: t.vote_average
     }))
