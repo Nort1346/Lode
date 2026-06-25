@@ -550,5 +550,29 @@
     "saved": "Configuration saved",
     "resetDone": "Default configuration restored",
     "saveError": "Failed to save configuration"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications",
+    "unread": "New",
+    "read": "Read",
+    "badge": {
+      "download": "Downloaded",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
+    },
+    "download_complete": {
+      "title": "Download complete",
+      "message": "{title} is ready to watch"
+    },
+    "request_accepted": {
+      "title": "Request accepted",
+      "message": "Your request for {title} has been accepted"
+    },
+    "request_rejected": {
+      "title": "Request rejected",
+      "message": "Your request for {title} has been rejected"
+    }
   }
 }

@@ -61,7 +61,10 @@ export default defineNuxtConfig({
     disks: '',
     minFreeSpaceGb: 7,
     diskSpaceCheckEnabled: true,
-    trackerEncryptionKey: ''
+    trackerEncryptionKey: '',
+    vapidPublicKey: '',
+    vapidPrivateKey: '',
+    vapidSubject: ''
   },
 
   routeRules: {},
@@ -108,7 +111,8 @@ export default defineNuxtConfig({
       ]
     },
     workbox: {
-      globPatterns: ['**/*.{js,css,ico,png,svg,woff2}']
+      globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+      importScripts: ['/sw-push.js']
     },
     client: {
       installPrompt: true,

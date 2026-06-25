@@ -44,6 +44,7 @@
     "pino": "^10.3.1",
     "postgres": "^3.4.9",
     "tailwindcss": "^4.3.1",
+    "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -51,6 +52,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.9.3",
+    "@types/web-push": "^3.6.4",
     "@vite-pwa/assets-generator": "^1.0.2",
     "@vite-pwa/nuxt": "^1.1.1",
     "discord-api-types": "^0.38.48",

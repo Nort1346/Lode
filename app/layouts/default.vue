@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { STORAGE_PUSH_KEY } from '#server/types/notifications'
+
 definePageMeta({
   middleware: 'auth'
 })
@@ -7,6 +9,8 @@ const { user, clear } = useUserSession()
 const route = useRoute()
 const colorMode = useColorMode()
 const { t, locale, locales, setLocale } = useI18n()
+
+const { connect, disconnect, checkPermission, requestPermission, subscribeToPush } = useNotifications()
 
 const { data: me } = useFetch('/api/user/me')
 
@@ -56,6 +60,23 @@ function toggleTheme() {
 
 const isDark = computed(() => colorMode.value === 'dark')
 
+onMounted(() => {
+  connect()
+  checkPermission()
+  const stored = localStorage.getItem(STORAGE_PUSH_KEY)
+  if (stored !== 'true') {
+    requestPermission().then((granted) => {
+      if (granted) {
+        subscribeToPush().then(() => localStorage.setItem(STORAGE_PUSH_KEY, 'true'))
+      }
+    })
+  }
+})
+
+onUnmounted(() => {
+  disconnect()
+})
+
 async function handleLogout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   await clear()
@@ -84,6 +105,7 @@ watch(
       </button>
       <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">StreamHub</NuxtLink>
       <div class="flex items-center gap-1">
+        <NotificationDropdown />
         <button
           class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
           @click="toggleTheme"
@@ -183,6 +205,8 @@ watch(
       </nav>
 
       <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-3">
+        <NotificationDropdown :sidebar="true" />
+
         <button
           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/5 transition-all w-full"
           @click="toggleTheme"

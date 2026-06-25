@@ -142,3 +142,34 @@ export const wishlist = sqliteTable(
   },
   (t) => [uniqueIndex('idx_wishlist_user_media').on(t.userId, t.mediaType, t.mediaId)]
 )
+
+export const notifications = sqliteTable(
+  'notifications',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    type: text('type').notNull(),
+    title: text('title').notNull(),
+    message: text('message').notNull(),
+    link: text('link'),
+    data: text('data'),
+    read: integer('read', { mode: 'boolean' }).notNull().default(false),
+    createdAt: text('created_at').notNull()
+  },
+  (t) => [index('idx_notifications_user').on(t.userId), index('idx_notifications_user_read').on(t.userId, t.read)]
+)
+
+export const pushSubscriptions = sqliteTable(
+  'push_subscriptions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: text('created_at').notNull(),
+    lastUsedAt: text('last_used_at')
+  },
+  (t) => [index('idx_push_subscriptions_user').on(t.userId), index('idx_push_subscriptions_endpoint').on(t.endpoint)]
+)

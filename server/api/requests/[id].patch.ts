@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { useDb } from '#server/utils/db'
 import { requests } from '#server/database/schema'
+import { notifyRequestStatus } from '#server/utils/notifications'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -38,6 +39,19 @@ export default defineEventHandler(async (event) => {
     })
     .where(eq(requests.id, id))
     .run()
+
+  if (status === 'accepted' || status === 'rejected') {
+    void notifyRequestStatus(
+      existing.userId,
+      id,
+      status,
+      existing.mediaType as 'movie' | 'tv',
+      existing.mediaId,
+      existing.mediaTitle,
+      existing.mediaPoster,
+      adminNote
+    )
+  }
 
   return { success: true }
 })

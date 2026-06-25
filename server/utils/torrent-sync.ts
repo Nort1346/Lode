@@ -1,6 +1,7 @@
 import { downloads, users, settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { sendDownloadCompleteWebhook } from './discord'
+import { notifyDownloadComplete } from './notifications'
 import { createLogger } from '#server/utils/logger'
 
 const log = createLogger('TorrentSync')
@@ -106,7 +107,19 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           .where(eq(downloads.id, dl.id))
           .run()
         result.completed++
-        if (!countdownEnabled) void notifyDiscord(dl, userMap, discordIdMap)
+        if (!countdownEnabled) {
+          void notifyDiscord(dl, userMap, discordIdMap)
+          void notifyDownloadComplete(
+            dl.userId,
+            dl.id,
+            dl.mediaType,
+            dl.torrentName || dl.label || 'Download',
+            dl.posterUrl,
+            dl.sizeBytes,
+            dl.savePath,
+            dl.tmdbId
+          )
+        }
       } else {
         db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)).run()
         result.failed++
@@ -140,7 +153,19 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         .where(eq(downloads.id, dl.id))
         .run()
       result.completed++
-      if (!countdownEnabled) void notifyDiscord(dl, userMap, discordIdMap)
+      if (!countdownEnabled) {
+        void notifyDiscord(dl, userMap, discordIdMap)
+        void notifyDownloadComplete(
+          dl.userId,
+          dl.id,
+          dl.mediaType,
+          dl.torrentName || dl.label || 'Download',
+          dl.posterUrl,
+          dl.sizeBytes,
+          dl.savePath,
+          dl.tmdbId
+        )
+      }
     } else {
       db.update(downloads)
         .set({
@@ -209,6 +234,16 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
       }
       if (countdownEnabled) {
         void notifyDiscord(dl, userMap, discordIdMap)
+        void notifyDownloadComplete(
+          dl.userId,
+          dl.id,
+          dl.mediaType,
+          dl.torrentName || dl.label || 'Download',
+          dl.posterUrl,
+          dl.sizeBytes,
+          dl.savePath,
+          dl.tmdbId
+        )
       }
       db.update(downloads).set({ completedAt: null }).where(eq(downloads.id, dl.id)).run()
     }

@@ -550,5 +550,29 @@
     "saved": "Konfiguracja zapisana",
     "resetDone": "Przywrócono domyślną konfigurację",
     "saveError": "Błąd zapisu konfiguracji"
+  },
+  "notifications": {
+    "title": "Powiadomienia",
+    "markAllRead": "Oznacz wszystkie jako przeczytane",
+    "empty": "Brak powiadomień",
+    "unread": "Nowe",
+    "read": "Przeczytane",
+    "badge": {
+      "download": "Pobrano",
+      "accepted": "Zaakceptowano",
+      "rejected": "Odrzucono"
+    },
+    "download_complete": {
+      "title": "Pobieranie zakończone",
+      "message": "{title} jest gotowy do oglądania"
+    },
+    "request_accepted": {
+      "title": "Request zaakceptowany",
+      "message": "Twój request na {title} został zaakceptowany"
+    },
+    "request_rejected": {
+      "title": "Request odrzucony",
+      "message": "Twój request na {title} został odrzucony"
+    }
   }
 }
