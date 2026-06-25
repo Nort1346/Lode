@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcrypt'
-import { users } from '#server/database/schema'
+import { sessions, users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 
 interface LoginBody {
@@ -45,6 +46,26 @@ export default defineEventHandler(async (event) => {
 
   await recordLoginAttempt(event, { username: user.username, success: true })
 
+  const sessionId = randomUUID()
+  const ip = getRequestIP(event, { xForwardedFor: true }) ?? null
+  const ua = getRequestHeader(event, 'user-agent') ?? null
+  const now = new Date().toISOString()
+  const deviceName = parseDeviceName(ua)
+
+  db.insert(sessions)
+    .values({
+      id: sessionId,
+      userId: user.id,
+      ip,
+      userAgent: ua,
+      deviceName,
+      createdAt: now,
+      lastActiveAt: now
+    })
+    .run()
+
+  await enforceMaxSessions(user.id, user.maxSessions)
+
   await setUserSession(event, {
     user: {
       id: user.id,
@@ -56,7 +77,8 @@ export default defineEventHandler(async (event) => {
       maxTorrentSizeGb: user.maxTorrentSizeGb,
       privateTrackerLimit: user.privateTrackerLimit,
       downloadsToday: user.downloadsToday
-    }
+    },
+    sessionId
   })
 
   logActivity(event, { action: 'login', userId: user.id, username: user.username })

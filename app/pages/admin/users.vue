@@ -21,7 +21,8 @@ const form = reactive({
   maxTorrentSizeGb: 20,
   privateTrackerLimit: 5,
   discordId: '',
-  canSubmit: false
+  canSubmit: false,
+  maxSessions: 0
 })
 const saving = ref(false)
 const error = ref('')
@@ -51,6 +52,7 @@ function openCreate() {
   form.privateTrackerLimit = 5
   form.discordId = ''
   form.canSubmit = false
+  form.maxSessions = 0
   error.value = ''
   showModal.value = true
 }
@@ -66,6 +68,7 @@ function openEdit(user: AdminUser) {
   form.privateTrackerLimit = user.privateTrackerLimit
   form.discordId = user.discordId ?? ''
   form.canSubmit = user.canSubmit
+  form.maxSessions = user.maxSessions ?? 0
   error.value = ''
   showModal.value = true
 }
@@ -83,7 +86,8 @@ async function saveUser() {
         maxTorrentSizeGb: form.maxTorrentSizeGb,
         privateTrackerLimit: form.privateTrackerLimit,
         discordId: form.discordId || null,
-        canSubmit: form.canSubmit
+        canSubmit: form.canSubmit,
+        maxSessions: form.maxSessions
       }
       if (form.password) body.password = form.password
       if (form.username !== editingUser.value.username) body.username = form.username
@@ -318,6 +322,10 @@ const roleOptions = computed(() => [
 
           <UFormField :label="t('admin.privateTrackerLimit')">
             <UInput v-model.number="form.privateTrackerLimit" type="number" class="w-full" />
+          </UFormField>
+
+          <UFormField :label="t('admin.maxSessions')">
+            <UInput v-model.number="form.maxSessions" type="number" class="w-full" />
           </UFormField>
 
           <UFormField :label="t('admin.discordId')" :description="t('admin.discordIdDesc')">

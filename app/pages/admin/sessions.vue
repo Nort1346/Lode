@@ -1,0 +1,167 @@
+<script setup lang="ts">
+import type { Session } from '~/types/admin'
+
+definePageMeta({
+  middleware: ['auth', 'admin'],
+  layout: 'default'
+})
+
+const { t } = useI18n()
+const toast = useToast()
+
+const { user, clear } = useUserSession()
+
+const sessions = ref<Session[]>([])
+const loading = ref(true)
+
+async function fetchSessions() {
+  loading.value = true
+  try {
+    const res = await $fetch<Session[]>('/api/admin/sessions')
+    sessions.value = res
+  } catch {
+    // silently fail
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchSessions)
+
+async function revokeSession(id: string, targetUserId: string) {
+  try {
+    await $fetch(`/api/admin/sessions/${id}`, { method: 'DELETE' })
+    toast.add({ title: t('admin.sessionRevoked'), color: 'success' })
+    if (user.value?.id === targetUserId) {
+      await clear()
+      await navigateTo('/login')
+      return
+    }
+    await fetchSessions()
+  } catch {
+    toast.add({ title: t('admin.sessionRevokeFailed'), color: 'error' })
+  }
+}
+
+async function revokeAllForUser(userId: string, username: string) {
+  if (!confirm(t('admin.confirmRevokeAll', { username }))) return
+  try {
+    await $fetch('/api/admin/sessions/delete-all', { method: 'POST', body: { userId } })
+    toast.add({ title: t('admin.sessionsRevoked'), color: 'success' })
+    if (user.value?.id === userId) {
+      await clear()
+      await navigateTo('/login')
+      return
+    }
+    await fetchSessions()
+  } catch {
+    toast.add({ title: t('admin.sessionRevokeFailed'), color: 'error' })
+  }
+}
+
+function timeAgo(dateStr: string) {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+  if (seconds < 60) return t('time.justNow')
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return t('time.minutesAgo', { n: minutes })
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return t('time.hoursAgo', { n: hours })
+  const days = Math.floor(hours / 24)
+  return t('time.daysAgo', { n: days })
+}
+
+const groupedSessions = computed(() => {
+  const map = new Map<string, { username: string; role: string | null; sessions: Session[] }>()
+  for (const s of sessions.value) {
+    const key = s.userId
+    if (!map.has(key)) map.set(key, { username: s.username ?? 'Unknown', role: s.role, sessions: [] })
+    map.get(key)!.sessions.push(s)
+  }
+  return Array.from(map.values())
+})
+</script>
+
+<template>
+  <div>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('admin.sessionsTitle') }}</h1>
+        <p class="text-zinc-500 dark:text-zinc-400">{{ t('admin.sessionsSubtitle') }}</p>
+      </div>
+      <UButton icon="i-lucide-refresh-cw" variant="outline" :label="t('admin.refresh')" @click="fetchSessions" />
+    </div>
+
+    <div v-if="loading" class="flex justify-center py-16">
+      <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
+    </div>
+
+    <div v-else-if="groupedSessions.length === 0" class="text-center py-16 text-zinc-400">
+      {{ t('admin.noActiveSessions') }}
+    </div>
+
+    <div v-else class="space-y-8">
+      <div v-for="group in groupedSessions" :key="group.username" class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <UAvatar :alt="group.username" size="md" />
+            <div>
+              <span class="text-sm font-semibold text-zinc-900 dark:text-white">{{ group.username }}</span>
+              <span
+                v-if="group.role === 'admin'"
+                class="ml-2 text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                >admin</span
+              >
+            </div>
+          </div>
+          <UButton
+            v-if="group.sessions.length > 1"
+            icon="i-lucide-trash-2"
+            variant="ghost"
+            color="error"
+            size="xs"
+            :label="t('admin.revokeAll')"
+            @click="revokeAllForUser(group.sessions[0]!.userId, group.username)"
+          />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div
+            v-for="s in group.sessions"
+            :key="s.id"
+            class="rounded-lg border border-zinc-200 dark:border-white/10 p-4 space-y-2"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-2">
+                <UIcon name="i-lucide-monitor" class="w-4 h-4 text-zinc-400" />
+                <span class="text-sm font-medium text-zinc-900 dark:text-white">{{ s.deviceName ?? 'Unknown' }}</span>
+              </div>
+              <UButton
+                icon="i-lucide-x"
+                variant="ghost"
+                color="error"
+                size="xs"
+                @click="revokeSession(s.id, s.userId)"
+              />
+            </div>
+            <div class="text-xs text-zinc-500 dark:text-zinc-400 space-y-1">
+              <div v-if="s.ip" class="flex items-center gap-1.5">
+                <UIcon name="i-lucide-globe" class="w-3 h-3" />
+                {{ s.ip }}
+              </div>
+              <div class="flex items-center gap-1.5">
+                <UIcon name="i-lucide-clock" class="w-3 h-3" />
+                {{ t('admin.activeAgo') }} {{ timeAgo(s.lastActiveAt) }}
+              </div>
+              <div class="flex items-center gap-1.5">
+                <UIcon name="i-lucide-log-in" class="w-3 h-3" />
+                {{ t('admin.loggedIn') }} {{ timeAgo(s.createdAt) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

@@ -16,7 +16,8 @@ export const users = sqliteTable('users', {
   downloadsResetAt: text('downloads_reset_at'),
   createdAt: text('created_at').notNull().default(''),
   discordId: text('discord_id'),
-  canSubmit: integer('can_submit', { mode: 'boolean' }).notNull().default(false)
+  canSubmit: integer('can_submit', { mode: 'boolean' }).notNull().default(false),
+  maxSessions: integer('max_sessions').notNull().default(0)
 })
 
 export const downloads = sqliteTable('downloads', {
@@ -112,6 +113,20 @@ export const loginAttempts = sqliteTable(
     index('idx_login_attempts_username').on(t.username, t.createdAt),
     index('idx_login_attempts_created').on(t.createdAt)
   ]
+)
+
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    deviceName: text('device_name'),
+    createdAt: text('created_at').notNull(),
+    lastActiveAt: text('last_active_at').notNull()
+  },
+  (t) => [index('idx_sessions_user').on(t.userId)]
 )
 
 export const wishlist = sqliteTable(

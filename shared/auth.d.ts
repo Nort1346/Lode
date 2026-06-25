@@ -10,6 +10,10 @@ declare module '#auth-utils' {
     privateTrackerLimit: number
     downloadsToday: number
   }
+
+  interface UserSession {
+    sessionId?: string
+  }
 }
 
 export {}

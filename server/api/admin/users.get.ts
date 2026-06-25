@@ -2,7 +2,6 @@ import { users } from '#server/database/schema'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
-
   const db = useDb()
   const allUsers = db.select().from(users).all()
 
@@ -18,6 +17,7 @@ export default defineEventHandler(async (event) => {
     downloadsToday: u.downloadsToday,
     createdAt: u.createdAt,
     discordId: u.discordId,
-    canSubmit: u.canSubmit
+    canSubmit: u.canSubmit,
+    maxSessions: u.maxSessions
   }))
 })

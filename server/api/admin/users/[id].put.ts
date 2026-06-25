@@ -14,6 +14,7 @@ interface UpdateUserBody {
   downloadsToday?: number
   discordId?: string | null
   canSubmit?: boolean
+  maxSessions?: number
 }
 
 export default defineEventHandler(async (event) => {
@@ -77,6 +78,10 @@ export default defineEventHandler(async (event) => {
   if (body.canSubmit !== undefined) {
     updates.canSubmit = body.canSubmit
     changedFields.push('canSubmit')
+  }
+  if (body.maxSessions !== undefined) {
+    updates.maxSessions = body.maxSessions
+    changedFields.push('maxSessions')
   }
 
   if (Object.keys(updates).length > 0) {

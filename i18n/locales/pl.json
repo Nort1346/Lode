@@ -12,7 +12,8 @@
     "trackers": "Trackery",
     "bruteForce": "Ochrona",
     "language": "Język",
-    "ranking": "Ranking"
+    "ranking": "Ranking",
+    "sessions": "Sesje"
   },
   "theme": {
     "light": "Tryb jasny",
@@ -191,7 +192,19 @@
     "canSubmit": "Dostęp do przesyłania",
     "canSubmitOn": "Tak",
     "canSubmitOff": "Nie",
-    "saveFailed": "Nie udało się zapisać użytkownika"
+    "saveFailed": "Nie udało się zapisać użytkownika",
+    "sessionsTitle": "Aktywne sesje",
+    "sessionsSubtitle": "Zarządzaj aktywnymi sesjami użytkowników",
+    "sessionRevoked": "Sesja wycofana",
+    "sessionRevokeFailed": "Nie udało się wycofać sesji",
+    "sessionsRevoked": "Wszystkie sesje wycofane",
+    "confirmRevokeAll": "Wycofać wszystkie sesje dla {username}?",
+    "noActiveSessions": "Brak aktywnych sesji",
+    "refresh": "Odśwież",
+    "revokeAll": "Wycofaj wszystkie",
+    "activeAgo": "Aktywny",
+    "loggedIn": "Zalogowano",
+    "maxSessions": "Max sesji (0=bez limitu)"
   },
   "logs": {
     "title": "Logi aktywności",
@@ -454,6 +467,12 @@
     "source": "Źródło",
     "language": "Język",
     "codec": "Kodek"
+  },
+  "time": {
+    "justNow": "przed chwilą",
+    "minutesAgo": "{n} min temu",
+    "hoursAgo": "{n}h temu",
+    "daysAgo": "{n}d temu"
   },
   "ranking": {
     "title": "Ranking Torrentów",

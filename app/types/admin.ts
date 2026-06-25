@@ -11,6 +11,7 @@ export interface AdminUser {
   createdAt: string
   discordId: string | null
   canSubmit: boolean
+  maxSessions: number
 }
 
 export interface ActivityLog {
@@ -41,6 +42,18 @@ export interface BlockedIp {
   ip: string
   expiresAt: number
   attemptsCount: number
+}
+
+export interface Session {
+  id: string
+  userId: string
+  ip: string | null
+  userAgent: string | null
+  deviceName: string | null
+  createdAt: string
+  lastActiveAt: string
+  username: string | null
+  role: string | null
 }
 
 export interface CustomTracker {

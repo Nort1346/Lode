@@ -12,7 +12,8 @@
     "trackers": "Trackers",
     "bruteForce": "Security",
     "language": "Language",
-    "ranking": "Ranking"
+    "ranking": "Ranking",
+    "sessions": "Sessions"
   },
   "theme": {
     "light": "Light Mode",
@@ -191,7 +192,19 @@
     "canSubmit": "Submit Access",
     "canSubmitOn": "Yes",
     "canSubmitOff": "No",
-    "saveFailed": "Failed to save user"
+    "saveFailed": "Failed to save user",
+    "sessionsTitle": "Active Sessions",
+    "sessionsSubtitle": "Manage active user sessions",
+    "sessionRevoked": "Session revoked",
+    "sessionRevokeFailed": "Failed to revoke session",
+    "sessionsRevoked": "All sessions revoked",
+    "confirmRevokeAll": "Revoke all sessions for {username}?",
+    "noActiveSessions": "No active sessions",
+    "refresh": "Refresh",
+    "revokeAll": "Revoke all",
+    "activeAgo": "Active",
+    "loggedIn": "Logged in",
+    "maxSessions": "Max Sessions (0=unlimited)"
   },
   "logs": {
     "title": "Activity Logs",
@@ -454,6 +467,12 @@
     "source": "Source",
     "language": "Language",
     "codec": "Codec"
+  },
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "{n} min ago",
+    "hoursAgo": "{n}h ago",
+    "daysAgo": "{n}d ago"
   },
   "ranking": {
     "title": "Torrent Ranking",

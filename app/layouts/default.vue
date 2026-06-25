@@ -41,6 +41,7 @@ const navigation = computed(() => {
       { label: t('nav.trackers'), icon: 'i-lucide-satellite-dish', to: '/admin/trackers' },
       { label: t('nav.ranking'), icon: 'i-lucide-sliders-horizontal', to: '/admin/ranking' },
       { label: t('nav.bruteForce'), icon: 'i-lucide-shield', to: '/admin/brute-force' },
+      { label: t('nav.sessions'), icon: 'i-lucide-monitor', to: '/admin/sessions' },
       { label: t('nav.logs'), icon: 'i-lucide-activity', to: '/admin/logs' },
       { label: t('nav.settings'), icon: 'i-lucide-settings', to: '/admin/settings' }
     )
