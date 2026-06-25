@@ -50,7 +50,9 @@ Users can add torrents via three input methods on `/dashboard/submit`:
 - Trending (mixed movies + TV, from TMDB `/trending/all/week`) with TMDB logo title treatments
 - Popular Movies (from TMDB `/movie/popular`)
 - Popular TV Shows (from TMDB `/tv/popular`)
+- 14 genre-specific carousels (Action, Adventure, Animation, Comedy, Crime, Documentary, Drama, Fantasy, Horror, Mystery, Romance, Science Fiction, Thriller, War)
 - Top Rated (from TMDB `/movie/top_rated`)
+- **Spotlight cards** between carousels — random picks from genre data with backdrop, logo, type badge, "Check it out" CTA
 
 Carousels use the reusable `MediaCarousel` component with scroll arrows (hover-reveal), skeleton loading, and `MediaCarouselItem` type (includes `logoUrl`).
 
@@ -64,7 +66,11 @@ Carousels use the reusable `MediaCarousel` component with scroll arrows (hover-r
 **Search:**
 - Full-text search across movies and TV shows
 - Filter by type: All / Movies / TV Shows
-- Locale-aware results (Polish/English)
+- Filter by genre: unified genre chips (single row, solid when active)
+- URL state persistence via query params (`?q=...&type=...&genre=...`)
+- Debounced text search (500ms)
+- Genre-only browsing via `/api/browse/discover` (no text query)
+- Server-side genre filtering for both movie and TV results
 
 **Movie detail (`/browse/movie/:id`):**
 - Backdrop image with gradient overlay
@@ -212,12 +218,18 @@ NUXT_DISK_SPACE_CHECK_ENABLED=true
 | `active_torrent_limit` | 3 | Max concurrent downloading torrents |
 | `max_torrent_size_gb` | 20 | Max size per torrent in GB |
 | `private_tracker_limit` | 5 | Max daily downloads from Polish private trackers |
+| `max_sessions` | 0 | Max concurrent sessions (0 = unlimited) |
+| `can_submit` | false | Access to `/submit` page and `/api/torrents/add` (browse download stays available to all users) |
 
 **Fresh user data from DB:**
-Limits are fetched directly from the `users` table via `getFreshUser(userId)`, not from the stale session cookie. This ensures admin changes to limits take effect immediately without requiring re-login.
+Limits are fetched directly from the `users` table via `getFreshUser(userId)` (or `GET /api/user/me` for frontend), not from the stale session cookie. This ensures admin changes to limits take effect immediately without requiring re-login.
 
 **Authentication:**
 - `nuxt-auth-utils` for session management (cookie-based)
+- `sessionId` stored in cookie alongside user data
+- Server middleware (`server/middleware/session-validate.ts`) validates session exists in DB on every API request
+- Touch throttle: `lastActiveAt` updated at most once per 60s per session
+- Session cookie `maxAge`: 30 days (was browser session)
 - bcrypt password hashing (12 rounds)
 - Session cookie: `secure: false` for HTTP access
 - Default admin: `admin` / `admin` (created on first run)
@@ -246,6 +258,34 @@ Limits are fetched directly from the `users` table via `getFreshUser(userId)`, n
 - Config form with 3 inputs (maxAttempts, blockDuration, windowMinutes)
 - Toast notifications for all actions
 - Activity logs: `brute_force_config_update`, `brute_force_unblock_ip`
+
+### Session Management
+
+**Admin panel (`/admin/sessions`):**
+- View all active sessions grouped by user (Jellyfin-style card layout)
+- Each session shows: device name (parsed from User-Agent), IP address, last active time, login time
+- Revoke individual sessions or all sessions for a user
+- Self-revocation detection: if admin revokes own session, auto-logout and redirect to `/login`
+
+**Per-user max sessions:**
+- Configurable via admin user edit modal (`maxSessions` field, 0 = unlimited)
+- On login: if user has more sessions than limit, oldest sessions are deleted
+- Enforced after new session is created (not before), so the current login always succeeds
+
+**Device name parsing (`server/utils/device-parser.ts`):**
+- Parses User-Agent into human-readable format: `Chrome v125 on Windows`
+- Detects browser (Chrome, Firefox, Safari, Edge, etc.) and OS (Windows, macOS, Linux, Android, iOS)
+
+**Client-side 401 interceptor (`app/plugins/session-expired.ts`):**
+- Wraps `globalThis.fetch` to detect 401 responses from `/api/` endpoints
+- On 401: clears session client-side and redirects to `/login`
+- Works with `$fetch` and `useFetch` (ofetch reads `globalThis.fetch` lazily)
+
+**Session validation middleware (`server/middleware/session-validate.ts`):**
+- Intercepts all `/api/` requests (except `/api/_auth/`)
+- Validates `sessionId` from cookie exists in DB
+- Invalid session → clears cookie + throws 401
+- Touch throttle: updates `lastActiveAt` at most once per 60s per session
 
 ### Custom Private Trackers
 
@@ -443,7 +483,8 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - Hero banner: locale-reactive (fetches overview in active locale, re-matches trendingItems on locale change)
 - Wishlist translations: `wishlist.*` namespace with title, buttons, empty state, toast messages
 - UI text: "Torrenty" → "Pobrania", "Pobierz" → "Dodaj", "Oglądaj teraz" → "Sprawdź"
-- Server-side i18n: `createT(locale)` utility loads from `i18n/locales/*.json` for Discord notifications
+- Server-side i18n: `createT(locale)` utility with static JSON imports (fixes `ERR_INVALID_FILE_URL_PATH` in production builds)
+- Recursive `Messages` type for nested i18n namespaces
 
 ### Technical Features
 
@@ -504,6 +545,12 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - `server/utils/format.ts` — canonical `formatSize()` (was duplicated in 3 files)
 - `server/utils/ip.ts` — canonical `resolveIp()` (was duplicated in 2 files)
 - No type re-exports from utility files — each file imports types directly from `#server/types/`
+
+**Session management:**
+- `server/middleware/session-validate.ts` — validates session exists in DB on every `/api/` request, touch throttle (60s)
+- `server/utils/session-validate.ts` — `validateSession()`, `touchSession()`, `enforceMaxSessions()` (DB-backed)
+- `server/utils/device-parser.ts` — parses User-Agent into "Browser vX on OS" format
+- `app/plugins/session-expired.ts` — client-side 401 interceptor wrapping `globalThis.fetch`
 
 **Path aliases:**
 | Alias | Resolves to |
@@ -635,6 +682,7 @@ docker compose down
 | `streamhub` | Custom (multi-stage) | 3000 | The application |
 | `redis` | `redis:7-alpine` | - | Caching (optional) |
 | `flaresolverr` | `ghcr.io/flaresolverr/flaresolverr` | 8191 | Cloudflare bypass (optional) |
+| `postgres` | `postgres:16-alpine` | 5432 | PostgreSQL database (when `DB_DRIVER=postgres`) |
 | `dozzle` | `amir20/dozzle:latest` | 8082 | Live container log viewer |
 
 **Volumes:**
@@ -642,6 +690,7 @@ docker compose down
 - `/mnt/storage/streaming:/mnt/storage/streaming:ro` - Media storage (read-only)
 - `/:/host-root:ro` - Host root for disk space checks (read-only)
 - `redis_data:/data` - Redis persistence
+- `postgres_data:/var/lib/postgresql/data` - PostgreSQL persistence (when `DB_DRIVER=postgres`)
 
 **Dockerfile stages:**
 1. **Build:** `node:22-bookworm` with pnpm, native deps (python3, make, g++, libsqlite3-dev)
@@ -693,6 +742,8 @@ docker compose down
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NUXT_TORRENT_SYNC_INTERVAL_MS` | `10000` | Background torrent sync interval (ms) |
+| `DB_DRIVER` | `sqlite` | Database driver: `sqlite` or `postgres` |
+| `DATABASE_URL` | - | PostgreSQL connection URL (required when `DB_DRIVER=postgres`) |
 
 ## Components
 
@@ -705,8 +756,10 @@ docker compose down
 | `settings/DiscordWebhook.vue` | Discord locale + mentions toggle (independent data fetching) |
 | `settings/DiskStatus.vue` | Disk check toggle, min GB input, progress bars (independent data fetching) |
 | `settings/LiveLogs.vue` | SSE live log viewer with pause/clear/download (independent data fetching) |
+| `settings/PrepCountdown.vue` | Jellyfin prep countdown config (toggle + speed slider) |
 | `HeroSection.vue` | Auto-rotating hero banner with Ken Burns zoom animation, locale-reactive |
 | `InviewSection.vue` | Lazy-load wrapper using IntersectionObserver (200px rootMargin) for browse carousels |
+| `BrowseSpotlight.vue` | Spotlight card between browse carousels with backdrop, logo, type badge, "Check it out" CTA |
 
 ## Pages
 
@@ -728,10 +781,13 @@ docker compose down
 | `/admin/logs` | `admin/logs.vue` | Activity logs with click-to-copy |
 | `/admin/brute-force` | `admin/brute-force.vue` | Brute force protection (blocked IPs, config) |
 | `/admin/ranking` | `admin/ranking.vue` | Configurable torrent ranking (weights, languages, sources, thresholds) |
+| `/admin/sessions` | `admin/sessions.vue` | Active sessions management (grouped by user, revoke/revoke all) |
 
 ## Database Schema
 
-**Engine:** SQLite via better-sqlite3 + Drizzle ORM, stored at `.data/app.db`
+**Engine:** SQLite via better-sqlite3 + Drizzle ORM (default), PostgreSQL via postgres.js (optional). Stored at `.data/app.db` (SQLite). Configurable via `DB_DRIVER` env var.
+
+**Migrations:** Drizzle Kit generates SQL migration files in `server/database/migrations/`. Run via `pnpm db:migrate` (SQLite) or `pnpm db:migrate-pg` (PostgreSQL). Docker entrypoint runs migrations automatically before app start.
 
 ### `users`
 | Column | Type | Default | Description |
@@ -749,6 +805,19 @@ docker compose down
 | `downloads_reset_at` | text | - | Last reset timestamp |
 | `created_at` | text | - | ISO timestamp |
 | `discord_id` | text | - | Discord user ID for mentions in webhook notifications |
+| `max_sessions` | integer | `0` | Max concurrent sessions (0 = unlimited) |
+| `can_submit` | integer (bool) | `false` | Access to submit page and torrent add API |
+
+### `sessions`
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `id` | text (PK) | - | Session UUID |
+| `user_id` | text (FK) | - | Owner |
+| `ip` | text | - | Client IP |
+| `user_agent` | text | - | Client user agent |
+| `device_name` | text | - | Parsed device name (e.g. "Chrome v125 on Windows") |
+| `created_at` | text | - | ISO timestamp |
+| `last_active_at` | text | - | Last activity (throttled 60s update interval) |
 
 ### `downloads`
 | Column | Type | Default | Description |
@@ -807,7 +876,7 @@ Indexes: `(ip, created_at)`, `(username, created_at)`, `(created_at)`
 | `key` | text (PK) | Setting name |
 | `value` | text | Setting value |
 
-Known keys: `discord_locale` (pl/en), `discord_mentions_enabled` (true/false), `disk_check_enabled` (true/false), `disk_min_free_gb` (integer as string), `brute_force_max_attempts_per_ip`, `brute_force_ip_block_duration_minutes`, `brute_force_window_minutes`, `ranking_config` (JSON string with full ranking configuration)
+Known keys: `discord_locale` (pl/en), `discord_mentions_enabled` (true/false), `disk_check_enabled` (true/false), `disk_min_free_gb` (integer as string), `brute_force_max_attempts_per_ip`, `brute_force_ip_block_duration_minutes`, `brute_force_window_minutes`, `ranking_config` (JSON string with full ranking configuration), `prep_countdown_enabled` (true/false), `prep_speed_mb` (integer, MB/s)
 
 ### `activityLogs`
 | Column | Type | Description |
@@ -864,6 +933,7 @@ Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/api/user/limits` | Yes | Get user's current usage and limits (fresh from DB) |
+| GET | `/api/user/me` | Yes | Get fresh user data from DB (username, role, canSubmit, limits) |
 
 ### Torrents
 | Method | Endpoint | Auth | Description |
@@ -876,10 +946,14 @@ Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists
 ### Browse
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/browse/search` | Yes | Search TMDB (`q`, `type`, `page`, `locale` params) |
+| GET | `/api/browse/search` | Yes | Search TMDB (`q`, `type`, `page`, `locale`, `movieGenre`, `tvGenre` params) |
+| GET | `/api/browse/discover` | Yes | Genre-only browsing (`movieGenre`, `tvGenre`, `type`, `locale` params) |
 | GET | `/api/browse/popular` | Yes | Popular movies + TV (with logo URLs) |
 | GET | `/api/browse/trending` | Yes | Trending content (with logo URLs) |
 | GET | `/api/browse/top-rated` | Yes | Top rated movies |
+| GET | `/api/browse/genre` | Yes | Genre-specific content (`genreId`, `type`, `locale` params) |
+| GET | `/api/browse/logo` | Yes | Fetch TMDB logo for a single item (`id`, `type`, `locale` params) |
+| GET | `/api/browse/spotlights` | Yes | Random spotlight items (server-side shuffle, Redis pool cache) |
 | GET | `/api/browse/movie/:id` | Yes | Movie details (`locale` param) |
 | GET | `/api/browse/movie/:id/torrents` | Yes | Prowlarr search for movie (with `isPrivate`, `percentage`) |
 | GET | `/api/browse/tv/:id` | Yes | TV show details (`locale` param) |
@@ -926,8 +1000,15 @@ Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists
 |--------|----------|------|-------------|
 | GET | `/api/admin/users` | Admin | List all users |
 | POST | `/api/admin/users` | Admin | Create user |
-| PUT | `/api/admin/users/:id` | Admin | Update user |
+| PUT | `/api/admin/users/:id` | Admin | Update user (supports `maxSessions`, `canSubmit` fields) |
 | DELETE | `/api/admin/users/:id` | Admin | Delete user |
+
+### Admin - Sessions
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/admin/sessions` | Admin | List all active sessions with user info |
+| DELETE | `/api/admin/sessions/:id` | Admin | Revoke single session |
+| POST | `/api/admin/sessions/delete-all` | Admin | Revoke all sessions for a user (`{ userId }` body) |
 
 ### Admin - Trackers
 | Method | Endpoint | Auth | Description |
@@ -963,7 +1044,7 @@ Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists
 ## Scripts
 
 ```bash
-pnpm dev          # Development server
+pnpm dev          # Development server (runs migrations first)
 pnpm build        # Production build
 pnpm preview      # Preview production build
 pnpm lint         # Run ESLint
@@ -971,6 +1052,10 @@ pnpm lint:fix     # Auto-fix lint issues
 pnpm format       # Format with Prettier
 pnpm format:check # Check formatting
 pnpm typecheck    # Run Nuxt typecheck
+pnpm db:generate  # Generate Drizzle migration files
+pnpm db:migrate   # Run SQLite migrations
+pnpm db:migrate-pg # Run PostgreSQL migrations
+pnpm db:studio    # Open Drizzle Studio
 ```
 
 ## License
