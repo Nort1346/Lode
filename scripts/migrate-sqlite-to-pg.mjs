@@ -14,8 +14,8 @@
  *   SQLite file at .data/app.db
  */
 
-import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { existsSync } from 'node:fs'
 
 const cwd = process.cwd()
@@ -42,12 +42,16 @@ if (!existsSync(sqlitePath)) {
 }
 
 // ── Resolve modules ────────────────────────────────────────
-const hasRootModules = existsSync(resolve(cwd, 'node_modules'))
-const modulesBase = hasRootModules ? cwd : resolve(cwd, '.output/server')
-const require = createRequire(resolve(modulesBase, 'package.json'))
+const rootModules = resolve(cwd, 'node_modules')
+const outputModules = resolve(cwd, '.output/server/node_modules')
+const modulesPath = process.env.MODULES_PATH ?? (existsSync(rootModules) ? rootModules : outputModules)
 
-const Database = require('better-sqlite3')
-const postgres = require('postgres')
+console.log(`[migrate-pg] Modules: ${modulesPath}`)
+
+const u = (pkg) => pathToFileURL(resolve(modulesPath, pkg)).href
+
+const { default: Database } = await import(u('better-sqlite3/lib/index.js'))
+const { default: postgres } = await import(u('postgres'))
 
 // ── PostgreSQL schema DDL ──────────────────────────────────
 // Matches server/database/schema.ts — generated for PostgreSQL dialect
@@ -66,7 +70,8 @@ CREATE TABLE IF NOT EXISTS "users" (
   "downloads_reset_at" text,
   "created_at" text DEFAULT '' NOT NULL,
   "discord_id" text,
-  "can_submit" boolean DEFAULT false NOT NULL
+  "can_submit" boolean DEFAULT false NOT NULL,
+  "max_sessions" integer DEFAULT 0 NOT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "users_username_unique" ON "users" ("username");
@@ -165,6 +170,47 @@ CREATE TABLE IF NOT EXISTS "wishlist" (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_wishlist_user_media" ON "wishlist" ("user_id", "media_type", "media_id");
+
+CREATE TABLE IF NOT EXISTS "sessions" (
+  "id" text PRIMARY KEY NOT NULL,
+  "user_id" text NOT NULL,
+  "ip" text,
+  "user_agent" text,
+  "device_name" text,
+  "created_at" text NOT NULL,
+  "last_active_at" text NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS "idx_sessions_user" ON "sessions" ("user_id");
+
+CREATE TABLE IF NOT EXISTS "notifications" (
+  "id" text PRIMARY KEY NOT NULL,
+  "user_id" text NOT NULL,
+  "type" text NOT NULL,
+  "title" text NOT NULL,
+  "message" text NOT NULL,
+  "link" text,
+  "data" text,
+  "read" boolean DEFAULT false NOT NULL,
+  "created_at" text NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS "idx_notifications_user" ON "notifications" ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_notifications_user_read" ON "notifications" ("user_id", "read");
+
+CREATE TABLE IF NOT EXISTS "push_subscriptions" (
+  "id" text PRIMARY KEY NOT NULL,
+  "user_id" text NOT NULL,
+  "endpoint" text NOT NULL,
+  "p256dh" text NOT NULL,
+  "auth" text NOT NULL,
+  "user_agent" text,
+  "created_at" text NOT NULL,
+  "last_used_at" text
+);
+
+CREATE INDEX IF NOT EXISTS "idx_push_subscriptions_user" ON "push_subscriptions" ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_push_subscriptions_endpoint" ON "push_subscriptions" ("endpoint");
 `
 
 // ── Table definitions (for data migration) ─────────────────
@@ -176,7 +222,10 @@ const TABLES = [
   { name: 'requests', booleanColumns: [] },
   { name: 'custom_trackers', booleanColumns: ['enabled'] },
   { name: 'login_attempts', booleanColumns: ['success'] },
-  { name: 'wishlist', booleanColumns: [] }
+  { name: 'wishlist', booleanColumns: [] },
+  { name: 'sessions', booleanColumns: [] },
+  { name: 'notifications', booleanColumns: ['read'] },
+  { name: 'push_subscriptions', booleanColumns: [] }
 ]
 
 // ── Helpers ────────────────────────────────────────────────

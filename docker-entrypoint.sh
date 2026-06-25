@@ -10,6 +10,6 @@ chown -R appuser:nodejs /app/.data
 echo "[entrypoint] Running database migrations..."
 gosu appuser node scripts/migrate.mjs
 
-# Drop privileges and exec the app
+# Drop privileges and exec the CMD (allows override via docker-compose)
 echo "[entrypoint] Starting StreamHub..."
-exec gosu appuser node .output/server/index.mjs "$@"
+exec gosu appuser "$@"
