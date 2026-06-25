@@ -10,7 +10,7 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev",
+    "dev": "node scripts/migrate.mjs && nuxt dev",
     "build:preview": "pnpm run build && pnpm run preview --host",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
@@ -18,7 +18,10 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@discordjs/builders": "^1.14.1",
@@ -38,6 +41,7 @@
     "nuxt": "^4.4.8",
     "nuxt-auth-utils": "^0.5.29",
     "pino": "^10.3.1",
+    "postgres": "^3.4.9",
     "tailwindcss": "^4.3.1",
     "zod": "^4.4.3"
   },

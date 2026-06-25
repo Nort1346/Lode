@@ -23,7 +23,7 @@ RUN pnpm run build
 FROM node:22-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libsqlite3-0 libssl3 ca-certificates gosu \
+    libsqlite3-0 libssl3 ca-certificates gosu nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -34,6 +34,10 @@ RUN addgroup --system --gid 1001 nodejs \
 
 # Copy only the production build output
 COPY --from=build --chown=appuser:nodejs /app/.output ./.output
+
+# Copy migration files + script (needed for explicit migration step)
+COPY --from=build --chown=appuser:nodejs /app/server/database/migrations ./server/database/migrations
+COPY --from=build --chown=appuser:nodejs /app/scripts/migrate.mjs ./scripts/migrate.mjs
 
 # Entrypoint script (runs as root first, then drops to appuser)
 COPY docker-entrypoint.sh /docker-entrypoint.sh

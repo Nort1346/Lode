@@ -7,3 +7,6 @@ allowBuilds:
   sharp: true
   unrs-resolver: false
   vue-demi: false
+
+overrides:
+  drizzle-orm: ^0.45.2

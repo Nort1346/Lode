@@ -1,5 +1,5 @@
 import { activityLogs } from '#server/database/schema'
-import { desc, eq, and, sql } from 'drizzle-orm'
+import { desc, eq, and, count } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -28,11 +28,7 @@ export default defineEventHandler(async (event) => {
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
-  const countResult = db
-    .select({ count: sql<number>`count(*)` })
-    .from(activityLogs)
-    .where(where)
-    .get()
+  const countResult = db.select({ count: count() }).from(activityLogs).where(where).get()
 
   const total = countResult?.count ?? 0
   const totalPages = Math.ceil(total / limit)

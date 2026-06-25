@@ -1,5 +1,4 @@
 import { eq, and } from 'drizzle-orm'
-import { useDb } from '#server/utils/db'
 import { requests } from '#server/database/schema'
 import { notifyRequestPending } from '#server/utils/discord'
 

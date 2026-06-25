@@ -1,5 +1,5 @@
 import { downloads, users } from '#server/database/schema'
-import { eq, and, desc, sql } from 'drizzle-orm'
+import { eq, and, desc, count } from 'drizzle-orm'
 import type { InferSelectModel } from 'drizzle-orm'
 import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrent-sync'
 
@@ -42,11 +42,7 @@ export default defineEventHandler(async (event) => {
     return eq(downloads.userId, session.user.id)
   })()
 
-  const countResult = db
-    .select({ count: sql<number>`count(*)` })
-    .from(downloads)
-    .where(whereClause)
-    .get()
+  const countResult = db.select({ count: count() }).from(downloads).where(whereClause).get()
 
   const total = countResult?.count ?? 0
 

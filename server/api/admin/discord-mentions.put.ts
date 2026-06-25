@@ -1,19 +1,10 @@
-import { settings } from '#server/database/schema'
-import { eq } from 'drizzle-orm'
+import { putSetting } from '#server/utils/settings'
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
   const body = await readBody<{ enabled: boolean }>(event)
 
-  const db = useDb()
-  const value = body.enabled ? 'true' : 'false'
-
-  const existing = db.select().from(settings).where(eq(settings.key, 'discord_mentions_enabled')).get()
-  if (existing) {
-    db.update(settings).set({ value }).where(eq(settings.key, 'discord_mentions_enabled')).run()
-  } else {
-    db.insert(settings).values({ key: 'discord_mentions_enabled', value }).run()
-  }
+  putSetting('discord_mentions_enabled', body.enabled ? 'true' : 'false')
 
   logActivity(event, {
     action: 'discord_mentions_update',
