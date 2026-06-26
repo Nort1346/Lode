@@ -16,6 +16,8 @@
 
     <div v-else class="group/carousel relative">
       <button
+        v-if="hasOverflow"
+        aria-label="Scroll left"
         class="absolute top-1/2 left-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-1.5 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800"
         @click="scroll(-1)"
       >
@@ -38,6 +40,8 @@
       </div>
 
       <button
+        v-if="hasOverflow"
+        aria-label="Scroll right"
         class="absolute top-1/2 right-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-1.5 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800"
         @click="scroll(1)"
       >
@@ -50,7 +54,7 @@
 <script setup lang="ts">
 import type { MediaCarouselItem } from '~/types/media'
 
-defineProps<{
+const props = defineProps<{
   title: string
   items: MediaCarouselItem[]
   loading?: boolean
@@ -61,13 +65,9 @@ defineEmits<{
 }>()
 
 const scrollRef = ref<HTMLElement | null>(null)
-
-function scroll(direction: -1 | 1) {
-  const el = scrollRef.value
-  if (!el) return
-  const amount = el.clientWidth * 0.75
-  el.scrollBy({ left: direction * amount, behavior: 'smooth' })
-}
+const { hasOverflow, scroll } = useCarouselOverflow(scrollRef, {
+  watchSource: () => props.items
+})
 </script>
 
 <style scoped>
