@@ -578,5 +578,13 @@
       "title": "Request odrzucony",
       "message": "Twój request na {title} został odrzucony"
     }
+  },
+  "pwa": {
+    "installTitle": "Zainstaluj StreamHub",
+    "installDescription": "Dodaj do ekranu głównego, aby uzyskać szybszy dostęp i lepsze wrażenia.",
+    "installButton": "Zainstaluj",
+    "iosTitle": "Dodaj do ekranu głównego",
+    "iosDescription": "Wejdź w Udostępnij, następnie 'Dodaj do ekranu głównego'",
+    "dismiss": "Nie teraz"
   }
 }

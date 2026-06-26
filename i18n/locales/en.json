@@ -578,5 +578,13 @@
       "title": "Request rejected",
       "message": "Your request for {title} has been rejected"
     }
+  },
+  "pwa": {
+    "installTitle": "Install StreamHub",
+    "installDescription": "Add to your home screen for faster access and a better experience.",
+    "installButton": "Install",
+    "iosTitle": "Add to Home Screen",
+    "iosDescription": "Go to Share, then 'Add to Home Screen'",
+    "dismiss": "Not now"
   }
 }

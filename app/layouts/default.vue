@@ -247,6 +247,8 @@ watch(
     <!-- Main content -->
     <main class="flex-1 md:ml-64 p-4 md:p-6">
       <slot />
+      <PwaInstallPrompt />
+      <PwaIOSInstallBanner />
     </main>
 
     <!-- Footer -->
