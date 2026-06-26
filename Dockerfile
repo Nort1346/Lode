@@ -48,7 +48,6 @@ RUN addgroup --system --gid 1001 nodejs \
 
 # Copy only the production build output
 COPY --from=build --chown=appuser:nodejs /app/.output ./.output
-RUN rm -rf .output/server/node_modules
 
 # Copy only prod node_modules (no devDependencies)
 COPY --from=deps --chown=appuser:nodejs /app/node_modules ./node_modules
