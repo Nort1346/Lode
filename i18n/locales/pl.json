@@ -555,6 +555,10 @@
     "title": "Powiadomienia",
     "markAllRead": "Oznacz wszystkie jako przeczytane",
     "empty": "Brak powiadomień",
+    "enable": "Włącz powiadomienia",
+    "enableHint": "Otrzymuj powiadomienia o zakończonych pobraniach i odpowiedziach na requesty.",
+    "enabled": "Powiadomienia włączone",
+    "enableError": "Nie udało się włączyć powiadomień",
     "unread": "Nowe",
     "read": "Przeczytane",
     "badge": {

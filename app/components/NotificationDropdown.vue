@@ -5,7 +5,16 @@ defineProps<{ sidebar?: boolean }>()
 
 const { t } = useI18n()
 const toast = useToast()
-const { notifications, unreadCount, markAsRead, markAllAsRead, onNewNotification } = useNotifications()
+const {
+  notifications,
+  unreadCount,
+  markAsRead,
+  markAllAsRead,
+  onNewNotification,
+  permissionGranted,
+  enableNotifications,
+  checkPermission
+} = useNotifications()
 
 const open = ref(false)
 const animateBell = ref(false)
@@ -50,6 +59,19 @@ function handleClick(notification: (typeof notifications.value)[number]) {
 function closeModal() {
   open.value = false
 }
+
+async function handleEnableNotifications() {
+  const ok = await enableNotifications()
+  if (ok) {
+    toast.add({ title: t('notifications.enabled'), color: 'success' })
+  } else {
+    toast.add({ title: t('notifications.enableError'), color: 'error' })
+  }
+}
+
+onMounted(() => {
+  checkPermission()
+})
 
 function formatTime(dateStr: string) {
   const date = new Date(dateStr)
@@ -183,6 +205,27 @@ function getPosterUrl(n: (typeof notifications.value)[number]): string | null {
 
           <!-- Notification list -->
           <div class="flex-1 overflow-y-auto">
+            <!-- Enable button — always visible when permission not granted -->
+            <div
+              v-if="!permissionGranted"
+              class="px-5 py-4 border-b border-zinc-100 dark:border-white/5 bg-amber-50 dark:bg-amber-500/5"
+            >
+              <div class="flex items-center gap-3">
+                <UIcon name="i-lucide-bell-off" class="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-zinc-900 dark:text-white">{{ t('notifications.enableHint') }}</p>
+                </div>
+                <UButton
+                  color="primary"
+                  variant="solid"
+                  size="xs"
+                  icon="i-lucide-bell"
+                  :label="t('notifications.enable')"
+                  @click="handleEnableNotifications"
+                />
+              </div>
+            </div>
+
             <!-- Empty state -->
             <div v-if="notifications.length === 0" class="px-5 py-16 text-center">
               <UIcon name="i-lucide-bell-off" class="w-12 h-12 mx-auto mb-3 text-zinc-300 dark:text-zinc-600" />

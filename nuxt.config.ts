@@ -37,6 +37,9 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    public: {
+      vapidPublicKey: ''
+    },
     session: {
       maxAge: 60 * 60 * 24 * 30,
       cookie: {
@@ -62,7 +65,6 @@ export default defineNuxtConfig({
     minFreeSpaceGb: 7,
     diskSpaceCheckEnabled: true,
     trackerEncryptionKey: '',
-    vapidPublicKey: '',
     vapidPrivateKey: '',
     vapidSubject: ''
   },
@@ -119,7 +121,7 @@ export default defineNuxtConfig({
       periodicSyncForUpdates: 3600
     },
     devOptions: {
-      enabled: false
+      enabled: import.meta.dev
     }
   }
 })

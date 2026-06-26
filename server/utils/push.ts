@@ -11,7 +11,7 @@ function ensureVapid(): boolean {
   if (vapidConfigured) return true
 
   const config = useRuntimeConfig()
-  const publicKey = config.vapidPublicKey
+  const publicKey = config.public.vapidPublicKey
   const privateKey = config.vapidPrivateKey
   const subject = config.vapidSubject
 
@@ -34,6 +34,14 @@ export async function sendPushNotification(
 ): Promise<boolean> {
   if (!ensureVapid()) return false
 
+  const service = subscription.endpoint.includes('fcm.googleapis')
+    ? 'FCM'
+    : subscription.endpoint.includes('push.apple.com')
+      ? 'APNs'
+      : subscription.endpoint.includes('push.services.mozilla')
+        ? 'Mozilla'
+        : 'unknown'
+
   try {
     await webPush.sendNotification(subscription, JSON.stringify(payload), {
       TTL: 60 * 60,
@@ -43,7 +51,7 @@ export async function sendPushNotification(
   } catch (err: unknown) {
     const status = (err as { statusCode?: number }).statusCode
     if (status === 404 || status === 410) {
-      log.info('Push subscription expired, cleaning up')
+      log.info(`Push subscription expired (${service}), cleaning up`)
       return false
     }
     log.error(err instanceof Error ? err : new Error(String(err)), 'Push notification failed')

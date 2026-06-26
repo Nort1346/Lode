@@ -41,6 +41,18 @@ export function playNotificationSound() {
   }
 }
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  const buffer = new ArrayBuffer(rawData.length)
+  const outputArray = new Uint8Array(buffer)
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
 export function useNotifications() {
   function onNewNotification(callback: (n: NotificationItem) => void) {
     newNotificationCallback = callback
@@ -60,17 +72,58 @@ export function useNotifications() {
     return permissionGranted.value
   }
 
-  async function subscribeToPush() {
-    if (import.meta.server) return
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
-    if (Notification.permission !== 'granted') return
+  async function subscribeToPush(): Promise<boolean> {
+    if (import.meta.server) return false
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false
+    if (Notification.permission !== 'granted') return false
 
     try {
+      const config = useRuntimeConfig()
+      const vapidKey = config.public.vapidPublicKey as string
+      if (vapidKey === '') {
+        // eslint-disable-next-line no-console
+        console.error('VAPID public key not configured')
+        return false
+      }
+
       const registration = await navigator.serviceWorker.ready
-      const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true })
+      const vapidBytes = urlBase64ToUint8Array(vapidKey)
+
+      const existing = await registration.pushManager.getSubscription()
+      if (existing !== null) {
+        const rawKey = existing.options.applicationServerKey
+        if (rawKey === null) {
+          await existing.unsubscribe()
+        } else {
+          const existingKey = new Uint8Array(rawKey)
+          const hasCorrectKey =
+            existingKey.length === vapidBytes.length && existingKey.every((val, i) => val === vapidBytes[i])
+
+          if (hasCorrectKey) {
+            const sub = existing.toJSON()
+            if (sub.endpoint && sub.keys) {
+              await $fetch(API_NOTIFICATIONS_SUBSCRIBE, {
+                method: 'POST',
+                body: {
+                  endpoint: sub.endpoint,
+                  keys: { p256dh: sub.keys.p256dh ?? '', auth: sub.keys.auth ?? '' }
+                }
+              })
+            }
+            return true
+          }
+
+          await existing.unsubscribe()
+        }
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: vapidBytes
+      })
 
       const sub = subscription.toJSON()
-      if (!sub.endpoint || !sub.keys) return
+      if (!sub.endpoint || !sub.keys) return false
 
       await $fetch(API_NOTIFICATIONS_SUBSCRIBE, {
         method: 'POST',
@@ -79,9 +132,12 @@ export function useNotifications() {
           keys: { p256dh: sub.keys.p256dh ?? '', auth: sub.keys.auth ?? '' }
         }
       })
+
+      return true
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Push subscription failed:', err)
+      return false
     }
   }
 
@@ -201,6 +257,21 @@ export function useNotifications() {
     }
   }
 
+  async function enableNotifications(): Promise<boolean> {
+    if (import.meta.server) return false
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return false
+
+    const granted = await requestPermission()
+    if (!granted) return false
+
+    const subscribed = await subscribeToPush()
+    if (!subscribed) {
+      permissionGranted.value = false
+      return false
+    }
+    return true
+  }
+
   return {
     notifications,
     unreadCount,
@@ -215,7 +286,8 @@ export function useNotifications() {
     subscribeToPush,
     unsubscribeFromPush,
     checkPermission,
-    onNewNotification
+    onNewNotification,
+    enableNotifications
   }
 }
 

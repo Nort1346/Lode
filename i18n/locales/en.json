@@ -555,6 +555,10 @@
     "title": "Notifications",
     "markAllRead": "Mark all read",
     "empty": "No notifications",
+    "enable": "Enable notifications",
+    "enableHint": "Get notified when downloads complete and requests are answered.",
+    "enabled": "Notifications enabled",
+    "enableError": "Could not enable notifications",
     "unread": "New",
     "read": "Read",
     "badge": {

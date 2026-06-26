@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { STORAGE_PUSH_KEY } from '#server/types/notifications'
-
 definePageMeta({
   middleware: 'auth'
 })
@@ -10,7 +8,7 @@ const route = useRoute()
 const colorMode = useColorMode()
 const { t, locale, locales, setLocale } = useI18n()
 
-const { connect, disconnect, checkPermission, requestPermission, subscribeToPush } = useNotifications()
+const { connect, disconnect, checkPermission, permissionGranted, subscribeToPush } = useNotifications()
 
 const { data: me } = useFetch('/api/user/me')
 
@@ -63,13 +61,13 @@ const isDark = computed(() => colorMode.value === 'dark')
 onMounted(() => {
   connect()
   checkPermission()
-  const stored = localStorage.getItem(STORAGE_PUSH_KEY)
-  if (stored !== 'true') {
-    requestPermission().then((granted) => {
-      if (granted) {
-        subscribeToPush().then(() => localStorage.setItem(STORAGE_PUSH_KEY, 'true'))
-      }
-    })
+  if (permissionGranted.value) {
+    void subscribeToPush()
+  }
+
+  const redirect = route.query.redirect
+  if (typeof redirect === 'string' && redirect.length > 0 && redirect.startsWith('/') && !redirect.startsWith('//')) {
+    navigateTo(redirect, { replace: true })
   }
 })
 

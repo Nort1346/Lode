@@ -63,7 +63,6 @@ export const PUSH_BADGE = '/pwa-64x64.png'
 export const ROUTE_DASHBOARD = '/dashboard'
 export const ROUTE_DOWNLOADS = '/dashboard/downloads'
 
-export const STORAGE_PUSH_KEY = 'push_subscribed'
 export const SSE_RECONNECT_MS = 5000
 export const BADGE_MAX = 99
 
