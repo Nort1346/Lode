@@ -54,7 +54,7 @@ function dismiss() {
         <div
           class="max-w-lg mx-auto bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 rounded-xl shadow-2xl p-4 flex items-start gap-3"
         >
-          <div class="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <div class="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
             <UIcon name="i-lucide-share" class="w-5 h-5 text-amber-500" />
           </div>
           <div class="flex-1 min-w-0">
@@ -62,7 +62,7 @@ function dismiss() {
             <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{{ t('pwa.iosDescription') }}</p>
           </div>
           <button
-            class="flex items-center justify-center w-7 h-7 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors flex-shrink-0"
+            class="flex items-center justify-center w-7 h-7 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors shrink-0"
             @click="dismiss"
           >
             <UIcon name="i-lucide-x" class="w-4 h-4" />

@@ -1,5 +1,5 @@
-# ── Deps stage (only prod dependencies) ─────────────────────
-FROM node:22-bookworm AS deps
+# ── Deploy stage (flat production node_modules) ────────────
+FROM node:22-bookworm AS deploy
 
 ARG PNPM_VERSION=11.5.2
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm deploy --prod --filter . /deploy
 
 
 # ── Build stage ──────────────────────────────────────────────
@@ -31,6 +31,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm run build
+RUN find .output -name '*.map' -delete
 
 
 # ── Runtime stage ───────────────────────────────────────────
@@ -49,8 +50,8 @@ RUN addgroup --system --gid 1001 nodejs \
 # Copy only the production build output
 COPY --from=build --chown=appuser:nodejs /app/.output ./.output
 
-# Copy only prod node_modules (no devDependencies)
-COPY --from=deps --chown=appuser:nodejs /app/node_modules ./node_modules
+# Copy flat prod node_modules (no .pnpm store)
+COPY --from=deploy --chown=appuser:nodejs /deploy/node_modules ./node_modules
 
 # Copy migration files + script (needed for explicit migration step)
 COPY --from=build --chown=appuser:nodejs /app/server/database/migrations ./server/database/migrations
