@@ -146,7 +146,7 @@ watch(
           </NuxtLink>
         </nav>
 
-        <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4">
+        <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-3">
           <div class="flex items-center gap-3 px-3 mb-2">
             <UAvatar :alt="user?.username" size="sm" />
             <div class="flex-1 min-w-0">
@@ -158,11 +158,11 @@ watch(
               </p>
             </div>
           </div>
-          <div class="flex items-center gap-3 px-3 mb-2">
+          <div class="flex items-center gap-3 px-3 my-5">
             <USelect
               :model-value="locale"
               :items="localeOptions"
-              size="xs"
+              size="md"
               class="flex-1"
               @update:model-value="setLocale($event as 'pl' | 'en')"
             />
@@ -202,7 +202,7 @@ watch(
         </NuxtLink>
       </nav>
 
-      <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-3">
+      <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-4">
         <NotificationDropdown :sidebar="true" />
 
         <button
@@ -224,11 +224,11 @@ watch(
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-3 px-3">
+        <div class="flex items-center gap-3 px-3 my-4">
           <USelect
             :model-value="locale"
             :items="localeOptions"
-            size="xs"
+            size="md"
             class="flex-1"
             @update:model-value="setLocale($event as 'pl' | 'en')"
           />
