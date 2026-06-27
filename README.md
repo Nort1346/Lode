@@ -359,6 +359,55 @@ NUXT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/ID/TOKEN
 
 **Locale support:** Polish (pl) or English (en), configurable from admin settings page via `discord_locale` setting. Decoupled from UI locale.
 
+### Notifications
+
+**In-app notifications:**
+- Real-time SSE (Server-Sent Events) streaming per user via `/api/notifications/stream`
+- `NotificationDropdown` component: bell icon with unread count badge, dropdown modal with unread/read sections
+- Sound played on new notification
+- Mark individual notification as read (`PATCH /api/notifications/[id]/read`)
+- Mark all as read (`POST /api/notifications/read-all`)
+- Auto-connect on mount, disconnect on unmount
+
+**Notification types:**
+| Type | Trigger |
+|------|---------|
+| `download_complete` | Torrent finished downloading |
+| `request_accepted` | Admin accepted a media request |
+| `request_rejected` | Admin rejected a media request |
+
+**Browser push notifications (Web Push API):**
+- VAPID-based push notifications via `web-push` library
+- `sw-push.js` service worker handles `push`, `notificationclick`, and `pushsubscriptionchange` events
+- Auto re-subscribe on VAPID key rotation (fetches fresh key from `/api/notifications/vapid-key`)
+- Expired subscription cleanup: 404/410 responses trigger deletion from `push_subscriptions` table
+- Platform detection from endpoint URL: FCM (Chrome/Edge), APNs (Safari 16.4+), Mozilla (Firefox)
+
+**Push configuration:**
+```env
+NUXT_PUBLIC_VAPID_PUBLIC_KEY=your_public_key
+NUXT_VAPID_PRIVATE_KEY=your_private_key
+NUXT_VAPID_SUBJECT=mailto:your@email.com
+```
+
+Generate VAPID keys:
+```bash
+npx web-push generate-vapid-keys
+```
+
+**iOS Safari requirements:**
+- PWA must be installed to Home Screen (notification permission requires standalone display)
+- `Notification.requestPermission()` must be called from user click handler
+- `applicationServerKey` passed to `subscribe()` for VAPID identification
+- `notificationclick`: uses `clients.openWindow()` with `?redirect=` fallback for closed PWA
+
+**Push subscription API:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/notifications/subscribe` | Register browser push subscription |
+| POST | `/api/notifications/unsubscribe` | Remove push subscription |
+| GET | `/api/notifications/vapid-key` | Get VAPID public key |
+
 ### Jellyfin Integration
 
 **Configuration:**
@@ -482,6 +531,8 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - Trending content now passes `language` param to TMDB API (titles are locale-aware, not always English)
 - Hero banner: locale-reactive (fetches overview in active locale, re-matches trendingItems on locale change)
 - Wishlist translations: `wishlist.*` namespace with title, buttons, empty state, toast messages
+- Notification translations: `notifications.*` namespace with enable, enabled, enableHint, enableError, markAllRead, unread
+- PWA install translations: `pwa.*` namespace with install title/description for Android and iOS
 - UI text: "Torrenty" → "Pobrania", "Pobierz" → "Dodaj", "Oglądaj teraz" → "Sprawdź"
 - Server-side i18n: `createT(locale)` utility with static JSON imports (fixes `ERR_INVALID_FILE_URL_PATH` in production builds)
 - Recursive `Messages` type for nested i18n namespaces
@@ -493,6 +544,14 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 - `createLogger(module)` returns a wrapper that logs to pino (stdout/Docker/Dozzle) AND to a ring buffer (500 lines) for SSE live streaming
 - Modules: Download, Add, FlareSolverr, Discord, TorrentSync, DB
 - All server files use structured logger (no `console.log`)
+
+**Carousel overflow composable:**
+- `app/composables/useCarouselOverflow.ts` — reusable composable for scroll containers
+- Overflow detection via `ResizeObserver` on the scroll container
+- Smooth scroll-by (75% of container width) with direction parameter
+- Reactive `hasOverflow` ref for conditional arrow visibility
+- Optional `watchSource` callback for re-checking when data changes (fixes loading bug where container is initially `null`)
+- Cleanup on unmount
 
 **Background torrent sync:**
 - Nitro plugin `server/plugins/torrent-sync.ts` runs every 10s (configurable via `NUXT_TORRENT_SYNC_INTERVAL_MS`)
@@ -605,6 +664,7 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 | Torrent client | [qBittorrent](https://www.qbittorrent.org/) via [qui](https://github.com/autobrr/qui) proxy |
 | Cloudflare bypass | [got-scraping](https://github.com/sindresorhus/got-scraping) v4.2.1 (Chrome TLS impersonation) |
 | Notifications | [discord.js](https://discord.js.org/) REST v2.6.1 + Builders v1.14.1 |
+| Push notifications | [web-push](https://github.com/web-push-libs/web-push) v3.6.7 (VAPID, FCM/APNs/Mozilla) |
 | Logging | [pino](https://getpino.io/) v10.3.1 + pino-pretty v13.1.3 |
 | PWA | [@vite-pwa/nuxt](https://github.com/vite-pwa/nuxt) v1.1.1 (Workbox) |
 | Icons | [Iconify](https://iconify.design/) (Lucide + Simple Icons) |
@@ -693,8 +753,9 @@ docker compose down
 - `postgres_data:/var/lib/postgresql/data` - PostgreSQL persistence (when `DB_DRIVER=postgres`)
 
 **Dockerfile stages:**
-1. **Build:** `node:22-bookworm` with pnpm, native deps (python3, make, g++, libsqlite3-dev)
-2. **Runtime:** `node:22-slim` with gosu for privilege dropping, runs as non-root `appuser`
+1. **Deploy:** `node:22-bookworm` with pnpm, runs `pnpm deploy --prod` to create flat `node_modules` without `.pnpm` store (smaller image)
+2. **Build:** `node:22-bookworm` with pnpm, native deps (python3, make, g++, libsqlite3-dev), removes `.map` files from `.output`
+3. **Runtime:** `node:22-slim` with gosu for privilege dropping, runs as non-root `appuser`, copies flat `node_modules` from deploy stage
 
 ## Configuration
 
@@ -728,6 +789,9 @@ docker compose down
 | `NUXT_JELLYFIN_API_KEY` | - | Jellyfin API key |
 | `NUXT_DISCORD_WEBHOOK_URL` | - | Discord webhook for download notifications |
 | `NUXT_FLARESOLVERR_URL` | - | FlareSolverr URL for Cloudflare bypass |
+| `NUXT_PUBLIC_VAPID_PUBLIC_KEY` | - | VAPID public key for Web Push API |
+| `NUXT_VAPID_PRIVATE_KEY` | - | VAPID private key |
+| `NUXT_VAPID_SUBJECT` | - | Contact email/URL for push service |
 
 ### Optional - Disk Space
 
@@ -760,6 +824,9 @@ docker compose down
 | `HeroSection.vue` | Auto-rotating hero banner with Ken Burns zoom animation, locale-reactive |
 | `InviewSection.vue` | Lazy-load wrapper using IntersectionObserver (200px rootMargin) for browse carousels |
 | `BrowseSpotlight.vue` | Spotlight card between browse carousels with backdrop, logo, type badge, "Check it out" CTA |
+| `NotificationDropdown.vue` | Notification bell with unread count badge, dropdown modal with unread/read sections, sound on new notification |
+| `PwaInstallPrompt.client.vue` | Android/Chrome PWA install modal using `$pwa.install()` composable |
+| `PwaIOSInstallBanner.client.vue` | iOS Safari install banner with "Share → Add to Home Screen" instructions, 7-day dismiss via localStorage |
 
 ## Pages
 
@@ -919,6 +986,31 @@ Known keys: `discord_locale` (pl/en), `discord_mentions_enabled` (true/false), `
 
 Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists per user.
 
+### `notifications`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | text (PK) | UUID |
+| `user_id` | text (FK) | Owner |
+| `type` | text | `download_complete`, `request_accepted`, or `request_rejected` |
+| `title` | text | Notification title |
+| `message` | text | Notification message body |
+| `link` | text | Deep-link URL (nullable) |
+| `data` | text | JSON metadata (nullable) |
+| `read` | integer (bool) | Read status |
+| `created_at` | text | ISO timestamp |
+
+### `push_subscriptions`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | text (PK) | UUID |
+| `user_id` | text (FK) | Owner |
+| `endpoint` | text | Push service endpoint URL (FCM/APNs/Mozilla) |
+| `p256dh` | text | Encryption public key |
+| `auth` | text | Encryption auth secret |
+| `user_agent` | text | Browser user agent (nullable) |
+| `created_at` | text | ISO timestamp |
+| `last_used_at` | text | Last push delivery (nullable) |
+
 ## API Endpoints
 
 ### Auth
@@ -977,6 +1069,17 @@ Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists
 | DELETE | `/api/wishlist` | Yes | Remove from wishlist (by id or mediaType+mediaId) |
 | GET | `/api/wishlist` | Yes | List user's wishlist items |
 | GET | `/api/wishlist/check` | Yes | Check if title is wishlisted (`mediaType`, `mediaId` params) |
+
+### Notifications
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/notifications` | Yes | List user's notifications with unread count |
+| GET | `/api/notifications/stream` | Yes | SSE stream for real-time notifications |
+| PATCH | `/api/notifications/[id]/read` | Yes | Mark single notification as read |
+| POST | `/api/notifications/read-all` | Yes | Mark all notifications as read |
+| POST | `/api/notifications/subscribe` | Yes | Register browser push subscription |
+| POST | `/api/notifications/unsubscribe` | Yes | Remove push subscription |
+| GET | `/api/notifications/vapid-key` | Yes | Get VAPID public key |
 
 ### Debug
 | Method | Endpoint | Auth | Description |
