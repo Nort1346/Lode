@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
+import { syncUserCreate, getDefaultSyncSettings, upsertSyncUserSettings } from '#server/utils/sync'
 
 interface RegisterBody {
   username: string
@@ -10,6 +11,11 @@ interface RegisterBody {
   dailyDownloadLimit?: number
   activeTorrentLimit?: number
   maxTorrentSizeGb?: number
+  jellyfinLibraryAccess?: string[] | 'all'
+  jellyfinEnableVideoTranscoding?: boolean
+  jellyfinEnableAudioTranscoding?: boolean
+  jellyfinEnableRemuxing?: boolean
+  jellyfinMaxActiveSessions?: number
 }
 
 export default defineEventHandler(async (event) => {
@@ -37,8 +43,24 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, statusMessage: 'Username already exists' })
   }
 
-  const hashedPassword = await bcrypt.hash(password, 12)
   const id = randomUUID()
+  const syncSettings = getDefaultSyncSettings({
+    libraryAccess: body.jellyfinLibraryAccess,
+    enableVideoTranscoding: body.jellyfinEnableVideoTranscoding,
+    enableAudioTranscoding: body.jellyfinEnableAudioTranscoding,
+    enableRemuxing: body.jellyfinEnableRemuxing,
+    maxActiveSessions: body.jellyfinMaxActiveSessions
+  })
+
+  try {
+    await syncUserCreate(id, { username, password }, syncSettings)
+  } catch (error) {
+    console.error('[Register] Jellyfin sync failed:', error)
+  }
+
+  upsertSyncUserSettings(id, 'jellyfin', syncSettings)
+
+  const hashedPassword = await bcrypt.hash(password, 12)
 
   db.insert(users)
     .values({
@@ -51,7 +73,8 @@ export default defineEventHandler(async (event) => {
       maxTorrentSizeGb: maxTorrentSizeGb ?? 20,
       isActive: true,
       downloadsToday: 0,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      syncStatus: 'synced'
     })
     .run()
 

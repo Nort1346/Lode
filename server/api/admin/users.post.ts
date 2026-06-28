@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
+import { syncUserCreate, getDefaultSyncSettings, upsertSyncUserSettings } from '#server/utils/sync'
 
 interface CreateUserBody {
   username: string
@@ -11,7 +12,14 @@ interface CreateUserBody {
   activeTorrentLimit?: number
   maxTorrentSizeGb?: number
   privateTrackerLimit?: number
+  canSubmit?: boolean
+  maxSessions?: number
   discordId?: string | null
+  jellyfinLibraryAccess?: string[] | 'all'
+  jellyfinEnableVideoTranscoding?: boolean
+  jellyfinEnableAudioTranscoding?: boolean
+  jellyfinEnableRemuxing?: boolean
+  jellyfinMaxActiveSessions?: number
 }
 
 export default defineEventHandler(async (event) => {
@@ -20,7 +28,16 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<CreateUserBody>(event)
   const username = body.username?.trim() ?? ''
   const password = body.password?.trim() ?? ''
-  const { role, dailyDownloadLimit, activeTorrentLimit, maxTorrentSizeGb, privateTrackerLimit, discordId } = body
+  const {
+    role,
+    dailyDownloadLimit,
+    activeTorrentLimit,
+    maxTorrentSizeGb,
+    privateTrackerLimit,
+    discordId,
+    canSubmit,
+    maxSessions
+  } = body
 
   if (!username || !password) {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })
@@ -32,8 +49,24 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, statusMessage: 'Username already exists' })
   }
 
-  const hashedPassword = await bcrypt.hash(password, 12)
   const id = randomUUID()
+  const syncSettings = getDefaultSyncSettings({
+    libraryAccess: body.jellyfinLibraryAccess,
+    enableVideoTranscoding: body.jellyfinEnableVideoTranscoding,
+    enableAudioTranscoding: body.jellyfinEnableAudioTranscoding,
+    enableRemuxing: body.jellyfinEnableRemuxing,
+    maxActiveSessions: body.jellyfinMaxActiveSessions
+  })
+
+  try {
+    await syncUserCreate(id, { username, password }, syncSettings)
+  } catch (error) {
+    console.error('[User] Jellyfin sync failed, creating user in StreamHub only:', error)
+  }
+
+  upsertSyncUserSettings(id, 'jellyfin', syncSettings)
+
+  const hashedPassword = await bcrypt.hash(password, 12)
 
   db.insert(users)
     .values({
@@ -48,7 +81,10 @@ export default defineEventHandler(async (event) => {
       isActive: true,
       downloadsToday: 0,
       createdAt: new Date().toISOString(),
-      discordId: discordId ?? null
+      discordId: discordId ?? null,
+      canSubmit: canSubmit ?? false,
+      maxSessions: maxSessions ?? 0,
+      syncStatus: 'synced'
     })
     .run()
 

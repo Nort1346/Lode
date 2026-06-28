@@ -148,7 +148,7 @@ watch(
 
         <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-3">
           <div class="flex items-center gap-3 px-3 mb-2">
-            <UAvatar :alt="user?.username" size="sm" />
+            <UAvatar :src="me?.avatarUrl ?? undefined" :alt="user?.username" size="sm" />
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-zinc-900 dark:text-white truncate">
                 {{ user?.username }}
@@ -214,7 +214,7 @@ watch(
         </button>
 
         <div class="flex items-center gap-3 px-3">
-          <UAvatar :alt="user?.username" size="sm" />
+          <UAvatar :src="me?.avatarUrl ?? undefined" :alt="user?.username" size="sm" />
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-zinc-900 dark:text-white truncate">
               {{ user?.username }}

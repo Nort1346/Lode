@@ -22,10 +22,25 @@ const form = reactive({
   privateTrackerLimit: 5,
   discordId: '',
   canSubmit: false,
-  maxSessions: 0
+  maxSessions: 0,
+  jellyfinLibraryAccess: 'all' as string[] | 'all',
+  jellyfinEnableVideoTranscoding: true,
+  jellyfinEnableAudioTranscoding: true,
+  jellyfinEnableRemuxing: true,
+  jellyfinMaxActiveSessions: 0
 })
+
+const pendingAvatarFile = ref<File | null>(null)
+const pendingAvatarRemoved = ref(false)
+
 const saving = ref(false)
 const error = ref('')
+
+const syncStatusColor = (status: string) => {
+  if (status === 'synced') return 'bg-green-500/10 text-green-700 dark:text-green-400'
+  if (status === 'failed') return 'bg-red-500/10 text-red-700 dark:text-red-400'
+  return 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
+}
 
 async function fetchUsers() {
   loading.value = true
@@ -41,8 +56,7 @@ async function fetchUsers() {
 
 onMounted(fetchUsers)
 
-function openCreate() {
-  editingUser.value = null
+function resetForm() {
   form.username = ''
   form.password = ''
   form.role = 'user'
@@ -53,8 +67,40 @@ function openCreate() {
   form.discordId = ''
   form.canSubmit = false
   form.maxSessions = 0
+}
+
+async function fetchPresets() {
+  try {
+    const res = await $fetch('/api/admin/jellyfin/presets')
+    const data = res as {
+      libraryAccess: string[] | 'all'
+      videoTranscoding: boolean
+      audioTranscoding: boolean
+      remuxing: boolean
+      maxActiveSessions: number
+    }
+    form.jellyfinLibraryAccess = data.libraryAccess
+    form.jellyfinEnableVideoTranscoding = data.videoTranscoding
+    form.jellyfinEnableAudioTranscoding = data.audioTranscoding
+    form.jellyfinEnableRemuxing = data.remuxing
+    form.jellyfinMaxActiveSessions = data.maxActiveSessions
+  } catch {
+    form.jellyfinLibraryAccess = 'all'
+    form.jellyfinEnableVideoTranscoding = true
+    form.jellyfinEnableAudioTranscoding = true
+    form.jellyfinEnableRemuxing = true
+    form.jellyfinMaxActiveSessions = 0
+  }
+}
+
+function openCreate() {
+  editingUser.value = null
+  resetForm()
+  pendingAvatarFile.value = null
+  pendingAvatarRemoved.value = false
   error.value = ''
   showModal.value = true
+  fetchPresets()
 }
 
 function openEdit(user: AdminUser) {
@@ -69,6 +115,13 @@ function openEdit(user: AdminUser) {
   form.discordId = user.discordId ?? ''
   form.canSubmit = user.canSubmit
   form.maxSessions = user.maxSessions ?? 0
+  form.jellyfinLibraryAccess = user.jellyfinLibraryAccess ?? 'all'
+  form.jellyfinEnableVideoTranscoding = user.jellyfinEnableVideoTranscoding ?? true
+  form.jellyfinEnableAudioTranscoding = user.jellyfinEnableAudioTranscoding ?? true
+  form.jellyfinEnableRemuxing = user.jellyfinEnableRemuxing ?? true
+  form.jellyfinMaxActiveSessions = user.jellyfinMaxActiveSessions ?? 0
+  pendingAvatarFile.value = null
+  pendingAvatarRemoved.value = false
   error.value = ''
   showModal.value = true
 }
@@ -87,7 +140,12 @@ async function saveUser() {
         privateTrackerLimit: form.privateTrackerLimit,
         discordId: form.discordId || null,
         canSubmit: form.canSubmit,
-        maxSessions: form.maxSessions
+        maxSessions: form.maxSessions,
+        jellyfinLibraryAccess: form.jellyfinLibraryAccess,
+        jellyfinEnableVideoTranscoding: form.jellyfinEnableVideoTranscoding,
+        jellyfinEnableAudioTranscoding: form.jellyfinEnableAudioTranscoding,
+        jellyfinEnableRemuxing: form.jellyfinEnableRemuxing,
+        jellyfinMaxActiveSessions: form.jellyfinMaxActiveSessions
       }
       if (form.password) body.password = form.password
       if (form.username !== editingUser.value.username) body.username = form.username
@@ -96,11 +154,29 @@ async function saveUser() {
         method: 'PUT',
         body
       })
+
+      if (pendingAvatarRemoved.value) {
+        await $fetch('/api/admin/jellyfin/avatar', {
+          method: 'DELETE',
+          body: { userId: editingUser.value.id }
+        })
+      } else if (pendingAvatarFile.value) {
+        const formData = new FormData()
+        formData.append('userId', editingUser.value.id)
+        formData.append('avatar', pendingAvatarFile.value)
+        await $fetch('/api/admin/jellyfin/avatar', { method: 'POST', body: formData })
+      }
     } else {
-      await $fetch('/api/admin/users', {
+      const res = await $fetch<{ success: boolean; id: string }>('/api/admin/users', {
         method: 'POST',
         body: { ...form }
       })
+      if (pendingAvatarFile.value) {
+        const formData = new FormData()
+        formData.append('userId', res.id)
+        formData.append('avatar', pendingAvatarFile.value)
+        await $fetch('/api/admin/jellyfin/avatar', { method: 'POST', body: formData })
+      }
     }
 
     showModal.value = false
@@ -125,6 +201,10 @@ async function deleteUser(id: string) {
 }
 
 async function toggleActive(user: { id: string; isActive: boolean }) {
+  if (user.isActive) {
+    if (!confirm(t('admin.jellyfinDisableWarning'))) return
+  }
+
   try {
     await $fetch(`/api/admin/users/${user.id}`, {
       method: 'PUT',
@@ -194,6 +274,11 @@ const roleOptions = computed(() => [
               >
                 {{ t('admin.canSubmit') }}
               </th>
+              <th
+                class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden xl:table-cell"
+              >
+                {{ t('admin.syncStatus') }}
+              </th>
               <th class="px-4 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
                 {{ t('admin.tableStatus') }}
               </th>
@@ -211,7 +296,7 @@ const roleOptions = computed(() => [
             <tr v-for="u in users" :key="u.id" class="table-row">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
-                  <UAvatar :alt="u.username" size="sm" />
+                  <UAvatar :src="u.avatarUrl ?? undefined" :alt="u.username" size="sm" />
                   <div>
                     <span class="text-sm font-medium text-zinc-900 dark:text-white">{{ u.username }}</span>
                     <span
@@ -261,6 +346,22 @@ const roleOptions = computed(() => [
                 >
                   {{ u.canSubmit ? t('admin.canSubmitOn') : t('admin.canSubmitOff') }}
                 </span>
+              </td>
+              <td class="px-4 py-3 text-center hidden xl:table-cell">
+                <span
+                  v-if="u.syncProviders && u.syncProviders.length > 0"
+                  class="text-xs px-2 py-1 rounded-full"
+                  :class="syncStatusColor(u.syncProviders[0]?.syncStatus ?? '')"
+                >
+                  {{
+                    u.syncProviders[0]?.syncStatus === 'synced'
+                      ? t('admin.syncSynced')
+                      : u.syncProviders[0]?.syncStatus === 'pending'
+                        ? t('admin.syncPending')
+                        : t('admin.syncFailed')
+                  }}
+                </span>
+                <span v-else class="text-xs text-zinc-400">-</span>
               </td>
               <td class="px-4 py-3 text-center">
                 <button
@@ -335,6 +436,19 @@ const roleOptions = computed(() => [
           <UFormField :label="t('admin.canSubmit')">
             <USwitch v-model="form.canSubmit" />
           </UFormField>
+
+          <AdminJellyfinUserFields
+            v-model:jellyfin-library-access="form.jellyfinLibraryAccess"
+            v-model:jellyfin-enable-video-transcoding="form.jellyfinEnableVideoTranscoding"
+            v-model:jellyfin-enable-audio-transcoding="form.jellyfinEnableAudioTranscoding"
+            v-model:jellyfin-enable-remuxing="form.jellyfinEnableRemuxing"
+            v-model:jellyfin-max-active-sessions="form.jellyfinMaxActiveSessions"
+            :editing="!!editingUser"
+            :avatar-url="editingUser?.avatarUrl"
+            :username="form.username"
+            @update:avatar="pendingAvatarFile = $event"
+            @update:avatar-removed="pendingAvatarRemoved = $event"
+          />
 
           <UAlert v-if="error" :description="error" color="error" variant="subtle" />
 

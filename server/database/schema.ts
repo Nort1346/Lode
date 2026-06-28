@@ -17,7 +17,11 @@ export const users = sqliteTable('users', {
   createdAt: text('created_at').notNull().default(''),
   discordId: text('discord_id'),
   canSubmit: integer('can_submit', { mode: 'boolean' }).notNull().default(false),
-  maxSessions: integer('max_sessions').notNull().default(0)
+  maxSessions: integer('max_sessions').notNull().default(0),
+  avatarUrl: text('avatar_url'),
+  syncStatus: text('sync_status', { enum: ['synced', 'pending', 'failed'] })
+    .notNull()
+    .default('synced')
 })
 
 export const downloads = sqliteTable('downloads', {
@@ -172,4 +176,44 @@ export const pushSubscriptions = sqliteTable(
     lastUsedAt: text('last_used_at')
   },
   (t) => [index('idx_push_subscriptions_user').on(t.userId), index('idx_push_subscriptions_endpoint').on(t.endpoint)]
+)
+
+export const syncProviders = sqliteTable(
+  'sync_providers',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    providerName: text('provider_name').notNull(),
+    providerUserId: text('provider_user_id').notNull(),
+    syncStatus: text('sync_status', { enum: ['synced', 'pending', 'failed'] })
+      .notNull()
+      .default('synced'),
+    lastSyncError: text('last_sync_error'),
+    createdAt: text('created_at').notNull().default(''),
+    updatedAt: text('updated_at').notNull().default('')
+  },
+  (t) => [
+    index('idx_sync_providers_user').on(t.userId),
+    uniqueIndex('idx_sync_providers_user_provider').on(t.userId, t.providerName)
+  ]
+)
+
+export const syncUserSettings = sqliteTable(
+  'sync_user_settings',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    providerName: text('provider_name').notNull(),
+    libraryAccess: text('library_access').notNull().default('all'),
+    enableVideoTranscoding: integer('enable_video_transcoding', { mode: 'boolean' }).notNull().default(true),
+    enableAudioTranscoding: integer('enable_audio_transcoding', { mode: 'boolean' }).notNull().default(true),
+    enableRemuxing: integer('enable_remuxing', { mode: 'boolean' }).notNull().default(true),
+    maxActiveSessions: integer('max_active_sessions').notNull().default(0),
+    createdAt: text('created_at').notNull().default(''),
+    updatedAt: text('updated_at').notNull().default('')
+  },
+  (t) => [
+    index('idx_sync_user_settings_user').on(t.userId),
+    uniqueIndex('idx_sync_user_settings_user_provider').on(t.userId, t.providerName)
+  ]
 )

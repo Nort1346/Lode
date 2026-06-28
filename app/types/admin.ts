@@ -1,3 +1,17 @@
+export interface JellyfinLibrary {
+  id: string
+  name: string
+  path: string
+}
+
+export interface JellyfinUserFieldsModel {
+  jellyfinLibraryAccess: string[] | 'all'
+  jellyfinEnableVideoTranscoding: boolean
+  jellyfinEnableAudioTranscoding: boolean
+  jellyfinEnableRemuxing: boolean
+  jellyfinMaxActiveSessions: number
+}
+
 export interface AdminUser {
   id: string
   username: string
@@ -12,6 +26,25 @@ export interface AdminUser {
   discordId: string | null
   canSubmit: boolean
   maxSessions: number
+  avatarUrl: string | null
+  syncStatus: 'synced' | 'pending' | 'failed'
+  syncProviders: Array<{
+    providerName: string
+    providerUserId: string
+    syncStatus: string
+    lastSyncError: string | null
+  }>
+  jellyfinLibraryAccess: string[] | 'all'
+  jellyfinEnableVideoTranscoding: boolean
+  jellyfinEnableAudioTranscoding: boolean
+  jellyfinEnableRemuxing: boolean
+  jellyfinMaxActiveSessions: number
+}
+
+export interface SyncProviderStatus {
+  providerName: string
+  enabled: boolean
+  libraries: Array<{ id: string; name: string; path: string }>
 }
 
 export interface ActivityLog {
