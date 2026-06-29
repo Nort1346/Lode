@@ -58,7 +58,8 @@ export default defineEventHandler(async (event) => {
                 backdropUrl,
                 logoUrl: null as null,
                 year: m.release_date?.slice(0, 4) ?? '',
-                rating: m.vote_average
+                rating: m.vote_average,
+                inLibrary: false
               } satisfies SpotlightItem
             })
           }
@@ -76,7 +77,8 @@ export default defineEventHandler(async (event) => {
               backdropUrl,
               logoUrl: null as null,
               year: t.first_air_date?.slice(0, 4) ?? '',
-              rating: t.vote_average
+              rating: t.vote_average,
+              inLibrary: false
             } satisfies SpotlightItem
           })
         })

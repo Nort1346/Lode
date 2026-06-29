@@ -1,11 +1,15 @@
 import { getPopularMovies, getPopularTvShows, getImageUrl } from '#server/utils/tmdb'
 import { markInLibrary } from '#server/utils/browse-utils'
+import { getActiveSyncProviders } from '#server/utils/sync'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
+
+  const providers = await getActiveSyncProviders()
+  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'pl'
@@ -49,7 +53,10 @@ export default defineEventHandler(async (event) => {
       genres: t.genre_ids?.map(String) ?? []
     }))
 
-    const [movies, tv] = await Promise.all([markInLibrary(rawMovies), markInLibrary(rawTv)])
+    const [movies, tv] = await Promise.all([
+      markInLibrary(rawMovies, libraryProvider),
+      markInLibrary(rawTv, libraryProvider)
+    ])
 
     return { movies, tv }
   } catch (err) {

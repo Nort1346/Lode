@@ -1,6 +1,7 @@
 import { getMoviesByGenre, getTvByGenre, getImageUrl } from '#server/utils/tmdb'
 import { cacheGet, cacheSet, CACHE_TTL } from '#server/utils/cache'
 import { markInLibrary } from '#server/utils/browse-utils'
+import { getActiveSyncProviders } from '#server/utils/sync'
 import type { BrowseItem } from '#server/types/browse'
 
 function parseIds(param: unknown): number[] {
@@ -17,6 +18,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
 
+  const providers = await getActiveSyncProviders()
+  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
+
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'pl'
   const type = typeof query.type === 'string' ? query.type : 'all'
@@ -32,7 +36,7 @@ export default defineEventHandler(async (event) => {
 
   const cached = await cacheGet<BrowseItem[]>(cacheKey)
   if (cached !== null) {
-    return { results: await markInLibrary(cached) }
+    return { results: await markInLibrary(cached, libraryProvider) }
   }
 
   try {
@@ -96,7 +100,7 @@ export default defineEventHandler(async (event) => {
 
     await cacheSet(cacheKey, results, CACHE_TTL.TMDB_GENRE)
 
-    return { results: await markInLibrary(results) }
+    return { results: await markInLibrary(results, libraryProvider) }
   } catch (err) {
     throw createError({
       statusCode: 502,

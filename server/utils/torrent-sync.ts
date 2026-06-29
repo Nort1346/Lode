@@ -219,6 +219,8 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
   const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
   const discordIdMap = new Map(allUsers.map((u) => [u.id, u.discordId ?? null]))
 
+  let needsCacheInvalidation = false
+
   for (const dl of completedWithPrep) {
     if (dl.completedAt === null) continue
 
@@ -230,7 +232,7 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
         const targetPath = savePathMap[dl.savePath]
         if (targetPath !== undefined) {
           await jellyfin.notifyMediaUpdated([targetPath]).catch(() => {})
-          jellyfin.invalidateLibraryCache()
+          needsCacheInvalidation = true
         }
       }
       if (countdownEnabled) {
@@ -248,5 +250,9 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
       }
       db.update(downloads).set({ completedAt: null }).where(eq(downloads.id, dl.id)).run()
     }
+  }
+
+  if (needsCacheInvalidation && jellyfin !== null) {
+    jellyfin.invalidateLibraryCache()
   }
 }

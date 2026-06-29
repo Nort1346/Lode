@@ -1,8 +1,10 @@
-export async function markInLibrary<T extends { id: number }>(items: T[]): Promise<(T & { inLibrary: boolean })[]> {
-  const providers = await getActiveSyncProviders()
-  const provider = providers.find((p) => typeof p.isItemInLibrary === 'function')
+import type { SyncProvider } from './sync/types'
 
-  if (provider === undefined) {
+export async function markInLibrary<T extends { id: number }>(
+  items: T[],
+  provider?: SyncProvider
+): Promise<(T & { inLibrary: boolean })[]> {
+  if (!provider) {
     return items.map((i) => ({ ...i, inLibrary: false }))
   }
 

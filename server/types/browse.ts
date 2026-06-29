@@ -8,6 +8,7 @@ export interface SpotlightItem {
   logoUrl: null
   year: string
   rating: number
+  inLibrary: boolean
 }
 
 export interface SpotlightGenreEntry {

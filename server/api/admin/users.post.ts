@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { syncUserCreate, getDefaultSyncSettings, upsertSyncUserSettings } from '#server/utils/sync'
+import { syncNewUser, getDefaultSyncSettings } from '#server/utils/sync'
 
 interface CreateUserBody {
   username: string
@@ -63,14 +63,6 @@ export default defineEventHandler(async (event) => {
     maxActiveSessions: body.jellyfinMaxActiveSessions
   })
 
-  try {
-    await syncUserCreate(id, { username, password }, syncSettings)
-  } catch (error) {
-    console.error('[User] Jellyfin sync failed, creating user in StreamHub only:', error)
-  }
-
-  upsertSyncUserSettings(id, 'jellyfin', syncSettings)
-
   const hashedPassword = await bcrypt.hash(password, 12)
 
   db.insert(users)
@@ -90,9 +82,17 @@ export default defineEventHandler(async (event) => {
       canSubmit: canSubmit ?? false,
       maxSessions: maxSessions ?? 0,
       expiresAt: body.expiresAt ?? null,
-      syncStatus: 'synced'
+      syncStatus: 'pending'
     })
     .run()
+
+  const syncStatus = await syncNewUser(id, { username, password }, syncSettings)
+
+  if (syncStatus === 'synced') {
+    db.update(users).set({ syncStatus: 'synced' }).where(eq(users.id, id)).run()
+  } else {
+    db.update(users).set({ syncStatus: 'failed' }).where(eq(users.id, id)).run()
+  }
 
   return { success: true, id }
 })

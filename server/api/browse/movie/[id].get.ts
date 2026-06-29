@@ -1,11 +1,15 @@
 import { getMovieDetails, getImageUrl } from '#server/utils/tmdb'
 import { markInLibrary } from '#server/utils/browse-utils'
+import { getActiveSyncProviders } from '#server/utils/sync'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
+
+  const providers = await getActiveSyncProviders()
+  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
 
   const id = Number(getRouterParam(event, 'id'))
   if (isNaN(id)) {
@@ -36,7 +40,7 @@ export default defineEventHandler(async (event) => {
     imdbId: movie.imdb_id
   }
 
-  const [marked] = await markInLibrary([rawMovie])
+  const [marked] = await markInLibrary([rawMovie], libraryProvider)
 
   return { movie: marked }
 })

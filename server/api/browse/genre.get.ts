@@ -1,11 +1,15 @@
 import { getMoviesByGenre, getTvByGenre, getImageUrl } from '#server/utils/tmdb'
 import { markInLibrary } from '#server/utils/browse-utils'
+import { getActiveSyncProviders } from '#server/utils/sync'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
+
+  const providers = await getActiveSyncProviders()
+  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'pl'
@@ -40,7 +44,7 @@ export default defineEventHandler(async (event) => {
         year: m.release_date?.slice(0, 4) ?? '',
         rating: m.vote_average
       }))
-      return { items: await markInLibrary(movies) }
+      return { items: await markInLibrary(movies, libraryProvider) }
     }
 
     const data = await getTvByGenre(genreId, locale)
@@ -54,7 +58,7 @@ export default defineEventHandler(async (event) => {
       year: t.first_air_date?.slice(0, 4) ?? '',
       rating: t.vote_average
     }))
-    return { items: await markInLibrary(tv) }
+    return { items: await markInLibrary(tv, libraryProvider) }
   } catch (err) {
     throw createError({
       statusCode: 502,

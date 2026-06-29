@@ -1,11 +1,15 @@
 import { getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { markInLibrary } from '#server/utils/browse-utils'
+import { getActiveSyncProviders } from '#server/utils/sync'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
+
+  const providers = await getActiveSyncProviders()
+  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
 
   const id = Number(getRouterParam(event, 'id'))
   if (isNaN(id)) {
@@ -48,7 +52,7 @@ export default defineEventHandler(async (event) => {
       }))
   }
 
-  const [marked] = await markInLibrary([rawShow])
+  const [marked] = await markInLibrary([rawShow], libraryProvider)
 
   return { show: marked }
 })

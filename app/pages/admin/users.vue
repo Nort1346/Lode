@@ -71,6 +71,13 @@ function resetForm() {
   form.canSubmit = false
   form.maxSessions = 0
   form.expiresAt = null
+  form.jellyfinLibraryAccess = 'all'
+  form.jellyfinEnableVideoTranscoding = true
+  form.jellyfinEnableAudioTranscoding = true
+  form.jellyfinEnableRemuxing = true
+  form.jellyfinEnableLiveTvAccess = true
+  form.jellyfinEnableLiveTvManagement = false
+  form.jellyfinMaxActiveSessions = 0
 }
 
 async function fetchPresets() {

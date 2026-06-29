@@ -25,6 +25,10 @@ export default defineEventHandler(async (event) => {
     await syncUserDelete(id)
   } catch (error) {
     console.error('[User] Jellyfin delete failed:', error)
+    throw createError({
+      statusCode: 502,
+      statusMessage: 'Failed to delete user from Jellyfin. User not deleted.'
+    })
   }
 
   db.delete(users).where(eq(users.id, id)).run()

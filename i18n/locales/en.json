@@ -72,8 +72,7 @@
   },
   "mediaCard": {
     "movie": "Movie",
-    "tv": "TV Show",
-    "inLibrary": "In Library"
+    "tv": "TV Show"
   },
   "movie": {
     "availableTorrents": "Available Downloads",

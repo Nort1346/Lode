@@ -72,8 +72,7 @@
   },
   "mediaCard": {
     "movie": "Film",
-    "tv": "Serial",
-    "inLibrary": "W bibliotece"
+    "tv": "Serial"
   },
   "movie": {
     "availableTorrents": "Dostępne pobrania",

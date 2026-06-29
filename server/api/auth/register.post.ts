@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { syncUserCreate, getDefaultSyncSettings, upsertSyncUserSettings } from '#server/utils/sync'
+import { syncNewUser, getDefaultSyncSettings } from '#server/utils/sync'
 
 interface RegisterBody {
   username: string
@@ -15,6 +15,8 @@ interface RegisterBody {
   jellyfinEnableVideoTranscoding?: boolean
   jellyfinEnableAudioTranscoding?: boolean
   jellyfinEnableRemuxing?: boolean
+  jellyfinEnableLiveTvAccess?: boolean
+  jellyfinEnableLiveTvManagement?: boolean
   jellyfinMaxActiveSessions?: number
 }
 
@@ -49,16 +51,10 @@ export default defineEventHandler(async (event) => {
     enableVideoTranscoding: body.jellyfinEnableVideoTranscoding,
     enableAudioTranscoding: body.jellyfinEnableAudioTranscoding,
     enableRemuxing: body.jellyfinEnableRemuxing,
+    enableLiveTvAccess: body.jellyfinEnableLiveTvAccess,
+    enableLiveTvManagement: body.jellyfinEnableLiveTvManagement,
     maxActiveSessions: body.jellyfinMaxActiveSessions
   })
-
-  try {
-    await syncUserCreate(id, { username, password }, syncSettings)
-  } catch (error) {
-    console.error('[Register] Jellyfin sync failed:', error)
-  }
-
-  upsertSyncUserSettings(id, 'jellyfin', syncSettings)
 
   const hashedPassword = await bcrypt.hash(password, 12)
 
@@ -74,9 +70,17 @@ export default defineEventHandler(async (event) => {
       isActive: true,
       downloadsToday: 0,
       createdAt: new Date().toISOString(),
-      syncStatus: 'synced'
+      syncStatus: 'pending'
     })
     .run()
+
+  const syncStatus = await syncNewUser(id, { username, password }, syncSettings)
+
+  if (syncStatus === 'synced') {
+    db.update(users).set({ syncStatus: 'synced' }).where(eq(users.id, id)).run()
+  } else {
+    db.update(users).set({ syncStatus: 'failed' }).where(eq(users.id, id)).run()
+  }
 
   logActivity(event, {
     action: 'register',
