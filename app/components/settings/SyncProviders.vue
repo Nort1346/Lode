@@ -134,7 +134,7 @@ onMounted(() => {
             {{ allLibrariesSelected ? t('admin.jellyfinSelectLibraries') : t('admin.jellyfinAllLibraries') }}
           </button>
           <div
-            class="grid grid-cols-2 gap-1.5 p-2 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10"
+            class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10"
           >
             <label
               v-for="lib in libraries"
@@ -148,40 +148,54 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{
-            t('admin.jellyfinVideoTranscoding')
-          }}</label>
-          <USwitch v-model="presets.videoTranscoding" class="mt-1" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+              t('admin.jellyfinVideoTranscoding')
+            }}</span>
+            <USwitch v-model="presets.videoTranscoding" />
+          </div>
+          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinVideoTranscodingDesc') }}</p>
         </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{
-            t('admin.jellyfinAudioTranscoding')
-          }}</label>
-          <USwitch v-model="presets.audioTranscoding" class="mt-1" />
+        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+              t('admin.jellyfinAudioTranscoding')
+            }}</span>
+            <USwitch v-model="presets.audioTranscoding" />
+          </div>
+          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinAudioTranscodingDesc') }}</p>
         </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{ t('admin.jellyfinRemuxing') }}</label>
-          <USwitch v-model="presets.remuxing" class="mt-1" />
+        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ t('admin.jellyfinRemuxing') }}</span>
+            <USwitch v-model="presets.remuxing" />
+          </div>
+          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinRemuxingDesc') }}</p>
         </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{
-            t('admin.jellyfinLiveTvAccess')
-          }}</label>
-          <USwitch v-model="presets.liveTvAccess" class="mt-1" />
+        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+              t('admin.jellyfinLiveTvAccess')
+            }}</span>
+            <USwitch v-model="presets.liveTvAccess" />
+          </div>
+          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinLiveTvAccessDesc') }}</p>
         </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{
-            t('admin.jellyfinLiveTvManagement')
-          }}</label>
-          <USwitch v-model="presets.liveTvManagement" class="mt-1" />
+        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+              t('admin.jellyfinLiveTvManagement')
+            }}</span>
+            <USwitch v-model="presets.liveTvManagement" />
+          </div>
+          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinLiveTvManagementDesc') }}</p>
         </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{
-            t('admin.jellyfinMaxSessions')
-          }}</label>
+        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ t('admin.jellyfinMaxSessions') }}</span>
           <UInput v-model.number="presets.maxActiveSessions" type="number" class="mt-1 w-full" />
+          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinMaxSessionsDesc') }}</p>
         </div>
       </div>
 

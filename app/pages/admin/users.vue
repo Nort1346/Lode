@@ -425,69 +425,85 @@ function onExpiresAtInput(event: Event) {
       </div>
     </div>
 
-    <UModal v-model:open="showModal" :title="editingUser ? t('admin.editUser') : t('admin.createUser')">
+    <UModal
+      v-model:open="showModal"
+      :title="editingUser ? t('admin.editUser') : t('admin.createUser')"
+      class="max-w-full sm:max-w-6xl"
+    >
       <template #body>
-        <form class="space-y-4" @submit.prevent="saveUser">
-          <UFormField :label="t('admin.username')">
-            <UInput v-model="form.username" :disabled="!!editingUser" class="w-full" />
-          </UFormField>
+        <form class="space-y-6" @submit.prevent="saveUser">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-3">
+              <h4 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                {{ t('admin.sectionAccount') }}
+              </h4>
+              <UFormField :label="t('admin.username')">
+                <UInput v-model="form.username" :disabled="!!editingUser" class="w-full" />
+              </UFormField>
 
-          <UFormField :label="editingUser ? t('admin.newPassword') : t('admin.password')">
-            <UInput v-model="form.password" type="password" class="w-full" />
-          </UFormField>
+              <UFormField :label="editingUser ? t('admin.newPassword') : t('admin.password')">
+                <UInput v-model="form.password" type="password" class="w-full" />
+              </UFormField>
 
-          <UFormField :label="t('admin.tableRole')">
-            <USelect v-model="form.role" :items="roleOptions" class="w-full" />
-          </UFormField>
+              <UFormField :label="t('admin.tableRole')">
+                <USelect v-model="form.role" :items="roleOptions" class="w-full" />
+              </UFormField>
 
-          <div class="grid grid-cols-3 gap-3">
-            <UFormField :label="t('admin.dailyLimit')">
-              <UInput v-model.number="form.dailyDownloadLimit" type="number" class="w-full" />
-            </UFormField>
+              <UFormField :label="t('admin.expiresAt')" :description="t('admin.expiresAtDesc')">
+                <div class="flex items-center gap-2">
+                  <input
+                    type="date"
+                    :value="toLocalDateString(form.expiresAt)"
+                    class="flex-1 h-9 px-3 rounded-lg bg-white dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-sm text-zinc-900 dark:text-white"
+                    @input="onExpiresAtInput"
+                  />
+                  <UButton
+                    v-if="form.expiresAt"
+                    variant="ghost"
+                    size="xs"
+                    icon="i-lucide-x"
+                    :label="t('admin.expiresAtClear')"
+                    @click="form.expiresAt = null"
+                  />
+                </div>
+              </UFormField>
 
-            <UFormField :label="t('admin.activeLimit')">
-              <UInput v-model.number="form.activeTorrentLimit" type="number" class="w-full" />
-            </UFormField>
+              <UFormField :label="t('admin.discordId')" :description="t('admin.discordIdDesc')">
+                <UInput v-model="form.discordId" :placeholder="'123456789012345678'" class="w-full" />
+              </UFormField>
 
-            <UFormField :label="t('admin.maxSizeGB')">
-              <UInput v-model.number="form.maxTorrentSizeGb" type="number" class="w-full" />
-            </UFormField>
-          </div>
-
-          <UFormField :label="t('admin.privateTrackerLimit')">
-            <UInput v-model.number="form.privateTrackerLimit" type="number" class="w-full" />
-          </UFormField>
-
-          <UFormField :label="t('admin.maxSessions')">
-            <UInput v-model.number="form.maxSessions" type="number" class="w-full" />
-          </UFormField>
-
-          <UFormField :label="t('admin.discordId')" :description="t('admin.discordIdDesc')">
-            <UInput v-model="form.discordId" :placeholder="'123456789012345678'" class="w-full" />
-          </UFormField>
-
-          <UFormField :label="t('admin.canSubmit')">
-            <USwitch v-model="form.canSubmit" />
-          </UFormField>
-
-          <UFormField :label="t('admin.expiresAt')" :description="t('admin.expiresAtDesc')">
-            <div class="flex items-center gap-2">
-              <input
-                type="date"
-                :value="toLocalDateString(form.expiresAt)"
-                class="flex-1 h-9 px-3 rounded-lg bg-white dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-sm text-zinc-900 dark:text-white"
-                @input="onExpiresAtInput"
-              />
-              <UButton
-                v-if="form.expiresAt"
-                variant="ghost"
-                size="xs"
-                icon="i-lucide-x"
-                :label="t('admin.expiresAtClear')"
-                @click="form.expiresAt = null"
-              />
+              <UFormField :label="t('admin.canSubmit')">
+                <USwitch v-model="form.canSubmit" />
+              </UFormField>
             </div>
-          </UFormField>
+
+            <div class="space-y-3">
+              <h4 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                {{ t('admin.sectionLimits') }}
+              </h4>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <UFormField :label="t('admin.dailyLimit')">
+                  <UInput v-model.number="form.dailyDownloadLimit" type="number" class="w-full" />
+                </UFormField>
+
+                <UFormField :label="t('admin.activeLimit')">
+                  <UInput v-model.number="form.activeTorrentLimit" type="number" class="w-full" />
+                </UFormField>
+
+                <UFormField :label="t('admin.maxSizeGB')">
+                  <UInput v-model.number="form.maxTorrentSizeGb" type="number" class="w-full" />
+                </UFormField>
+              </div>
+
+              <UFormField :label="t('admin.privateTrackerLimit')">
+                <UInput v-model.number="form.privateTrackerLimit" type="number" class="w-full" />
+              </UFormField>
+
+              <UFormField :label="t('admin.maxSessions')">
+                <UInput v-model.number="form.maxSessions" type="number" class="w-full" />
+              </UFormField>
+            </div>
+          </div>
 
           <AdminJellyfinUserFields
             v-model:jellyfin-library-access="form.jellyfinLibraryAccess"
@@ -506,7 +522,7 @@ function onExpiresAtInput(event: Event) {
 
           <UAlert v-if="error" :description="error" color="error" variant="subtle" />
 
-          <div class="flex justify-end gap-2 pt-2">
+          <div class="flex justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-white/10">
             <UButton variant="ghost" :label="t('admin.cancel')" @click="showModal = false" />
             <UButton
               type="submit"

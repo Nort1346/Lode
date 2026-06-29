@@ -116,16 +116,14 @@ onMounted(fetchLibraries)
       Jellyfin
     </h3>
 
-    <div class="space-y-5">
-      <div
-        class="flex items-center gap-4 p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10"
-      >
+    <div class="grid grid-cols-1 lg:grid-cols-[auto_1fr_1fr] gap-4">
+      <div class="flex flex-col items-center gap-3 lg:w-[140px]">
         <button
           type="button"
           class="shrink-0 rounded-full overflow-hidden ring-2 ring-zinc-200 dark:ring-white/10 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all cursor-pointer focus:outline-none focus:ring-blue-500"
           @click="triggerFileInput"
         >
-          <UAvatar :src="displayAvatarSrc" :alt="props.username" size="2xl" />
+          <UAvatar :src="displayAvatarSrc" :alt="props.username" size="3xl" />
         </button>
         <input
           ref="fileInputRef"
@@ -134,14 +132,9 @@ onMounted(fetchLibraries)
           class="hidden"
           @change="onAvatarChange"
         />
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-zinc-900 dark:text-white">
-            {{ t('admin.jellyfinAvatar') }}
-          </p>
-          <p class="text-xs text-zinc-400 mt-0.5">
-            {{ t('admin.jellyfinAvatarDesc') }}
-          </p>
-          <div class="flex items-center gap-2 mt-2">
+        <div class="text-center">
+          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinAvatarDesc') }}</p>
+          <div class="flex items-center justify-center gap-2 mt-1.5">
             <UButton
               variant="outline"
               size="xs"
@@ -182,7 +175,7 @@ onMounted(fetchLibraries)
             {{ allLibrariesSelected ? t('admin.jellyfinSelectLibraries') : t('admin.jellyfinAllLibraries') }}
           </button>
           <div
-            class="grid grid-cols-2 gap-1.5 p-2 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10"
+            class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10"
           >
             <label
               v-for="lib in libraries"
@@ -200,8 +193,10 @@ onMounted(fetchLibraries)
         <h4 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
           {{ t('admin.jellyfinPlayback') }}
         </h4>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div
+            class="p-2.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1"
+          >
             <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 {{ t('admin.jellyfinVideoTranscoding') }}
@@ -214,7 +209,9 @@ onMounted(fetchLibraries)
             <p class="text-xs text-zinc-400">{{ t('admin.jellyfinVideoTranscodingDesc') }}</p>
           </div>
 
-          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <div
+            class="p-2.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1"
+          >
             <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 {{ t('admin.jellyfinAudioTranscoding') }}
@@ -227,7 +224,9 @@ onMounted(fetchLibraries)
             <p class="text-xs text-zinc-400">{{ t('admin.jellyfinAudioTranscodingDesc') }}</p>
           </div>
 
-          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <div
+            class="p-2.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1"
+          >
             <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 {{ t('admin.jellyfinRemuxing') }}
@@ -240,7 +239,9 @@ onMounted(fetchLibraries)
             <p class="text-xs text-zinc-400">{{ t('admin.jellyfinRemuxingDesc') }}</p>
           </div>
 
-          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <div
+            class="p-2.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1"
+          >
             <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 {{ t('admin.jellyfinLiveTvAccess') }}
@@ -253,7 +254,9 @@ onMounted(fetchLibraries)
             <p class="text-xs text-zinc-400">{{ t('admin.jellyfinLiveTvAccessDesc') }}</p>
           </div>
 
-          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <div
+            class="p-2.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1"
+          >
             <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 {{ t('admin.jellyfinLiveTvManagement') }}
@@ -266,7 +269,9 @@ onMounted(fetchLibraries)
             <p class="text-xs text-zinc-400">{{ t('admin.jellyfinLiveTvManagementDesc') }}</p>
           </div>
 
-          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+          <div
+            class="p-2.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1"
+          >
             <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {{ t('admin.jellyfinMaxSessions') }}
             </span>

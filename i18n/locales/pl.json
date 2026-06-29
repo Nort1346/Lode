@@ -195,6 +195,8 @@
     "expiresAt": "Data wygaśnięcia",
     "expiresAtDesc": "Data automatycznej dezaktywacji konta",
     "expiresAtClear": "Wyczyść",
+    "sectionAccount": "Konto",
+    "sectionLimits": "Limity",
     "saveFailed": "Nie udało się zapisać użytkownika",
     "sessionsTitle": "Aktywne sesje",
     "sessionsSubtitle": "Zarządzaj aktywnymi sesjami użytkowników",

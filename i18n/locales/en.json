@@ -195,6 +195,8 @@
     "expiresAt": "Expiration date",
     "expiresAtDesc": "Auto-deactivation date",
     "expiresAtClear": "Clear",
+    "sectionAccount": "Account",
+    "sectionLimits": "Limits",
     "saveFailed": "Failed to save user",
     "sessionsTitle": "Active Sessions",
     "sessionsSubtitle": "Manage active user sessions",
