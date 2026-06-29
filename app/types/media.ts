@@ -8,6 +8,7 @@ export interface MediaCarouselItem {
   logoUrl: string | null
   year: string
   rating: number
+  inLibrary: boolean
 }
 
 export interface BaseTorrentInfo {

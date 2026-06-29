@@ -115,4 +115,9 @@ export class JellyfinSyncProvider implements SyncProvider {
       path: lib.Path
     }))
   }
+
+  async isItemInLibrary(tmdbId: number): Promise<boolean> {
+    const client = this.getClient()
+    return client.isItemInLibrary(tmdbId)
+  }
 }

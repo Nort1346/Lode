@@ -41,6 +41,7 @@
         :poster-url="item.posterUrl"
         :year="item.year"
         :rating="item.rating"
+        :in-library="item.inLibrary"
         @click="goToItem(item)"
       />
     </div>
@@ -385,11 +386,7 @@ for (const g of movieGenres) {
       watchEffect(() => {
         genreMoviePending[g.id] = p.value
         if (d.value?.items) {
-          genreMovieItems[g.id] = d.value.items.map((m: Record<string, unknown>) => ({
-            ...m,
-            type: 'movie' as const,
-            logoUrl: null
-          })) as MediaCarouselItem[]
+          genreMovieItems[g.id] = d.value.items as MediaCarouselItem[]
         }
       })
     },
@@ -409,11 +406,7 @@ for (const g of tvGenres) {
       watchEffect(() => {
         genreTvPending[g.id] = p.value
         if (d.value?.items) {
-          genreTvItems[g.id] = d.value.items.map((m: Record<string, unknown>) => ({
-            ...m,
-            type: 'tv' as const,
-            logoUrl: null
-          })) as MediaCarouselItem[]
+          genreTvItems[g.id] = d.value.items as MediaCarouselItem[]
         }
       })
     },

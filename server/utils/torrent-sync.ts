@@ -230,6 +230,7 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
         const targetPath = savePathMap[dl.savePath]
         if (targetPath !== undefined) {
           await jellyfin.notifyMediaUpdated([targetPath]).catch(() => {})
+          jellyfin.invalidateLibraryCache()
         }
       }
       if (countdownEnabled) {

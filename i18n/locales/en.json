@@ -67,11 +67,13 @@
     "limitReached": "Daily download limit reached",
     "limitActive": "Active: {active}/{limit}",
     "limitToday": "Downloaded today: {today}/{limit}",
-    "limitResetInfo": "The limit resets daily at midnight."
+    "limitResetInfo": "The limit resets daily at midnight.",
+    "inLibrary": "In Library"
   },
   "mediaCard": {
     "movie": "Movie",
-    "tv": "TV Show"
+    "tv": "TV Show",
+    "inLibrary": "In Library"
   },
   "movie": {
     "availableTorrents": "Available Downloads",

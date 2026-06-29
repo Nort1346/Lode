@@ -1,4 +1,5 @@
 import { getTrending, getLogosForItems, getImageUrl } from '#server/utils/tmdb'
+import { markInLibrary } from '#server/utils/browse-utils'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -42,7 +43,9 @@ export default defineEventHandler(async (event) => {
       rating: item.vote_average
     }))
 
-    return { items: results }
+    const marked = await markInLibrary(results)
+
+    return { items: marked }
   } catch (err) {
     throw createError({
       statusCode: 502,

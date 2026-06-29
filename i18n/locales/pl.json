@@ -67,11 +67,13 @@
     "limitReached": "Dzienny limit pobierania wykorzystany",
     "limitActive": "Aktywne: {active}/{limit}",
     "limitToday": "Pobrania dziś: {today}/{limit}",
-    "limitResetInfo": "Limit odnawia się codziennie o północy."
+    "limitResetInfo": "Limit odnawia się codziennie o północy.",
+    "inLibrary": "W bibliotece"
   },
   "mediaCard": {
     "movie": "Film",
-    "tv": "Serial"
+    "tv": "Serial",
+    "inLibrary": "W bibliotece"
   },
   "movie": {
     "availableTorrents": "Dostępne pobrania",

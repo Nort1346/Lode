@@ -1,4 +1,5 @@
 import { getMovieDetails, getImageUrl } from '#server/utils/tmdb'
+import { markInLibrary } from '#server/utils/browse-utils'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -20,20 +21,22 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 502, statusMessage: 'Failed to fetch movie details from TMDB' })
   }
 
-  return {
-    movie: {
-      id: movie.id,
-      title: movie.title,
-      originalTitle: movie.original_title,
-      overview: movie.overview,
-      posterUrl: getImageUrl(movie.poster_path, 'w780'),
-      backdropUrl: getImageUrl(movie.backdrop_path, 'original'),
-      releaseDate: movie.release_date,
-      rating: movie.vote_average,
-      voteCount: movie.vote_count,
-      runtime: movie.runtime,
-      genres: movie.genres,
-      imdbId: movie.imdb_id
-    }
+  const rawMovie = {
+    id: movie.id,
+    title: movie.title,
+    originalTitle: movie.original_title,
+    overview: movie.overview,
+    posterUrl: getImageUrl(movie.poster_path, 'w780'),
+    backdropUrl: getImageUrl(movie.backdrop_path, 'original'),
+    releaseDate: movie.release_date,
+    rating: movie.vote_average,
+    voteCount: movie.vote_count,
+    runtime: movie.runtime,
+    genres: movie.genres,
+    imdbId: movie.imdb_id
   }
+
+  const [marked] = await markInLibrary([rawMovie])
+
+  return { movie: marked }
 })

@@ -1,5 +1,6 @@
 import { getMoviesByGenre, getTvByGenre, getImageUrl } from '#server/utils/tmdb'
 import { cacheGet, cacheSet, CACHE_TTL } from '#server/utils/cache'
+import { markInLibrary } from '#server/utils/browse-utils'
 import type { BrowseItem } from '#server/types/browse'
 
 function parseIds(param: unknown): number[] {
@@ -30,7 +31,9 @@ export default defineEventHandler(async (event) => {
   const cacheKey = `tmdb:discover:${allIds.join(',')}:${type}:${locale}`
 
   const cached = await cacheGet<BrowseItem[]>(cacheKey)
-  if (cached !== null) return { results: cached }
+  if (cached !== null) {
+    return { results: await markInLibrary(cached) }
+  }
 
   try {
     const fetches: Promise<BrowseItem[]>[] = []
@@ -93,7 +96,7 @@ export default defineEventHandler(async (event) => {
 
     await cacheSet(cacheKey, results, CACHE_TTL.TMDB_GENRE)
 
-    return { results }
+    return { results: await markInLibrary(results) }
   } catch (err) {
     throw createError({
       statusCode: 502,

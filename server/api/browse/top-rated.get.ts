@@ -1,4 +1,5 @@
 import { getTopRatedMovies, getImageUrl } from '#server/utils/tmdb'
+import { markInLibrary } from '#server/utils/browse-utils'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -34,7 +35,9 @@ export default defineEventHandler(async (event) => {
       rating: m.vote_average
     }))
 
-    return { movies }
+    const marked = await markInLibrary(movies)
+
+    return { movies: marked }
   } catch (err) {
     throw createError({
       statusCode: 502,

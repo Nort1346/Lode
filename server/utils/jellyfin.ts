@@ -1,8 +1,17 @@
 const JELLYFIN_AUTH_HEADER_PREFIX = 'MediaBrowser Token'
+const LIBRARY_CACHE_TTL = 5 * 60 * 1000
+
+interface JellyfinItemDto {
+  Id: string
+  ProviderIds?: Record<string, string>
+}
 
 export class JellyfinClient {
   private baseUrl: string
   private apiKey: string
+  private tmdbIdSet: Set<number> | null = null
+  private tmdbIdSetTs = 0
+  private tmdbIdPromise: Promise<Set<number>> | null = null
 
   constructor(baseUrl: string, apiKey: string) {
     this.baseUrl = baseUrl.replace(/\/+$/, '')
@@ -71,6 +80,73 @@ export class JellyfinClient {
       CollectionType: item.CollectionType,
       Path: item.Locations?.[0] ?? ''
     }))
+  }
+
+  private async fetchAllTmdbIds(): Promise<Set<number>> {
+    const now = Date.now()
+    if (this.tmdbIdSet && now - this.tmdbIdSetTs < LIBRARY_CACHE_TTL) {
+      return this.tmdbIdSet
+    }
+    if (this.tmdbIdPromise) return this.tmdbIdPromise
+
+    this.tmdbIdPromise = this.doFetchAllTmdbIds()
+    try {
+      return await this.tmdbIdPromise
+    } finally {
+      this.tmdbIdPromise = null
+    }
+  }
+
+  private async doFetchAllTmdbIds(): Promise<Set<number>> {
+    const tmdbIds = new Set<number>()
+    const includeItemTypes = ['Movie', 'Series']
+    const fields = ['ProviderIds']
+    const limit = 500
+
+    for (const itemType of includeItemTypes) {
+      let startIndex = 0
+      let hasMore = true
+
+      while (hasMore) {
+        const path = `/Items?includeItemTypes=${itemType}&fields=${fields.join(',')}&recursive=true&limit=${limit}&startIndex=${startIndex}&enableTotalRecordCount=false`
+        const res = await this.request(path)
+        const data = (await res.json()) as {
+          Items: JellyfinItemDto[]
+        }
+
+        for (const item of data.Items) {
+          const tmdbStr = item.ProviderIds?.Tmdb
+          if (tmdbStr !== undefined && tmdbStr !== null && tmdbStr.length > 0) {
+            const id = Number(tmdbStr)
+            if (!Number.isNaN(id)) {
+              tmdbIds.add(id)
+            }
+          }
+        }
+
+        hasMore = data.Items.length === limit
+        startIndex += limit
+      }
+    }
+
+    this.tmdbIdSet = tmdbIds
+    this.tmdbIdSetTs = Date.now()
+    return tmdbIds
+  }
+
+  async isItemInLibrary(tmdbId: number): Promise<boolean> {
+    try {
+      const tmdbIds = await this.fetchAllTmdbIds()
+      return tmdbIds.has(tmdbId)
+    } catch {
+      return false
+    }
+  }
+
+  invalidateLibraryCache() {
+    this.tmdbIdSet = null
+    this.tmdbIdSetTs = 0
+    this.tmdbIdPromise = null
   }
 
   // ===== User Management =====

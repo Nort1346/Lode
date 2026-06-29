@@ -12,6 +12,7 @@ export interface SyncProvider {
   setAvatar(providerUserId: string, imageBuffer: Buffer): Promise<void>
   deleteAvatar(providerUserId: string): Promise<void>
   getLibraries(): Promise<Array<SyncLibrary>>
+  isItemInLibrary?(tmdbId: number): Promise<boolean>
 }
 
 export interface SyncUserData {

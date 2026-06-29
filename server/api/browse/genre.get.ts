@@ -1,4 +1,5 @@
 import { getMoviesByGenre, getTvByGenre, getImageUrl } from '#server/utils/tmdb'
+import { markInLibrary } from '#server/utils/browse-utils'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -39,7 +40,7 @@ export default defineEventHandler(async (event) => {
         year: m.release_date?.slice(0, 4) ?? '',
         rating: m.vote_average
       }))
-      return { items: movies }
+      return { items: await markInLibrary(movies) }
     }
 
     const data = await getTvByGenre(genreId, locale)
@@ -53,7 +54,7 @@ export default defineEventHandler(async (event) => {
       year: t.first_air_date?.slice(0, 4) ?? '',
       rating: t.vote_average
     }))
-    return { items: tv }
+    return { items: await markInLibrary(tv) }
   } catch (err) {
     throw createError({
       statusCode: 502,

@@ -1,4 +1,5 @@
 import { searchMovies, searchTvShows, getImageUrl } from '#server/utils/tmdb'
+import { markInLibrary } from '#server/utils/browse-utils'
 import type { BrowseItem } from '#server/types/browse'
 
 export default defineEventHandler(async (event) => {
@@ -80,5 +81,7 @@ export default defineEventHandler(async (event) => {
 
   results.sort((a, b) => b.rating - a.rating)
 
-  return { results, query: q, page }
+  const marked = await markInLibrary(results)
+
+  return { results: marked, query: q, page }
 })
