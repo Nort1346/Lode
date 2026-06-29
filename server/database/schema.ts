@@ -208,6 +208,8 @@ export const syncUserSettings = sqliteTable(
     enableVideoTranscoding: integer('enable_video_transcoding', { mode: 'boolean' }).notNull().default(true),
     enableAudioTranscoding: integer('enable_audio_transcoding', { mode: 'boolean' }).notNull().default(true),
     enableRemuxing: integer('enable_remuxing', { mode: 'boolean' }).notNull().default(true),
+    enableLiveTvAccess: integer('enable_live_tv_access', { mode: 'boolean' }).notNull().default(true),
+    enableLiveTvManagement: integer('enable_live_tv_management', { mode: 'boolean' }).notNull().default(false),
     maxActiveSessions: integer('max_active_sessions').notNull().default(0),
     createdAt: text('created_at').notNull().default(''),
     updatedAt: text('updated_at').notNull().default('')

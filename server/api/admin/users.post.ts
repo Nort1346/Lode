@@ -19,6 +19,8 @@ interface CreateUserBody {
   jellyfinEnableVideoTranscoding?: boolean
   jellyfinEnableAudioTranscoding?: boolean
   jellyfinEnableRemuxing?: boolean
+  jellyfinEnableLiveTvAccess?: boolean
+  jellyfinEnableLiveTvManagement?: boolean
   jellyfinMaxActiveSessions?: number
 }
 
@@ -55,6 +57,8 @@ export default defineEventHandler(async (event) => {
     enableVideoTranscoding: body.jellyfinEnableVideoTranscoding,
     enableAudioTranscoding: body.jellyfinEnableAudioTranscoding,
     enableRemuxing: body.jellyfinEnableRemuxing,
+    enableLiveTvAccess: body.jellyfinEnableLiveTvAccess,
+    enableLiveTvManagement: body.jellyfinEnableLiveTvManagement,
     maxActiveSessions: body.jellyfinMaxActiveSessions
   })
 

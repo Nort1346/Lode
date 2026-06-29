@@ -43,6 +43,8 @@ export default defineEventHandler(async (event) => {
       jellyfinEnableVideoTranscoding: settingsRow?.enableVideoTranscoding ?? true,
       jellyfinEnableAudioTranscoding: settingsRow?.enableAudioTranscoding ?? true,
       jellyfinEnableRemuxing: settingsRow?.enableRemuxing ?? true,
+      jellyfinEnableLiveTvAccess: settingsRow?.enableLiveTvAccess ?? true,
+      jellyfinEnableLiveTvManagement: settingsRow?.enableLiveTvManagement ?? false,
       jellyfinMaxActiveSessions: settingsRow?.maxActiveSessions ?? 0
     }
   })

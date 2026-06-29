@@ -24,6 +24,12 @@ export default defineEventHandler(async (event) => {
   if (body.remuxing !== undefined) {
     putSetting('jellyfin_default_remuxing', String(body.remuxing))
   }
+  if (body.liveTvAccess !== undefined) {
+    putSetting('jellyfin_default_live_tv_access', String(body.liveTvAccess))
+  }
+  if (body.liveTvManagement !== undefined) {
+    putSetting('jellyfin_default_live_tv_management', String(body.liveTvManagement))
+  }
   if (body.maxActiveSessions !== undefined) {
     putSetting('jellyfin_default_max_active_sessions', String(body.maxActiveSessions))
   }

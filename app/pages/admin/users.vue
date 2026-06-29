@@ -27,6 +27,8 @@ const form = reactive({
   jellyfinEnableVideoTranscoding: true,
   jellyfinEnableAudioTranscoding: true,
   jellyfinEnableRemuxing: true,
+  jellyfinEnableLiveTvAccess: true,
+  jellyfinEnableLiveTvManagement: false,
   jellyfinMaxActiveSessions: 0
 })
 
@@ -77,18 +79,24 @@ async function fetchPresets() {
       videoTranscoding: boolean
       audioTranscoding: boolean
       remuxing: boolean
+      liveTvAccess: boolean
+      liveTvManagement: boolean
       maxActiveSessions: number
     }
     form.jellyfinLibraryAccess = data.libraryAccess
     form.jellyfinEnableVideoTranscoding = data.videoTranscoding
     form.jellyfinEnableAudioTranscoding = data.audioTranscoding
     form.jellyfinEnableRemuxing = data.remuxing
+    form.jellyfinEnableLiveTvAccess = data.liveTvAccess
+    form.jellyfinEnableLiveTvManagement = data.liveTvManagement
     form.jellyfinMaxActiveSessions = data.maxActiveSessions
   } catch {
     form.jellyfinLibraryAccess = 'all'
     form.jellyfinEnableVideoTranscoding = true
     form.jellyfinEnableAudioTranscoding = true
     form.jellyfinEnableRemuxing = true
+    form.jellyfinEnableLiveTvAccess = true
+    form.jellyfinEnableLiveTvManagement = false
     form.jellyfinMaxActiveSessions = 0
   }
 }
@@ -119,6 +127,8 @@ function openEdit(user: AdminUser) {
   form.jellyfinEnableVideoTranscoding = user.jellyfinEnableVideoTranscoding ?? true
   form.jellyfinEnableAudioTranscoding = user.jellyfinEnableAudioTranscoding ?? true
   form.jellyfinEnableRemuxing = user.jellyfinEnableRemuxing ?? true
+  form.jellyfinEnableLiveTvAccess = user.jellyfinEnableLiveTvAccess ?? true
+  form.jellyfinEnableLiveTvManagement = user.jellyfinEnableLiveTvManagement ?? false
   form.jellyfinMaxActiveSessions = user.jellyfinMaxActiveSessions ?? 0
   pendingAvatarFile.value = null
   pendingAvatarRemoved.value = false
@@ -145,6 +155,8 @@ async function saveUser() {
         jellyfinEnableVideoTranscoding: form.jellyfinEnableVideoTranscoding,
         jellyfinEnableAudioTranscoding: form.jellyfinEnableAudioTranscoding,
         jellyfinEnableRemuxing: form.jellyfinEnableRemuxing,
+        jellyfinEnableLiveTvAccess: form.jellyfinEnableLiveTvAccess,
+        jellyfinEnableLiveTvManagement: form.jellyfinEnableLiveTvManagement,
         jellyfinMaxActiveSessions: form.jellyfinMaxActiveSessions
       }
       if (form.password) body.password = form.password
@@ -442,6 +454,8 @@ const roleOptions = computed(() => [
             v-model:jellyfin-enable-video-transcoding="form.jellyfinEnableVideoTranscoding"
             v-model:jellyfin-enable-audio-transcoding="form.jellyfinEnableAudioTranscoding"
             v-model:jellyfin-enable-remuxing="form.jellyfinEnableRemuxing"
+            v-model:jellyfin-enable-live-tv-access="form.jellyfinEnableLiveTvAccess"
+            v-model:jellyfin-enable-live-tv-management="form.jellyfinEnableLiveTvManagement"
             v-model:jellyfin-max-active-sessions="form.jellyfinMaxActiveSessions"
             :editing="!!editingUser"
             :avatar-url="editingUser?.avatarUrl"

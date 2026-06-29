@@ -3,6 +3,8 @@ export interface JellyfinUserFieldsProps {
   jellyfinEnableVideoTranscoding: boolean
   jellyfinEnableAudioTranscoding: boolean
   jellyfinEnableRemuxing: boolean
+  jellyfinEnableLiveTvAccess: boolean
+  jellyfinEnableLiveTvManagement: boolean
   jellyfinMaxActiveSessions: number
   editing?: boolean
   avatarUrl?: string | null

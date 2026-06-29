@@ -24,6 +24,8 @@ export interface SyncUserSettings {
   enableVideoTranscoding: boolean
   enableAudioTranscoding: boolean
   enableRemuxing: boolean
+  enableLiveTvAccess: boolean
+  enableLiveTvManagement: boolean
   maxActiveSessions: number
 }
 
@@ -46,5 +48,7 @@ export interface JellyfinPresetsBody {
   videoTranscoding?: boolean
   audioTranscoding?: boolean
   remuxing?: boolean
+  liveTvAccess?: boolean
+  liveTvManagement?: boolean
   maxActiveSessions?: number
 }

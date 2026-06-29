@@ -15,6 +15,8 @@ const presets = reactive({
   videoTranscoding: true,
   audioTranscoding: true,
   remuxing: true,
+  liveTvAccess: true,
+  liveTvManagement: false,
   maxActiveSessions: 0
 })
 
@@ -162,6 +164,18 @@ onMounted(() => {
         <div>
           <label class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{ t('admin.jellyfinRemuxing') }}</label>
           <USwitch v-model="presets.remuxing" class="mt-1" />
+        </div>
+        <div>
+          <label class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{
+            t('admin.jellyfinLiveTvAccess')
+          }}</label>
+          <USwitch v-model="presets.liveTvAccess" class="mt-1" />
+        </div>
+        <div>
+          <label class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{
+            t('admin.jellyfinLiveTvManagement')
+          }}</label>
+          <USwitch v-model="presets.liveTvManagement" class="mt-1" />
         </div>
         <div>
           <label class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{

@@ -12,6 +12,8 @@ function defaultSyncSettingsOverrides(): {
   enableVideoTranscoding: boolean
   enableAudioTranscoding: boolean
   enableRemuxing: boolean
+  enableLiveTvAccess: boolean
+  enableLiveTvManagement: boolean
   maxActiveSessions: number
 } {
   return {
@@ -19,6 +21,8 @@ function defaultSyncSettingsOverrides(): {
     enableVideoTranscoding: getSetting('jellyfin_default_video_transcoding') !== 'false',
     enableAudioTranscoding: getSetting('jellyfin_default_audio_transcoding') !== 'false',
     enableRemuxing: getSetting('jellyfin_default_remuxing') !== 'false',
+    enableLiveTvAccess: getSetting('jellyfin_default_live_tv_access') !== 'false',
+    enableLiveTvManagement: getSetting('jellyfin_default_live_tv_management') === 'true',
     maxActiveSessions: Number(getSetting('jellyfin_default_max_active_sessions') ?? '0')
   }
 }
@@ -28,6 +32,8 @@ export function getDefaultSyncSettings(overrides?: {
   enableVideoTranscoding?: boolean
   enableAudioTranscoding?: boolean
   enableRemuxing?: boolean
+  enableLiveTvAccess?: boolean
+  enableLiveTvManagement?: boolean
   maxActiveSessions?: number
 }): SyncUserSettings {
   const defaults = defaultSyncSettingsOverrides()
@@ -36,6 +42,8 @@ export function getDefaultSyncSettings(overrides?: {
     enableVideoTranscoding: overrides?.enableVideoTranscoding ?? defaults.enableVideoTranscoding,
     enableAudioTranscoding: overrides?.enableAudioTranscoding ?? defaults.enableAudioTranscoding,
     enableRemuxing: overrides?.enableRemuxing ?? defaults.enableRemuxing,
+    enableLiveTvAccess: overrides?.enableLiveTvAccess ?? defaults.enableLiveTvAccess,
+    enableLiveTvManagement: overrides?.enableLiveTvManagement ?? defaults.enableLiveTvManagement,
     maxActiveSessions: overrides?.maxActiveSessions ?? defaults.maxActiveSessions
   }
 }
@@ -57,6 +65,8 @@ export function getSyncUserSettings(userId: string, providerName: string): SyncU
     enableVideoTranscoding: row.enableVideoTranscoding,
     enableAudioTranscoding: row.enableAudioTranscoding,
     enableRemuxing: row.enableRemuxing,
+    enableLiveTvAccess: row.enableLiveTvAccess,
+    enableLiveTvManagement: row.enableLiveTvManagement,
     maxActiveSessions: row.maxActiveSessions
   }
 }
@@ -79,6 +89,8 @@ export function upsertSyncUserSettings(userId: string, providerName: string, set
         enableVideoTranscoding: settings.enableVideoTranscoding,
         enableAudioTranscoding: settings.enableAudioTranscoding,
         enableRemuxing: settings.enableRemuxing,
+        enableLiveTvAccess: settings.enableLiveTvAccess,
+        enableLiveTvManagement: settings.enableLiveTvManagement,
         maxActiveSessions: settings.maxActiveSessions,
         updatedAt: now
       })
@@ -94,6 +106,8 @@ export function upsertSyncUserSettings(userId: string, providerName: string, set
         enableVideoTranscoding: settings.enableVideoTranscoding,
         enableAudioTranscoding: settings.enableAudioTranscoding,
         enableRemuxing: settings.enableRemuxing,
+        enableLiveTvAccess: settings.enableLiveTvAccess,
+        enableLiveTvManagement: settings.enableLiveTvManagement,
         maxActiveSessions: settings.maxActiveSessions,
         createdAt: now,
         updatedAt: now

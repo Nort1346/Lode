@@ -9,6 +9,8 @@ export interface JellyfinUserFieldsModel {
   jellyfinEnableVideoTranscoding: boolean
   jellyfinEnableAudioTranscoding: boolean
   jellyfinEnableRemuxing: boolean
+  jellyfinEnableLiveTvAccess: boolean
+  jellyfinEnableLiveTvManagement: boolean
   jellyfinMaxActiveSessions: number
 }
 
@@ -38,6 +40,8 @@ export interface AdminUser {
   jellyfinEnableVideoTranscoding: boolean
   jellyfinEnableAudioTranscoding: boolean
   jellyfinEnableRemuxing: boolean
+  jellyfinEnableLiveTvAccess: boolean
+  jellyfinEnableLiveTvManagement: boolean
   jellyfinMaxActiveSessions: number
 }
 

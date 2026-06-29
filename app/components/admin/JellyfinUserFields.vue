@@ -13,6 +13,8 @@ const emit = defineEmits<{
   'update:jellyfinEnableVideoTranscoding': [value: boolean]
   'update:jellyfinEnableAudioTranscoding': [value: boolean]
   'update:jellyfinEnableRemuxing': [value: boolean]
+  'update:jellyfinEnableLiveTvAccess': [value: boolean]
+  'update:jellyfinEnableLiveTvManagement': [value: boolean]
   'update:jellyfinMaxActiveSessions': [value: number]
   'update:avatar': [file: File | null]
   'update:avatarRemoved': [value: boolean]
@@ -236,6 +238,32 @@ onMounted(fetchLibraries)
               />
             </div>
             <p class="text-xs text-zinc-400">{{ t('admin.jellyfinRemuxingDesc') }}</p>
+          </div>
+
+          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                {{ t('admin.jellyfinLiveTvAccess') }}
+              </span>
+              <USwitch
+                :model-value="props.jellyfinEnableLiveTvAccess"
+                @update:model-value="emit('update:jellyfinEnableLiveTvAccess', $event)"
+              />
+            </div>
+            <p class="text-xs text-zinc-400">{{ t('admin.jellyfinLiveTvAccessDesc') }}</p>
+          </div>
+
+          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                {{ t('admin.jellyfinLiveTvManagement') }}
+              </span>
+              <USwitch
+                :model-value="props.jellyfinEnableLiveTvManagement"
+                @update:model-value="emit('update:jellyfinEnableLiveTvManagement', $event)"
+              />
+            </div>
+            <p class="text-xs text-zinc-400">{{ t('admin.jellyfinLiveTvManagementDesc') }}</p>
           </div>
 
           <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">

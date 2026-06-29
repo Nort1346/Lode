@@ -5,6 +5,8 @@ const PRESET_KEYS = [
   'jellyfin_default_video_transcoding',
   'jellyfin_default_audio_transcoding',
   'jellyfin_default_remuxing',
+  'jellyfin_default_live_tv_access',
+  'jellyfin_default_live_tv_management',
   'jellyfin_default_max_active_sessions',
   'jellyfin_sync_enabled'
 ] as const
@@ -27,6 +29,8 @@ export default defineEventHandler(async (event) => {
     videoTranscoding: presets.jellyfin_default_video_transcoding !== 'false',
     audioTranscoding: presets.jellyfin_default_audio_transcoding !== 'false',
     remuxing: presets.jellyfin_default_remuxing !== 'false',
+    liveTvAccess: presets.jellyfin_default_live_tv_access !== 'false',
+    liveTvManagement: presets.jellyfin_default_live_tv_management === 'true',
     maxActiveSessions: Number(presets.jellyfin_default_max_active_sessions) || 0
   }
 })
