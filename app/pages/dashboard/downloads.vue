@@ -268,8 +268,8 @@ const savePathLabels = computed<Record<string, string>>(() => ({
       </div>
     </div>
 
-    <div v-if="total > PAGE_SIZE" class="flex justify-center mt-6">
-      <UPagination v-model:page="page" :total="total" :items-per-page="PAGE_SIZE" :sibling-count="2" show-edges />
+    <div v-if="total > PAGE_SIZE" class="overflow-x-auto max-w-full flex justify-center mt-6">
+      <UPagination v-model:page="page" :total="total" :items-per-page="PAGE_SIZE" :sibling-count="1" show-edges />
     </div>
   </div>
 </template>
