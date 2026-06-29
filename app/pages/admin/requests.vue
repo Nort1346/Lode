@@ -14,6 +14,7 @@ const page = ref(1)
 const totalPages = ref(1)
 const total = ref(0)
 const filterStatus = ref('all')
+const PAGE_SIZE = 25
 
 const STATUS_OPTIONS = computed(() => [
   { value: 'all', label: t('requests.filterAll') },
@@ -51,23 +52,11 @@ async function fetchRequests() {
 
 onMounted(fetchRequests)
 
+watch(page, () => fetchRequests())
+
 function applyFilters() {
   page.value = 1
   fetchRequests()
-}
-
-function nextPage() {
-  if (page.value < totalPages.value) {
-    page.value++
-    fetchRequests()
-  }
-}
-
-function prevPage() {
-  if (page.value > 1) {
-    page.value--
-    fetchRequests()
-  }
 }
 
 function statusColor(status: string): string {
@@ -251,14 +240,11 @@ async function confirmAction() {
         </table>
       </div>
 
-      <div class="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-white/5">
-        <span class="text-sm text-zinc-500 dark:text-zinc-400">
-          {{ t('requests.pageInfo', { page, total: totalPages, count: total }) }}
-        </span>
-        <div class="flex gap-2">
-          <UButton :label="t('requests.previous')" variant="soft" :disabled="page <= 1" @click="prevPage" />
-          <UButton :label="t('requests.next')" variant="soft" :disabled="page >= totalPages" @click="nextPage" />
-        </div>
+      <div
+        v-if="total > PAGE_SIZE"
+        class="overflow-x-auto max-w-full flex justify-center px-4 py-3 border-t border-zinc-200 dark:border-white/5"
+      >
+        <UPagination v-model:page="page" :total="total" :items-per-page="PAGE_SIZE" :sibling-count="1" show-edges />
       </div>
     </div>
 

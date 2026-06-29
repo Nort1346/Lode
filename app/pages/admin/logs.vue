@@ -256,8 +256,11 @@ async function copyToClipboard(text: string) {
         </table>
       </div>
 
-      <div v-if="total > limit" class="flex justify-center px-4 py-3 border-t border-zinc-200 dark:border-white/5">
-        <UPagination v-model:page="page" :total="total" :items-per-page="limit" :sibling-count="2" show-edges />
+      <div
+        v-if="total > limit"
+        class="overflow-x-auto max-w-full flex justify-center px-4 py-3 border-t border-zinc-200 dark:border-white/5"
+      >
+        <UPagination v-model:page="page" :total="total" :items-per-page="limit" :sibling-count="1" show-edges />
       </div>
     </div>
   </div>
