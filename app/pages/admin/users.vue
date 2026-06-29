@@ -435,11 +435,11 @@ function onExpiresAtInput(event: Event) {
     <UModal
       v-model:open="showModal"
       :title="editingUser ? t('admin.editUser') : t('admin.createUser')"
-      class="max-w-full sm:max-w-6xl"
+      class="max-w-full sm:max-w-7xl"
     >
       <template #body>
         <form class="space-y-6" @submit.prevent="saveUser">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="space-y-3">
               <h4 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                 {{ t('admin.sectionAccount') }}

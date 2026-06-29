@@ -117,7 +117,7 @@ onMounted(fetchLibraries)
     </h3>
 
     <div class="grid grid-cols-1 lg:grid-cols-[auto_1fr_1fr] gap-4">
-      <div class="flex flex-col items-center gap-3 lg:w-[140px]">
+      <div class="flex flex-col items-center gap-3 lg:w-45">
         <button
           type="button"
           class="shrink-0 rounded-full overflow-hidden ring-2 ring-zinc-200 dark:ring-white/10 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all cursor-pointer focus:outline-none focus:ring-blue-500"
@@ -134,7 +134,7 @@ onMounted(fetchLibraries)
         />
         <div class="text-center">
           <p class="text-xs text-zinc-400">{{ t('admin.jellyfinAvatarDesc') }}</p>
-          <div class="flex items-center justify-center gap-2 mt-1.5">
+          <div class="flex items-center flex-wrap justify-center gap-2 mt-1.5">
             <UButton
               variant="outline"
               size="xs"

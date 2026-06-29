@@ -244,12 +244,15 @@ export async function syncUserUpdate(userId: string, data: SyncUserData, setting
     }
 
     try {
+      if (data.password) {
+        await provider.updateUserPassword(providerUserId, data.password)
+      }
       await provider.updateUserSettings(providerUserId, settings)
       updateSyncStatus(userId, provider.name, 'synced')
       upsertSyncUserSettings(userId, provider.name, settings)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      console.error(`[Sync] ${provider.name}.updateUserSettings failed for user ${userId}:`, message)
+      console.error(`[Sync] ${provider.name}.updateUser failed for user ${userId}:`, message)
       updateSyncStatus(userId, provider.name, 'failed', message)
     }
   }
