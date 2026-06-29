@@ -29,7 +29,8 @@ const form = reactive({
   jellyfinEnableRemuxing: true,
   jellyfinEnableLiveTvAccess: true,
   jellyfinEnableLiveTvManagement: false,
-  jellyfinMaxActiveSessions: 0
+  jellyfinMaxActiveSessions: 0,
+  expiresAt: null as string | null
 })
 
 const pendingAvatarFile = ref<File | null>(null)
@@ -69,6 +70,7 @@ function resetForm() {
   form.discordId = ''
   form.canSubmit = false
   form.maxSessions = 0
+  form.expiresAt = null
 }
 
 async function fetchPresets() {
@@ -130,6 +132,7 @@ function openEdit(user: AdminUser) {
   form.jellyfinEnableLiveTvAccess = user.jellyfinEnableLiveTvAccess ?? true
   form.jellyfinEnableLiveTvManagement = user.jellyfinEnableLiveTvManagement ?? false
   form.jellyfinMaxActiveSessions = user.jellyfinMaxActiveSessions ?? 0
+  form.expiresAt = user.expiresAt ?? null
   pendingAvatarFile.value = null
   pendingAvatarRemoved.value = false
   error.value = ''
@@ -157,7 +160,8 @@ async function saveUser() {
         jellyfinEnableRemuxing: form.jellyfinEnableRemuxing,
         jellyfinEnableLiveTvAccess: form.jellyfinEnableLiveTvAccess,
         jellyfinEnableLiveTvManagement: form.jellyfinEnableLiveTvManagement,
-        jellyfinMaxActiveSessions: form.jellyfinMaxActiveSessions
+        jellyfinMaxActiveSessions: form.jellyfinMaxActiveSessions,
+        expiresAt: form.expiresAt
       }
       if (form.password) body.password = form.password
       if (form.username !== editingUser.value.username) body.username = form.username
@@ -232,6 +236,16 @@ const roleOptions = computed(() => [
   { label: t('admin.roleUser'), value: 'user' },
   { label: t('admin.roleAdmin'), value: 'admin' }
 ])
+
+function toLocalDateString(iso: string | null): string {
+  if (!iso) return ''
+  return iso.slice(0, 10)
+}
+
+function onExpiresAtInput(event: Event) {
+  const value = (event.target as HTMLInputElement).value
+  form.expiresAt = value ? `${value}T00:00:00.000Z` : null
+}
 </script>
 
 <template>
@@ -381,6 +395,13 @@ const roleOptions = computed(() => [
                   :class="u.isActive ? 'bg-green-500 hover:bg-green-400' : 'bg-red-400 hover:bg-red-300'"
                   @click="toggleActive(u)"
                 />
+                <span
+                  v-if="u.expiresAt && u.role !== 'admin'"
+                  class="block text-[10px] mt-0.5 leading-tight"
+                  :class="new Date(u.expiresAt) < new Date() ? 'text-red-400' : 'text-amber-400'"
+                >
+                  {{ formatDate(u.expiresAt) }}
+                </span>
               </td>
               <td class="px-4 py-3 text-sm text-zinc-400 dark:text-zinc-500 hidden xl:table-cell">
                 {{ formatDate(u.createdAt) }}
@@ -447,6 +468,25 @@ const roleOptions = computed(() => [
 
           <UFormField :label="t('admin.canSubmit')">
             <USwitch v-model="form.canSubmit" />
+          </UFormField>
+
+          <UFormField :label="t('admin.expiresAt')" :description="t('admin.expiresAtDesc')">
+            <div class="flex items-center gap-2">
+              <input
+                type="date"
+                :value="toLocalDateString(form.expiresAt)"
+                class="flex-1 h-9 px-3 rounded-lg bg-white dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-sm text-zinc-900 dark:text-white"
+                @input="onExpiresAtInput"
+              />
+              <UButton
+                v-if="form.expiresAt"
+                variant="ghost"
+                size="xs"
+                icon="i-lucide-x"
+                :label="t('admin.expiresAtClear')"
+                @click="form.expiresAt = null"
+              />
+            </div>
           </UFormField>
 
           <AdminJellyfinUserFields

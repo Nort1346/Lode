@@ -29,6 +29,7 @@ interface UpdateUserBody {
   jellyfinEnableLiveTvAccess?: boolean
   jellyfinEnableLiveTvManagement?: boolean
   jellyfinMaxActiveSessions?: number
+  expiresAt?: string | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -102,6 +103,10 @@ export default defineEventHandler(async (event) => {
     updates.maxSessions = body.maxSessions
     changedFields.push('maxSessions')
   }
+  if (body.expiresAt !== undefined) {
+    updates.expiresAt = body.expiresAt
+    changedFields.push('expiresAt')
+  }
 
   if (Object.keys(updates).length > 0) {
     db.update(users).set(updates).where(eq(users.id, id)).run()
@@ -133,6 +138,7 @@ export default defineEventHandler(async (event) => {
         console.error('[User] Jellyfin disable failed:', e)
       }
     } else {
+      db.update(users).set({ expiresAt: null }).where(eq(users.id, id)).run()
       try {
         await syncUserEnable(id)
       } catch (e) {

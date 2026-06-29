@@ -19,6 +19,7 @@ export const users = sqliteTable('users', {
   canSubmit: integer('can_submit', { mode: 'boolean' }).notNull().default(false),
   maxSessions: integer('max_sessions').notNull().default(0),
   avatarUrl: text('avatar_url'),
+  expiresAt: text('expires_at'),
   syncStatus: text('sync_status', { enum: ['synced', 'pending', 'failed'] })
     .notNull()
     .default('synced')

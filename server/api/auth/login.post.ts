@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcrypt'
 import { sessions, users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { syncUserDisable } from '#server/utils/sync'
 
 interface LoginBody {
   username: string
@@ -24,6 +25,19 @@ export default defineEventHandler(async (event) => {
     logActivity(event, { action: 'login_failed', username, details: 'User not found' })
     await recordLoginAttempt(event, { username, success: false })
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
+  }
+
+  if (user.expiresAt !== null && user.expiresAt !== '' && new Date(user.expiresAt) <= new Date()) {
+    db.update(users).set({ isActive: false }).where(eq(users.id, user.id)).run()
+    syncUserDisable(user.id).catch(() => {})
+    logActivity(event, {
+      action: 'login_failed',
+      userId: user.id,
+      username: user.username,
+      details: 'Account has expired'
+    })
+    await recordLoginAttempt(event, { username: user.username, success: false })
+    throw createError({ statusCode: 403, statusMessage: 'Account has expired' })
   }
 
   if (!user.isActive) {

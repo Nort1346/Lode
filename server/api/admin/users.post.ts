@@ -22,6 +22,7 @@ interface CreateUserBody {
   jellyfinEnableLiveTvAccess?: boolean
   jellyfinEnableLiveTvManagement?: boolean
   jellyfinMaxActiveSessions?: number
+  expiresAt?: string | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -88,6 +89,7 @@ export default defineEventHandler(async (event) => {
       discordId: discordId ?? null,
       canSubmit: canSubmit ?? false,
       maxSessions: maxSessions ?? 0,
+      expiresAt: body.expiresAt ?? null,
       syncStatus: 'synced'
     })
     .run()

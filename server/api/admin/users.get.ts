@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
       canSubmit: u.canSubmit,
       maxSessions: u.maxSessions,
       avatarUrl: u.avatarUrl,
+      expiresAt: u.expiresAt,
       syncStatus: u.syncStatus,
       syncProviders: providerRows.map((p) => ({
         providerName: p.providerName,

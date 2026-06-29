@@ -29,6 +29,7 @@ export interface AdminUser {
   canSubmit: boolean
   maxSessions: number
   avatarUrl: string | null
+  expiresAt: string | null
   syncStatus: 'synced' | 'pending' | 'failed'
   syncProviders: Array<{
     providerName: string
