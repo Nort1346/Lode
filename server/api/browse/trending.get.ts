@@ -1,10 +1,15 @@
 import { getTrending, getLogosForItems, getImageUrl } from '#server/utils/tmdb'
+import { markInLibrary } from '#server/utils/browse-utils'
+import { getActiveSyncProviders } from '#server/utils/sync'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
+
+  const providers = await getActiveSyncProviders()
+  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const locale = (query.locale as string) ?? 'pl'
@@ -42,7 +47,9 @@ export default defineEventHandler(async (event) => {
       rating: item.vote_average
     }))
 
-    return { items: results }
+    const marked = await markInLibrary(results, libraryProvider)
+
+    return { items: marked }
   } catch (err) {
     throw createError({
       statusCode: 502,

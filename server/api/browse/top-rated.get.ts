@@ -1,10 +1,15 @@
 import { getTopRatedMovies, getImageUrl } from '#server/utils/tmdb'
+import { markInLibrary } from '#server/utils/browse-utils'
+import { getActiveSyncProviders } from '#server/utils/sync'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
+
+  const providers = await getActiveSyncProviders()
+  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'pl'
@@ -34,7 +39,9 @@ export default defineEventHandler(async (event) => {
       rating: m.vote_average
     }))
 
-    return { movies }
+    const marked = await markInLibrary(movies, libraryProvider)
+
+    return { movies: marked }
   } catch (err) {
     throw createError({
       statusCode: 502,

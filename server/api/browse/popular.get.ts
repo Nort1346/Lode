@@ -1,10 +1,15 @@
 import { getPopularMovies, getPopularTvShows, getImageUrl } from '#server/utils/tmdb'
+import { markInLibrary } from '#server/utils/browse-utils'
+import { getActiveSyncProviders } from '#server/utils/sync'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
+
+  const providers = await getActiveSyncProviders()
+  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'pl'
@@ -24,7 +29,7 @@ export default defineEventHandler(async (event) => {
   try {
     const [movieData, tvData] = await Promise.all([getPopularMovies(locale), getPopularTvShows(locale)])
 
-    const movies: BrowseItem[] = movieData.results.slice(0, 20).map((m) => ({
+    const rawMovies: BrowseItem[] = movieData.results.slice(0, 20).map((m) => ({
       id: m.id,
       type: 'movie' as const,
       title: m.title,
@@ -36,7 +41,7 @@ export default defineEventHandler(async (event) => {
       genres: m.genre_ids?.map(String) ?? []
     }))
 
-    const tv: BrowseItem[] = tvData.results.slice(0, 20).map((t) => ({
+    const rawTv: BrowseItem[] = tvData.results.slice(0, 20).map((t) => ({
       id: t.id,
       type: 'tv' as const,
       title: t.name,
@@ -47,6 +52,11 @@ export default defineEventHandler(async (event) => {
       rating: t.vote_average,
       genres: t.genre_ids?.map(String) ?? []
     }))
+
+    const [movies, tv] = await Promise.all([
+      markInLibrary(rawMovies, libraryProvider),
+      markInLibrary(rawTv, libraryProvider)
+    ])
 
     return { movies, tv }
   } catch (err) {

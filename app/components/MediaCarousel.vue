@@ -34,6 +34,7 @@
             :poster-url="item.posterUrl"
             :year="item.year"
             :rating="item.rating"
+            :in-library="item.inLibrary"
             @click="$emit('itemClick', item)"
           />
         </div>

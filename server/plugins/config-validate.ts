@@ -10,7 +10,7 @@ export default defineNitroPlugin(() => {
     tmdbApiKey: config.tmdbApiKey,
     prowlarrApiKey: config.prowlarrApiKey,
     trackerEncryptionKey: config.trackerEncryptionKey,
-    jellyfinUrl: config.jellyfinUrl,
-    jellyfinApiKey: config.jellyfinApiKey
+    jellyfinUrl: config.jellyfinUrl || undefined,
+    jellyfinApiKey: config.jellyfinApiKey || undefined
   })
 })

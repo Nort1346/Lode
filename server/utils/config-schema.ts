@@ -8,8 +8,8 @@ const configSchema = z.object({
   tmdbApiKey: z.string().min(1),
   prowlarrApiKey: z.string().min(1),
   trackerEncryptionKey: z.string().min(1),
-  jellyfinUrl: z.string().min(1),
-  jellyfinApiKey: z.string().min(1)
+  jellyfinUrl: z.string().optional(),
+  jellyfinApiKey: z.string().optional()
 })
 
 export type ValidatedConfig = z.infer<typeof configSchema>

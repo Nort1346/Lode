@@ -1,5 +1,6 @@
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { syncUserDelete } from '#server/utils/sync'
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
@@ -17,6 +18,17 @@ export default defineEventHandler(async (event) => {
 
   if (user.role === 'admin') {
     throw createError({ statusCode: 400, statusMessage: 'Cannot delete admin users' })
+  }
+
+  // CRITICAL: Delete from Jellyfin FIRST, then from StreamHub
+  try {
+    await syncUserDelete(id)
+  } catch (error) {
+    console.error('[User] Jellyfin delete failed:', error)
+    throw createError({
+      statusCode: 502,
+      statusMessage: 'Failed to delete user from Jellyfin. User not deleted.'
+    })
   }
 
   db.delete(users).where(eq(users.id, id)).run()

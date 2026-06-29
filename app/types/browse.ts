@@ -13,6 +13,7 @@ export interface MovieData {
   runtime: number | null
   genres: Genre[]
   imdbId: string | null
+  inLibrary: boolean
 }
 
 export interface ShowData {
@@ -28,6 +29,7 @@ export interface ShowData {
   genres: Genre[]
   numberOfSeasons: number
   numberOfEpisodes: number
+  inLibrary: boolean
   seasons: Array<{
     id: number
     seasonNumber: number

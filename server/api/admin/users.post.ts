@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
+import { syncNewUser, getDefaultSyncSettings } from '#server/utils/sync'
 
 interface CreateUserBody {
   username: string
@@ -11,7 +12,17 @@ interface CreateUserBody {
   activeTorrentLimit?: number
   maxTorrentSizeGb?: number
   privateTrackerLimit?: number
+  canSubmit?: boolean
+  maxSessions?: number
   discordId?: string | null
+  jellyfinLibraryAccess?: string[] | 'all'
+  jellyfinEnableVideoTranscoding?: boolean
+  jellyfinEnableAudioTranscoding?: boolean
+  jellyfinEnableRemuxing?: boolean
+  jellyfinEnableLiveTvAccess?: boolean
+  jellyfinEnableLiveTvManagement?: boolean
+  jellyfinMaxActiveSessions?: number
+  expiresAt?: string | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -20,7 +31,16 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<CreateUserBody>(event)
   const username = body.username?.trim() ?? ''
   const password = body.password?.trim() ?? ''
-  const { role, dailyDownloadLimit, activeTorrentLimit, maxTorrentSizeGb, privateTrackerLimit, discordId } = body
+  const {
+    role,
+    dailyDownloadLimit,
+    activeTorrentLimit,
+    maxTorrentSizeGb,
+    privateTrackerLimit,
+    discordId,
+    canSubmit,
+    maxSessions
+  } = body
 
   if (!username || !password) {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })
@@ -32,8 +52,18 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, statusMessage: 'Username already exists' })
   }
 
-  const hashedPassword = await bcrypt.hash(password, 12)
   const id = randomUUID()
+  const syncSettings = getDefaultSyncSettings({
+    libraryAccess: body.jellyfinLibraryAccess,
+    enableVideoTranscoding: body.jellyfinEnableVideoTranscoding,
+    enableAudioTranscoding: body.jellyfinEnableAudioTranscoding,
+    enableRemuxing: body.jellyfinEnableRemuxing,
+    enableLiveTvAccess: body.jellyfinEnableLiveTvAccess,
+    enableLiveTvManagement: body.jellyfinEnableLiveTvManagement,
+    maxActiveSessions: body.jellyfinMaxActiveSessions
+  })
+
+  const hashedPassword = await bcrypt.hash(password, 12)
 
   db.insert(users)
     .values({
@@ -48,9 +78,21 @@ export default defineEventHandler(async (event) => {
       isActive: true,
       downloadsToday: 0,
       createdAt: new Date().toISOString(),
-      discordId: discordId ?? null
+      discordId: discordId ?? null,
+      canSubmit: canSubmit ?? false,
+      maxSessions: maxSessions ?? 0,
+      expiresAt: body.expiresAt ?? null,
+      syncStatus: 'pending'
     })
     .run()
+
+  const syncStatus = await syncNewUser(id, { username, password }, syncSettings)
+
+  if (syncStatus === 'synced') {
+    db.update(users).set({ syncStatus: 'synced' }).where(eq(users.id, id)).run()
+  } else {
+    db.update(users).set({ syncStatus: 'failed' }).where(eq(users.id, id)).run()
+  }
 
   return { success: true, id }
 })

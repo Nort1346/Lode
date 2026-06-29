@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { WishlistItem } from '~/types/wishlist'
+
 definePageMeta({
   middleware: ['auth'],
   layout: 'default'
@@ -6,15 +8,6 @@ definePageMeta({
 
 const { t } = useI18n()
 const toast = useToast()
-
-interface WishlistItem {
-  id: string
-  mediaType: 'movie' | 'tv'
-  mediaId: number
-  mediaTitle: string
-  mediaPoster: string | null
-  createdAt: string
-}
 
 const { data, refresh, pending } = useFetch<{ items: WishlistItem[] }>('/api/wishlist')
 const items = computed(() => data.value?.items ?? [])

@@ -37,6 +37,11 @@
         {{ type === 'movie' ? t('mediaCard.movie') : t('mediaCard.tv') }}
       </span>
 
+      <InLibraryBadge
+        v-if="inLibrary"
+        class="absolute bottom-2 left-2 right-2 justify-center opacity-100 transition-opacity duration-200 group-hover:opacity-0"
+      />
+
       <div
         class="absolute right-0 bottom-0 left-0 p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
       >
@@ -62,6 +67,7 @@ defineProps<{
   posterUrl: string | null
   year: string
   rating: number
+  inLibrary: boolean
 }>()
 
 defineEmits<{

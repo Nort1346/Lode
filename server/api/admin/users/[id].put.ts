@@ -1,6 +1,13 @@
 import bcrypt from 'bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import {
+  syncUserUpdate,
+  syncUserDisable,
+  syncUserEnable,
+  getDefaultSyncSettings,
+  upsertSyncUserSettings
+} from '#server/utils/sync'
 
 interface UpdateUserBody {
   username?: string
@@ -15,6 +22,14 @@ interface UpdateUserBody {
   discordId?: string | null
   canSubmit?: boolean
   maxSessions?: number
+  jellyfinLibraryAccess?: string[] | 'all'
+  jellyfinEnableVideoTranscoding?: boolean
+  jellyfinEnableAudioTranscoding?: boolean
+  jellyfinEnableRemuxing?: boolean
+  jellyfinEnableLiveTvAccess?: boolean
+  jellyfinEnableLiveTvManagement?: boolean
+  jellyfinMaxActiveSessions?: number
+  expiresAt?: string | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -35,14 +50,19 @@ export default defineEventHandler(async (event) => {
 
   const changedFields: string[] = []
   const updates: Record<string, unknown> = {}
+
   if (body.username !== undefined) {
     updates.username = body.username.trim()
     changedFields.push('username')
   }
-  if (body.password !== undefined) {
-    updates.password = await bcrypt.hash(body.password.trim(), 12)
+
+  let plainPassword: string | null = null
+  if (body.password !== undefined && body.password.trim()) {
+    plainPassword = body.password.trim()
+    updates.password = await bcrypt.hash(plainPassword, 12)
     changedFields.push('password')
   }
+
   if (body.role !== undefined) {
     updates.role = body.role
     changedFields.push('role')
@@ -83,6 +103,10 @@ export default defineEventHandler(async (event) => {
     updates.maxSessions = body.maxSessions
     changedFields.push('maxSessions')
   }
+  if (body.expiresAt !== undefined) {
+    updates.expiresAt = body.expiresAt
+    changedFields.push('expiresAt')
+  }
 
   if (Object.keys(updates).length > 0) {
     db.update(users).set(updates).where(eq(users.id, id)).run()
@@ -92,6 +116,47 @@ export default defineEventHandler(async (event) => {
       username: admin.username,
       details: JSON.stringify({ targetUser: user.username, targetUserId: id, fields: changedFields })
     })
+  }
+
+  const syncSettings = getDefaultSyncSettings({
+    libraryAccess: body.jellyfinLibraryAccess,
+    enableVideoTranscoding: body.jellyfinEnableVideoTranscoding,
+    enableAudioTranscoding: body.jellyfinEnableAudioTranscoding,
+    enableRemuxing: body.jellyfinEnableRemuxing,
+    enableLiveTvAccess: body.jellyfinEnableLiveTvAccess,
+    enableLiveTvManagement: body.jellyfinEnableLiveTvManagement,
+    maxActiveSessions: body.jellyfinMaxActiveSessions
+  })
+
+  upsertSyncUserSettings(id, 'jellyfin', syncSettings)
+
+  if (body.isActive !== undefined && body.isActive !== user.isActive) {
+    if (!body.isActive) {
+      try {
+        await syncUserDisable(id)
+      } catch (e) {
+        console.error('[User] Jellyfin disable failed:', e)
+      }
+    } else {
+      db.update(users).set({ expiresAt: null }).where(eq(users.id, id)).run()
+      try {
+        await syncUserEnable(id)
+      } catch (e) {
+        console.error('[User] Jellyfin enable failed:', e)
+      }
+    }
+  }
+
+  if (changedFields.length > 0 || body.username !== undefined) {
+    const jellyfinData = {
+      username: body.username?.trim() ?? user.username,
+      password: plainPassword ?? ''
+    }
+    try {
+      await syncUserUpdate(id, jellyfinData, syncSettings)
+    } catch (e) {
+      console.error('[User] Jellyfin sync failed:', e)
+    }
   }
 
   return { success: true }

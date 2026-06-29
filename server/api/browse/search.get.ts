@@ -1,4 +1,6 @@
 import { searchMovies, searchTvShows, getImageUrl } from '#server/utils/tmdb'
+import { markInLibrary } from '#server/utils/browse-utils'
+import { getActiveSyncProviders } from '#server/utils/sync'
 import type { BrowseItem } from '#server/types/browse'
 
 export default defineEventHandler(async (event) => {
@@ -6,6 +8,9 @@ export default defineEventHandler(async (event) => {
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
+
+  const providers = await getActiveSyncProviders()
+  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const q = typeof query.q === 'string' ? query.q.trim() : ''
@@ -80,5 +85,7 @@ export default defineEventHandler(async (event) => {
 
   results.sort((a, b) => b.rating - a.rating)
 
-  return { results, query: q, page }
+  const marked = await markInLibrary(results, libraryProvider)
+
+  return { results: marked, query: q, page }
 })

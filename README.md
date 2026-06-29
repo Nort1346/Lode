@@ -76,6 +76,7 @@ Carousels use the reusable `MediaCarousel` component with scroll arrows (hover-r
 - Backdrop image with gradient overlay
 - Poster, title, original title, year, runtime, rating, genres
 - Overview, IMDB ID
+- **In-Library badge** — emerald badge with check icon shown when movie exists in Jellyfin library
 - "Request This" button (sends request to admin) with cursor pointer
 - "Add to Wishlist" button (heart icon, toggle add/remove, cursor pointer)
 - Available torrents from Prowlarr with 240-point scoring system
@@ -87,6 +88,7 @@ Carousels use the reusable `MediaCarousel` component with scroll arrows (hover-r
 - Season selector dropdown
 - Per-episode torrent listing with indexer name
 - Season pack highlighting (purple badge)
+- **In-Library badge** — emerald badge with check icon shown when show exists in Jellyfin library
 - "Request This" and "Add to Wishlist" buttons (same as movie)
 - Same scoring and download system as movies
 
@@ -421,6 +423,29 @@ NUXT_JELLYFIN_API_KEY=your_api_key
 2. Notifies Jellyfin to scan library via `notifyMediaUpdated()`
 3. Configurable prep speed (default 8 MB/s)
 
+**In-Library Detection:**
+- Server includes `inLibrary: boolean` in all browse endpoint responses (popular, trending, search, genre, discover, movie detail, TV detail)
+- Checks Jellyfin library by fetching ALL movies/series with TMDB provider IDs, builds in-memory `Set<number>` of TMDB IDs
+- `Set.has()` lookup is O(1) per item — essentially free after initial fetch
+- Set cached for 5 minutes (configurable via `LIBRARY_CACHE_TTL`), invalidated automatically on torrent completion
+- `InLibraryBadge` component shown on `MediaCard` (browse carousels) and detail pages
+- Badge fades on hover (`group-hover:opacity-0`)
+- Spotlights excluded (no badge rendering in spotlight cards)
+
+**Platform Sync (user management):**
+- StreamHub = single source of truth. User CRUD operations sync to Jellyfin automatically.
+- On user create: creates Jellyfin user with plain password, then hashes for StreamHub. Local DB insert happens FIRST — no orphan risk on sync failure.
+- On user update: syncs username/password/policy changes to Jellyfin (password sync via `updateUserPassword()`)
+- On user delete: deletes Jellyfin user first, then StreamHub user (throws on failure to prevent orphans)
+- On user disable/enable: disables/enables Jellyfin user
+- Password order is critical: plain text to Jellyfin FIRST, then bcrypt hash to StreamHub
+- Avatar upload: sharp processes images (512x512, JPEG 90%, strip EXIF), syncs to Jellyfin
+- Sync status tracked in `syncProviders` table per user per provider
+- `syncStatus` on user row reflects actual outcome (not hardcoded `'synced'`)
+- `syncNewUser()` helper extracts shared create logic between admin and register endpoints
+- Jellyfin is optional: when not configured, sync operations are silently skipped
+- Default settings for new users (library access, transcoding, remuxing) read from `settings` table via admin presets
+
 ### Request System
 
 **User flow:**
@@ -659,6 +684,7 @@ Each shows: Online/Offline badge, latency in ms, Not Configured if env var missi
 | Auth | [nuxt-auth-utils](https://github.com/atinoux/nuxt-auth-utils) v0.5.29 |
 | Cache | Redis ([ioredis](https://github.com/redis/ioredis)) v5.11.1 |
 | Password hashing | [bcrypt](https://github.com/kelektiv/node.bcrypt.js) v6.0.0 |
+| Image processing | [sharp](https://github.com/lovell/sharp) v0.33.x (avatar resize/crop) |
 | Movie data | [TMDB API](https://www.themoviedb.org/documentation/api) v3 |
 | Torrent search | [Prowlarr](https://prowlarr.com/) (Newznab-compatible) |
 | Torrent client | [qBittorrent](https://www.qbittorrent.org/) via [qui](https://github.com/autobrr/qui) proxy |
@@ -821,9 +847,12 @@ docker compose down
 | `settings/DiskStatus.vue` | Disk check toggle, min GB input, progress bars (independent data fetching) |
 | `settings/LiveLogs.vue` | SSE live log viewer with pause/clear/download (independent data fetching) |
 | `settings/PrepCountdown.vue` | Jellyfin prep countdown config (toggle + speed slider) |
+| `settings/SyncProviders.vue` | Platform sync providers toggle + default preset values |
+| `admin/JellyfinUserFields.vue` | Per-user Jellyfin settings section (library access, transcoding, remuxing) |
 | `HeroSection.vue` | Auto-rotating hero banner with Ken Burns zoom animation, locale-reactive |
 | `InviewSection.vue` | Lazy-load wrapper using IntersectionObserver (200px rootMargin) for browse carousels |
 | `BrowseSpotlight.vue` | Spotlight card between browse carousels with backdrop, logo, type badge, "Check it out" CTA |
+| `InLibraryBadge.vue` | Emerald badge with check icon + "W bibliotece" text, shown on items in Jellyfin library |
 | `NotificationDropdown.vue` | Notification bell with unread count badge, dropdown modal with unread/read sections, sound on new notification |
 | `PwaInstallPrompt.client.vue` | Android/Chrome PWA install modal using `$pwa.install()` composable |
 | `PwaIOSInstallBanner.client.vue` | iOS Safari install banner with "Share → Add to Home Screen" instructions, 7-day dismiss via localStorage |
@@ -874,6 +903,8 @@ docker compose down
 | `discord_id` | text | - | Discord user ID for mentions in webhook notifications |
 | `max_sessions` | integer | `0` | Max concurrent sessions (0 = unlimited) |
 | `can_submit` | integer (bool) | `false` | Access to submit page and torrent add API |
+| `avatar_url` | text | - | User avatar URL (from synced provider) |
+| `sync_status` | text | `pending` | Overall sync status: `synced`, `pending`, `failed` |
 
 ### `sessions`
 | Column | Type | Default | Description |
@@ -943,7 +974,7 @@ Indexes: `(ip, created_at)`, `(username, created_at)`, `(created_at)`
 | `key` | text (PK) | Setting name |
 | `value` | text | Setting value |
 
-Known keys: `discord_locale` (pl/en), `discord_mentions_enabled` (true/false), `disk_check_enabled` (true/false), `disk_min_free_gb` (integer as string), `brute_force_max_attempts_per_ip`, `brute_force_ip_block_duration_minutes`, `brute_force_window_minutes`, `ranking_config` (JSON string with full ranking configuration), `prep_countdown_enabled` (true/false), `prep_speed_mb` (integer, MB/s)
+Known keys: `discord_locale` (pl/en), `discord_mentions_enabled` (true/false), `disk_check_enabled` (true/false), `disk_min_free_gb` (integer as string), `brute_force_max_attempts_per_ip`, `brute_force_ip_block_duration_minutes`, `brute_force_window_minutes`, `ranking_config` (JSON string with full ranking configuration), `prep_countdown_enabled` (true/false), `prep_speed_mb` (integer, MB/s), `jellyfin_sync_enabled` (true/false), `jellyfin_default_library_access` (JSON: `"all"` or `["lib-id"]`), `jellyfin_default_video_transcoding` (true/false), `jellyfin_default_audio_transcoding` (true/false), `jellyfin_default_remuxing` (true/false), `jellyfin_default_max_active_sessions` (integer as string)
 
 ### `activityLogs`
 | Column | Type | Description |
@@ -1010,6 +1041,18 @@ Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists
 | `user_agent` | text | Browser user agent (nullable) |
 | `created_at` | text | ISO timestamp |
 | `last_used_at` | text | Last push delivery (nullable) |
+
+### `syncProviders`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | text (PK) | UUID |
+| `user_id` | text (FK) | StreamHub user |
+| `provider_name` | text | Provider name (e.g. `jellyfin`) |
+| `provider_user_id` | text | Provider's user ID |
+| `sync_status` | text | `synced`, `pending`, or `failed` |
+| `last_sync_error` | text | Last sync error message (nullable) |
+| `created_at` | text | ISO timestamp |
+| `updated_at` | text | ISO timestamp |
 
 ## API Endpoints
 
@@ -1101,10 +1144,19 @@ Unique index: `(user_id, media_type, media_id)` — prevents duplicate wishlists
 ### Admin - Users
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/admin/users` | Admin | List all users |
-| POST | `/api/admin/users` | Admin | Create user |
-| PUT | `/api/admin/users/:id` | Admin | Update user (supports `maxSessions`, `canSubmit` fields) |
-| DELETE | `/api/admin/users/:id` | Admin | Delete user |
+| GET | `/api/admin/users` | Admin | List all users (includes sync provider status) |
+| POST | `/api/admin/users` | Admin | Create user (syncs to Jellyfin if configured) |
+| PUT | `/api/admin/users/:id` | Admin | Update user (syncs to Jellyfin, supports disable/enable) |
+| DELETE | `/api/admin/users/:id` | Admin | Delete user (deletes from Jellyfin first) |
+
+### Admin - Sync
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/admin/sync/providers` | Admin | List sync providers and their status |
+| GET | `/api/admin/sync/libraries` | Admin | List media libraries from active providers |
+| GET | `/api/admin/jellyfin/presets` | Admin | Get Jellyfin default presets |
+| PUT | `/api/admin/jellyfin/presets` | Admin | Update Jellyfin default presets |
+| POST | `/api/admin/jellyfin/avatar` | Admin | Upload user avatar (synced to Jellyfin) |
 
 ### Admin - Sessions
 | Method | Endpoint | Auth | Description |

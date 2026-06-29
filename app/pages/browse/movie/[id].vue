@@ -62,7 +62,10 @@
       </div>
 
       <div class="flex-1">
-        <h1 class="text-3xl font-bold text-zinc-900 dark:text-white lg:text-4xl">{{ movie.title }}</h1>
+        <div class="flex items-center gap-3">
+          <h1 class="text-3xl font-bold text-zinc-900 dark:text-white lg:text-4xl">{{ movie.title }}</h1>
+          <InLibraryBadge v-if="movie.inLibrary" />
+        </div>
         <p v-if="movie.originalTitle !== movie.title" class="mt-1 text-lg text-zinc-500 dark:text-zinc-400">
           {{ movie.originalTitle }}
         </p>
@@ -409,6 +412,7 @@ const {
 )
 
 const movie = computed(() => data.value?.movie ?? null)
+
 const torrents = computed(() => torrentData.value?.torrents ?? [])
 const { data: limits } = useFetch('/api/user/limits')
 const limitInfo = computed(() => {
