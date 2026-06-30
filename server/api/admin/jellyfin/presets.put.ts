@@ -1,4 +1,5 @@
 import { putSetting } from '#server/utils/settings'
+import { SETTINGS } from '#server/types/settings'
 import type { JellyfinPresetsBody } from '#server/utils/sync/types'
 
 export default defineEventHandler(async (event) => {
@@ -7,31 +8,31 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<JellyfinPresetsBody>(event)
 
   if (body.syncEnabled !== undefined) {
-    putSetting('jellyfin_sync_enabled', String(body.syncEnabled))
+    putSetting(SETTINGS.JELLYFIN_SYNC_ENABLED, String(body.syncEnabled))
   }
   if (body.libraryAccess !== undefined) {
     putSetting(
-      'jellyfin_default_library_access',
+      SETTINGS.JELLYFIN_DEFAULT_LIBRARY_ACCESS,
       body.libraryAccess === 'all' ? 'all' : JSON.stringify(body.libraryAccess)
     )
   }
   if (body.videoTranscoding !== undefined) {
-    putSetting('jellyfin_default_video_transcoding', String(body.videoTranscoding))
+    putSetting(SETTINGS.JELLYFIN_DEFAULT_VIDEO_TRANSCODING, String(body.videoTranscoding))
   }
   if (body.audioTranscoding !== undefined) {
-    putSetting('jellyfin_default_audio_transcoding', String(body.audioTranscoding))
+    putSetting(SETTINGS.JELLYFIN_DEFAULT_AUDIO_TRANSCODING, String(body.audioTranscoding))
   }
   if (body.remuxing !== undefined) {
-    putSetting('jellyfin_default_remuxing', String(body.remuxing))
+    putSetting(SETTINGS.JELLYFIN_DEFAULT_REMUXING, String(body.remuxing))
   }
   if (body.liveTvAccess !== undefined) {
-    putSetting('jellyfin_default_live_tv_access', String(body.liveTvAccess))
+    putSetting(SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_ACCESS, String(body.liveTvAccess))
   }
   if (body.liveTvManagement !== undefined) {
-    putSetting('jellyfin_default_live_tv_management', String(body.liveTvManagement))
+    putSetting(SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_MANAGEMENT, String(body.liveTvManagement))
   }
   if (body.maxActiveSessions !== undefined) {
-    putSetting('jellyfin_default_max_active_sessions', String(body.maxActiveSessions))
+    putSetting(SETTINGS.JELLYFIN_DEFAULT_MAX_ACTIVE_SESSIONS, String(body.maxActiveSessions))
   }
 
   return { success: true }

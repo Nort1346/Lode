@@ -1,15 +1,16 @@
 import { putSetting } from '#server/utils/settings'
+import { SETTINGS } from '#server/types/settings'
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
   const body = await readBody<{ enabled?: boolean; speedMb?: number }>(event)
 
   if (body.enabled !== undefined) {
-    putSetting('prep_countdown_enabled', body.enabled ? 'true' : 'false')
+    putSetting(SETTINGS.PREP_COUNTDOWN_ENABLED, body.enabled ? 'true' : 'false')
   }
 
   if (body.speedMb !== undefined) {
-    putSetting('prep_speed_mb', String(Math.max(1, Math.min(100, Math.round(body.speedMb)))))
+    putSetting(SETTINGS.PREP_SPEED_MB, String(Math.max(1, Math.min(100, Math.round(body.speedMb)))))
   }
 
   logActivity(event, {

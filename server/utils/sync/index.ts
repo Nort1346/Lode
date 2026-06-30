@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import type { SyncProvider, SyncUserData, SyncUserSettings, SyncStatus } from './types'
 import { JellyfinSyncProvider } from './providers/jellyfin'
 import { getSetting } from '#server/utils/settings'
+import { SETTINGS } from '#server/types/settings'
 
 const ALL_PROVIDERS: SyncProvider[] = [new JellyfinSyncProvider()]
 
@@ -17,13 +18,13 @@ function defaultSyncSettingsOverrides(): {
   maxActiveSessions: number
 } {
   return {
-    libraryAccess: JSON.parse(getSetting('jellyfin_default_library_access') ?? '"all"') as string[] | 'all',
-    enableVideoTranscoding: getSetting('jellyfin_default_video_transcoding') !== 'false',
-    enableAudioTranscoding: getSetting('jellyfin_default_audio_transcoding') !== 'false',
-    enableRemuxing: getSetting('jellyfin_default_remuxing') !== 'false',
-    enableLiveTvAccess: getSetting('jellyfin_default_live_tv_access') !== 'false',
-    enableLiveTvManagement: getSetting('jellyfin_default_live_tv_management') === 'true',
-    maxActiveSessions: Number(getSetting('jellyfin_default_max_active_sessions') ?? '0')
+    libraryAccess: JSON.parse(getSetting(SETTINGS.JELLYFIN_DEFAULT_LIBRARY_ACCESS) ?? '"all"') as string[] | 'all',
+    enableVideoTranscoding: getSetting(SETTINGS.JELLYFIN_DEFAULT_VIDEO_TRANSCODING) !== 'false',
+    enableAudioTranscoding: getSetting(SETTINGS.JELLYFIN_DEFAULT_AUDIO_TRANSCODING) !== 'false',
+    enableRemuxing: getSetting(SETTINGS.JELLYFIN_DEFAULT_REMUXING) !== 'false',
+    enableLiveTvAccess: getSetting(SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_ACCESS) !== 'false',
+    enableLiveTvManagement: getSetting(SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_MANAGEMENT) === 'true',
+    maxActiveSessions: Number(getSetting(SETTINGS.JELLYFIN_DEFAULT_MAX_ACTIVE_SESSIONS) ?? '0')
   }
 }
 

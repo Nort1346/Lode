@@ -1,15 +1,16 @@
 import { putSetting } from '#server/utils/settings'
+import { SETTINGS } from '#server/types/settings'
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
   const body = await readBody<{ minFreeSpaceGb?: number; checkEnabled?: boolean }>(event)
 
   if (body.checkEnabled !== undefined) {
-    putSetting('disk_check_enabled', body.checkEnabled ? 'true' : 'false')
+    putSetting(SETTINGS.DISK_CHECK_ENABLED, body.checkEnabled ? 'true' : 'false')
   }
 
   if (body.minFreeSpaceGb !== undefined) {
-    putSetting('disk_min_free_gb', String(body.minFreeSpaceGb))
+    putSetting(SETTINGS.DISK_MIN_FREE_GB, String(body.minFreeSpaceGb))
   }
 
   logActivity(event, {

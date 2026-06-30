@@ -1,8 +1,8 @@
 import type { RankingConfig, RankingSizeThreshold } from '#server/types/ranking'
 import { DEFAULT_RANKING_CONFIG } from '#server/types/ranking'
+import { SETTINGS } from '#server/types/settings'
 import { getSetting, putSetting, deleteSetting } from '#server/utils/settings'
 
-const SETTING_KEY = 'ranking_config'
 const INFINITY_SENTINEL = -1
 
 function hydrateThresholds(thresholds: RankingSizeThreshold[]): RankingSizeThreshold[] {
@@ -20,7 +20,7 @@ function dehydrateThresholds(thresholds: RankingSizeThreshold[]): RankingSizeThr
 }
 
 export async function getRankingConfig(): Promise<RankingConfig> {
-  const value = getSetting(SETTING_KEY)
+  const value = getSetting(SETTINGS.RANKING_CONFIG)
 
   if (value === undefined) return { ...DEFAULT_RANKING_CONFIG }
 
@@ -55,9 +55,9 @@ export async function saveRankingConfig(config: RankingConfig): Promise<void> {
     }
   }
 
-  putSetting(SETTING_KEY, JSON.stringify(toStore))
+  putSetting(SETTINGS.RANKING_CONFIG, JSON.stringify(toStore))
 }
 
 export async function resetRankingConfig(): Promise<void> {
-  deleteSetting(SETTING_KEY)
+  deleteSetting(SETTINGS.RANKING_CONFIG)
 }

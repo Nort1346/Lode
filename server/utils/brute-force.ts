@@ -3,6 +3,7 @@ import { eq, and, gt, count } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
 import type { BruteForceConfig, BlockedIpEntry, BruteForceStats } from '#server/types/brute-force'
+import { SETTINGS } from '#server/types/settings'
 import { resolveIp } from '#server/utils/ip'
 import { getSetting, putSetting } from '#server/utils/settings'
 
@@ -11,8 +12,6 @@ const DEFAULT_CONFIG: BruteForceConfig = {
   ipBlockDurationMinutes: 60,
   windowMinutes: 15
 }
-
-const SETTING_KEY = 'brute_force_config'
 
 const blockedIpsCache = new Map<string, number>()
 let cleanupInterval: ReturnType<typeof setInterval> | null = null
@@ -31,7 +30,7 @@ function startCacheCleanup() {
 
 export async function getBruteForceConfig(): Promise<BruteForceConfig> {
   try {
-    const value = getSetting(SETTING_KEY)
+    const value = getSetting(SETTINGS.BRUTE_FORCE_CONFIG)
     if (value !== undefined && value !== '') {
       return { ...DEFAULT_CONFIG, ...(JSON.parse(value) as Partial<BruteForceConfig>) }
     }
@@ -43,7 +42,7 @@ export async function getBruteForceConfig(): Promise<BruteForceConfig> {
 
 export async function saveBruteForceConfig(config: Partial<BruteForceConfig>): Promise<void> {
   const merged = { ...DEFAULT_CONFIG, ...config }
-  putSetting(SETTING_KEY, JSON.stringify(merged))
+  putSetting(SETTINGS.BRUTE_FORCE_CONFIG, JSON.stringify(merged))
 }
 
 export async function isIpBlocked(ip: string): Promise<boolean> {

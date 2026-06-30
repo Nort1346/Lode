@@ -2,8 +2,7 @@ import type { SyncProvider, SyncUserData, SyncUserSettings, SyncLibrary } from '
 import type { JellyfinClient } from '#server/utils/jellyfin'
 import { useJellyfin } from '#server/utils/jellyfin'
 import { getSetting } from '#server/utils/settings'
-
-const JELLYFIN_SYNC_ENABLED_KEY = 'jellyfin_sync_enabled'
+import { SETTINGS } from '#server/types/settings'
 
 export class JellyfinSyncProvider implements SyncProvider {
   name = 'jellyfin'
@@ -17,7 +16,7 @@ export class JellyfinSyncProvider implements SyncProvider {
   }
 
   async isEnabled(): Promise<boolean> {
-    const setting = getSetting(JELLYFIN_SYNC_ENABLED_KEY)
+    const setting = getSetting(SETTINGS.JELLYFIN_SYNC_ENABLED)
     if (setting === 'false') return false
 
     const client = useJellyfin()

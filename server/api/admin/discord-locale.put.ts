@@ -1,5 +1,6 @@
 import { DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
 import { putSetting } from '#server/utils/settings'
+import { SETTINGS } from '#server/types/settings'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -11,7 +12,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: `Locale must be one of: ${DISCORD_LOCALE_OPTIONS.join(', ')}` })
   }
 
-  putSetting('discord_locale', locale)
+  putSetting(SETTINGS.DISCORD_LOCALE, locale)
 
   return { locale }
 })

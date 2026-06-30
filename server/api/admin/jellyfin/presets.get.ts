@@ -1,14 +1,15 @@
 import { getSetting } from '#server/utils/settings'
+import { SETTINGS } from '#server/types/settings'
 
 const PRESET_KEYS = [
-  'jellyfin_default_library_access',
-  'jellyfin_default_video_transcoding',
-  'jellyfin_default_audio_transcoding',
-  'jellyfin_default_remuxing',
-  'jellyfin_default_live_tv_access',
-  'jellyfin_default_live_tv_management',
-  'jellyfin_default_max_active_sessions',
-  'jellyfin_sync_enabled'
+  SETTINGS.JELLYFIN_DEFAULT_LIBRARY_ACCESS,
+  SETTINGS.JELLYFIN_DEFAULT_VIDEO_TRANSCODING,
+  SETTINGS.JELLYFIN_DEFAULT_AUDIO_TRANSCODING,
+  SETTINGS.JELLYFIN_DEFAULT_REMUXING,
+  SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_ACCESS,
+  SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_MANAGEMENT,
+  SETTINGS.JELLYFIN_DEFAULT_MAX_ACTIVE_SESSIONS,
+  SETTINGS.JELLYFIN_SYNC_ENABLED
 ] as const
 
 export default defineEventHandler(async (event) => {
@@ -19,18 +20,18 @@ export default defineEventHandler(async (event) => {
     presets[key] = getSetting(key) ?? ''
   }
 
-  const libraryAccessValue = presets.jellyfin_default_library_access ?? ''
+  const libraryAccessValue = presets[SETTINGS.JELLYFIN_DEFAULT_LIBRARY_ACCESS] ?? ''
   const parsedLibraryAccess: string[] | 'all' =
     libraryAccessValue === '' || libraryAccessValue === 'all' ? 'all' : (JSON.parse(libraryAccessValue) as string[])
 
   return {
-    syncEnabled: presets.jellyfin_sync_enabled !== 'false',
+    syncEnabled: presets[SETTINGS.JELLYFIN_SYNC_ENABLED] !== 'false',
     libraryAccess: parsedLibraryAccess,
-    videoTranscoding: presets.jellyfin_default_video_transcoding !== 'false',
-    audioTranscoding: presets.jellyfin_default_audio_transcoding !== 'false',
-    remuxing: presets.jellyfin_default_remuxing !== 'false',
-    liveTvAccess: presets.jellyfin_default_live_tv_access !== 'false',
-    liveTvManagement: presets.jellyfin_default_live_tv_management === 'true',
-    maxActiveSessions: Number(presets.jellyfin_default_max_active_sessions) || 0
+    videoTranscoding: presets[SETTINGS.JELLYFIN_DEFAULT_VIDEO_TRANSCODING] !== 'false',
+    audioTranscoding: presets[SETTINGS.JELLYFIN_DEFAULT_AUDIO_TRANSCODING] !== 'false',
+    remuxing: presets[SETTINGS.JELLYFIN_DEFAULT_REMUXING] !== 'false',
+    liveTvAccess: presets[SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_ACCESS] !== 'false',
+    liveTvManagement: presets[SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_MANAGEMENT] === 'true',
+    maxActiveSessions: Number(presets[SETTINGS.JELLYFIN_DEFAULT_MAX_ACTIVE_SESSIONS]) || 0
   }
 })
