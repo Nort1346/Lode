@@ -4,9 +4,25 @@ import type { Request } from '~/types/requests'
 const { t } = useI18n()
 
 const { data: myRequestsData } = useLazyFetch<{ requests: Request[] }>('/api/requests/my')
-const activeRequests = computed(() =>
-  (myRequestsData.value?.requests ?? []).filter((r: Request) => r.status === 'pending' || r.status === 'rejected')
-)
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+
+const activeRequests = computed(() => {
+  const all = myRequestsData.value?.requests ?? []
+  const cutoff = Date.now() - THIRTY_DAYS_MS
+  return all
+    .filter((r: Request) => {
+      if (r.status === 'pending') return true
+      if (r.status === 'rejected' || r.status === 'accepted') {
+        return new Date(r.createdAt).getTime() >= cutoff
+      }
+      return false
+    })
+    .sort((a: Request, b: Request) => {
+      const order: Record<string, number> = { pending: 0, rejected: 1, accepted: 2 }
+      return (order[a.status] ?? 3) - (order[b.status] ?? 3)
+    })
+})
 const pendingCount = computed(() => activeRequests.value.filter((r: Request) => r.status === 'pending').length)
 
 const cardRefs = ref<HTMLElement[]>([])
@@ -79,7 +95,13 @@ function goToRequest(req: Request) {
         >
           <div
             class="relative rounded-xl overflow-hidden aspect-[2/3] bg-zinc-200 dark:bg-white/5 shadow-md"
-            :class="req.status === 'rejected' ? 'ring-2 ring-red-500/40' : ''"
+            :class="
+              req.status === 'rejected'
+                ? 'ring-2 ring-red-500/40'
+                : req.status === 'accepted'
+                  ? 'ring-2 ring-green-500/40'
+                  : ''
+            "
           >
             <img
               v-if="req.mediaPoster"
@@ -100,6 +122,12 @@ function goToRequest(req: Request) {
                 class="flex items-center rounded-md px-2 py-0.5 text-xs font-semibold backdrop-blur-sm bg-amber-500/90 text-white"
               >
                 {{ t('requests.pending') }}
+              </span>
+              <span
+                v-else-if="req.status === 'accepted'"
+                class="flex items-center rounded-md px-2 py-0.5 text-xs font-semibold backdrop-blur-sm bg-green-500/90 text-white"
+              >
+                {{ t('requests.accepted') }}
               </span>
               <span
                 v-else

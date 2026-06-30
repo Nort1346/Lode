@@ -180,7 +180,7 @@ async function confirmAction() {
                     v-if="req.mediaPoster"
                     :src="req.mediaPoster"
                     :alt="req.mediaTitle"
-                    class="w-8 h-12 rounded object-cover flex-shrink-0"
+                    class="w-8 h-12 rounded object-cover shrink-0"
                   />
                   <span class="text-sm text-zinc-700 dark:text-zinc-300 line-clamp-1">{{ req.mediaTitle }}</span>
                 </div>
