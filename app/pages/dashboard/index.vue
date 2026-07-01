@@ -132,6 +132,14 @@ const savePathLabels: Record<string, string> = {
   music: '🎵 Music',
   books: '📚 Books'
 }
+
+const { root: statsRef, revealed: statsRevealed } = useReveal()
+const { root: downloadsRef, revealed: downloadsRevealed } = useReveal()
+const { root: heroRef, revealed: heroRevealed } = useReveal()
+const { root: c1Ref, revealed: c1Revealed } = useReveal()
+const { root: c2Ref, revealed: c2Revealed } = useReveal()
+const { root: c3Ref, revealed: c3Revealed } = useReveal()
+const { root: reqRef, revealed: reqRevealed } = useReveal()
 </script>
 
 <template>
@@ -146,8 +154,8 @@ const savePathLabels: Record<string, string> = {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-      <div class="card p-5">
+    <div ref="statsRef" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 reveal" :class="{ revealed: statsRevealed }">
+      <div class="card p-5 reveal-delay-1">
         <div class="flex items-center gap-4">
           <div
             class="w-11 h-11 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center shrink-0"
@@ -166,7 +174,7 @@ const savePathLabels: Record<string, string> = {
         </div>
       </div>
 
-      <div class="card p-5">
+      <div class="card p-5 reveal-delay-2">
         <div class="flex items-center gap-4">
           <div
             class="w-11 h-11 rounded-xl bg-cyan-500/10 dark:bg-cyan-500/15 flex items-center justify-center shrink-0"
@@ -185,7 +193,7 @@ const savePathLabels: Record<string, string> = {
         </div>
       </div>
 
-      <div class="card p-5">
+      <div class="card p-5 reveal-delay-3">
         <div class="flex items-center gap-4">
           <div
             class="w-11 h-11 rounded-xl bg-green-500/10 dark:bg-green-500/15 flex items-center justify-center shrink-0"
@@ -203,7 +211,7 @@ const savePathLabels: Record<string, string> = {
       </div>
     </div>
 
-    <div class="card p-5 md:p-6 mb-8">
+    <div ref="downloadsRef" class="card p-5 md:p-6 mb-8 reveal" :class="{ revealed: downloadsRevealed }">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('dashboard.activeTorrents') }}</h2>
         <UButton to="/browse" icon="i-lucide-search" :label="t('dashboard.browse')" size="sm" />
@@ -316,12 +324,22 @@ const savePathLabels: Record<string, string> = {
       </div>
     </div>
 
-    <HeroSection :trending-items="trendingItems" />
+    <div ref="heroRef" class="reveal" :class="{ revealed: heroRevealed }">
+      <HeroSection :trending-items="trendingItems" />
+    </div>
 
-    <RequestCarousel />
+    <div ref="reqRef" class="reveal" :class="{ revealed: reqRevealed }">
+      <RequestCarousel />
+    </div>
 
-    <MediaCarousel :title="t('dashboard.trendingNow')" :items="trendingItems" @item-click="goToItem" />
-    <MediaCarousel :title="t('browse.popularMovies')" :items="popularMovies" @item-click="goToItem" />
-    <MediaCarousel :title="t('browse.popularTv')" :items="popularTvShows" @item-click="goToItem" />
+    <div ref="c1Ref" class="reveal" :class="{ revealed: c1Revealed }">
+      <MediaCarousel :title="t('dashboard.trendingNow')" :items="trendingItems" @item-click="goToItem" />
+    </div>
+    <div ref="c2Ref" class="reveal" :class="{ revealed: c2Revealed }">
+      <MediaCarousel :title="t('browse.popularMovies')" :items="popularMovies" @item-click="goToItem" />
+    </div>
+    <div ref="c3Ref" class="reveal" :class="{ revealed: c3Revealed }">
+      <MediaCarousel :title="t('browse.popularTv')" :items="popularTvShows" @item-click="goToItem" />
+    </div>
   </div>
 </template>

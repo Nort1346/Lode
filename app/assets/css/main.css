@@ -122,6 +122,57 @@
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* Entrance animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  opacity: 0;
+}
+
+.reveal.revealed {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+.reveal-down {
+  opacity: 0;
+}
+
+.reveal-down.revealed {
+  animation: fade-in-down 0.4s ease-out forwards;
+}
+
+.reveal-delay-1.revealed {
+  animation-delay: 0.1s;
+}
+
+.reveal-delay-2.revealed {
+  animation-delay: 0.2s;
+}
+
+.reveal-delay-3.revealed {
+  animation-delay: 0.3s;
+}
+
 /* Notification animations */
 @keyframes bell-shake {
   0%,

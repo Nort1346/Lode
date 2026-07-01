@@ -89,7 +89,7 @@ onUnmounted(() => {
 <template>
   <div
     v-if="heroCurrent"
-    class="relative mb-8 overflow-hidden rounded-2xl h-[380px] sm:h-[480px] md:h-[560px] lg:h-[640px] xl:h-[720px]"
+    class="relative mb-8 overflow-hidden rounded-2xl h-[380px] sm:h-[480px] md:h-[560px] lg:h-[640px] xl:h-[720px] hero-entrance"
   >
     <!-- Current image -->
     <img
@@ -158,6 +158,21 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.hero-entrance {
+  animation: hero-fade-in 0.6s ease-out;
+}
+
+@keyframes hero-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .hero-zoom-current {
   animation: hero-zoom-slow 8s linear forwards;
   transform-origin: center center;
