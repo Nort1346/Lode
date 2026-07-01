@@ -118,7 +118,7 @@ watch(
 
     <!-- Mobile sidebar -->
     <div class="mobile-sidebar sidebar md:hidden" :class="{ open: mobileOpen }">
-      <div class="p-4">
+      <div class="p-4 flex flex-col h-full">
         <div class="flex items-center justify-between mb-6">
           <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">StreamHub</NuxtLink>
           <button
@@ -129,7 +129,7 @@ watch(
           </button>
         </div>
 
-        <nav class="space-y-1">
+        <nav class="flex-1 space-y-1">
           <NuxtLink
             v-for="item in navigation"
             :key="item.to"
@@ -146,7 +146,7 @@ watch(
           </NuxtLink>
         </nav>
 
-        <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-3">
+        <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-3 mt-auto pb-6">
           <div class="flex items-center gap-3 px-3 mb-2">
             <UAvatar :src="me?.avatarUrl ?? undefined" :alt="user?.username" size="sm" />
             <div class="flex-1 min-w-0">
@@ -158,7 +158,7 @@ watch(
               </p>
             </div>
           </div>
-          <div class="flex items-center gap-3 px-3 my-5">
+          <div class="flex items-center gap-3 px-3 my-6">
             <USelect
               :model-value="locale"
               :items="localeOptions"
@@ -180,7 +180,7 @@ watch(
     </div>
 
     <!-- Desktop sidebar -->
-    <aside class="hidden md:flex sidebar w-64 p-4 flex-col fixed h-full z-20">
+    <aside class="hidden md:flex sidebar w-64 p-4 flex-col fixed h-full z-20 overflow-y-auto min-h-0">
       <div class="mb-6 px-2">
         <NuxtLink to="/dashboard" class="text-xl font-bold text-gradient">StreamHub</NuxtLink>
       </div>
@@ -202,7 +202,7 @@ watch(
         </NuxtLink>
       </nav>
 
-      <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-4">
+      <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-4 mb-4">
         <NotificationDropdown :sidebar="true" />
 
         <button
