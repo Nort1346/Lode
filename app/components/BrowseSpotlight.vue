@@ -30,7 +30,7 @@ watch(
 
 <template>
   <div
-    class="relative my-6 overflow-hidden rounded-2xl cursor-pointer group h-[260px] sm:h-[320px] md:h-[380px]"
+    class="relative my-6 overflow-hidden rounded-2xl cursor-pointer group h-65 sm:h-80 md:h-95"
     @click="goToItem(item)"
   >
     <img
@@ -40,8 +40,8 @@ watch(
       class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
     />
 
-    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-    <div class="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
+    <div class="absolute inset-0 bg-linear-to-t from-black/90 via-black/30 to-transparent" />
+    <div class="absolute inset-0 bg-linear-to-r from-black/50 to-transparent" />
 
     <div class="absolute inset-0 flex items-end p-6 sm:p-8">
       <div class="max-w-xl">

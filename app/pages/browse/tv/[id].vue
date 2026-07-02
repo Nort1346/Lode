@@ -49,12 +49,12 @@
       }"
     >
       <div
-        class="h-full w-full bg-linear-to-b from-white/70 via-white/40 to-[var(--ui-bg)] dark:from-black/95 dark:via-black/70"
+        class="h-full w-full bg-linear-to-b from-white/70 via-white/40 to-default dark:from-black/95 dark:via-black/70"
       />
     </div>
 
     <div class="relative z-10 flex flex-col gap-8 lg:flex-row">
-      <div class="flex-shrink-0">
+      <div class="shrink-0">
         <img
           v-if="show.posterUrl"
           :src="show.posterUrl"
@@ -316,7 +316,7 @@
             class="rounded-xl border border-zinc-200 bg-white/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50"
           >
             <div class="flex gap-4">
-              <div v-if="ep.stillUrl" class="hidden w-32 flex-shrink-0 sm:block">
+              <div v-if="ep.stillUrl" class="hidden w-32 shrink-0 sm:block">
                 <img :src="ep.stillUrl" :alt="ep.name" class="w-full rounded-lg object-cover" loading="lazy" />
               </div>
               <div class="flex-1">

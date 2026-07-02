@@ -80,7 +80,7 @@ function goToRequest(req: Request) {
               if (el) cardRefs[idx] = el as HTMLElement
             }
           "
-          class="flex-shrink-0 w-44 cursor-pointer group"
+          class="shrink-0 w-44 cursor-pointer group"
           style="
             transform-style: preserve-3d;
             will-change: transform;
@@ -94,7 +94,7 @@ function goToRequest(req: Request) {
           @click="goToRequest(req)"
         >
           <div
-            class="relative rounded-xl overflow-hidden aspect-[2/3] bg-zinc-200 dark:bg-white/5 shadow-md"
+            class="relative rounded-xl overflow-hidden aspect-2/3 bg-zinc-200 dark:bg-white/5 shadow-md"
             :class="
               req.status === 'rejected'
                 ? 'ring-2 ring-red-500/40'

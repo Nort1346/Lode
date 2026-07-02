@@ -146,7 +146,7 @@ watch(
           </NuxtLink>
         </nav>
 
-        <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-3 mt-auto pb-6">
+        <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-3 pb-6">
           <div class="flex items-center gap-3 px-3 mb-2">
             <UAvatar :src="me?.avatarUrl ?? undefined" :alt="user?.username" size="sm" />
             <div class="flex-1 min-w-0">

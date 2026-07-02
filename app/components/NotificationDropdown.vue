@@ -211,7 +211,7 @@ function getPosterUrl(n: (typeof notifications.value)[number]): string | null {
               class="px-5 py-4 border-b border-zinc-100 dark:border-white/5 bg-amber-50 dark:bg-amber-500/5"
             >
               <div class="flex items-center gap-3">
-                <UIcon name="i-lucide-bell-off" class="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <UIcon name="i-lucide-bell-off" class="w-5 h-5 text-amber-500 shrink-0" />
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-zinc-900 dark:text-white">{{ t('notifications.enableHint') }}</p>
                 </div>
@@ -241,7 +241,7 @@ function getPosterUrl(n: (typeof notifications.value)[number]): string | null {
                     :class="
                       section.showDot
                         ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/5'
-                        : 'text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-white/[0.02]'
+                        : 'text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-white/2'
                     "
                   >
                     {{ section.label }} ({{ section.items.length }})
@@ -253,7 +253,7 @@ function getPosterUrl(n: (typeof notifications.value)[number]): string | null {
                     :class="{ 'notif-enter': section.animEnter, 'opacity-60': !section.showDot }"
                     @click="handleClick(n)"
                   >
-                    <div class="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-100 dark:bg-white/5">
+                    <div class="w-10 h-14 rounded-lg overflow-hidden shrink-0 bg-zinc-100 dark:bg-white/5">
                       <img
                         v-if="getPosterUrl(n) !== null"
                         :src="getPosterUrl(n)"
@@ -280,7 +280,7 @@ function getPosterUrl(n: (typeof notifications.value)[number]): string | null {
                         </span>
                       </div>
                     </div>
-                    <div v-if="section.showDot" class="w-2 h-2 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
+                    <div v-if="section.showDot" class="w-2 h-2 rounded-full bg-amber-500 mt-2 shrink-0" />
                   </button>
                 </template>
               </template>

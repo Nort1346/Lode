@@ -33,6 +33,6 @@ onMounted(() => {
 <template>
   <div ref="root">
     <slot v-if="visible" />
-    <div v-else class="mb-10 h-[280px]" />
+    <div v-else class="mb-10 h-70" />
   </div>
 </template>

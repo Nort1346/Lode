@@ -89,7 +89,7 @@ onUnmounted(() => {
 <template>
   <div
     v-if="heroCurrent"
-    class="relative mb-8 overflow-hidden rounded-2xl h-[380px] sm:h-[480px] md:h-[560px] lg:h-[640px] xl:h-[720px] hero-entrance"
+    class="relative mb-8 overflow-hidden rounded-2xl h-95 sm:h-120 md:h-140 lg:h-160 xl:h-180 hero-entrance"
   >
     <!-- Current image -->
     <img
@@ -107,8 +107,8 @@ onUnmounted(() => {
       :alt="heroNext.title"
       class="absolute inset-0 w-full h-full object-cover hero-zoom-next"
     />
-    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-    <div class="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+    <div class="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
+    <div class="absolute inset-0 bg-linear-to-r from-black/60 to-transparent" />
 
     <div
       class="absolute inset-0 flex items-end p-6 sm:p-8 md:p-10 hero-text"
