@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import bcrypt from 'bcrypt'
+import { compare } from '@node-rs/bcrypt'
 import { sessions, users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { syncUserDisable } from '#server/utils/sync'
@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Account is deactivated' })
   }
 
-  const valid = await bcrypt.compare(password, user.password)
+  const valid = await compare(password, user.password)
   if (!valid) {
     logActivity(event, { action: 'login_failed', userId: user.id, username: user.username, details: 'Wrong password' })
     await recordLoginAttempt(event, { username: user.username, success: false })

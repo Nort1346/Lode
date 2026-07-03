@@ -10,15 +10,11 @@ ENV PNPM_HOME="/pnpm" \
 
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
-# ── Deps (prod, z native addons) ─────────────────────────────
+# ── Deps (prod) ───────────────────────────────────────────────
 FROM base AS deps
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ libsqlite3-dev libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod
@@ -27,12 +23,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM base AS build
 WORKDIR /app
 
-# build-tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ libsqlite3-dev libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile
@@ -47,7 +38,7 @@ RUN NODE_ENV=production pnpm run build \
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libsqlite3-0 libssl3 ca-certificates gosu \
+    libssl3 ca-certificates gosu \
     && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --system --gid 1001 nodejs \
@@ -58,7 +49,7 @@ WORKDIR /app
 # .output 
 COPY --from=build  --chown=appuser:nodejs /app/.output                          ./.output
 
-# native addons (.node binaries)
+# node_modules (prebuilt binaries for better-sqlite3, sharp, @node-rs/bcrypt)
 COPY --from=deps   --chown=appuser:nodejs /app/node_modules                     ./node_modules
 
 # migrations and scripts

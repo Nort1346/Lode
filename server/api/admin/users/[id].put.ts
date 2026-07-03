@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt'
+import { hash } from '@node-rs/bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import {
@@ -59,7 +59,7 @@ export default defineEventHandler(async (event) => {
   let plainPassword: string | null = null
   if (body.password !== undefined && body.password.trim()) {
     plainPassword = body.password.trim()
-    updates.password = await bcrypt.hash(plainPassword, 12)
+    updates.password = await hash(plainPassword, 12)
     changedFields.push('password')
   }
 

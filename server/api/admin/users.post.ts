@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt'
+import { hash } from '@node-rs/bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
@@ -63,7 +63,7 @@ export default defineEventHandler(async (event) => {
     maxActiveSessions: body.jellyfinMaxActiveSessions
   })
 
-  const hashedPassword = await bcrypt.hash(password, 12)
+  const hashedPassword = await hash(password, 12)
 
   db.insert(users)
     .values({

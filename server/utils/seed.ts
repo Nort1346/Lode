@@ -1,6 +1,6 @@
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
-import bcrypt from 'bcrypt'
+import { hash } from '@node-rs/bcrypt'
 import { randomUUID } from 'node:crypto'
 import { createLogger } from '#server/utils/logger'
 
@@ -12,7 +12,7 @@ export async function ensureAdminExists() {
 
   if (!admin) {
     const id = randomUUID()
-    const password = await bcrypt.hash('admin', 12)
+    const password = await hash('admin', 12)
 
     db.insert(users)
       .values({

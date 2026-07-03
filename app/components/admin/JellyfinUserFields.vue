@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { JellyfinLibrary } from '~/types/admin'
-import type { JellyfinUserFieldsProps } from '~/types/sync'
+import type { JellyfinUserFieldsProps } from '../../types/sync'
 
 const props = withDefaults(defineProps<JellyfinUserFieldsProps>(), {
   editing: false,

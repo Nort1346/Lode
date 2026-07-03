@@ -1,12 +1,13 @@
 allowBuilds:
-  '@parcel/watcher': false
-  '@tailwindcss/oxide': false
+  '@parcel/watcher': true
+  '@tailwindcss/oxide': true
+  '@node-rs/bcrypt': true
   bcrypt: true
   better-sqlite3: true
-  esbuild: false
+  esbuild: true
   sharp: true
-  unrs-resolver: false
-  vue-demi: false
+  unrs-resolver: true
+  vue-demi: true
 
 overrides:
   drizzle-orm: ^0.45.2
