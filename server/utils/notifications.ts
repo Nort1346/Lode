@@ -27,7 +27,7 @@ function getNotificationLocale(): DiscordLocale {
   if (locale !== undefined && (DISCORD_LOCALE_OPTIONS as readonly string[]).includes(locale)) {
     return locale as DiscordLocale
   }
-  return 'pl'
+  return 'en'
 }
 
 export async function createNotification(

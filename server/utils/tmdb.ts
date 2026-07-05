@@ -13,16 +13,19 @@ const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
 
 const LOCALE_MAP: Record<string, string> = {
   pl: 'pl-PL',
-  en: 'en-US'
+  en: 'en-US',
+  de: 'de-DE',
+  fr: 'fr-FR',
+  es: 'es-ES'
 }
 
 export function resolveTmdbLanguage(locale: string): string {
-  return LOCALE_MAP[locale] ?? 'pl-PL'
+  return LOCALE_MAP[locale] ?? 'en-US'
 }
 
 function resolveTmdbLogoLanguage(locale: string): string {
   const code = resolveTmdbLanguage(locale).split('-')
-  return code[0] ?? 'pl'
+  return code[0] ?? 'en'
 }
 
 function getApiKey(): string {
@@ -40,7 +43,7 @@ export function getImageUrl(
   return `${TMDB_IMAGE_BASE}/${size}${path}`
 }
 
-export async function searchMovies(query: string, page = 1, locale = 'pl'): Promise<TmdbSearchResult<TmdbMovie>> {
+export async function searchMovies(query: string, page = 1, locale = 'en'): Promise<TmdbSearchResult<TmdbMovie>> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:search:movie:${query}:${page}:${lang}`
   const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
@@ -133,7 +136,7 @@ export async function getLogosForItems(
   return logoMap
 }
 
-export async function searchTvShows(query: string, page = 1, locale = 'pl'): Promise<TmdbSearchResult<TmdbTvShow>> {
+export async function searchTvShows(query: string, page = 1, locale = 'en'): Promise<TmdbSearchResult<TmdbTvShow>> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:search:tv:${query}:${page}:${lang}`
   const cached = await cacheGet<TmdbSearchResult<TmdbTvShow>>(cacheKey)
@@ -153,7 +156,7 @@ export async function searchTvShows(query: string, page = 1, locale = 'pl'): Pro
   return result
 }
 
-export async function getMovieDetails(id: number, locale = 'pl'): Promise<TmdbMovie> {
+export async function getMovieDetails(id: number, locale = 'en'): Promise<TmdbMovie> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:movie:${id}:${lang}`
   const cached = await cacheGet<TmdbMovie>(cacheKey)
@@ -177,7 +180,7 @@ export async function getMovieDetails(id: number, locale = 'pl'): Promise<TmdbMo
   return result
 }
 
-export async function getTvShowDetails(id: number, locale = 'pl'): Promise<TmdbTvShow> {
+export async function getTvShowDetails(id: number, locale = 'en'): Promise<TmdbTvShow> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:tv:${id}:${lang}`
   const cached = await cacheGet<TmdbTvShow>(cacheKey)
@@ -196,7 +199,7 @@ export async function getTvShowDetails(id: number, locale = 'pl'): Promise<TmdbT
   return data
 }
 
-export async function getSeasonDetails(showId: number, seasonNumber: number, locale = 'pl'): Promise<TmdbSeason> {
+export async function getSeasonDetails(showId: number, seasonNumber: number, locale = 'en'): Promise<TmdbSeason> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:tv:${showId}:season:${seasonNumber}:${lang}`
   const cached = await cacheGet<TmdbSeason>(cacheKey)
@@ -214,7 +217,7 @@ export async function getSeasonDetails(showId: number, seasonNumber: number, loc
   return data
 }
 
-export async function getPopularMovies(locale = 'pl', page = 1): Promise<TmdbSearchResult<TmdbMovie>> {
+export async function getPopularMovies(locale = 'en', page = 1): Promise<TmdbSearchResult<TmdbMovie>> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:popular:movie:${lang}:${page}`
   const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
@@ -233,7 +236,7 @@ export async function getPopularMovies(locale = 'pl', page = 1): Promise<TmdbSea
   return result
 }
 
-export async function getPopularTvShows(locale = 'pl', page = 1): Promise<TmdbSearchResult<TmdbTvShow>> {
+export async function getPopularTvShows(locale = 'en', page = 1): Promise<TmdbSearchResult<TmdbTvShow>> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:popular:tv:${lang}:${page}`
   const cached = await cacheGet<TmdbSearchResult<TmdbTvShow>>(cacheKey)
@@ -252,7 +255,7 @@ export async function getPopularTvShows(locale = 'pl', page = 1): Promise<TmdbSe
   return result
 }
 
-export async function getTrending(locale = 'pl'): Promise<TmdbTrendingItem[]> {
+export async function getTrending(locale = 'en'): Promise<TmdbTrendingItem[]> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:trending:all:week:${locale}`
   const cached = await cacheGet<TmdbTrendingItem[]>(cacheKey)
@@ -270,7 +273,7 @@ export async function getTrending(locale = 'pl'): Promise<TmdbTrendingItem[]> {
   return data.results
 }
 
-export async function getTopRatedMovies(locale = 'pl', page = 1): Promise<TmdbSearchResult<TmdbMovie>> {
+export async function getTopRatedMovies(locale = 'en', page = 1): Promise<TmdbSearchResult<TmdbMovie>> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:top_rated:movie:${lang}:${page}`
   const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
@@ -289,7 +292,7 @@ export async function getTopRatedMovies(locale = 'pl', page = 1): Promise<TmdbSe
   return result
 }
 
-export async function getMoviesByGenre(genreId: number, locale = 'pl', page = 1): Promise<TmdbSearchResult<TmdbMovie>> {
+export async function getMoviesByGenre(genreId: number, locale = 'en', page = 1): Promise<TmdbSearchResult<TmdbMovie>> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:genre:movie:${genreId}:${lang}:${page}`
   const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
@@ -311,7 +314,7 @@ export async function getMoviesByGenre(genreId: number, locale = 'pl', page = 1)
   return result
 }
 
-export async function getTvByGenre(genreId: number, locale = 'pl', page = 1): Promise<TmdbSearchResult<TmdbTvShow>> {
+export async function getTvByGenre(genreId: number, locale = 'en', page = 1): Promise<TmdbSearchResult<TmdbTvShow>> {
   const lang = resolveTmdbLanguage(locale)
   const cacheKey = `tmdb:genre:tv:${genreId}:${lang}:${page}`
   const cached = await cacheGet<TmdbSearchResult<TmdbTvShow>>(cacheKey)

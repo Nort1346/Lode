@@ -9,9 +9,12 @@ export default defineNuxtConfig({
   i18n: {
     locales: [
       { code: 'pl', name: 'Polski', file: 'pl.json' },
-      { code: 'en', name: 'English', file: 'en.json' }
+      { code: 'en', name: 'English', file: 'en.json' },
+      { code: 'de', name: 'Deutsch', file: 'de.json' },
+      { code: 'fr', name: 'Français', file: 'fr.json' },
+      { code: 'es', name: 'Español', file: 'es.json' }
     ],
-    defaultLocale: 'pl',
+    defaultLocale: 'en',
     strategy: 'no_prefix',
     detectBrowserLanguage: {
       useCookie: true,

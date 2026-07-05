@@ -7,5 +7,5 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
   const row = db.select().from(settings).where(eq(settings.key, 'discord_locale')).get()
 
-  return { locale: row?.value ?? 'pl' }
+  return { locale: row?.value ?? 'en' }
 })

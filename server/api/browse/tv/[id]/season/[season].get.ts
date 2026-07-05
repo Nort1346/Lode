@@ -82,7 +82,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid show/season ID' })
   }
 
-  const locale = (getQuery(event).locale as string | undefined) ?? 'pl'
+  const locale = (getQuery(event).locale as string | undefined) ?? 'en'
 
   const limit = checkDailyLimit(session.user.id)
   if (limit.reached) {

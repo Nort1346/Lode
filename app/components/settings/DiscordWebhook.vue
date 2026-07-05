@@ -2,13 +2,16 @@
 const { t } = useI18n()
 const toast = useToast()
 
-const discordLocale = ref('pl')
+const discordLocale = ref('en')
 const discordMentionsEnabled = ref(false)
 const loading = ref(true)
 
 const LOCALE_NAMES: Record<string, string> = {
   pl: 'Polski',
-  en: 'English'
+  en: 'English',
+  de: 'Deutsch',
+  fr: 'Français',
+  es: 'Español'
 }
 
 const localeOptions = computed(() => Object.entries(LOCALE_NAMES).map(([value, label]) => ({ label, value })))
@@ -30,8 +33,8 @@ async function fetchData() {
 }
 
 async function changeDiscordLocale(newLocale: string) {
-  const validLocales = ['pl', 'en']
-  const valid = validLocales.includes(newLocale) ? newLocale : 'pl'
+  const validLocales = ['pl', 'en', 'de', 'fr', 'es']
+  const valid = validLocales.includes(newLocale) ? newLocale : 'en'
   discordLocale.value = valid
   await $fetch('/api/admin/discord-locale', { method: 'PUT', body: { locale: valid } })
   toast.add({ title: t('settings.discordLocaleSaved'), color: 'success' })

@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
-  const locale = typeof query.locale === 'string' ? query.locale : 'pl'
+  const locale = typeof query.locale === 'string' ? query.locale : 'en'
   const genreId = Number(query.genreId)
   const mediaType = query.mediaType === 'tv' ? 'tv' : 'movie'
 

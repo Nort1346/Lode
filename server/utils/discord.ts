@@ -34,7 +34,7 @@ export function getDiscordLocale(): DiscordLocale {
   if (val !== undefined && val !== null && DISCORD_LOCALE_OPTIONS.includes(val as DiscordLocale)) {
     return val as DiscordLocale
   }
-  return 'pl'
+  return 'en'
 }
 
 export async function fetchTmdbMeta(tmdbId: number, mediaType: string): Promise<TmdbMeta | null> {
@@ -117,6 +117,11 @@ function parseTorrentName(name: string): TorrentMeta {
   else if (/\b(lektor|pl)\b/.test(lower)) language = 'PL'
   else if (/\b(dual[\s.]?audio|dual[\s.]?audio)\b/.test(lower)) language = 'Dual'
   else if (/\b(eng|english)\b/.test(lower)) language = 'EN'
+  else if (/\b(hun|hungarian)\b/.test(lower)) language = 'HU'
+  else if (/\b(french)\b/.test(lower)) language = 'FR'
+  else if (/\b(german)\b/.test(lower)) language = 'DE'
+  else if (/\b(italian)\b/.test(lower)) language = 'IT'
+  else if (/\b(spanish)\b/.test(lower)) language = 'ES'
 
   let codec: string | null = null
   if (/\bx264|h\.?264|avc\b/.test(lower)) codec = 'x264'

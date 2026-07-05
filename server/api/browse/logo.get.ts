@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const mediaType = query.mediaType as string
   const id = Number(query.id)
-  const locale = (query.locale as string) ?? 'pl'
+  const locale = (query.locale as string) ?? 'en'
 
   if (!mediaType || !['movie', 'tv'].includes(mediaType) || isNaN(id)) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid params' })

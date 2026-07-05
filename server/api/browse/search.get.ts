@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   const q = typeof query.q === 'string' ? query.q.trim() : ''
   const type = typeof query.type === 'string' ? query.type : 'all'
   const page = typeof query.page === 'string' ? Number(query.page) : 1
-  const locale = typeof query.locale === 'string' ? query.locale : 'pl'
+  const locale = typeof query.locale === 'string' ? query.locale : 'en'
   const movieGenreParam = typeof query.movieGenre === 'string' ? query.movieGenre : ''
   const tvGenreParam = typeof query.tvGenre === 'string' ? query.tvGenre : ''
   const movieGenreIds = movieGenreParam

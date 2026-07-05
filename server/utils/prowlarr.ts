@@ -211,7 +211,7 @@ export class ProwlarrClient {
     return results
   }
 
-  async searchByQuery(query: string, locale = 'pl', categories?: number[]): Promise<ProwlarrResult[]> {
+  async searchByQuery(query: string, locale = 'en', categories?: number[]): Promise<ProwlarrResult[]> {
     const catsKey = categories?.join(',') ?? 'all'
     const cacheKey = `prowlarr:query:${query}:${locale}:${catsKey}`
     const cached = await cacheGet<ProwlarrResult[]>(cacheKey)
@@ -246,7 +246,7 @@ export class ProwlarrClient {
     year: string,
     imdbId: string | null,
     seasonNumber: number | null,
-    locale = 'pl',
+    locale = 'en',
     categories?: number[]
   ): Promise<ProwlarrResult[]> {
     const seasonPad = seasonNumber !== null ? String(seasonNumber).padStart(2, '0') : null

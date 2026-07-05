@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid TV show ID' })
   }
 
-  const locale = (getQuery(event).locale as string | undefined) ?? 'pl'
+  const locale = (getQuery(event).locale as string | undefined) ?? 'en'
 
   let show
   try {

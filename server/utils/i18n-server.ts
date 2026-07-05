@@ -2,10 +2,13 @@ import type { Messages } from '#server/types/i18n'
 
 import pl from '@@/i18n/locales/pl.json'
 import en from '@@/i18n/locales/en.json'
+import de from '@@/i18n/locales/de.json'
+import fr from '@@/i18n/locales/fr.json'
+import es from '@@/i18n/locales/es.json'
 
-const messages: Record<string, Messages> = { pl, en }
+const messages: Record<string, Messages> = { pl, en, de, fr, es }
 
-export const DISCORD_LOCALE_OPTIONS = ['pl', 'en'] as const
+export const DISCORD_LOCALE_OPTIONS = ['pl', 'en', 'de', 'fr', 'es'] as const
 
 export type DiscordLocale = (typeof DISCORD_LOCALE_OPTIONS)[number]
 

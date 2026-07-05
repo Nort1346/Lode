@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
-  const locale = (query.locale as string) ?? 'pl'
+  const locale = (query.locale as string) ?? 'en'
 
   type TrendingItem = {
     id: number

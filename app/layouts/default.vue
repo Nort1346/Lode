@@ -164,7 +164,7 @@ watch(
               :items="localeOptions"
               size="md"
               class="flex-1"
-              @update:model-value="setLocale($event as 'pl' | 'en')"
+              @update:model-value="setLocale($event as 'pl' | 'en' | 'de' | 'fr' | 'es')"
             />
           </div>
           <UButton
@@ -230,7 +230,7 @@ watch(
             :items="localeOptions"
             size="md"
             class="flex-1"
-            @update:model-value="setLocale($event as 'pl' | 'en')"
+            @update:model-value="setLocale($event as 'pl' | 'en' | 'de' | 'fr' | 'es')"
           />
         </div>
         <UButton
