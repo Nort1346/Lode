@@ -45,7 +45,7 @@ services:
       - '3000:3000'
     volumes:
       - ./data:/app/.data
-      - streamhub-avatars:/app/public/avatars
+      - streamhub-avatars:/app/.output/public/avatars
       - /mnt/storage/streaming:/mnt/storage/streaming:ro
       - /:/host-root:ro
     env_file:

@@ -7,8 +7,8 @@ mkdir -p /app/.data
 chown -R appuser:nodejs /app/.data
 
 # Ensure avatars directory exists and is owned by appuser
-mkdir -p /app/public/avatars
-chown -R appuser:nodejs /app/public/avatars
+mkdir -p /app/.output/public/avatars
+chown -R appuser:nodejs /app/.output/public/avatars
 
 # Run database migrations before starting the app
 echo "[entrypoint] Running database migrations..."

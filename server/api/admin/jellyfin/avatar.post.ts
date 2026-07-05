@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
 
   const processedImage = await validateAndProcessAvatar(imageField.data, imageField.type)
 
-  const avatarsDir = resolve(process.cwd(), 'public', 'avatars')
+  const avatarsDir = resolve(process.cwd(), '.output', 'public', 'avatars')
   if (!existsSync(avatarsDir)) {
     mkdirSync(avatarsDir, { recursive: true })
   }

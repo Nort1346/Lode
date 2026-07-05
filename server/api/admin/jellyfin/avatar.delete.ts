@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
 
-  const avatarPath = resolve(process.cwd(), 'public', 'avatars', `${body.userId}.jpg`)
+  const avatarPath = resolve(process.cwd(), '.output', 'public', 'avatars', `${body.userId}.jpg`)
   try {
     unlinkSync(avatarPath)
   } catch {
