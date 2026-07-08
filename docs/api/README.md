@@ -89,7 +89,7 @@ data: {"type":"notification","notification":{...}}
 
 All endpoints are relative to the application root:
 ```
-http://localhost:3000/api/...
+http://localhost:5757/api/...
 ```
 
 In production, use your domain:

@@ -43,7 +43,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 pnpm dev
 ```
 
-Open `http://localhost:3000`. Default admin credentials: `admin` / `admin`.
+Open `http://localhost:5757`. Default admin credentials: `admin` / `admin`.
 
 > Change the admin password immediately in production.
 

@@ -3,7 +3,7 @@
 ## Build / Lint / Test Commands
 
 ```bash
-pnpm dev              # Dev server (runs migrations first, then starts on port 3000)
+pnpm dev              # Dev server (runs migrations first, then starts on port 5757)
 pnpm build            # Production build
 pnpm preview          # Preview production build
 pnpm lint             # ESLint check (strict TypeScript)

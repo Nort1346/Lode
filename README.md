@@ -35,7 +35,7 @@ git clone <your-repo-url>
 cd requesting-site
 pnpm install
 cp .env.example .env    # then edit with your settings
-pnpm dev                # opens at http://localhost:3000
+pnpm dev                # opens at http://localhost:5757
 ```
 
 Default admin: `admin` / `admin` — change immediately in production.
@@ -50,10 +50,12 @@ docker compose logs -f       # view logs
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| `streamhub` | 3000 | Application |
+| `streamhub` | 5757 | Application |
+| `qbittorrent` | 8080 | Torrent client |
+| `qui` | 7476 | qBittorrent proxy |
+| `prowlarr` | 9696 | Indexer manager |
+| `jellyfin` | 8096 | Media server |
 | `redis` | 6379 | Caching (optional) |
-| `flaresolverr` | 8191 | Cloudflare bypass (optional) |
-| `postgres` | 5432 | Database (when `DB_DRIVER=postgres`) |
 | `dozzle` | 8082 | Live log viewer |
 
 ## Tech Stack

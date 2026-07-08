@@ -51,7 +51,7 @@ services:
     build: .
     container_name: streamhub
     ports:
-      - '3000:3000'
+      - '5757:5757'
     volumes:
       - ./data:/app/.data
       - streamhub-avatars:/app/.output/public/avatars

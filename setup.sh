@@ -426,7 +426,7 @@ SUMMARY=$(cat << EOF
   ┌─────────────────┬──────────────────────────┐
   │ Service         │ URL                      │
   ├─────────────────┼──────────────────────────┤
-  │ StreamHub       │ http://localhost:3000    │
+  │ StreamHub       │ http://localhost:5757    │
   │ qBittorrent     │ http://localhost:8080    │
   │ qui             │ http://localhost:7476    │
   │ Prowlarr        │ http://localhost:9696    │
@@ -442,7 +442,7 @@ SUMMARY=$(cat << EOF
   Prowlarr API Key: ${PROWLARR_API_KEY}
 
   Next steps:
-    1. Open http://localhost:3000 and create your StreamHub account
+    1. Open http://localhost:5757 and create your StreamHub account
     2. Change default passwords in each service
     3. Add qBittorrent in qui (Settings > Clients)
     4. Configure media libraries in Jellyfin

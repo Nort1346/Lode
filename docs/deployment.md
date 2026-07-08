@@ -14,9 +14,12 @@ docker compose logs -f  # view logs
 
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
-| `streamhub` | Built from Dockerfile | 3000 | Main application |
+| `streamhub` | Built from Dockerfile | 5757 | Main application |
 | `redis` | `redis:7-alpine` | 6379 | Caching (optional) |
-| `flaresolverr` | `ghcr.io/flaresolverr/flaresolverr` | 8191 | Cloudflare bypass |
+| `qbittorrent` | `linuxserver/qbittorrent` | 8080 | Torrent client |
+| `qui` | `ghcr.io/autobrr/qui` | 7476 | qBittorrent proxy |
+| `prowlarr` | `linuxserver/prowlarr` | 9696 | Indexer manager |
+| `jellyfin` | `jellyfin/jellyfin` | 8096 | Media server |
 | `postgres` | `postgres:16-alpine` | 5432 | Database (optional) |
 | `dozzle` | `amir20/dozzle:latest` | 8082 | Log viewer |
 
@@ -60,6 +63,8 @@ docker compose logs -f  # view logs
 set -e
 mkdir -p /app/.data
 chown -R appuser:nodejs /app/.data
+mkdir -p /app/.output/public/avatars
+chown -R appuser:nodejs /app/.output/public/avatars
 gosu appuser node scripts/migrate.mjs
 exec gosu appuser "$@"
 ```
