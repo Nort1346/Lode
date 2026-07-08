@@ -81,4 +81,4 @@ Full documentation lives in [`docs/`](./docs/):
 
 ## License
 
-[AGPL-3.0](LICENSE) — Copyright (C) 2025 Nort
+[AGPL-3.0](LICENSE) — Copyright (C) 2026 Nort

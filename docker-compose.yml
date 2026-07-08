@@ -9,34 +9,43 @@ services:
       - redis-data:/data
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
 
-  flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
-    container_name: streamhub-flaresolverr
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: streamhub-qbittorrent
     restart: unless-stopped
     ports:
-      - '8191:8191'
-    environment:
-      - LOG_LEVEL=info
-      - BROWSER_TIMEOUT=60000
-
-  # ── PostgreSQL (only used when DB_DRIVER=postgres) ────────
-  postgres:
-    image: postgres:16-alpine
-    container_name: streamhub-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: streamhub
-      POSTGRES_USER: streamhub
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      - '8080:8080'
+      - '6881:6881'
+      - '6881:6881/udp'
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - qbittorrent-config:/config
+      - /mnt/storage/streaming:/downloads
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Warsaw
+      - WEBUI_PORT=8080
+
+  qui:
+    image: ghcr.io/autobrr/qui:latest
+    container_name: streamhub-qui
+    restart: unless-stopped
     ports:
-      - '5432:5432'
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U streamhub']
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      - '7476:7476'
+    volumes:
+      - qui-config:/config
+    depends_on:
+      qbittorrent:
+        condition: service_started
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: streamhub-prowlarr
+    restart: unless-stopped
+    ports:
+      - '9696:9696'
+    volumes:
+      - prowlarr-config:/config
 
   streamhub:
     build: .
@@ -55,11 +64,22 @@ services:
     depends_on:
       redis:
         condition: service_started
-      flaresolverr:
+      qui:
         condition: service_started
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
+
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: streamhub-jellyfin
+    restart: unless-stopped
+    ports:
+      - '8096:8096'
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      - /mnt/storage/streaming:/media:ro
+    environment:
+      - JELLYFIN_PublishedServerUrl=http://localhost:8096
 
   dozzle:
     image: amir20/dozzle:latest
@@ -70,7 +90,31 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
+  # ── PostgreSQL (uncomment when DB_DRIVER=postgres) ────────
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: streamhub-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: streamhub
+  #     POSTGRES_USER: streamhub
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   ports:
+  #     - '5432:5432'
+  #   healthcheck:
+  #     test: ['CMD-SHELL', 'pg_isready -U streamhub']
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 5
+
 volumes:
   redis-data:
-  postgres-data:
   streamhub-avatars:
+  qbittorrent-config:
+  qui-config:
+  prowlarr-config:
+  jellyfin-config:
+  jellyfin-cache:
+  # postgres-data:
