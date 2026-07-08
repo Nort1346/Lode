@@ -48,7 +48,7 @@ services:
       - prowlarr-config:/config
 
   streamhub:
-    build: .
+    image: ghcr.io/nort1346/streamhub:latest
     container_name: streamhub
     ports:
       - '5757:5757'

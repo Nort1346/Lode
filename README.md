@@ -24,7 +24,42 @@ Self-hosted streaming hub for managing torrent downloads. Browse movies and TV s
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: Auto-Setup (Recommended)
+
+Run one command and follow the guided setup:
+
+**Linux / macOS:**
+```bash
+git clone <your-repo-url>
+cd requesting-site
+chmod +x setup.sh
+./setup.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+git clone <your-repo-url>
+cd requesting-site
+.\setup.ps1
+```
+
+The setup script will guide you through 10 steps:
+1. Check prerequisites (Docker, Docker Compose)
+2. Create `.env` from `.env.example`
+3. Generate secrets (session password, tracker encryption key)
+4. Start infrastructure services (Redis, qBittorrent, qui, Prowlarr, Jellyfin)
+5. Get your **Jellyfin API key** (guided instructions)
+6. Configure **qui** + **qBittorrent** (shows temp password, step-by-step)
+7. Get your **Prowlarr API key** (guided instructions)
+8. Get your **TMDB API key** (guided instructions)
+9. Pull StreamHub Docker image
+10. Start StreamHub with health check
+
+After setup, open **http://localhost:5757** and create your account.
+
+### Option 2: Manual Setup
+
+#### Prerequisites
 
 - Node.js 22+
 - pnpm 11+

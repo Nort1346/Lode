@@ -1,14 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-# ── StreamHub Auto-Setup Script ─────────────────────────────────────
+# -- StreamHub Auto-Setup Script --------------------------------------
 # Sets up the full self-hosted stack: Redis, qBittorrent, qui, Prowlarr,
-# Jellyfin, and StreamHub with zero manual configuration.
+# Jellyfin, and StreamHub with guided manual configuration.
 #
 # Usage: ./setup.sh
-# ─────────────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------------
 
-# ── gum bootstrap ────────────────────────────────────────────────────
+# -- gum bootstrap -----------------------------------------------------
 
 HAS_GUM=false
 
@@ -49,7 +49,6 @@ EOF
   elif command -v apk &> /dev/null; then
     apk add --no-cache gum 2>/dev/null
   else
-    # Fallback: download binary directly
     local arch
     arch=$(uname -m)
     case "$arch" in
@@ -72,7 +71,7 @@ EOF
 
 install_gum
 
-# ── Output helpers ───────────────────────────────────────────────────
+# -- Output helpers ----------------------------------------------------
 
 if [ "$HAS_GUM" = true ]; then
   info()  { gum log --level info "$*"; }
@@ -103,8 +102,11 @@ if [ "$HAS_GUM" = true ]; then
       --border double --border-foreground 2 \
       --padding "1 2" "$1"
   }
+
+  read_input() {
+    gum input --placeholder "$1"
+  }
 else
-  # Fallback: ANSI colors
   RED='\033[0;31m'
   GREEN='\033[0;32m'
   YELLOW='\033[1;33m'
@@ -118,8 +120,8 @@ else
   warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
   err()   { echo -e "${RED}[ERR ]${NC}  $*"; }
 
-  header() { echo -e "\n${BOLD}${CYAN}═══ $1 ═══${NC}\n"; }
-  step()   { echo -e "\n${BOLD}${CYAN}── $1 ──${NC}"; }
+  header() { echo -e "\n${BOLD}${CYAN}=== $1 ===${NC}\n"; }
+  step()   { echo -e "\n${BOLD}${CYAN}--- $1 ---${NC}"; }
 
   spinner() {
     local title="$1"; shift
@@ -128,9 +130,14 @@ else
   }
 
   summary_box() { echo -e "\n${GREEN}$1${NC}\n"; }
+
+  read_input() {
+    read -rp "$1: " result
+    echo "$result"
+  }
 fi
 
-# ── Helpers ──────────────────────────────────────────────────────────
+# -- Helpers -----------------------------------------------------------
 
 generate_password() {
   openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c "$1"
@@ -163,13 +170,28 @@ update_env() {
   fi
 }
 
-# ── Banner ───────────────────────────────────────────────────────────
+# -- Banner ------------------------------------------------------------
 
 header "StreamHub Auto-Setup v1.0"
 
-# ── 1. Prerequisites ────────────────────────────────────────────────
+echo ""
+echo "This will start the following services:"
+echo "  Redis, qBittorrent, qui, Prowlarr, Jellyfin"
+echo ""
+echo "Data will be stored in Docker volumes."
+echo "Default passwords: admin / admin"
+echo ""
 
-step "[1/9] Checking prerequisites"
+if [ "$HAS_GUM" = true ]; then
+  gum confirm --default=false "Do you want to continue?" || { echo "Aborted."; exit 0; }
+else
+  read -rp "Do you want to continue? (y/N) " confirm
+  [[ "$confirm" =~ ^[yY] ]] || { echo "Aborted."; exit 0; }
+fi
+
+# -- 1. Prerequisites --------------------------------------------------
+
+step "[1/10] Checking prerequisites"
 
 if ! command -v docker &> /dev/null; then
   err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
@@ -183,21 +205,15 @@ if ! docker compose version &> /dev/null 2>&1; then
 fi
 ok "Docker Compose $(docker compose version --short 2>/dev/null || echo 'available')"
 
-if ! command -v openssl &> /dev/null; then
-  err "openssl is required for generating secrets."
-  exit 1
-fi
-ok "openssl available"
-
 if ! command -v curl &> /dev/null; then
   err "curl is required for API calls."
   exit 1
 fi
 ok "curl available"
 
-# ── 2. Create .env ──────────────────────────────────────────────────
+# -- 2. Create .env ----------------------------------------------------
 
-step "[2/9] Setting up .env file"
+step "[2/10] Setting up .env file"
 
 if [ ! -f .env ]; then
   if [ -f .env.example ]; then
@@ -208,46 +224,24 @@ if [ ! -f .env ]; then
     exit 1
   fi
 else
-  warn ".env exists — keeping existing config"
+  warn ".env exists -- keeping existing config"
 fi
 
-# ── 3. Generate secrets ─────────────────────────────────────────────
+# -- 3. Generate secrets -----------------------------------------------
 
-step "[3/9] Generating secrets"
+step "[3/10] Generating secrets"
 
 SESSION_PASSWORD=$(generate_password 32)
 TRACKER_KEY=$(generate_hex 32)
-PROWLARR_API_KEY=$(generate_hex 16)
 
 update_env "NUXT_SESSION_PASSWORD" "$SESSION_PASSWORD"
 update_env "NUXT_TRACKER_ENCRYPTION_KEY" "$TRACKER_KEY"
 ok "Session password generated"
 ok "Tracker encryption key generated"
 
-# ── 4. Pre-seed Prowlarr config ────────────────────────────────────
+# -- 4. Start infrastructure services ---------------------------------
 
-step "[4/9] Pre-seeding Prowlarr configuration"
-
-PROWLARR_CONFIG_DIR="./prowlarr-config"
-mkdir -p "$PROWLARR_CONFIG_DIR"
-
-cat > "$PROWLARR_CONFIG_DIR/config.xml" << PROWLARR_XML
-<?xml version="1.0" encoding="utf-8"?>
-<Config>
-  <LogLevel>Info</LogLevel>
-  <Server>
-    <Port>9696</Port>
-    <ApiKey>${PROWLARR_API_KEY}</ApiKey>
-    <AuthenticationMethod>None</AuthenticationMethod>
-  </Server>
-</Config>
-PROWLARR_XML
-
-ok "Prowlarr config created"
-
-# ── 5. Start infrastructure services ────────────────────────────────
-
-step "[5/9] Starting infrastructure services"
+step "[4/10] Starting infrastructure services"
 
 if [ "$HAS_GUM" = true ]; then
   gum spin --spinner dot --title "Pulling images..." -- docker compose pull redis qbittorrent prowlarr qui jellyfin 2>/dev/null || true
@@ -256,13 +250,17 @@ else
   docker compose pull redis qbittorrent prowlarr qui jellyfin 2>/dev/null || true
 fi
 
-docker compose up -d redis qbittorrent prowlarr qui jellyfin
+docker compose up -d --remove-orphans redis qbittorrent prowlarr qui jellyfin
 
 info "Waiting for Redis..."
 wait_for_port "localhost" "6379" 30
 
 info "Waiting for qBittorrent..."
 wait_for_port "localhost" "8080" 60
+
+sleep 3
+
+QBIT_TEMP_PASS=$(docker logs streamhub-qbittorrent 2>&1 | grep -oP 'A temporary password is provided for this session: \K.*' | tail -1) || true
 
 info "Waiting for Prowlarr..."
 wait_for_port "localhost" "9696" 60
@@ -278,175 +276,192 @@ ok "All infrastructure services are running"
 info "Waiting 10s for services to fully initialize..."
 sleep 10
 
-# ── 6. Configure Jellyfin ──────────────────────────────────────────
+# -- 5. Jellyfin API Key -----------------------------------------------
 
-step "[6/9] Configuring Jellyfin"
+step "[5/10] Jellyfin API Key"
 
-JELLYFIN_URL="http://localhost:8096"
+echo ""
+echo "Follow these steps to get your Jellyfin API key:"
+echo "  1. Open http://localhost:8096 in your browser"
+echo "  2. Complete the setup wizard (create your admin account)"
+echo "  3. Go to Dashboard (gear icon) > API Keys"
+echo '  4. Click "+", name it "StreamHub", click OK'
+echo "  5. Copy the generated API key"
+echo ""
 
-if curl -sf "$JELLYFIN_URL/System/Info" -H "X-Emby-Token: dummy" 2>/dev/null | grep -q '"ServerName"'; then
-  warn "Jellyfin already configured — skipping setup"
+jellyfinKey=$(read_input "Paste your Jellyfin API key (Enter to skip)")
+
+if [ -n "$jellyfinKey" ]; then
+  update_env "NUXT_JELLYFIN_API_KEY" "$jellyfinKey"
+  ok "Jellyfin API key saved"
 else
-  info "Running Jellyfin startup wizard..."
-
-  curl -sf -X POST "$JELLYFIN_URL/Startup/Configuration" \
-    -H 'Content-Type: application/json' \
-    -d '{"UICulture":"pl-PL","MetadataCountryCode":"PL","PreferredMetadataLanguage":"pl"}' \
-    > /dev/null 2>&1 || true
-
-  curl -sf -X POST "$JELLYFIN_URL/Startup/User" \
-    -H 'Content-Type: application/json' \
-    -d '{"Name":"admin","Password":"admin"}' \
-    > /dev/null 2>&1 || true
-
-  curl -sf -X POST "$JELLYFIN_URL/Startup/Complete" \
-    -H 'Content-Type: application/json' \
-    -d '{}' \
-    > /dev/null 2>&1 || true
-
-  ok "Jellyfin admin created: admin / admin"
+  warn "Skipping Jellyfin API key -- set it later in .env"
 fi
 
-JELLYFIN_TOKEN=$(curl -sf -X POST "$JELLYFIN_URL/Users/AuthenticateByName" \
-  -H 'Content-Type: application/json' \
-  -H 'X-Emby-Authorization: MediaBrowser Client="SetupScript", Device="Docker", DeviceId="setup-script-001", Version="1.0.0"' \
-  -d '{"Username":"admin","Pw":"admin"}' 2>/dev/null \
-  | grep -o '"AccessToken":"[^"]*"' | head -1 | cut -d'"' -f4) || true
+# -- 6. qui setup + qBittorrent connection ----------------------------
 
-if [ -n "${JELLYFIN_TOKEN:-}" ]; then
-  JELLYFIN_API_KEY=$(curl -sf -X POST "$JELLYFIN_URL/ApiKeys/Keys" \
-    -H "X-Emby-Token: $JELLYFIN_TOKEN" \
-    -H 'Content-Type: application/json' \
-    -d '{"Name":"StreamHub","Expiry":"2030-12-31T23:59:59Z"}' 2>/dev/null \
-    | grep -o '"ApiKey":"[^"]*"' | head -1 | cut -d'"' -f4) || true
-
-  if [ -n "${JELLYFIN_API_KEY:-}" ]; then
-    update_env "NUXT_JELLYFIN_API_KEY" "$JELLYFIN_API_KEY"
-    ok "Jellyfin API key created"
-  else
-    warn "Could not create Jellyfin API key — set manually in Dashboard"
-  fi
-else
-  warn "Could not authenticate to Jellyfin — configure API key manually"
-fi
-
-# ── 7. Configure qui ───────────────────────────────────────────────
-
-step "[7/9] Configuring qui"
-
-QUI_URL="http://localhost:7476"
-
-QUI_SETUP=$(curl -sf -X POST "$QUI_URL/api/auth/setup" \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"admin"}' 2>&1) || true
-
-if echo "$QUI_SETUP" | grep -q '"token"'; then
-  QUI_TOKEN=$(echo "$QUI_SETUP" | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4)
-
-  QUI_API_KEY=$(curl -sf -X POST "$QUI_URL/api/api-keys" \
-    -H "Authorization: Bearer $QUI_TOKEN" \
-    -H 'Content-Type: application/json' \
-    -d '{"name":"streamhub","expiresAt":"2030-12-31T23:59:59Z"}' 2>/dev/null \
-    | grep -o '"key":"[^"]*"' | head -1 | cut -d'"' -f4) || true
-
-  if [ -n "${QUI_TOKEN:-}" ]; then
-    QUI_CLIENT_KEY=$(curl -sf -X POST "$QUI_URL/api/client-api-keys" \
-      -H "Authorization: Bearer $QUI_TOKEN" \
-      -H 'Content-Type: application/json' \
-      -d '{"name":"qbittorrent-proxy","expiresAt":"2030-12-31T23:59:59Z"}' 2>/dev/null \
-      | grep -o '"key":"[^"]*"' | head -1 | cut -d'"' -f4) || true
-
-    if [ -n "${QUI_CLIENT_KEY:-}" ]; then
-      update_env "NUXT_QUI_PROXY_URL" "http://qui:7476/proxy/${QUI_CLIENT_KEY}"
-      ok "qui admin created and proxy key generated"
-    else
-      warn "Could not create qui proxy key — configure manually"
-    fi
-  else
-    warn "Could not authenticate to qui — configure manually"
-  fi
-else
-  warn "qui admin setup may have failed — check http://localhost:7476"
-fi
-
-# ── 8. Configure qBittorrent ───────────────────────────────────────
-
-step "[8/9] Configuring qBittorrent"
-
-QBIT_URL="http://localhost:8080"
-
-QBIT_TEMP_PASS=$(docker logs streamhub-qbittorrent 2>&1 | grep -oP 'temporary password is: \K.*' | tail -1) || true
+step "[6/10] qui setup + qBittorrent connection"
 
 if [ -n "${QBIT_TEMP_PASS:-}" ]; then
-  QBIT_COOKIE=$(mktemp)
-  curl -sf -c "$QBIT_COOKIE" \
-    -H 'Referer: http://localhost:8080' \
-    --data-urlencode "username=admin" \
-    --data-urlencode "password=$QBIT_TEMP_PASS" \
-    "$QBIT_URL/api/v2/auth/login" 2>/dev/null || true
-
-  curl -sf -b "$QBIT_COOKIE" \
-    -H 'Referer: http://localhost:8080' \
-    --data-urlencode "username=admin" \
-    --data-urlencode "password=admin" \
-    --data-urlencode "newPassword=admin" \
-    "$QBIT_URL/api/v2/auth/changePassword" 2>/dev/null || true
-
-  rm -f "$QBIT_COOKIE"
-  ok "qBittorrent password set to: admin"
+  echo ""
+  echo -e "  +--------------------------------------------+"
+  echo -e "  | ${YELLOW}qBittorrent temporary password: ${QBIT_TEMP_PASS}${NC}"
+  echo -e "  | ${YELLOW}Copy this -- you will need it below        ${NC}"
+  echo -e "  +--------------------------------------------+"
+  echo ""
 else
-  warn "Could not get qBittorrent temp password — check container logs"
+  warn "Could not extract qBittorrent temp password -- check: docker logs streamhub-qbittorrent"
 fi
 
-# ── 9. Finalize ─────────────────────────────────────────────────────
+echo "FIRST -- configure qBittorrent:"
+echo "  1. Open http://localhost:8080 in your browser"
+echo "  2. Login with:"
+echo "       Username: admin"
+echo "       Password: [temporary password shown above]"
+echo "  3. Go to Settings > Web UI"
+echo "  4. Change the password to something you remember"
+echo "  5. Save changes"
+echo ""
+echo "THEN -- configure qui:"
+echo "  6. Open http://localhost:7476 in your browser"
+echo "  7. Create your admin account"
+echo "  8. Go to Settings > Clients"
+echo "  9. Click Add New, fill in:"
+echo "       Name:    qBittorrent"
+echo "       Host:    qbittorrent"
+echo "       Port:    8080"
+echo "       User:    admin"
+echo "       Pass:    [the password you just set]"
+echo "  10. Test the connection, then save"
+echo "  11. Go to Settings > API Keys"
+echo '  12. Click "Create", name it "streamhub"'
+echo "  13. Copy the generated key"
+echo ""
+echo "LAST STEP: Go to Settings > Clients, click your qBittorrent"
+echo "connection, and copy the full Proxy URL (looks like:"
+echo "  http://qui:7476/proxy/YOUR_KEY_HERE )"
+echo ""
 
-step "[9/9] Finalizing configuration"
+quiKey=$(read_input "Paste your full qui proxy URL (Enter to skip)")
+
+if [ -n "$quiKey" ]; then
+  update_env "NUXT_QUI_PROXY_URL" "$quiKey"
+  ok "qui proxy URL saved"
+else
+  warn "Skipping qui proxy key -- set it later in .env"
+fi
+
+# -- 7. Prowlarr API Key -----------------------------------------------
+
+step "[7/10] Prowlarr API Key"
+
+echo ""
+echo "Follow these steps to get your Prowlarr API key:"
+echo "  1. Open http://localhost:9696 in your browser"
+echo "  2. Go to Settings > General"
+echo "  3. Find the API Key field"
+echo "  4. Copy the API key"
+echo ""
+echo "Tip: You can also add indexers here later."
+echo ""
+
+prowlarrKey=$(read_input "Paste your Prowlarr API key (Enter to skip)")
+
+if [ -n "$prowlarrKey" ]; then
+  update_env "NUXT_PROWLARR_API_KEY" "$prowlarrKey"
+  ok "Prowlarr API key saved"
+else
+  warn "Skipping Prowlarr API key -- set it later in .env"
+fi
+
+# -- 8. TMDB API Key ---------------------------------------------------
+
+step "[8/10] TMDB API Key"
+
+echo ""
+echo "Follow these steps to get your TMDB API key:"
+echo "  1. Go to https://www.themoviedb.org/settings/api"
+echo "  2. Create a free account (or log in)"
+echo '  3. Click "Click here to generate an API key"'
+echo "  4. Fill in the form:"
+echo "       Application Name:  StreamHub"
+echo "       Application URL:   http://localhost:5757"
+echo "  5. Copy your API Key (v3 auth)"
+echo ""
+echo "This is required for movie/TV metadata."
+echo ""
+
+tmdbKey=$(read_input "Paste your TMDB API key (Enter to skip)")
+
+if [ -n "$tmdbKey" ]; then
+  update_env "NUXT_TMDB_API_KEY" "$tmdbKey"
+  ok "TMDB API key saved"
+else
+  warn "Skipping TMDB API key -- set it later in .env"
+fi
+
+# -- 9. Pull StreamHub -------------------------------------------------
+
+step "[9/10] Pulling StreamHub"
+
+if [ "$HAS_GUM" = true ]; then
+  gum spin --spinner dot --title "Pulling StreamHub image..." -- docker compose pull streamhub
+else
+  info "Pulling StreamHub image..."
+  docker compose pull streamhub
+fi
+
+ok "StreamHub image pulled"
+
+# -- 10. Start StreamHub -----------------------------------------------
+
+step "[10/10] Starting StreamHub"
 
 update_env "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 update_env "NUXT_REDIS_URL" "redis://redis:6379"
 update_env "NUXT_PROWLARR_URL" "http://prowlarr:9696"
-update_env "NUXT_PROWLARR_API_KEY" "$PROWLARR_API_KEY"
 update_env "DB_DRIVER" "sqlite"
 
-info "Starting full stack..."
-
 if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Starting all services..." -- docker compose up -d
+  gum spin --spinner dot --title "Starting StreamHub..." -- docker compose up -d streamhub
 else
-  docker compose up -d
+  info "Starting StreamHub..."
+  docker compose up -d streamhub
 fi
 
-ok "All services started"
+info "Waiting for StreamHub to start (first start may take 1-2 minutes)..."
+wait_for_port "localhost" "5757" 120
 
-# ── Summary ─────────────────────────────────────────────────────────
+ok "StreamHub is running at http://localhost:5757"
+
+# -- Summary -----------------------------------------------------------
 
 SUMMARY=$(cat << EOF
   StreamHub is ready!
 
-  ┌─────────────────┬──────────────────────────┐
-  │ Service         │ URL                      │
-  ├─────────────────┼──────────────────────────┤
-  │ StreamHub       │ http://localhost:5757    │
-  │ qBittorrent     │ http://localhost:8080    │
-  │ qui             │ http://localhost:7476    │
-  │ Prowlarr        │ http://localhost:9696    │
-  │ Jellyfin        │ http://localhost:8096    │
-  │ Dozzle (logs)   │ http://localhost:8082    │
-  └─────────────────┴──────────────────────────┘
+  +-----------------+--------------------------+
+  | Service         | URL                      |
+  +-----------------+--------------------------+
+  | StreamHub       | http://localhost:5757    |
+  | qBittorrent     | http://localhost:8080    |
+  | qui             | http://localhost:7476    |
+  | Prowlarr        | http://localhost:9696    |
+  | Jellyfin        | http://localhost:8096    |
+  | Dozzle (logs)   | http://localhost:8082    |
+  +-----------------+--------------------------+
 
   Credentials:
     Jellyfin:      admin / admin
     qBittorrent:   admin / admin
     qui:           admin / admin
 
-  Prowlarr API Key: ${PROWLARR_API_KEY}
-
   Next steps:
-    1. Open http://localhost:5757 and create your StreamHub account
-    2. Change default passwords in each service
-    3. Add qBittorrent in qui (Settings > Clients)
-    4. Configure media libraries in Jellyfin
-    5. Add indexers in Prowlarr
+    1. http://localhost:5757 -- Create your StreamHub account
+    2. http://localhost:8080 -- Change qBittorrent password
+    3. http://localhost:7476 -- Verify qBittorrent is connected in qui
+    4. http://localhost:8096 -- Add media libraries in Jellyfin
+    5. http://localhost:9696 -- Add indexers in Prowlarr
+    6. http://localhost:8082 -- View logs in Dozzle
 EOF
 )
 
