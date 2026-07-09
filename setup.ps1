@@ -106,12 +106,26 @@ function Invoke-Spinner {
 function Write-SummaryBox {
     param([string]$Msg)
     if ($script:HAS_GUM) {
-        gum style --border double --border-foreground 2 --padding "1 2" $Msg
+        gum style --border double --border-foreground 2 --align center --padding "1 2" $Msg
     } else {
         Write-Host ""
         Write-Host $Msg -ForegroundColor Green
         Write-Host ""
     }
+}
+
+function Write-SummarySection {
+    param([string]$Msg)
+    if ($script:HAS_GUM) {
+        gum style --border normal --border-foreground 240 --padding "0 2" $Msg
+    } else {
+        Write-Host $Msg -ForegroundColor Gray
+    }
+}
+
+function Get-SummaryRow {
+    param([string]$Label, [string]$Url)
+    return ("  {0,-18} {1}" -f $Label, $Url)
 }
 
 # -- Helpers ----------------------------------------------------------
@@ -200,10 +214,9 @@ Write-Header "StreamHub Auto-Setup v1.0"
 
 Write-Host ""
 Write-Host "This will start the following services:" -ForegroundColor White
-Write-Host "  Redis, qBittorrent, Prowlarr, Jellyfin" -ForegroundColor Gray
+Write-Host "  Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Data will be stored in Docker volumes." -ForegroundColor Gray
-Write-Host "Default passwords: admin / admin" -ForegroundColor Yellow
 Write-Host ""
 
 if ($script:HAS_GUM) {
@@ -293,9 +306,9 @@ Write-Ok "Tracker encryption key generated"
 
 Write-Step "[4/11] Starting infrastructure services"
 
-Invoke-Spinner "Pulling images..." { docker compose pull redis qbittorrent prowlarr jellyfin 2>$null }
+Invoke-Spinner "Pulling images..." { docker compose pull redis qbittorrent prowlarr flaresolverr jellyfin dozzle 2>$null }
 
-docker compose up -d --remove-orphans redis qbittorrent prowlarr jellyfin
+docker compose up -d --remove-orphans redis qbittorrent prowlarr flaresolverr jellyfin dozzle
 
 Write-Info "Waiting for Redis..."
 Test-Port -Host_ "localhost" -Port 6379 -Timeout 30 | Out-Null
@@ -392,6 +405,9 @@ Write-Host "  4. Copy the API key" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Tip: You can also add indexers here ( torrent ) later." -ForegroundColor DarkGray
 Write-Host ""
+Write-Host "For private trackers: go to Settings > Indexers > Add > FlareSolverr" -ForegroundColor DarkGray
+Write-Host "  Set URL: http://flaresolverr:8191" -ForegroundColor DarkGray
+Write-Host ""
 
 $prowlarrKey = Read-GumInput -Placeholder "Paste your Prowlarr API key (Enter to skip)"
 
@@ -479,29 +495,45 @@ Write-Ok "StreamHub is running at http://localhost:5757"
 
 # -- Summary ----------------------------------------------------------
 
-$summary = @"
-  StreamHub is ready!
+$dozzleUp = docker compose ps dozzle 2>$null | Select-String "Up"
+$hasDozzle = $dozzleUp -ne $null
 
-  +-----------------+--------------------------+
-  | Service         | URL                      |
-  +-----------------+--------------------------+
-  | StreamHub       | http://localhost:5757    |
-  | qBittorrent     | http://localhost:8080    |
-  | Prowlarr        | http://localhost:9696    |
-  | Jellyfin        | http://localhost:8096    |
-  | Dozzle (logs)   | http://localhost:8082    |
-  +-----------------+--------------------------+
+# -- Header
+$headerMsg = if ($script:HAS_GUM) { gum style --bold --foreground 2 'StreamHub is ready!' } else { 'StreamHub is ready!' }
+Write-SummaryBox $headerMsg
 
-  Credentials:
-    Jellyfin:      admin / admin
-    qBittorrent:   admin / admin
+Write-Host ""
 
-  Next steps:
-    1. http://localhost:5757 -- Create your StreamHub account
-    2. http://localhost:8080 -- Change qBittorrent password & get API key
-    3. http://localhost:8096 -- Add media libraries in Jellyfin
-    4. http://localhost:9696 -- Add indexers in Prowlarr
-    5. http://localhost:8082 -- View logs in Dozzle
-"@
+# -- Services table
+$services = @(
+    (Get-SummaryRow "StreamHub" "http://localhost:5757"),
+    (Get-SummaryRow "qBittorrent" "http://localhost:8080"),
+    (Get-SummaryRow "Prowlarr" "http://localhost:9696"),
+    (Get-SummaryRow "Jellyfin" "http://localhost:8096"),
+    (Get-SummaryRow "FlareSolverr" "http://localhost:8191")
+)
+if ($hasDozzle) {
+    $services += (Get-SummaryRow "Dozzle" "http://localhost:8082")
+}
+$servicesMsg = $services -join "`n"
+Write-SummarySection $servicesMsg
 
-Write-SummaryBox $summary
+Write-Host ""
+
+# -- Credentials
+$credsLabel = "  Default StreamHub credentials: "
+$credsValue = if ($script:HAS_GUM) { gum style --bold --foreground 11 'admin / admin' } else { 'admin / admin' }
+Write-SummarySection "$credsLabel$credsValue (change after first login!)"
+
+Write-Host ""
+
+# -- Next steps
+$steps = @(
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '  Next steps:' } else { '  Next steps:' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   1. Login with admin / admin → Admin > Users' } else { '   1. Login with admin / admin → Admin > Users' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   2. qBittorrent → Settings > Web UI > API Key' } else { '   2. qBittorrent → Settings > Web UI > API Key' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   3. Jellyfin → /media/Movies, /media/Series' } else { '   3. Jellyfin → /media/Movies, /media/Series' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   4. Prowlarr → Add indexers + FlareSolverr proxy' } else { '   4. Prowlarr → Add indexers + FlareSolverr proxy' }),
+)
+$stepsMsg = $steps -join "`n"
+Write-SummarySection $stepsMsg

@@ -46,7 +46,7 @@ pnpm dev
 
 Open `http://localhost:5757`. Default admin credentials: `admin` / `admin`.
 
-> Change the admin password immediately in production.
+> There is no public registration. Login as admin and create users in Admin > Users.
 
 ## Docker Quick Start
 
@@ -63,7 +63,8 @@ docker compose logs -f  # view logs
 1. Login with `admin` / `admin`
 2. Navigate to Browse — TMDB carousels should load
 3. Check admin settings — service health checks should show green for qBittorrent and Prowlarr
-4. Add a test torrent from the Browse page
+4. Create a test user in Admin > Users
+5. Add a test torrent from the Browse page
 
 ## Next Steps
 

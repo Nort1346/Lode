@@ -104,7 +104,19 @@ if [ "$HAS_GUM" = true ]; then
   summary_box() {
     gum style \
       --border double --border-foreground 2 \
+      --align center \
       --padding "1 2" "$1"
+  }
+
+  summary_section() {
+    gum style \
+      --border normal --border-foreground 240 \
+      --padding "0 2" "$1"
+  }
+
+  summary_row() {
+    local label="$1" url="$2"
+    printf "  %-18s %s\n" "$label" "$url"
   }
 
   read_input() {
@@ -190,10 +202,9 @@ header "StreamHub Auto-Setup v1.0"
 
 echo ""
 echo "This will start the following services:"
-echo "  Redis, qBittorrent, Prowlarr, Jellyfin"
+echo "  Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle"
 echo ""
 echo "Data will be stored in Docker volumes."
-echo "Default passwords: admin / admin"
 echo ""
 
 if [ "$HAS_GUM" = true ]; then
@@ -274,13 +285,13 @@ ok "Tracker encryption key generated"
 step "[4/11] Starting infrastructure services"
 
 if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Pulling images..." -- docker compose pull redis qbittorrent prowlarr jellyfin || true
+  gum spin --spinner dot --title "Pulling images..." -- docker compose pull redis qbittorrent prowlarr flaresolverr jellyfin dozzle || true
 else
   info "Pulling images..."
-  docker compose pull redis qbittorrent prowlarr jellyfin || true
+  docker compose pull redis qbittorrent prowlarr flaresolverr jellyfin dozzle || true
 fi
 
-docker compose up -d --remove-orphans redis qbittorrent prowlarr jellyfin
+docker compose up -d --remove-orphans redis qbittorrent prowlarr flaresolverr jellyfin dozzle
 
 info "Waiting for Redis..."
 wait_for_port "localhost" "6379" 30 || true
@@ -379,6 +390,9 @@ echo "  3. Find the API Key field"
 echo "  4. Copy the API key"
 echo ""
 echo "Tip: You can also add indexers here later."
+echo ""
+echo "For private trackers: go to Settings > Indexers > Add > FlareSolverr"
+echo "  Set URL: http://flaresolverr:8191"
 echo ""
 
 prowlarrKey=$(read_input "Paste your Prowlarr API key (Enter to skip)")
@@ -485,30 +499,49 @@ ok "StreamHub is running at http://localhost:5757"
 
 # -- Summary -----------------------------------------------------------
 
-SUMMARY=$(cat << EOF
-  StreamHub is ready!
+HAS_DOZZLE=false
+if docker compose ps dozzle 2>/dev/null | grep -q "Up"; then
+  HAS_DOZZLE=true
+fi
 
-  +-----------------+--------------------------+
-  | Service         | URL                      |
-  +-----------------+--------------------------+
-  | StreamHub       | http://localhost:5757    |
-  | qBittorrent     | http://localhost:8080    |
-  | Prowlarr        | http://localhost:9696    |
-  | Jellyfin        | http://localhost:8096    |
-  | Dozzle (logs)   | http://localhost:8082    |
-  +-----------------+--------------------------+
+# -- Header
+summary_box "$(gum style --bold --foreground 2 'StreamHub is ready!')"
 
-  Credentials:
-    Jellyfin:      admin / admin
-    qBittorrent:   admin / admin
+echo ""
 
-  Next steps:
-    1. http://localhost:5757 -- Create your StreamHub account
-    2. http://localhost:8080 -- Change qBittorrent password & get API key
-    3. http://localhost:8096 -- Add media libraries in Jellyfin
-    4. http://localhost:9696 -- Add indexers in Prowlarr
-    5. http://localhost:8082 -- View logs in Dozzle
-EOF
+# -- Services table
+SERVICES_TABLE=$(cat <<TABLE
+$(summary_row "StreamHub" "http://localhost:5757")
+$(summary_row "qBittorrent" "http://localhost:8080")
+$(summary_row "Prowlarr" "http://localhost:9696")
+$(summary_row "Jellyfin" "http://localhost:8096")
+$(summary_row "FlareSolverr" "http://localhost:8191")
+TABLE
 )
 
-summary_box "$SUMMARY"
+if [ "$HAS_DOZZLE" = true ]; then
+  SERVICES_TABLE="$SERVICES_TABLE
+$(summary_row "Dozzle" "http://localhost:8082")"
+fi
+
+summary_section "$SERVICES_TABLE"
+
+echo ""
+
+# -- Credentials
+CREDS=$(gum style --bold --foreground 11 'admin / admin')
+summary_section "  Default StreamHub credentials: $CREDS (change after first login!)"
+
+echo ""
+
+# -- Next steps
+STEPS=$(cat <<STEPS
+$(gum style --foreground 14 '  Next steps:')
+$(gum style --foreground 14 '   1. Login with admin / admin → Admin > Users')
+$(gum style --foreground 14 '   2. qBittorrent → Settings > Web UI > API Key')
+$(gum style --foreground 14 '   3. Jellyfin → /media/Movies, /media/Series')
+$(gum style --foreground 14 '   4. Prowlarr → Add indexers + FlareSolverr proxy')
+STEPS
+)
+
+summary_section "$STEPS"

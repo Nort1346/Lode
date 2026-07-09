@@ -35,6 +35,13 @@ services:
     volumes:
       - prowlarr-config:/config
 
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: streamhub-flaresolverr
+    restart: unless-stopped
+    ports:
+      - '8191:8191'
+
   streamhub:
     build: .
     #image: ghcr.io/nort1346/streamhub:latest
@@ -78,6 +85,8 @@ services:
       - '8082:8080'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - DOZZLE_FILTER=label=com.docker.compose.project=streamhub
 
   # ── PostgreSQL (uncomment when DB_DRIVER=postgres) ────────
   # postgres:

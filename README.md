@@ -74,7 +74,7 @@ cp .env.example .env    # then edit with your settings
 pnpm dev                # opens at http://localhost:5757
 ```
 
-Default admin: `admin` / `admin` — change immediately in production.
+Default admin: `admin` / `admin` — login and create users in Admin > Users.
 
 ## Docker
 
