@@ -5,7 +5,8 @@ export default defineNitroPlugin(() => {
   validateConfig({
     savePathMovies: config.savePathMovies,
     savePathSeries: config.savePathSeries,
-    quiProxyUrl: config.quiProxyUrl,
+    qbittorrentUrl: config.qbittorrentUrl,
+    qbittorrentApiKey: config.qbittorrentApiKey,
     sessionPassword: process.env.NUXT_SESSION_PASSWORD ?? '',
     tmdbApiKey: config.tmdbApiKey,
     prowlarrApiKey: config.prowlarrApiKey,

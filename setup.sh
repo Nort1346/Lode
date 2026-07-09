@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # -- StreamHub Auto-Setup Script --------------------------------------
-# Sets up the full self-hosted stack: Redis, qBittorrent, qui, Prowlarr,
+# Sets up the full self-hosted stack: Redis, qBittorrent, Prowlarr,
 # Jellyfin, and StreamHub with guided manual configuration.
 #
 # Usage: ./setup.sh
@@ -144,11 +144,21 @@ fi
 # -- Helpers -----------------------------------------------------------
 
 generate_password() {
-  openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c "$1"
+  openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c "$1"
 }
 
 generate_hex() {
   openssl rand -hex "$1"
+}
+
+validate_env_min_length() {
+  local key="$1" min="$2"
+  local value
+  value=$(grep "^${key}=" .env 2>/dev/null | cut -d= -f2-)
+  if [ -z "$value" ] || [ ${#value} -lt "$min" ]; then
+    return 1
+  fi
+  return 0
 }
 
 wait_for_port() {
@@ -180,7 +190,7 @@ header "StreamHub Auto-Setup v1.0"
 
 echo ""
 echo "This will start the following services:"
-echo "  Redis, qBittorrent, qui, Prowlarr, Jellyfin"
+echo "  Redis, qBittorrent, Prowlarr, Jellyfin"
 echo ""
 echo "Data will be stored in Docker volumes."
 echo "Default passwords: admin / admin"
@@ -243,6 +253,19 @@ TRACKER_KEY=$(generate_hex 32)
 
 update_env "NUXT_SESSION_PASSWORD" "$SESSION_PASSWORD"
 update_env "NUXT_TRACKER_ENCRYPTION_KEY" "$TRACKER_KEY"
+
+if ! validate_env_min_length "NUXT_SESSION_PASSWORD" 32; then
+  warn "Session password too short, regenerating..."
+  SESSION_PASSWORD=$(generate_password 32)
+  update_env "NUXT_SESSION_PASSWORD" "$SESSION_PASSWORD"
+fi
+
+if ! validate_env_min_length "NUXT_TRACKER_ENCRYPTION_KEY" 32; then
+  warn "Tracker key too short, regenerating..."
+  TRACKER_KEY=$(generate_hex 32)
+  update_env "NUXT_TRACKER_ENCRYPTION_KEY" "$TRACKER_KEY"
+fi
+
 ok "Session password generated"
 ok "Tracker encryption key generated"
 
@@ -251,13 +274,13 @@ ok "Tracker encryption key generated"
 step "[4/11] Starting infrastructure services"
 
 if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Pulling images..." -- docker compose pull redis qbittorrent prowlarr qui jellyfin || true
+  gum spin --spinner dot --title "Pulling images..." -- docker compose pull redis qbittorrent prowlarr jellyfin || true
 else
   info "Pulling images..."
-  docker compose pull redis qbittorrent prowlarr qui jellyfin || true
+  docker compose pull redis qbittorrent prowlarr jellyfin || true
 fi
 
-docker compose up -d --remove-orphans redis qbittorrent prowlarr qui jellyfin
+docker compose up -d --remove-orphans redis qbittorrent prowlarr jellyfin
 
 info "Waiting for Redis..."
 wait_for_port "localhost" "6379" 30 || true
@@ -271,9 +294,6 @@ QBIT_TEMP_PASS=$(docker logs streamhub-qbittorrent 2>&1 | sed -n 's/.*A temporar
 
 info "Waiting for Prowlarr..."
 wait_for_port "localhost" "9696" 60 || true
-
-info "Waiting for qui..."
-wait_for_port "localhost" "7476" 60 || true
 
 info "Waiting for Jellyfin..."
 wait_for_port "localhost" "8096" 90 || true
@@ -305,9 +325,9 @@ else
   warn "Skipping Jellyfin API key -- set it later in .env"
 fi
 
-# -- 6. qui setup + qBittorrent connection ----------------------------
+# -- 6. qBittorrent WebUI + API Key -----------------------------------
 
-step "[6/11] qui setup + qBittorrent connection"
+step "[6/11] qBittorrent WebUI + API Key"
 
 if [ -n "${QBIT_TEMP_PASS:-}" ]; then
   echo ""
@@ -326,42 +346,25 @@ else
   warn "Could not extract qBittorrent temp password -- check: docker logs streamhub-qbittorrent"
 fi
 
-echo "FIRST -- configure qBittorrent:"
+echo "Follow these steps to configure qBittorrent:"
 echo "  1. Open http://localhost:8080 in your browser"
 echo "  2. Login with:"
 echo "       Username: admin"
 echo "       Password: [temporary password shown above]"
-echo "  3. Go to Settings > Web UI"
+echo "  3. Go to Tools > Options > Web UI"
 echo "  4. Change the password to something you remember"
 echo "  5. Save changes"
-echo ""
-echo "THEN -- configure qui:"
-echo "  6. Open http://localhost:7476 in your browser"
-echo "  7. Create your admin account"
-echo "  8. Go to Settings > Clients"
-echo "  9. Click Add New, fill in:"
-echo "       Name:    qBittorrent"
-echo "       Host:    qbittorrent"
-echo "       Port:    8080"
-echo "       User:    admin"
-echo "       Pass:    [the password you just set]"
-echo "  10. Test the connection, then save"
-echo "  11. Go to Settings > API Keys"
-echo '  12. Click "Create", name it "streamhub"'
-echo "  13. Copy the generated key"
-echo ""
-echo "LAST STEP: Go to Settings > Clients, click your qBittorrent"
-echo "connection, and copy the full Proxy URL (looks like:"
-echo "  http://qui:7476/proxy/YOUR_KEY_HERE )"
+echo "  6. Go to Tools > Options > Web UI > API Key section"
+echo "  7. Copy the API Key"
 echo ""
 
-quiKey=$(read_input "Paste your full qui proxy URL (Enter to skip)")
+qbitKey=$(read_input "Paste your qBittorrent API Key (Enter to skip)")
 
-if [ -n "$quiKey" ]; then
-  update_env "NUXT_QUI_PROXY_URL" "$quiKey"
-  ok "qui proxy URL saved"
+if [ -n "$qbitKey" ]; then
+  update_env "NUXT_QBITTORRENT_API_KEY" "$qbitKey"
+  ok "qBittorrent API key saved"
 else
-  warn "Skipping qui proxy key -- set it later in .env"
+  warn "Skipping qBittorrent API key -- set it later in .env"
 fi
 
 # -- 7. Prowlarr API Key -----------------------------------------------
@@ -490,7 +493,6 @@ SUMMARY=$(cat << EOF
   +-----------------+--------------------------+
   | StreamHub       | http://localhost:5757    |
   | qBittorrent     | http://localhost:8080    |
-  | qui             | http://localhost:7476    |
   | Prowlarr        | http://localhost:9696    |
   | Jellyfin        | http://localhost:8096    |
   | Dozzle (logs)   | http://localhost:8082    |
@@ -499,15 +501,13 @@ SUMMARY=$(cat << EOF
   Credentials:
     Jellyfin:      admin / admin
     qBittorrent:   admin / admin
-    qui:           admin / admin
 
   Next steps:
     1. http://localhost:5757 -- Create your StreamHub account
-    2. http://localhost:8080 -- Change qBittorrent password
-    3. http://localhost:7476 -- Verify qBittorrent is connected in qui
-    4. http://localhost:8096 -- Add media libraries in Jellyfin
-    5. http://localhost:9696 -- Add indexers in Prowlarr
-    6. http://localhost:8082 -- View logs in Dozzle
+    2. http://localhost:8080 -- Change qBittorrent password & get API key
+    3. http://localhost:8096 -- Add media libraries in Jellyfin
+    4. http://localhost:9696 -- Add indexers in Prowlarr
+    5. http://localhost:8082 -- View logs in Dozzle
 EOF
 )
 

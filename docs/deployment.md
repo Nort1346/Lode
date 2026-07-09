@@ -17,7 +17,6 @@ docker compose logs -f  # view logs
 | `streamhub` | Built from Dockerfile | 5757 | Main application |
 | `redis` | `redis:7-alpine` | 6379 | Caching (optional) |
 | `qbittorrent` | `linuxserver/qbittorrent` | 8080 | Torrent client |
-| `qui` | `ghcr.io/autobrr/qui` | 7476 | qBittorrent proxy |
 | `prowlarr` | `linuxserver/prowlarr` | 9696 | Indexer manager |
 | `jellyfin` | `jellyfin/jellyfin` | 8096 | Media server |
 | `postgres` | `postgres:16-alpine` | 5432 | Database (optional) |
@@ -28,8 +27,7 @@ docker compose logs -f  # view logs
 | Volume | Mount | Purpose |
 |--------|-------|---------|
 | `./data` | `/app/.data` | SQLite database persistence |
-| `/mnt/storage/streaming` | `/mnt/storage/streaming:ro` | Media storage (read-only) |
-| `/` | `/host-root:ro` | Host root for disk space checks |
+| `./media` | `/media` | Media storage |
 | `redis-data` | Redis data | Cache persistence |
 | `postgres-data` | PostgreSQL data | Database persistence |
 

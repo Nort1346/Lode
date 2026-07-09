@@ -2,7 +2,7 @@
 .SYNOPSIS
     StreamHub Auto-Setup Script for Windows
 .DESCRIPTION
-    Sets up the full self-hosted stack: Redis, qBittorrent, qui, Prowlarr,
+    Sets up the full self-hosted stack: Redis, qBittorrent, Prowlarr,
     Jellyfin, and StreamHub with guided manual configuration.
 .EXAMPLE
     .\setup.ps1
@@ -134,6 +134,16 @@ function New-SecretHex {
     return ([System.BitConverter]::ToString($buf) -replace '-', '').ToLower()
 }
 
+function Test-EnvMinLength {
+    param([string]$Key, [int]$MinLength)
+    $line = Select-String -Path ".env" -Pattern "^$Key=(.*)" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($line) {
+        $value = $line.Matches[0].Groups[1].Value
+        return $value.Length -ge $MinLength
+    }
+    return $false
+}
+
 function Test-Port {
     param([string]$Host_, [int]$Port, [int]$Timeout = 60)
     $elapsed = 0
@@ -190,7 +200,7 @@ Write-Header "StreamHub Auto-Setup v1.0"
 
 Write-Host ""
 Write-Host "This will start the following services:" -ForegroundColor White
-Write-Host "  Redis, qBittorrent, qui, Prowlarr, Jellyfin" -ForegroundColor Gray
+Write-Host "  Redis, qBittorrent, Prowlarr, Jellyfin" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Data will be stored in Docker volumes." -ForegroundColor Gray
 Write-Host "Default passwords: admin / admin" -ForegroundColor Yellow
@@ -263,6 +273,19 @@ $TRACKER_KEY = New-SecretHex -Bytes 32
 
 Update-EnvFile "NUXT_SESSION_PASSWORD" $SESSION_PASSWORD
 Update-EnvFile "NUXT_TRACKER_ENCRYPTION_KEY" $TRACKER_KEY
+
+if (-not (Test-EnvMinLength -Key "NUXT_SESSION_PASSWORD" -MinLength 32)) {
+    Write-Warn "Session password too short, regenerating..."
+    $SESSION_PASSWORD = New-SecretPassword -Length 32
+    Update-EnvFile "NUXT_SESSION_PASSWORD" $SESSION_PASSWORD
+}
+
+if (-not (Test-EnvMinLength -Key "NUXT_TRACKER_ENCRYPTION_KEY" -MinLength 32)) {
+    Write-Warn "Tracker key too short, regenerating..."
+    $TRACKER_KEY = New-SecretHex -Bytes 32
+    Update-EnvFile "NUXT_TRACKER_ENCRYPTION_KEY" $TRACKER_KEY
+}
+
 Write-Ok "Session password generated"
 Write-Ok "Tracker encryption key generated"
 
@@ -270,9 +293,9 @@ Write-Ok "Tracker encryption key generated"
 
 Write-Step "[4/11] Starting infrastructure services"
 
-Invoke-Spinner "Pulling images..." { docker compose pull redis qbittorrent prowlarr qui jellyfin 2>$null }
+Invoke-Spinner "Pulling images..." { docker compose pull redis qbittorrent prowlarr jellyfin 2>$null }
 
-docker compose up -d --remove-orphans redis qbittorrent prowlarr qui jellyfin
+docker compose up -d --remove-orphans redis qbittorrent prowlarr jellyfin
 
 Write-Info "Waiting for Redis..."
 Test-Port -Host_ "localhost" -Port 6379 -Timeout 30 | Out-Null
@@ -289,9 +312,6 @@ $QBIT_TEMP_PASS = docker logs streamhub-qbittorrent 2>&1 |
 
 Write-Info "Waiting for Prowlarr..."
 Test-Port -Host_ "localhost" -Port 9696 -Timeout 60 | Out-Null
-
-Write-Info "Waiting for qui..."
-Test-Port -Host_ "localhost" -Port 7476 -Timeout 60 | Out-Null
 
 Write-Info "Waiting for Jellyfin..."
 Test-Port -Host_ "localhost" -Port 8096 -Timeout 90 | Out-Null
@@ -323,9 +343,9 @@ if ($jellyfinKey) {
     Write-Warn "Skipping Jellyfin API key -- set it later in .env"
 }
 
-# -- 6. qui setup + proxy key -----------------------------------------
+# -- 6. qBittorrent WebUI + API Key ------------------------------------
 
-Write-Step "[6/11] qui setup + qBittorrent connection"
+Write-Step "[6/11] qBittorrent WebUI + API Key"
 
 if ($QBIT_TEMP_PASS) {
     Write-Host ""
@@ -338,42 +358,25 @@ if ($QBIT_TEMP_PASS) {
     Write-Warn "Could not extract qBittorrent temp password -- check: docker logs streamhub-qbittorrent"
 }
 
-Write-Host "FIRST -- configure qBittorrent:" -ForegroundColor White
+Write-Host "Follow these steps to configure qBittorrent:" -ForegroundColor White
 Write-Host "  1. Open http://localhost:8080 in your browser" -ForegroundColor Gray
 Write-Host "  2. Login with:" -ForegroundColor Gray
 Write-Host "       Username: admin" -ForegroundColor Yellow
 Write-Host "       Password: [temporary password shown above]" -ForegroundColor Yellow
-Write-Host "  3. Go to Settings > Web UI" -ForegroundColor Gray
+Write-Host "  3. Go to Tools > Options > Web UI" -ForegroundColor Gray
 Write-Host "  4. Change the password to something you remember" -ForegroundColor Gray
 Write-Host "  5. Save changes" -ForegroundColor Gray
-Write-Host ""
-Write-Host "THEN -- configure qui:" -ForegroundColor White
-Write-Host "  6. Open http://localhost:7476 in your browser" -ForegroundColor Gray
-Write-Host "  7. Create your admin account" -ForegroundColor Gray
-Write-Host "  8. Go to Settings > Clients" -ForegroundColor Gray
-Write-Host "  9. Click Add New, fill in:" -ForegroundColor Gray
-Write-Host "       Name:    qBittorrent" -ForegroundColor Yellow
-Write-Host "       Host:    qbittorrent" -ForegroundColor Yellow
-Write-Host "       Port:    8080" -ForegroundColor Yellow
-Write-Host "       User:    admin" -ForegroundColor Yellow
-Write-Host "       Pass:    [the password you just set]" -ForegroundColor Yellow
-Write-Host "  10. Test the connection, then save" -ForegroundColor Gray
-Write-Host "  11. Go to Settings > API Keys" -ForegroundColor Gray
-Write-Host '  12. Click "Create", name it "streamhub"' -ForegroundColor Gray
-Write-Host "  13. Copy the generated key" -ForegroundColor Gray
-Write-Host ""
-Write-Host "LAST STEP: Go to Settings > Clients, click your qBittorrent" -ForegroundColor DarkGray
-Write-Host "connection, and copy the full Proxy URL (looks like:" -ForegroundColor DarkGray
-Write-Host "  http://qui:7476/proxy/YOUR_KEY_HERE )" -ForegroundColor DarkGray
+Write-Host "  6. Go to Tools > Options > Web UI > API Key section" -ForegroundColor Gray
+Write-Host "  7. Copy the API Key" -ForegroundColor Gray
 Write-Host ""
 
-$quiKey = Read-GumInput -Placeholder "Paste your full qui proxy URL (Enter to skip)"
+$qbitKey = Read-GumInput -Placeholder "Paste your qBittorrent API Key (Enter to skip)"
 
-if ($quiKey) {
-    Update-EnvFile "NUXT_QUI_PROXY_URL" $quiKey
-    Write-Ok "qui proxy URL saved"
+if ($qbitKey) {
+    Update-EnvFile "NUXT_QBITTORRENT_API_KEY" $qbitKey
+    Write-Ok "qBittorrent API key saved"
 } else {
-    Write-Warn "Skipping qui proxy key -- set it later in .env"
+    Write-Warn "Skipping qBittorrent API key -- set it later in .env"
 }
 
 # -- 7. Prowlarr API Key ----------------------------------------------
@@ -484,7 +487,6 @@ $summary = @"
   +-----------------+--------------------------+
   | StreamHub       | http://localhost:5757    |
   | qBittorrent     | http://localhost:8080    |
-  | qui             | http://localhost:7476    |
   | Prowlarr        | http://localhost:9696    |
   | Jellyfin        | http://localhost:8096    |
   | Dozzle (logs)   | http://localhost:8082    |
@@ -493,15 +495,13 @@ $summary = @"
   Credentials:
     Jellyfin:      admin / admin
     qBittorrent:   admin / admin
-    qui:           admin / admin
 
   Next steps:
     1. http://localhost:5757 -- Create your StreamHub account
-    2. http://localhost:8080 -- Change qBittorrent password
-    3. http://localhost:7476 -- Verify qBittorrent is connected in qui
-    4. http://localhost:8096 -- Add media libraries in Jellyfin
-    5. http://localhost:9696 -- Add indexers in Prowlarr
-    6. http://localhost:8082 -- View logs in Dozzle
+    2. http://localhost:8080 -- Change qBittorrent password & get API key
+    3. http://localhost:8096 -- Add media libraries in Jellyfin
+    4. http://localhost:9696 -- Add indexers in Prowlarr
+    5. http://localhost:8082 -- View logs in Dozzle
 "@
 
 Write-SummaryBox $summary

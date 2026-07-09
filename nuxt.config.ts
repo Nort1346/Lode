@@ -53,7 +53,8 @@ export default defineNuxtConfig({
     tmdbApiKey: '',
     prowlarrUrl: 'http://127.0.0.1:9696',
     prowlarrApiKey: '',
-    quiProxyUrl: '',
+    qbittorrentUrl: 'http://127.0.0.1:8080',
+    qbittorrentApiKey: '',
     jellyfinUrl: '',
     jellyfinApiKey: '',
     savePathMovies: '/data/Movies',
@@ -72,7 +73,7 @@ export default defineNuxtConfig({
     vapidSubject: ''
   },
 
-  nitro: {
+  devServer: {
     port: 5757
   },
 

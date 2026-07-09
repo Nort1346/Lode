@@ -4,7 +4,7 @@
 
 - Node.js 22+
 - pnpm 11+
-- A running [qui](https://github.com/autobrr/qui) proxy instance connected to qBittorrent
+- Docker Desktop with **≥4GB memory** allocated (Settings > Resources > Memory)
 
 ## Install
 
@@ -23,7 +23,8 @@ cp .env.example .env
 Edit `.env` with your settings. At minimum, set:
 
 ```env
-NUXT_QUI_PROXY_URL=http://localhost:7476/proxy/YOUR_KEY
+NUXT_QBITTORRENT_URL=http://localhost:8080
+NUXT_QBITTORRENT_API_KEY=your-qbittorrent-api-key
 NUXT_SESSION_PASSWORD=your-random-32-char-string
 NUXT_TMDB_API_KEY=your-tmdb-api-key
 NUXT_PROWLARR_URL=http://127.0.0.1:9696
@@ -48,6 +49,8 @@ Open `http://localhost:5757`. Default admin credentials: `admin` / `admin`.
 > Change the admin password immediately in production.
 
 ## Docker Quick Start
+
+> **Important:** Docker Desktop must have ≥4GB memory allocated (Settings > Resources > Memory). Recommended: 6GB.
 
 ```bash
 cp .env.example .env   # configure first

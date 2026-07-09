@@ -19,24 +19,12 @@ services:
       - '6881:6881/udp'
     volumes:
       - qbittorrent-config:/config
-      - ./media:/downloads
+      - ./media:/media
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/Warsaw
       - WEBUI_PORT=8080
-
-  qui:
-    image: ghcr.io/autobrr/qui:latest
-    container_name: streamhub-qui
-    restart: unless-stopped
-    ports:
-      - '7476:7476'
-    volumes:
-      - qui-config:/config
-    depends_on:
-      qbittorrent:
-        condition: service_started
 
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
@@ -48,7 +36,8 @@ services:
       - prowlarr-config:/config
 
   streamhub:
-    image: ghcr.io/nort1346/streamhub:latest
+    build: .
+    #image: ghcr.io/nort1346/streamhub:latest
     container_name: streamhub
     ports:
       - '5757:5757'
@@ -64,7 +53,7 @@ services:
     depends_on:
       redis:
         condition: service_started
-      qui:
+      qbittorrent:
         condition: service_started
     restart: unless-stopped
 
@@ -113,7 +102,6 @@ volumes:
   redis-data:
   streamhub-avatars:
   qbittorrent-config:
-  qui-config:
   prowlarr-config:
   jellyfin-config:
   jellyfin-cache:

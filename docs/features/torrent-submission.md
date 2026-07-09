@@ -10,7 +10,7 @@ Users can add torrents to qBittorrent through three input methods. The submissio
 Standard `magnet:?xt=urn:btih:...` links. The most common method.
 
 ### 2. Download URL
-Direct HTTP/HTTPS links to `.torrent` files. Downloaded via the qui proxy.
+Direct HTTP/HTTPS links to `.torrent` files. Downloaded directly from the URL.
 
 ### 3. GUID (Private Tracker)
 For private trackers that require authentication:

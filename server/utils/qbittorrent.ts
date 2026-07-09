@@ -1,4 +1,4 @@
-import type { TorrentFile, QuiTorrent } from '#server/types/torrent'
+import type { TorrentFile, QBitTorrent } from '#server/types/torrent'
 
 function extractMagnetHash(magnetUrl: string): string | null {
   const match = magnetUrl.match(/btih:([a-fA-F0-9]{40})/i)
@@ -6,19 +6,24 @@ function extractMagnetHash(magnetUrl: string): string | null {
   return group !== undefined ? group.toLowerCase() : null
 }
 
-export class QuiClient {
-  private proxyUrl: string
+export class QBittorrentClient {
+  private baseUrl: string
+  private apiKey: string
 
-  constructor(proxyUrl: string) {
-    this.proxyUrl = proxyUrl.replace(/\/+$/, '')
+  constructor(baseUrl: string, apiKey: string) {
+    this.baseUrl = baseUrl.replace(/\/+$/, '')
+    this.apiKey = apiKey
   }
 
   private async request(path: string, options: RequestInit = {}) {
-    const url = `${this.proxyUrl}${path}`
+    const url = `${this.baseUrl}${path}`
 
     const response = await fetch(url, {
       ...options,
-      headers: options.headers as Record<string, string> | undefined
+      headers: {
+        ...(options.headers as Record<string, string>),
+        Authorization: `Bearer ${this.apiKey}`
+      }
     })
 
     if (!response.ok) {
@@ -29,7 +34,7 @@ export class QuiClient {
     return response
   }
 
-  async addTorrent(magnetLink: string, savePath: string, category: string, tags: string): Promise<QuiTorrent | null> {
+  async addTorrent(magnetLink: string, savePath: string, category: string, tags: string): Promise<QBitTorrent | null> {
     const formData = new URLSearchParams()
     formData.append('urls', magnetLink)
     formData.append('savepath', savePath)
@@ -79,7 +84,7 @@ export class QuiClient {
     savePath: string,
     category: string,
     tags: string
-  ): Promise<QuiTorrent | null> {
+  ): Promise<QBitTorrent | null> {
     const formData = new FormData()
     const arrayBuf =
       fileBuffer instanceof Buffer
@@ -113,14 +118,14 @@ export class QuiClient {
     return null
   }
 
-  async findTorrentByHash(hash: string): Promise<QuiTorrent | undefined> {
+  async findTorrentByHash(hash: string): Promise<QBitTorrent | undefined> {
     const response = await this.request(`/api/v2/torrents/info?hashes=${hash}`)
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any
-    const data: QuiTorrent[] = await response.json()
+    const data: QBitTorrent[] = await response.json()
     return data[0]
   }
 
-  private async waitForSize(hash: string, maxAttempts: number, delayMs: number): Promise<QuiTorrent | undefined> {
+  private async waitForSize(hash: string, maxAttempts: number, delayMs: number): Promise<QBitTorrent | undefined> {
     for (let j = 0; j < maxAttempts; j++) {
       await new Promise((resolve) => setTimeout(resolve, delayMs))
       const byHash = await this.findTorrentByHash(hash)
@@ -129,26 +134,26 @@ export class QuiClient {
     return undefined
   }
 
-  async getUserTorrents(tag: string): Promise<QuiTorrent[]> {
+  async getUserTorrents(tag: string): Promise<QBitTorrent[]> {
     const response = await this.request(
       `/api/v2/torrents/info?tag=${encodeURIComponent(tag)}&sort=added_on&reverse=true`
     )
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any
-    const data: QuiTorrent[] = await response.json()
+    const data: QBitTorrent[] = await response.json()
     return data
   }
 
-  async getRecentTorrents(): Promise<QuiTorrent[]> {
+  async getRecentTorrents(): Promise<QBitTorrent[]> {
     const response = await this.request('/api/v2/torrents/info?sort=added_on&reverse=true&limit=5')
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any
-    const data: QuiTorrent[] = await response.json()
+    const data: QBitTorrent[] = await response.json()
     return data
   }
 
-  async getAllTorrents(): Promise<QuiTorrent[]> {
+  async getAllTorrents(): Promise<QBitTorrent[]> {
     const response = await this.request('/api/v2/torrents/info?sort=added_on&reverse=true')
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Response.json() returns any
-    const data: QuiTorrent[] = await response.json()
+    const data: QBitTorrent[] = await response.json()
     return data
   }
 
@@ -193,12 +198,12 @@ export class QuiClient {
   }
 }
 
-let _client: QuiClient | null = null
+let _client: QBittorrentClient | null = null
 
-export function useQui(): QuiClient {
+export function useQBittorrent(): QBittorrentClient {
   if (!_client) {
     const config = useRuntimeConfig()
-    _client = new QuiClient(config.quiProxyUrl)
+    _client = new QBittorrentClient(config.qbittorrentUrl as string, config.qbittorrentApiKey as string)
   }
   return _client
 }

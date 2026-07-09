@@ -72,28 +72,28 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
 
   const countdownEnabled = isPrepCountdownEnabled()
 
-  let quiTorrents
+  let qbitTorrents
   try {
-    const qui = useQui()
-    quiTorrents = await qui.getAllTorrents()
+    const qbit = useQBittorrent()
+    qbitTorrents = await qbit.getAllTorrents()
   } catch (err: unknown) {
-    log.error(err instanceof Error ? err : new Error(String(err)), 'qui fetch failed')
+    log.error(err instanceof Error ? err : new Error(String(err)), 'qBittorrent fetch failed')
     return result
   }
 
   for (const dl of activeDownloads) {
-    let quiTorrent = dl.torrentHash !== null ? quiTorrents.find((t) => t.hash === dl.torrentHash) : undefined
+    let qbitTorrent = dl.torrentHash !== null ? qbitTorrents.find((t) => t.hash === dl.torrentHash) : undefined
 
-    if (quiTorrent === undefined && quiTorrents.length > 0 && dl.torrentName !== '') {
-      quiTorrent = quiTorrents.find((t) => t.name === dl.torrentName || t.name.includes(dl.torrentName))
+    if (qbitTorrent === undefined && qbitTorrents.length > 0 && dl.torrentName !== '') {
+      qbitTorrent = qbitTorrents.find((t) => t.name === dl.torrentName || t.name.includes(dl.torrentName))
 
-      if (quiTorrent !== undefined) {
-        db.update(downloads).set({ torrentHash: quiTorrent.hash }).where(eq(downloads.id, dl.id)).run()
-        dl.torrentHash = quiTorrent.hash
+      if (qbitTorrent !== undefined) {
+        db.update(downloads).set({ torrentHash: qbitTorrent.hash }).where(eq(downloads.id, dl.id)).run()
+        dl.torrentHash = qbitTorrent.hash
       }
     }
 
-    if (quiTorrent === undefined) {
+    if (qbitTorrent === undefined) {
       if (dl.downloadedBytes > 0 && dl.sizeBytes > 0 && dl.downloadedBytes >= dl.sizeBytes) {
         db.update(downloads)
           .set({
@@ -127,26 +127,26 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
       continue
     }
 
-    const progressPct = quiTorrent.progress * 100
+    const progressPct = qbitTorrent.progress * 100
     const isComplete =
-      quiTorrent.size > 0 &&
-      (quiTorrent.completion_on > 0 ||
-        quiTorrent.downloaded >= quiTorrent.size ||
+      qbitTorrent.size > 0 &&
+      (qbitTorrent.completion_on > 0 ||
+        qbitTorrent.downloaded >= qbitTorrent.size ||
         progressPct >= 99.9 ||
-        completedStates.has(quiTorrent.state))
+        completedStates.has(qbitTorrent.state))
 
     if (isComplete) {
       db.update(downloads)
         .set({
-          torrentName: quiTorrent.name || dl.torrentName,
+          torrentName: qbitTorrent.name || dl.torrentName,
           progress: 100,
           etaSeconds: 0,
           downloadSpeed: 0,
           uploadSpeed: 0,
-          sizeBytes: quiTorrent.size,
-          downloadedBytes: quiTorrent.downloaded,
-          numSeeds: Math.max(quiTorrent.num_seeds, quiTorrent.num_complete > 0 ? quiTorrent.num_complete : 0),
-          numLeechs: quiTorrent.num_leechs,
+          sizeBytes: qbitTorrent.size,
+          downloadedBytes: qbitTorrent.downloaded,
+          numSeeds: Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0),
+          numLeechs: qbitTorrent.num_leechs,
           status: 'completed',
           completedAt: new Date().toISOString()
         })
@@ -169,15 +169,15 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     } else {
       db.update(downloads)
         .set({
-          torrentName: quiTorrent.name || dl.torrentName,
+          torrentName: qbitTorrent.name || dl.torrentName,
           progress: progressPct,
-          etaSeconds: quiTorrent.eta,
-          downloadSpeed: quiTorrent.dlspeed,
-          uploadSpeed: quiTorrent.upspeed,
-          sizeBytes: quiTorrent.size,
-          downloadedBytes: quiTorrent.downloaded,
-          numSeeds: Math.max(quiTorrent.num_seeds, quiTorrent.num_complete > 0 ? quiTorrent.num_complete : 0),
-          numLeechs: quiTorrent.num_leechs
+          etaSeconds: qbitTorrent.eta,
+          downloadSpeed: qbitTorrent.dlspeed,
+          uploadSpeed: qbitTorrent.upspeed,
+          sizeBytes: qbitTorrent.size,
+          downloadedBytes: qbitTorrent.downloaded,
+          numSeeds: Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0),
+          numLeechs: qbitTorrent.num_leechs
         })
         .where(eq(downloads.id, dl.id))
         .run()

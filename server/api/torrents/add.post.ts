@@ -151,7 +151,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const qui = useQui()
+    const qbit = useQBittorrent()
 
     const dlTag = `dl-${randomUUID().slice(0, 8)}`
     let torrent
@@ -189,20 +189,20 @@ export default defineEventHandler(async (event) => {
       }
 
       storedMagnetLink = `download:${downloadUrl}`
-      torrent = await qui.addTorrent(downloadUrl, targetPath, savePath, dlTag)
+      torrent = await qbit.addTorrent(downloadUrl, targetPath, savePath, dlTag)
     } else if (hasFile) {
       const fileBuffer = Buffer.from(torrentFileBase64, 'base64')
       storedMagnetLink = `file:${fileName}`
-      torrent = await qui.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag)
+      torrent = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag)
     } else {
       storedMagnetLink = magnetLink
-      torrent = await qui.addTorrent(magnetLink, targetPath, savePath, dlTag)
+      torrent = await qbit.addTorrent(magnetLink, targetPath, savePath, dlTag)
     }
 
     if (torrent !== null) {
       const maxSizeBytes = freshUser.maxTorrentSizeGb * 1024 * 1024 * 1024
       if (torrent.size > maxSizeBytes) {
-        await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+        await qbit.deleteTorrent(torrent.hash, true).catch(() => {})
         throw createError({
           statusCode: 413,
           statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${freshUser.maxTorrentSizeGb} GB`
@@ -218,7 +218,7 @@ export default defineEventHandler(async (event) => {
             return torrent.size > d.freeBytes
           })
           if (lowDisk !== undefined) {
-            await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+            await qbit.deleteTorrent(torrent.hash, true).catch(() => {})
             throw createError({
               statusCode: 507,
               statusMessage: `Torrent too large for disk (${formatSize(torrent.size)}). Free: ${lowDisk.freeFormatted}${userRole === 'admin' ? ` on ${lowDisk.path}` : ''}`
@@ -229,7 +229,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (torrent !== null && userRole === 'admin') {
-      await qui.moveToTop([torrent.hash]).catch(() => {})
+      await qbit.moveToTop([torrent.hash]).catch(() => {})
     }
 
     let posterUrl: string | null = null

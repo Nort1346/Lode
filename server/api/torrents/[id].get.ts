@@ -25,8 +25,8 @@ export default defineEventHandler(async (event) => {
 
   if (download.torrentHash !== null) {
     try {
-      const qui = useQui()
-      const torrent = await qui.findTorrentByHash(download.torrentHash)
+      const qbit = useQBittorrent()
+      const torrent = await qbit.findTorrentByHash(download.torrentHash)
       const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
 
       if (torrent !== undefined) {
@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
         }
       }
     } catch {
-      // qui might be offline, return stored data
+      // qBittorrent might be offline, return stored data
     }
   }
 

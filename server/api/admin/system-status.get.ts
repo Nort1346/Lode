@@ -14,14 +14,16 @@ interface ServiceStatus {
 }
 
 async function checkQbittorrent(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
-  const proxyUrl = config.quiProxyUrl as string
-  if (!proxyUrl) {
+  const url = config.qbittorrentUrl as string
+  const apiKey = config.qbittorrentApiKey as string
+  if (!url || !apiKey) {
     return { name: 'qBittorrent', configured: false, status: 'not_configured' }
   }
 
   const start = Date.now()
   try {
-    const res = await fetch(`${normalizeUrl(proxyUrl)}/api/v2/app/version`, {
+    const res = await fetch(`${normalizeUrl(url)}/api/v2/app/version`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(5000)
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)

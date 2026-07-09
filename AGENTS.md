@@ -19,6 +19,11 @@ pnpm db:studio        # Open Drizzle Studio (visual DB inspector)
 
 There are **no test files or test framework** in this project. If you write tests, use whatever framework is added (check package.json first).
 
+## Docker Requirements
+
+- **Memory**: Docker Desktop must have **≥4GB memory** allocated (Settings > Resources > Memory). Recommended: 6GB.
+- The Nuxt/Nitro production build requires at least 2GB for Node.js plus overhead for Docker and the OS.
+
 ## Code Style
 
 ### Formatting (Prettier)

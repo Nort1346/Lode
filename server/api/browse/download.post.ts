@@ -183,7 +183,7 @@ export default defineEventHandler(async (event) => {
       }
 
       // ── 5: TRACKER (Polish) ───────────────────────────────────
-      const qui = useQui()
+      const qbit = useQBittorrent()
       const dlTag = `dl-${randomUUID().slice(0, 8)}`
       let torrent
       let storedMagnetLink: string
@@ -389,61 +389,61 @@ export default defineEventHandler(async (event) => {
 
         log.info(`[Download:7:VALIDATE] ✓ valid torrent file (${fileBuffer.length} bytes)`)
 
-        // ── 8: QUI addTorrentFile ───────────────────────────────
+        // ── 8: QBIT addTorrentFile ───────────────────────────────
         const fileName = `${label.replace(/[^a-zA-Z0-9._-]/g, '_')}.torrent`
         storedMagnetLink = `guid:${guidUrl}`
 
         log.info(
-          `[Download:8:QUI] addTorrentFile: fileName=${fileName}, target=${targetPath}, cat=${savePath}, tag=${dlTag}`
+          `[Download:8:QBIT] addTorrentFile: fileName=${fileName}, target=${targetPath}, cat=${savePath}, tag=${dlTag}`
         )
         const t3 = Date.now()
         try {
-          torrent = await qui.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag)
+          torrent = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag)
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
-          log.error(`[Download:8:QUI] ✗ addTorrentFile failed in ${Date.now() - t3}ms: ${msg}`)
+          log.error(`[Download:8:QBIT] ✗ addTorrentFile failed in ${Date.now() - t3}ms: ${msg}`)
           throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
         }
 
         if (torrent !== null) {
           log.info(
-            `[Download:8:QUI] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
+            `[Download:8:QBIT] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
           )
         } else {
-          log.warn(`[Download:8:QUI] ⚠ addTorrentFile returned null after ${Date.now() - t3}ms`)
+          log.warn(`[Download:8:QBIT] ⚠ addTorrentFile returned null after ${Date.now() - t3}ms`)
         }
       } else {
-        // ── 8b: QUI addTorrent (magnet/downloadUrl) ─────────────
+        // ── 8b: QBIT addTorrent (magnet/downloadUrl) ─────────────
         storedMagnetLink = hasDownloadUrl ? `download:${downloadUrl}` : torrentUrl
-        log.info(`[Download:8:QUI] addTorrent (magnet/url): url=${torrentUrl.substring(0, 100)}, tag=${dlTag}`)
+        log.info(`[Download:8:QBIT] addTorrent (magnet/url): url=${torrentUrl.substring(0, 100)}, tag=${dlTag}`)
         const t3 = Date.now()
         try {
-          torrent = await qui.addTorrent(torrentUrl, targetPath, savePath, dlTag)
+          torrent = await qbit.addTorrent(torrentUrl, targetPath, savePath, dlTag)
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
-          log.error(`[Download:8:QUI] ✗ addTorrent failed in ${Date.now() - t3}ms: ${msg}`)
+          log.error(`[Download:8:QBIT] ✗ addTorrent failed in ${Date.now() - t3}ms: ${msg}`)
           throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
         }
 
         if (torrent !== null) {
           log.info(
-            `[Download:8:QUI] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
+            `[Download:8:QBIT] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
           )
         } else {
-          log.warn(`[Download:8:QUI] ⚠ addTorrent returned null after ${Date.now() - t3}ms`)
+          log.warn(`[Download:8:QBIT] ⚠ addTorrent returned null after ${Date.now() - t3}ms`)
         }
       }
 
       // ── 8c: DANGEROUS FILE CHECK ─────────────────────────────
       if (torrent !== null) {
         const t4 = Date.now()
-        let files = await qui.getTorrentFiles(torrent.hash).catch(() => [])
+        let files = await qbit.getTorrentFiles(torrent.hash).catch(() => [])
 
         // Wait for metadata if file list is empty
         if (files.length === 0) {
           for (let i = 0; i < 5; i++) {
             await new Promise((resolve) => setTimeout(resolve, 1000))
-            files = await qui.getTorrentFiles(torrent.hash).catch(() => [])
+            files = await qbit.getTorrentFiles(torrent.hash).catch(() => [])
             if (files.length > 0) break
           }
         }
@@ -454,7 +454,7 @@ export default defineEventHandler(async (event) => {
           const { safe, dangerousFiles } = checkForDangerousFiles(files)
           if (!safe) {
             log.warn(`[Download:8c:FILE_CHECK] ✗ BLOCKED - dangerous files: ${dangerousFiles.join(', ')}`)
-            await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+            await qbit.deleteTorrent(torrent.hash, true).catch(() => {})
             throw createError({
               statusCode: 403,
               statusMessage: `Torrent contains dangerous files: ${dangerousFiles.map((f) => f.split('/').pop() ?? f).join(', ')} — rejected`
@@ -473,7 +473,7 @@ export default defineEventHandler(async (event) => {
           `[Download:9:SIZE] torrent.size=${torrent.size} (${(torrent.size / (1024 * 1024 * 1024)).toFixed(2)} GB) limit=${maxSizeBytes} (${freshUser.maxTorrentSizeGb} GB)`
         )
         if (torrent.size > maxSizeBytes) {
-          await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+          await qbit.deleteTorrent(torrent.hash, true).catch(() => {})
           throw createError({
             statusCode: 413,
             statusMessage: `Torrent too large (${(torrent.size / (1024 * 1024 * 1024)).toFixed(1)} GB). Limit: ${freshUser.maxTorrentSizeGb} GB`
@@ -494,7 +494,7 @@ export default defineEventHandler(async (event) => {
             log.warn(
               `[Download:9b:DISK] ✗ POST-ADD DELETE - ${lowDisk.path}: ${lowDisk.available ? lowDisk.freeFormatted + ' free' : 'unavailable'}, torrent=${formatSize(torrent.size)}`
             )
-            await qui.deleteTorrent(torrent.hash, true).catch(() => {})
+            await qbit.deleteTorrent(torrent.hash, true).catch(() => {})
             const id = randomUUID()
             db.insert(downloads)
               .values({
@@ -523,7 +523,7 @@ export default defineEventHandler(async (event) => {
 
       // ── 9c: ADMIN QUEUE PRIORITY ──────────────────────────────
       if (torrent !== null && userRole === 'admin') {
-        await qui.moveToTop([torrent.hash]).catch(() => {})
+        await qbit.moveToTop([torrent.hash]).catch(() => {})
       }
 
       // ── 10: DB ────────────────────────────────────────────────

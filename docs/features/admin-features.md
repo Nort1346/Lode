@@ -53,7 +53,7 @@ Health checks for all integrated services:
 
 | Service | Check |
 |---------|-------|
-| qBittorrent | GET `/api/v2/app/version` via qui proxy |
+| qBittorrent | GET `/api/v2/app/version` with Bearer auth |
 | Prowlarr | GET `/api/v1/health` |
 | Jellyfin | GET `/System/Info/Public` |
 | Redis | PING command |

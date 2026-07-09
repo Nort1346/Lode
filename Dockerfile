@@ -31,7 +31,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 COPY . .
 
 # NODE_ENV=production
-RUN NODE_ENV=production pnpm run build \
+# Requires Docker Desktop with ≥4GB memory allocated (Settings > Resources)
+RUN NODE_OPTIONS=--max-old-space-size=4000 NODE_ENV=production pnpm run build \
     && find .output -name '*.map' -delete
 
 # ── Runtime ───────────────────────────────────────────────────

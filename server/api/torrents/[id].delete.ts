@@ -25,10 +25,10 @@ export default defineEventHandler(async (event) => {
 
   if (download.torrentHash !== null) {
     try {
-      const qui = useQui()
-      await qui.deleteTorrent(download.torrentHash, true)
+      const qbit = useQBittorrent()
+      await qbit.deleteTorrent(download.torrentHash, true)
     } catch {
-      // qui might be offline
+      // qBittorrent might be offline
     }
   }
 

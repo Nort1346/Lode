@@ -6,7 +6,8 @@
 
 | Variable | Description |
 |----------|-------------|
-| `NUXT_QUI_PROXY_URL` | qui Client Proxy URL (e.g. `http://localhost:7476/proxy/YOUR_KEY`) |
+| `NUXT_QBITTORRENT_URL` | qBittorrent WebUI URL (e.g. `http://localhost:8080`) |
+| `NUXT_QBITTORRENT_API_KEY` | qBittorrent WebUI API key (Settings > Web UI > API Key) |
 | `NUXT_SESSION_PASSWORD` | Session encryption key (32+ chars) |
 | `NUXT_TMDB_API_KEY` | TMDB API v3 key (required for browse) |
 | `NUXT_PROWLARR_URL` | Prowlarr base URL |
@@ -17,11 +18,11 @@
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NUXT_SAVE_PATH_MOVIES` | `/mnt/storage/streaming/Movies` | qBittorrent save path for movies |
-| `NUXT_SAVE_PATH_SERIES` | `/mnt/storage/streaming/Series` | qBittorrent save path for series |
-| `NUXT_SAVE_PATH_GAMES` | `/mnt/storage/streaming/Games` | qBittorrent save path for games |
-| `NUXT_SAVE_PATH_BOOKS` | `/mnt/storage/streaming/Books` | qBittorrent save path for books |
-| `NUXT_SAVE_PATH_MUSIC` | `/mnt/storage/streaming/Music` | qBittorrent save path for music |
+| `NUXT_SAVE_PATH_MOVIES` | `/media/Movies` | qBittorrent save path for movies |
+| `NUXT_SAVE_PATH_SERIES` | `/media/Series` | qBittorrent save path for series |
+| `NUXT_SAVE_PATH_GAMES` | `/media/Games` | qBittorrent save path for games |
+| `NUXT_SAVE_PATH_BOOKS` | `/media/Books` | qBittorrent save path for books |
+| `NUXT_SAVE_PATH_MUSIC` | `/media/Music` | qBittorrent save path for music |
 
 ### Optional — Integrations
 

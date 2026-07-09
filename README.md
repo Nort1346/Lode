@@ -43,17 +43,18 @@ cd requesting-site
 .\setup.ps1
 ```
 
-The setup script will guide you through 10 steps:
+The setup script will guide you through 11 steps:
 1. Check prerequisites (Docker, Docker Compose)
 2. Create `.env` from `.env.example`
 3. Generate secrets (session password, tracker encryption key)
-4. Start infrastructure services (Redis, qBittorrent, qui, Prowlarr, Jellyfin)
+4. Start infrastructure services (Redis, qBittorrent, Prowlarr, Jellyfin)
 5. Get your **Jellyfin API key** (guided instructions)
-6. Configure **qui** + **qBittorrent** (shows temp password, step-by-step)
+6. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
 7. Get your **Prowlarr API key** (guided instructions)
 8. Get your **TMDB API key** (guided instructions)
-9. Pull StreamHub Docker image
-10. Start StreamHub with health check
+9. Set **Discord webhook** (optional)
+10. Pull StreamHub Docker image
+11. Start StreamHub with health check
 
 After setup, open **http://localhost:5757** and create your account.
 
@@ -63,7 +64,7 @@ After setup, open **http://localhost:5757** and create your account.
 
 - Node.js 22+
 - pnpm 11+
-- A running [qui](https://github.com/autobrr/qui) proxy instance connected to qBittorrent
+- qBittorrent with WebUI API key enabled
 
 ```bash
 git clone <your-repo-url>
@@ -87,7 +88,6 @@ docker compose logs -f       # view logs
 |---------|------|---------|
 | `streamhub` | 5757 | Application |
 | `qbittorrent` | 8080 | Torrent client |
-| `qui` | 7476 | qBittorrent proxy |
 | `prowlarr` | 9696 | Indexer manager |
 | `jellyfin` | 8096 | Media server |
 | `redis` | 6379 | Caching (optional) |

@@ -8,7 +8,7 @@ export interface TorrentFile {
   priority: number
 }
 
-export interface QuiTorrent {
+export interface QBitTorrent {
   hash: string
   name: string
   progress: number

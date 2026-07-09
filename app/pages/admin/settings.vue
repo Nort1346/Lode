@@ -14,7 +14,8 @@ const envVars = {
     { name: 'NUXT_SESSION_PASSWORD', desc: 'Session secret' }
   ],
   integrations: [
-    { name: 'NUXT_QUI_PROXY_URL', desc: 'qui Client Proxy' },
+    { name: 'NUXT_QBITTORRENT_URL', desc: 'qBittorrent URL' },
+    { name: 'NUXT_QBITTORRENT_API_KEY', desc: 'qBittorrent API Key' },
     { name: 'NUXT_PROWLARR_URL', desc: 'Prowlarr URL' },
     { name: 'NUXT_PROWLARR_API_KEY', desc: 'Prowlarr API Key' },
     { name: 'NUXT_JELLYFIN_URL', desc: 'Jellyfin URL' },
