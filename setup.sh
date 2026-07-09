@@ -280,9 +280,28 @@ fi
 ok "Session password generated"
 ok "Tracker encryption key generated"
 
-# -- 4. Start infrastructure services ---------------------------------
+# -- 4. Download docker-compose.yml if needed ---------------------------
 
-step "[4/11] Starting infrastructure services"
+if [ -f docker-compose.yml ]; then
+  if [ "$HAS_GUM" = true ]; then
+    gum confirm --default=false "docker-compose.yml already exists. Download latest version from GitHub?" && \
+      curl -fsSL https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml -o docker-compose.yml
+  else
+    read -rp "docker-compose.yml already exists. Download latest version? [y/N] " answer
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+      curl -fsSL https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml -o docker-compose.yml
+    fi
+  fi
+  ok "Using docker-compose.yml"
+else
+  info "Downloading docker-compose.yml..."
+  curl -fsSL https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml -o docker-compose.yml
+  ok "docker-compose.yml downloaded"
+fi
+
+# -- 5. Start infrastructure services ---------------------------------
+
+step "[5/12] Starting infrastructure services"
 
 if [ "$HAS_GUM" = true ]; then
   gum spin --spinner dot --title "Pulling images..." -- docker compose pull redis qbittorrent prowlarr flaresolverr jellyfin dozzle || true
@@ -316,7 +335,7 @@ sleep 10
 
 # -- 5. Jellyfin API Key -----------------------------------------------
 
-step "[5/11] Jellyfin API Key"
+step "[6/12] Jellyfin API Key"
 
 echo ""
 echo "Follow these steps to get your Jellyfin API key:"
@@ -338,7 +357,7 @@ fi
 
 # -- 6. qBittorrent WebUI + API Key -----------------------------------
 
-step "[6/11] qBittorrent WebUI + API Key"
+step "[7/12] qBittorrent WebUI + API Key"
 
 if [ -n "${QBIT_TEMP_PASS:-}" ]; then
   echo ""
@@ -380,7 +399,7 @@ fi
 
 # -- 7. Prowlarr API Key -----------------------------------------------
 
-step "[7/11] Prowlarr API Key"
+step "[8/12] Prowlarr API Key"
 
 echo ""
 echo "Follow these steps to get your Prowlarr API key:"
@@ -406,7 +425,7 @@ fi
 
 # -- 8. TMDB API Key ---------------------------------------------------
 
-step "[8/11] TMDB API Key"
+step "[9/12] TMDB API Key"
 
 echo ""
 echo "Follow these steps to get your TMDB API key:"
@@ -432,7 +451,7 @@ fi
 
 # -- 9. Discord Webhook (optional) ------------------------------------
 
-step "[9/11] Discord Webhook (optional)"
+step "[10/12] Discord Webhook (optional)"
 
 echo ""
 echo "Get notified when downloads complete."
@@ -454,7 +473,7 @@ fi
 
 # -- 10. Pull StreamHub ------------------------------------------------
 
-step "[10/11] Pulling StreamHub"
+step "[11/12] Pulling StreamHub"
 
 if [ "$HAS_GUM" = true ]; then
   gum spin --spinner dot --title "Pulling StreamHub image..." -- docker compose pull streamhub || true
@@ -473,7 +492,7 @@ ok "StreamHub image pulled"
 
 # -- 10. Start StreamHub -----------------------------------------------
 
-step "[11/11] Starting StreamHub"
+step "[12/12] Starting StreamHub"
 
 update_env "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 update_env "NUXT_REDIS_URL" "redis://redis:6379"

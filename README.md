@@ -30,33 +30,29 @@ Run one command and follow the guided setup:
 
 **Linux / macOS:**
 ```bash
-git clone <your-repo-url>
-cd requesting-site
-chmod +x setup.sh
-./setup.sh
+curl -fsSL https://raw.githubusercontent.com/nort1346/streamhub/main/setup.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-git clone <your-repo-url>
-cd requesting-site
-.\setup.ps1
+irm https://raw.githubusercontent.com/nort1346/streamhub/main/setup.ps1 | iex
 ```
 
-The setup script will guide you through 11 steps:
+The setup script will guide you through 12 steps:
 1. Check prerequisites (Docker, Docker Compose)
 2. Create `.env` from `.env.example`
 3. Generate secrets (session password, tracker encryption key)
-4. Start infrastructure services (Redis, qBittorrent, Prowlarr, Jellyfin)
-5. Get your **Jellyfin API key** (guided instructions)
-6. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
-7. Get your **Prowlarr API key** (guided instructions)
-8. Get your **TMDB API key** (guided instructions)
-9. Set **Discord webhook** (optional)
-10. Pull StreamHub Docker image
-11. Start StreamHub with health check
+4. Download `docker-compose.yml` from GitHub
+5. Start infrastructure services (Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle)
+6. Get your **Jellyfin API key** (guided instructions)
+7. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
+8. Get your **Prowlarr API key** (guided instructions)
+9. Get your **TMDB API key** (guided instructions)
+10. Set **Discord webhook** (optional)
+11. Pull StreamHub Docker image
+12. Start StreamHub with health check
 
-After setup, open **http://localhost:5757** and create your account.
+After setup, open **http://localhost:5757** and login with `admin / admin`. Create users in Admin > Users.
 
 ### Option 2: Manual Setup
 

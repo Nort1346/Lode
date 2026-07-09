@@ -302,9 +302,30 @@ if (-not (Test-EnvMinLength -Key "NUXT_TRACKER_ENCRYPTION_KEY" -MinLength 32)) {
 Write-Ok "Session password generated"
 Write-Ok "Tracker encryption key generated"
 
-# -- 4. Start infrastructure services --------------------------------
+# -- 4. Download docker-compose.yml if needed ---------------------------
 
-Write-Step "[4/11] Starting infrastructure services"
+if (Test-Path "docker-compose.yml") {
+    if ($script:HAS_GUM) {
+        gum confirm --default=false "docker-compose.yml already exists. Download latest version from GitHub?"
+        if ($LASTEXITCODE -eq 0) {
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml" -OutFile "docker-compose.yml"
+        }
+    } else {
+        $answer = Read-Host "docker-compose.yml already exists. Download latest version? (y/N)"
+        if ($answer -match '^[Yy]$') {
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml" -OutFile "docker-compose.yml"
+        }
+    }
+    Write-Ok "Using docker-compose.yml"
+} else {
+    Write-Info "Downloading docker-compose.yml..."
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml" -OutFile "docker-compose.yml"
+    Write-Ok "docker-compose.yml downloaded"
+}
+
+# -- 5. Start infrastructure services --------------------------------
+
+Write-Step "[5/12] Starting infrastructure services"
 
 Invoke-Spinner "Pulling images..." { docker compose pull redis qbittorrent prowlarr flaresolverr jellyfin dozzle 2>$null }
 
@@ -336,7 +357,7 @@ Start-Sleep -Seconds 10
 
 # -- 5. Jellyfin API Key ----------------------------------------------
 
-Write-Step "[5/11] Jellyfin API Key"
+Write-Step "[6/12] Jellyfin API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Jellyfin API key:" -ForegroundColor White
@@ -358,7 +379,7 @@ if ($jellyfinKey) {
 
 # -- 6. qBittorrent WebUI + API Key ------------------------------------
 
-Write-Step "[6/11] qBittorrent WebUI + API Key"
+Write-Step "[7/12] qBittorrent WebUI + API Key"
 
 if ($QBIT_TEMP_PASS) {
     Write-Host ""
@@ -394,7 +415,7 @@ if ($qbitKey) {
 
 # -- 7. Prowlarr API Key ----------------------------------------------
 
-Write-Step "[7/11] Prowlarr API Key"
+Write-Step "[8/12] Prowlarr API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Prowlarr API key:" -ForegroundColor White
@@ -420,7 +441,7 @@ if ($prowlarrKey) {
 
 # -- 8. TMDB API Key --------------------------------------------------
 
-Write-Step "[8/11] TMDB API Key"
+Write-Step "[9/12] TMDB API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your TMDB API key:" -ForegroundColor White
@@ -446,7 +467,7 @@ if ($tmdbKey) {
 
 # -- 9. Discord Webhook (optional) ------------------------------------
 
-Write-Step "[9/11] Discord Webhook (optional)"
+Write-Step "[10/12] Discord Webhook (optional)"
 
 Write-Host ""
 Write-Host "Get notified when downloads complete." -ForegroundColor White
@@ -468,7 +489,7 @@ if ($discordKey) {
 
 # -- 10. Pull StreamHub -----------------------------------------------
 
-Write-Step "[10/11] Pulling StreamHub"
+Write-Step "[11/12] Pulling StreamHub"
 
 Invoke-Spinner "Pulling StreamHub image..." { docker compose pull streamhub 2>$null }
 if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
@@ -479,7 +500,7 @@ Write-Ok "StreamHub image pulled"
 
 # -- 10. Start StreamHub ----------------------------------------------
 
-Write-Step "[11/11] Starting StreamHub"
+Write-Step "[12/12] Starting StreamHub"
 
 Update-EnvFile "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 Update-EnvFile "NUXT_REDIS_URL" "redis://redis:6379"
