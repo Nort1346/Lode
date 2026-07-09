@@ -72,6 +72,10 @@ export default defineNuxtConfig({
     vapidSubject: ''
   },
 
+  nitro: {
+    port: 5757
+  },
+
   routeRules: {},
 
   compatibilityDate: '2025-01-15',

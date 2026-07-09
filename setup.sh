@@ -20,7 +20,9 @@ install_gum() {
 
   echo "Installing gum (charm) for beautiful output..."
 
-  if command -v apt-get &> /dev/null; then
+  if command -v brew &> /dev/null; then
+    brew install gum
+  elif command -v apt-get &> /dev/null; then
     mkdir -p /etc/apt/keyrings
     curl -fsSL https://repo.charm.sh/apt/gpg.key | gpg --dearmor -o /etc/apt/keyrings/charm.gpg 2>/dev/null
     echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" \
@@ -49,17 +51,19 @@ EOF
   elif command -v apk &> /dev/null; then
     apk add --no-cache gum 2>/dev/null
   else
-    local arch
+    local os arch
+    os=$(uname -s)
     arch=$(uname -m)
     case "$arch" in
       x86_64)  arch="x86_64" ;;
-      aarch64) arch="arm64" ;;
+      arm64|aarch64) arch="arm64" ;;
       *)       echo "Unsupported architecture: $arch"; return 1 ;;
     esac
     local tmp
     tmp=$(mktemp -d)
-    curl -fsSL "https://github.com/charmbracelet/gum/releases/latest/download/gum_*_Linux_${arch}.tar.gz" \
+    curl -fsSL "https://github.com/charmbracelet/gum/releases/latest/download/gum_*_${os}_${arch}.tar.gz" \
       | tar xz -C "$tmp" gum 2>/dev/null
+    mkdir -p /usr/local/bin
     mv "$tmp/gum" /usr/local/bin/gum 2>/dev/null
     rm -rf "$tmp"
   fi
@@ -162,9 +166,9 @@ wait_for_port() {
 update_env() {
   local key="$1" value="$2"
   if grep -q "^${key}=" .env 2>/dev/null; then
-    sed -i "s|^${key}=.*|${key}=${value}|" .env
+    sed -i.bak "s|^${key}=.*|${key}=${value}|" .env && rm -f .env.bak
   elif grep -q "^# *${key}=" .env 2>/dev/null; then
-    sed -i "s|^# *${key}=.*|${key}=${value}|" .env
+    sed -i.bak "s|^# *${key}=.*|${key}=${value}|" .env && rm -f .env.bak
   else
     echo "${key}=${value}" >> .env
   fi
@@ -191,13 +195,13 @@ fi
 
 # -- 1. Prerequisites --------------------------------------------------
 
-step "[1/10] Checking prerequisites"
+step "[1/11] Checking prerequisites"
 
 if ! command -v docker &> /dev/null; then
   err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
   exit 1
 fi
-ok "Docker $(docker --version | grep -oP 'version \K[^ ,]+')"
+ok "Docker $(docker --version | sed -n 's/.*version \([^ ,]*\).*/\1/p')"
 
 if ! docker compose version &> /dev/null 2>&1; then
   err "Docker Compose plugin is not installed."
@@ -213,7 +217,7 @@ ok "curl available"
 
 # -- 2. Create .env ----------------------------------------------------
 
-step "[2/10] Setting up .env file"
+step "[2/11] Setting up .env file"
 
 if [ ! -f .env ]; then
   if [ -f .env.example ]; then
@@ -227,9 +231,12 @@ else
   warn ".env exists -- keeping existing config"
 fi
 
+mkdir -p media
+ok "Created media directory"
+
 # -- 3. Generate secrets -----------------------------------------------
 
-step "[3/10] Generating secrets"
+step "[3/11] Generating secrets"
 
 SESSION_PASSWORD=$(generate_password 32)
 TRACKER_KEY=$(generate_hex 32)
@@ -241,35 +248,35 @@ ok "Tracker encryption key generated"
 
 # -- 4. Start infrastructure services ---------------------------------
 
-step "[4/10] Starting infrastructure services"
+step "[4/11] Starting infrastructure services"
 
 if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Pulling images..." -- docker compose pull redis qbittorrent prowlarr qui jellyfin 2>/dev/null || true
+  gum spin --spinner dot --title "Pulling images..." -- docker compose pull redis qbittorrent prowlarr qui jellyfin || true
 else
   info "Pulling images..."
-  docker compose pull redis qbittorrent prowlarr qui jellyfin 2>/dev/null || true
+  docker compose pull redis qbittorrent prowlarr qui jellyfin || true
 fi
 
 docker compose up -d --remove-orphans redis qbittorrent prowlarr qui jellyfin
 
 info "Waiting for Redis..."
-wait_for_port "localhost" "6379" 30
+wait_for_port "localhost" "6379" 30 || true
 
 info "Waiting for qBittorrent..."
-wait_for_port "localhost" "8080" 60
+wait_for_port "localhost" "8080" 60 || true
 
 sleep 3
 
-QBIT_TEMP_PASS=$(docker logs streamhub-qbittorrent 2>&1 | grep -oP 'A temporary password is provided for this session: \K.*' | tail -1) || true
+QBIT_TEMP_PASS=$(docker logs streamhub-qbittorrent 2>&1 | sed -n 's/.*A temporary password is provided for this session: *//p' | tail -1) || true
 
 info "Waiting for Prowlarr..."
-wait_for_port "localhost" "9696" 60
+wait_for_port "localhost" "9696" 60 || true
 
 info "Waiting for qui..."
-wait_for_port "localhost" "7476" 60
+wait_for_port "localhost" "7476" 60 || true
 
 info "Waiting for Jellyfin..."
-wait_for_port "localhost" "8096" 90
+wait_for_port "localhost" "8096" 90 || true
 
 ok "All infrastructure services are running"
 
@@ -278,7 +285,7 @@ sleep 10
 
 # -- 5. Jellyfin API Key -----------------------------------------------
 
-step "[5/10] Jellyfin API Key"
+step "[5/11] Jellyfin API Key"
 
 echo ""
 echo "Follow these steps to get your Jellyfin API key:"
@@ -300,14 +307,20 @@ fi
 
 # -- 6. qui setup + qBittorrent connection ----------------------------
 
-step "[6/10] qui setup + qBittorrent connection"
+step "[6/11] qui setup + qBittorrent connection"
 
 if [ -n "${QBIT_TEMP_PASS:-}" ]; then
   echo ""
-  echo -e "  +--------------------------------------------+"
-  echo -e "  | ${YELLOW}qBittorrent temporary password: ${QBIT_TEMP_PASS}${NC}"
-  echo -e "  | ${YELLOW}Copy this -- you will need it below        ${NC}"
-  echo -e "  +--------------------------------------------+"
+  if [ "$HAS_GUM" = true ]; then
+    gum style --foreground "#FFD700" --border normal --border-foreground "#FFD700" \
+      --padding "0 1" --bold "qBittorrent temporary password: ${QBIT_TEMP_PASS}" \
+      "Copy this -- you will need it below"
+  else
+    echo -e "  +--------------------------------------------+"
+    echo -e "  | ${YELLOW}qBittorrent temporary password: ${QBIT_TEMP_PASS}${NC}"
+    echo -e "  | ${YELLOW}Copy this -- you will need it below        ${NC}"
+    echo -e "  +--------------------------------------------+"
+  fi
   echo ""
 else
   warn "Could not extract qBittorrent temp password -- check: docker logs streamhub-qbittorrent"
@@ -353,7 +366,7 @@ fi
 
 # -- 7. Prowlarr API Key -----------------------------------------------
 
-step "[7/10] Prowlarr API Key"
+step "[7/11] Prowlarr API Key"
 
 echo ""
 echo "Follow these steps to get your Prowlarr API key:"
@@ -376,7 +389,7 @@ fi
 
 # -- 8. TMDB API Key ---------------------------------------------------
 
-step "[8/10] TMDB API Key"
+step "[8/11] TMDB API Key"
 
 echo ""
 echo "Follow these steps to get your TMDB API key:"
@@ -400,22 +413,50 @@ else
   warn "Skipping TMDB API key -- set it later in .env"
 fi
 
-# -- 9. Pull StreamHub -------------------------------------------------
+# -- 9. Discord Webhook (optional) ------------------------------------
 
-step "[9/10] Pulling StreamHub"
+step "[9/11] Discord Webhook (optional)"
+
+echo ""
+echo "Get notified when downloads complete."
+echo "To set up a Discord webhook:"
+echo "  1. Open your Discord server"
+echo "  2. Go to Server Settings > Integrations > Webhooks"
+echo '  3. Click "New Webhook"'
+echo "  4. Name it, choose a channel, click Copy Webhook URL"
+echo ""
+
+discordKey=$(read_input "Paste your Discord Webhook URL (Enter to skip)")
+
+if [ -n "$discordKey" ]; then
+  update_env "NUXT_DISCORD_WEBHOOK_URL" "$discordKey"
+  ok "Discord webhook URL saved"
+else
+  warn "Skipping Discord webhook -- set it later in .env"
+fi
+
+# -- 10. Pull StreamHub ------------------------------------------------
+
+step "[10/11] Pulling StreamHub"
 
 if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Pulling StreamHub image..." -- docker compose pull streamhub
+  gum spin --spinner dot --title "Pulling StreamHub image..." -- docker compose pull streamhub || true
 else
   info "Pulling StreamHub image..."
-  docker compose pull streamhub
+  docker compose pull streamhub || true
+fi
+
+if ! docker image inspect ghcr.io/nort1346/streamhub:latest &> /dev/null; then
+  err "Failed to pull StreamHub image. Check your network and try again."
+  err "You can also try manually: docker compose pull streamhub"
+  exit 1
 fi
 
 ok "StreamHub image pulled"
 
 # -- 10. Start StreamHub -----------------------------------------------
 
-step "[10/10] Starting StreamHub"
+step "[11/11] Starting StreamHub"
 
 update_env "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 update_env "NUXT_REDIS_URL" "redis://redis:6379"
@@ -423,14 +464,19 @@ update_env "NUXT_PROWLARR_URL" "http://prowlarr:9696"
 update_env "DB_DRIVER" "sqlite"
 
 if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Starting StreamHub..." -- docker compose up -d streamhub
+  gum spin --spinner dot --title "Starting StreamHub..." -- docker compose up -d streamhub || true
 else
   info "Starting StreamHub..."
-  docker compose up -d streamhub
+  docker compose up -d streamhub || true
+fi
+
+if ! docker compose ps streamhub 2>/dev/null | grep -q "Up"; then
+  err "StreamHub container failed to start. Check logs:"
+  err "  docker compose logs streamhub"
 fi
 
 info "Waiting for StreamHub to start (first start may take 1-2 minutes)..."
-wait_for_port "localhost" "5757" 120
+wait_for_port "localhost" "5757" 120 || true
 
 ok "StreamHub is running at http://localhost:5757"
 

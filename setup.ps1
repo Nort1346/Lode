@@ -29,7 +29,11 @@ function Install-Gum {
         scoop install gum
     }
     else {
-        $arch = if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "386" }
+        $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
+            "ARM64" { "x86_64" }
+            "x86"   { "i386" }
+            default { "x86_64" }
+        }
         $tmp = Join-Path $env:TEMP "gum-download"
         New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 
@@ -208,7 +212,7 @@ if ($script:HAS_GUM) {
 
 # -- 1. Prerequisites -------------------------------------------------
 
-Write-Step "[1/10] Checking prerequisites"
+Write-Step "[1/11] Checking prerequisites"
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
@@ -233,7 +237,7 @@ Write-Ok "curl available"
 
 # -- 2. Create .env ---------------------------------------------------
 
-Write-Step "[2/10] Setting up .env file"
+Write-Step "[2/11] Setting up .env file"
 
 if (-not (Test-Path .env)) {
     if (Test-Path .env.example) {
@@ -247,9 +251,12 @@ if (-not (Test-Path .env)) {
     Write-Warn ".env exists - keeping existing config"
 }
 
+New-Item -ItemType Directory -Path "media" -Force | Out-Null
+Write-Ok "Created media directory"
+
 # -- 3. Generate secrets ----------------------------------------------
 
-Write-Step "[3/10] Generating secrets"
+Write-Step "[3/11] Generating secrets"
 
 $SESSION_PASSWORD = New-SecretPassword -Length 32
 $TRACKER_KEY = New-SecretHex -Bytes 32
@@ -261,7 +268,7 @@ Write-Ok "Tracker encryption key generated"
 
 # -- 4. Start infrastructure services --------------------------------
 
-Write-Step "[4/10] Starting infrastructure services"
+Write-Step "[4/11] Starting infrastructure services"
 
 Invoke-Spinner "Pulling images..." { docker compose pull redis qbittorrent prowlarr qui jellyfin 2>$null }
 
@@ -296,7 +303,7 @@ Start-Sleep -Seconds 10
 
 # -- 5. Jellyfin API Key ----------------------------------------------
 
-Write-Step "[5/10] Jellyfin API Key"
+Write-Step "[5/11] Jellyfin API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Jellyfin API key:" -ForegroundColor White
@@ -318,7 +325,7 @@ if ($jellyfinKey) {
 
 # -- 6. qui setup + proxy key -----------------------------------------
 
-Write-Step "[6/10] qui setup + qBittorrent connection"
+Write-Step "[6/11] qui setup + qBittorrent connection"
 
 if ($QBIT_TEMP_PASS) {
     Write-Host ""
@@ -371,7 +378,7 @@ if ($quiKey) {
 
 # -- 7. Prowlarr API Key ----------------------------------------------
 
-Write-Step "[7/10] Prowlarr API Key"
+Write-Step "[7/11] Prowlarr API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Prowlarr API key:" -ForegroundColor White
@@ -394,7 +401,7 @@ if ($prowlarrKey) {
 
 # -- 8. TMDB API Key --------------------------------------------------
 
-Write-Step "[8/10] TMDB API Key"
+Write-Step "[8/11] TMDB API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your TMDB API key:" -ForegroundColor White
@@ -418,17 +425,42 @@ if ($tmdbKey) {
     Write-Warn "Skipping TMDB API key -- set it later in .env"
 }
 
-# -- 9. Pull StreamHub ------------------------------------------------
+# -- 9. Discord Webhook (optional) ------------------------------------
 
-Write-Step "[9/10] Pulling StreamHub"
+Write-Step "[9/11] Discord Webhook (optional)"
 
-Invoke-Spinner "Pulling StreamHub image..." { docker compose pull streamhub }
+Write-Host ""
+Write-Host "Get notified when downloads complete." -ForegroundColor White
+Write-Host "To set up a Discord webhook:" -ForegroundColor Gray
+Write-Host "  1. Open your Discord server" -ForegroundColor Gray
+Write-Host "  2. Go to Server Settings > Integrations > Webhooks" -ForegroundColor Gray
+Write-Host '  3. Click "New Webhook"' -ForegroundColor Gray
+Write-Host "  4. Name it, choose a channel, click Copy Webhook URL" -ForegroundColor Gray
+Write-Host ""
+
+$discordKey = Read-GumInput -Placeholder "Paste your Discord Webhook URL (Enter to skip)"
+
+if ($discordKey) {
+    Update-EnvFile "NUXT_DISCORD_WEBHOOK_URL" $discordKey
+    Write-Ok "Discord webhook URL saved"
+} else {
+    Write-Warn "Skipping Discord webhook -- set it later in .env"
+}
+
+# -- 10. Pull StreamHub -----------------------------------------------
+
+Write-Step "[10/11] Pulling StreamHub"
+
+Invoke-Spinner "Pulling StreamHub image..." { docker compose pull streamhub 2>$null }
+if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
+    Write-Warn "Could not pull StreamHub image -- will try to start anyway"
+}
 
 Write-Ok "StreamHub image pulled"
 
 # -- 10. Start StreamHub ----------------------------------------------
 
-Write-Step "[10/10] Starting StreamHub"
+Write-Step "[11/11] Starting StreamHub"
 
 Update-EnvFile "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 Update-EnvFile "NUXT_REDIS_URL" "redis://redis:6379"

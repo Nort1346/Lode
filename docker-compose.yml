@@ -19,7 +19,7 @@ services:
       - '6881:6881/udp'
     volumes:
       - qbittorrent-config:/config
-      - /mnt/storage/streaming:/downloads
+      - ./media:/downloads
     environment:
       - PUID=1000
       - PGID=1000
@@ -55,12 +55,12 @@ services:
     volumes:
       - ./data:/app/.data
       - streamhub-avatars:/app/.output/public/avatars
-      - /mnt/storage/streaming:/mnt/storage/streaming:ro
-      - /:/host-root:ro
+      - ./media:/media
     env_file:
       - .env
     environment:
       - NODE_ENV=production
+      - NITRO_PORT=5757
     depends_on:
       redis:
         condition: service_started
@@ -77,7 +77,7 @@ services:
     volumes:
       - jellyfin-config:/config
       - jellyfin-cache:/cache
-      - /mnt/storage/streaming:/media:ro
+      - ./media:/media
     environment:
       - JELLYFIN_PublishedServerUrl=http://localhost:8096
 
