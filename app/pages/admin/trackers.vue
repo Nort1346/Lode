@@ -347,12 +347,12 @@ function getMethodLabel(tracker: CustomTracker): string {
               <UButton
                 :label="t('trackers.typeCounting')"
                 :variant="formTrackerType === 'counting' ? 'solid' : 'outline'"
-                @click="formTrackerType = 'counting'"
+                @click="void (formTrackerType = 'counting')"
               />
               <UButton
                 :label="t('trackers.typeGuid')"
                 :variant="formTrackerType === 'guid' ? 'solid' : 'outline'"
-                @click="formTrackerType = 'guid'"
+                @click="void (formTrackerType = 'guid')"
               />
             </div>
             <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
@@ -368,12 +368,12 @@ function getMethodLabel(tracker: CustomTracker): string {
               <UButton
                 :label="t('trackers.methodCookie')"
                 :variant="authMethod === 'cookie' ? 'solid' : 'outline'"
-                @click="authMethod = 'cookie'"
+                @click="void (authMethod = 'cookie')"
               />
               <UButton
                 :label="t('trackers.methodLogin')"
                 :variant="authMethod === 'login' ? 'solid' : 'outline'"
-                @click="authMethod = 'login'"
+                @click="void (authMethod = 'login')"
               />
             </div>
 
@@ -439,7 +439,7 @@ function getMethodLabel(tracker: CustomTracker): string {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton :label="t('common.cancel')" variant="ghost" @click="showModal = false" />
+          <UButton :label="t('common.cancel')" variant="ghost" @click="void (showModal = false)" />
           <UButton
             :label="editTracker ? t('common.saveChanges') : t('common.create')"
             :loading="saving"

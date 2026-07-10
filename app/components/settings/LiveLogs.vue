@@ -88,7 +88,7 @@ onUnmounted(() => {
             size="xs"
             class="text-zinc-400"
             :label="logsPaused ? t('settings.logsResume') : t('settings.logsPause')"
-            @click="logsPaused = !logsPaused"
+            @click="void (logsPaused = !logsPaused)"
           />
           <UButton
             icon="i-lucide-trash-2"

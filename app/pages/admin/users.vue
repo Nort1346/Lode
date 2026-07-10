@@ -470,7 +470,7 @@ function onExpiresAtInput(event: Event) {
                     size="xs"
                     icon="i-lucide-x"
                     :label="t('admin.expiresAtClear')"
-                    @click="form.expiresAt = null"
+                    @click="void (form.expiresAt = null)"
                   />
                 </div>
               </UFormField>
@@ -530,7 +530,7 @@ function onExpiresAtInput(event: Event) {
           <UAlert v-if="error" :description="error" color="error" variant="subtle" />
 
           <div class="flex justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-white/10">
-            <UButton variant="ghost" :label="t('admin.cancel')" @click="showModal = false" />
+            <UButton variant="ghost" :label="t('admin.cancel')" @click="void (showModal = false)" />
             <UButton
               type="submit"
               :loading="saving"

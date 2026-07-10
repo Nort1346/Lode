@@ -268,7 +268,7 @@ async function confirmAction() {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton :label="t('common.cancel')" variant="soft" @click="actionModalOpen = false" />
+          <UButton :label="t('common.cancel')" variant="soft" @click="void (actionModalOpen = false)" />
           <UButton
             :label="actionType === 'accept' ? t('requests.accept') : t('requests.reject')"
             :color="actionType === 'accept' ? 'success' : 'error'"

@@ -494,7 +494,7 @@
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton :label="t('common.cancel')" variant="soft" @click="requestModalOpen = false" />
+          <UButton :label="t('common.cancel')" variant="soft" @click="void (requestModalOpen = false)" />
           <UButton :label="t('requests.requestThis')" :loading="requesting" @click="submitRequest" />
         </div>
       </template>
