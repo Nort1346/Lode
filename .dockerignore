@@ -13,6 +13,8 @@ logs
 .env.*
 !.env.example
 
+coverage
+
 .prettierrc
 .prettierignore
 .editorconfig
@@ -21,3 +23,8 @@ drizzle.config.ts
 renovate.json
 LICENSE
 README.md
+
+public/avatars
+prowlarr-config
+data
+media

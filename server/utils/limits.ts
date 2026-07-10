@@ -1,6 +1,7 @@
 import { downloads } from '#server/database/schema'
 import { and, eq } from 'drizzle-orm'
 import { getFreshUser } from '#server/utils/user'
+import { useDb } from '#server/utils/db'
 import type { DailyLimitResult } from '#server/types/limits'
 
 export function checkDailyLimit(userId: string): DailyLimitResult {

@@ -18,6 +18,11 @@ logs
 .fleet
 .idea
 
+# pnpm local store
+.pnpm-store
+
+coverage
+
 # Local env files
 .env
 .env.*

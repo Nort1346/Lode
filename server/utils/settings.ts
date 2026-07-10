@@ -1,5 +1,6 @@
 import { settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { useDb } from '#server/utils/db'
 import type { SettingKey } from '#server/types/settings'
 
 export function getSetting(key: SettingKey): string | undefined {

@@ -13,6 +13,7 @@ const configSchema = z.object({
   jellyfinApiKey: z.string().optional()
 })
 
+export { configSchema }
 export type ValidatedConfig = z.infer<typeof configSchema>
 
 export function validateConfig(raw: Record<string, unknown>): ValidatedConfig {

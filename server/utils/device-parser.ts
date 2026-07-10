@@ -50,15 +50,15 @@ function parseOS(ua: string): string | null {
   if (ua.includes('Windows NT 6.2')) return 'Windows 8'
   if (ua.includes('Windows NT 6.1')) return 'Windows 7'
   if (ua.includes('Windows')) return 'Windows'
-  if (ua.includes('Mac OS X')) {
-    const version = extractVersionUnderscore(ua, /Mac OS X ([\d_]+)/)
-    return version !== null ? `macOS v${version}` : 'macOS'
-  }
   if (ua.includes('iPhone OS')) {
     const version = extractVersionUnderscore(ua, /iPhone OS ([\d_]+)/)
     return version !== null ? `iPhone v${version}` : 'iPhone'
   }
   if (ua.includes('iPad')) return 'iPad'
+  if (ua.includes('Mac OS X')) {
+    const version = extractVersionUnderscore(ua, /Mac OS X ([\d._]+)/)
+    return version !== null ? `macOS v${version}` : 'macOS'
+  }
   if (ua.includes('Android')) {
     const version = extractVersion(ua, /Android ([\d.]+)/)
     return version !== null ? `Android v${version}` : 'Android'
