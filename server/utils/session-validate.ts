@@ -1,5 +1,6 @@
 import { sessions } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { useDb } from '#server/utils/db'
 
 export async function validateSession(sessionId: string): Promise<boolean> {
   const db = useDb()

@@ -89,6 +89,22 @@ export default withNuxt(
     }
   },
 
+  // Test files
+  {
+    files: ['test/**/*.ts'],
+    rules: {
+      'import/first': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/strict-boolean-expressions': 'off',
+      '@typescript-eslint/no-floating-promises': 'off'
+    }
+  },
+
   // Global ignores
   {
     ignores: ['dist/**', '.output/**', '.nuxt/**', 'node_modules/**']

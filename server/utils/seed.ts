@@ -2,6 +2,7 @@ import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { hash } from '@node-rs/bcrypt'
 import { randomUUID } from 'node:crypto'
+import { useDb } from '#server/utils/db'
 import { createLogger } from '#server/utils/logger'
 
 const log = createLogger('DB')

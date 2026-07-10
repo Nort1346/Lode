@@ -1,6 +1,8 @@
 import { activityLogs } from '#server/database/schema'
 import { randomUUID } from 'node:crypto'
+import { getHeader } from 'h3'
 import type { H3Event } from 'h3'
+import { useDb } from '#server/utils/db'
 import { resolveIp } from '#server/utils/ip'
 
 export function logActivity(
