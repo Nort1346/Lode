@@ -92,6 +92,12 @@ export default withNuxt(
   // Test files
   {
     files: ['test/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir
+      }
+    },
     rules: {
       'import/first': 'off',
       '@typescript-eslint/no-require-imports': 'off',

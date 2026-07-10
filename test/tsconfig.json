@@ -1,4 +1,5 @@
 {
   "extends": "../.nuxt/tsconfig.server.json",
-  "include": ["**/*"]
+  "include": ["**/*.ts", "../shared/auth.d.ts"],
+  "exclude": ["../server/**/*", "../app/**/*"]
 }

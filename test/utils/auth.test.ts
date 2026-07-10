@@ -8,8 +8,8 @@ const mockGetUserSession = vi.fn()
 vi.mock('h3', () => ({
   createError: vi.fn((opts) => {
     const err = new Error(opts.statusMessage)
-    ;(err as Record<string, unknown>).statusCode = opts.statusCode
-    ;(err as Record<string, unknown>).statusMessage = opts.statusMessage
+    ;(err as unknown as Record<string, unknown>).statusCode = opts.statusCode
+    ;(err as unknown as Record<string, unknown>).statusMessage = opts.statusMessage
     throw err
   })
 }))

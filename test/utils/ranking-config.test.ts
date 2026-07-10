@@ -43,9 +43,9 @@ describe('ranking-config', () => {
         })
       )
       const config = await getRankingConfig()
-      expect(config.sizeThresholds.movie[0].max).toBe(Infinity)
-      expect(config.sizeThresholds.series[0].max).toBe(Infinity)
-      expect(config.sizeThresholds.seasonPack[0].max).toBe(Infinity)
+      expect(config.sizeThresholds!.movie[0]!.max).toBe(Infinity)
+      expect(config.sizeThresholds!.series[0]!.max).toBe(Infinity)
+      expect(config.sizeThresholds!.seasonPack[0]!.max).toBe(Infinity)
     })
 
     it('returns defaults when JSON is invalid', async () => {
@@ -73,7 +73,7 @@ describe('ranking-config', () => {
       }
       await saveRankingConfig(config)
       expect(mockPutSetting).toHaveBeenCalled()
-      const stored = JSON.parse(mockPutSetting.mock.calls[0][1])
+      const stored = JSON.parse(mockPutSetting.mock.calls[0]![1] as string)
       expect(stored.sizeThresholds.movie[0].max).toBe(-1)
     })
   })

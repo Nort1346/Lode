@@ -4,7 +4,7 @@ const mockUseDb = vi.hoisted(() => vi.fn())
 const mockSelect = vi.fn()
 const mockAll = vi.fn()
 const mockGet = vi.fn()
-const mockWhere = vi.fn(() => ({ get: mockGet, run: vi.fn() }))
+const mockWhere = vi.fn(() => ({ get: mockGet, run: vi.fn(), all: mockAll }))
 const mockDeleteWhere = vi.fn(() => ({ run: vi.fn() }))
 const mockFrom = vi.fn(() => ({ where: mockWhere }))
 const mockUpdate = vi.fn(() => ({ set: vi.fn(() => ({ where: mockWhere })) }))
@@ -33,7 +33,7 @@ describe('validateSession', () => {
     vi.clearAllMocks()
     mockUseDb.mockReturnValue({ select: mockSelect })
     mockSelect.mockReturnValue({ from: mockFrom })
-    mockWhere.mockReturnValue({ get: mockGet })
+    mockWhere.mockReturnValue({ get: mockGet, run: vi.fn(), all: mockAll })
   })
 
   it('returns true when session exists', async () => {
@@ -56,7 +56,7 @@ describe('touchSession', () => {
   })
 
   it('updates lastActiveAt timestamp', async () => {
-    mockWhere.mockReturnValue({ run: vi.fn() })
+    mockWhere.mockReturnValue({ get: mockGet, run: vi.fn(), all: mockAll })
     await touchSession('session-1')
     expect(mockUpdate).toHaveBeenCalled()
   })
@@ -68,7 +68,7 @@ describe('enforceMaxSessions', () => {
     const mockDelete = vi.fn(() => ({ where: mockDeleteWhere }))
     mockUseDb.mockReturnValue({ select: mockSelect, delete: mockDelete })
     mockSelect.mockReturnValue({ from: mockFrom })
-    mockWhere.mockReturnValue({ all: mockAll })
+    mockWhere.mockReturnValue({ get: mockGet, run: vi.fn(), all: mockAll })
   })
 
   it('does nothing when maxSessions is 0 or negative', async () => {

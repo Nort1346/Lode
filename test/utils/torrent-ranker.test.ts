@@ -3,10 +3,10 @@ import { rankTorrents, parseTorrentTitle, formatScore } from '#server/utils/torr
 import { DEFAULT_RANKING_CONFIG } from '#server/types/ranking'
 import type { ProwlarrResult } from '#server/types/prowlarr'
 
-const mockResults: ProwlarrResult[] = [
+const mockResults = [
   {
     title: 'Movie.2024.1080p.BluRay.x264-GROUP',
-    size: 10737418240, // 10 GB
+    size: 10737418240,
     seeders: 100,
     leechers: 10,
     indexer: 'TestIndexer',
@@ -19,7 +19,7 @@ const mockResults: ProwlarrResult[] = [
   },
   {
     title: 'Movie.2024.2160p.Remux-GROUP',
-    size: 53687091200, // 50 GB
+    size: 53687091200,
     seeders: 50,
     leechers: 5,
     indexer: 'TestIndexer',
@@ -32,7 +32,7 @@ const mockResults: ProwlarrResult[] = [
   },
   {
     title: 'Movie.2024.720p.WEB-DL.x264-GROUP',
-    size: 5368709120, // 5 GB
+    size: 5368709120,
     seeders: 200,
     leechers: 20,
     indexer: 'TestIndexer',
@@ -43,7 +43,7 @@ const mockResults: ProwlarrResult[] = [
     age: 20,
     infoHash: 'hash3'
   }
-]
+] as unknown as ProwlarrResult[]
 
 describe('parseTorrentTitle', () => {
   it('parses resolution', () => {
@@ -91,7 +91,7 @@ describe('rankTorrents', () => {
   it('sorts by score descending', () => {
     const ranked = rankTorrents(mockResults, 'movie', 'Movie', '2024')
     for (let i = 1; i < ranked.length; i++) {
-      expect(ranked[i - 1].score).toBeGreaterThanOrEqual(ranked[i].score)
+      expect(ranked[i - 1]!.score).toBeGreaterThanOrEqual(ranked[i]!.score)
     }
   })
 

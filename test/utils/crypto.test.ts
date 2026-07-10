@@ -78,7 +78,7 @@ describe('encryptAES / decryptAES', () => {
     const encrypted = encryptAES(plaintext)
     const parts = encrypted.split(':')
     // Corrupt the data part
-    const corrupted = `${parts[0]}:${parts[1]}:${parts[2].slice(0, -2)}00`
+    const corrupted = `${parts[0]}:${parts[1]}:${parts[2]!.slice(0, -2)}00`
     expect(() => decryptAES(corrupted)).toThrow()
   })
 })
