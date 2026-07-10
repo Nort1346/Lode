@@ -1,13 +1,9 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { H3Event } from 'h3'
 
 const mockEvent = { context: {} } as unknown as H3Event
 
-const mockGetUserSession = vi.hoisted(() => vi.fn())
-
-vi.mock('nuxt-auth-utils', () => ({
-  getUserSession: mockGetUserSession
-}))
+const mockGetUserSession = vi.fn()
 
 vi.mock('h3', () => ({
   createError: vi.fn((opts) => {
@@ -19,6 +15,13 @@ vi.mock('h3', () => ({
 }))
 
 import { requireUser, requireAdmin } from '#server/utils/auth'
+
+beforeEach(() => {
+  vi.stubGlobal('getUserSession', mockGetUserSession)
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('requireUser', () => {
   it('returns user when session exists', async () => {

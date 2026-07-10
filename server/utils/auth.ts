@@ -1,6 +1,5 @@
 import { createError } from 'h3'
 import type { H3Event } from 'h3'
-import { getUserSession } from 'nuxt-auth-utils'
 
 export async function requireUser(event: H3Event) {
   const session = await getUserSession(event)
