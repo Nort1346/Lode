@@ -32,22 +32,24 @@ describe('middleware/session-validate', () => {
     mockTouchSession.mockReset()
   })
 
+  const callHandler = handler as (event: unknown) => Promise<unknown>
+
   it('passes for non-api routes', async () => {
     const event = { path: '/' } as never
-    const result = await (handler as Function)(event)
+    const result = await callHandler(event)
     expect(result).toBeUndefined()
   })
 
   it('passes for auth routes', async () => {
     const event = { path: '/api/_auth/login' } as never
-    const result = await (handler as Function)(event)
+    const result = await callHandler(event)
     expect(result).toBeUndefined()
   })
 
   it('passes when no session', async () => {
     mockGetUserSession.mockResolvedValue({ sessionId: null })
     const event = { path: '/api/test' } as never
-    const result = await (handler as Function)(event)
+    const result = await callHandler(event)
     expect(result).toBeUndefined()
   })
 
@@ -56,7 +58,7 @@ describe('middleware/session-validate', () => {
     mockValidateSession.mockResolvedValue(false)
     const event = { path: '/api/test' } as never
 
-    await expect((handler as Function)(event)).rejects.toThrow('401: Session expired')
+    await expect(callHandler(event)).rejects.toThrow('401: Session expired')
     expect(mockClearUserSession).toHaveBeenCalled()
   })
 
@@ -65,7 +67,7 @@ describe('middleware/session-validate', () => {
     mockValidateSession.mockResolvedValue(true)
     const event = { path: '/api/test' } as never
 
-    const result = await (handler as Function)(event)
+    const result = await callHandler(event)
     expect(result).toBeUndefined()
     expect(mockTouchSession).toHaveBeenCalledWith('s1')
   })
@@ -75,8 +77,8 @@ describe('middleware/session-validate', () => {
     mockValidateSession.mockResolvedValue(true)
 
     const event = { path: '/api/test' } as never
-    await (handler as Function)(event)
-    await (handler as Function)(event)
+    await callHandler(event)
+    await callHandler(event)
 
     expect(mockTouchSession).toHaveBeenCalledTimes(1)
   })

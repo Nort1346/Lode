@@ -79,7 +79,8 @@ describe('admin/users.get', () => {
     const result = await handler(mockEvent)
     expect(Array.isArray(result)).toBe(true)
     expect(result).toHaveLength(1)
-    expect((result as Array<{ id: string }>)[0].id).toBe('u1')
+    const users = result as Array<{ id: string }>
+    expect(users[0]!.id).toBe('u1')
   })
 
   it('throws 403 for non-admin', async () => {

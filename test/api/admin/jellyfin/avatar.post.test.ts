@@ -3,7 +3,6 @@ import { stubAdminAuth } from '../../helpers'
 
 const mockGetUserSession = vi.fn()
 const mockRun = vi.fn()
-const mockReadBody = vi.fn()
 const mockSyncAvatar = vi.hoisted(() => vi.fn())
 const mockValidateAndProcessAvatar = vi.hoisted(() => vi.fn())
 
