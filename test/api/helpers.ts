@@ -67,3 +67,21 @@ export function createMockEvent(
     __event: true
   } as unknown as Parameters<Parameters<typeof import('h3').defineEventHandler>[0]>[0]
 }
+
+export function stubAdminAuth(mockGetUserSession: ReturnType<typeof vi.fn>) {
+  vi.stubGlobal('getUserSession', mockGetUserSession)
+  vi.stubGlobal(
+    'requireAdmin',
+    vi.fn().mockImplementation(async (event: never) => {
+      const session = await (mockGetUserSession as unknown as (...args: unknown[]) => Promise<MockSession>)(event)
+      if (!session?.user) {
+        throw new Error('401: Unauthorized')
+      }
+      if (session.user.role !== 'admin') {
+        throw new Error('403: Forbidden')
+      }
+      return session.user
+    })
+  )
+  vi.stubGlobal('logActivity', vi.fn())
+}
