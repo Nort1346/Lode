@@ -19,10 +19,16 @@ describe('admin/brute-force/config.get', () => {
 
   it('returns brute-force config for admin', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
-    mockGetBruteForceConfig.mockResolvedValue({ maxAttempts: 5, windowMs: 60000 })
+    mockGetBruteForceConfig.mockResolvedValue({
+      maxAttemptsPerIp: 5,
+      ipBlockDurationMinutes: 30,
+      windowMinutes: 60
+    })
 
     const result = await handler(mockEvent)
-    expect(result).toEqual({ config: { maxAttempts: 5, windowMs: 60000 } })
+    expect(result).toEqual({
+      config: { maxAttemptsPerIp: 5, ipBlockDurationMinutes: 30, windowMinutes: 60 }
+    })
   })
 
   it('throws 403 for non-admin', async () => {

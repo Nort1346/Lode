@@ -19,10 +19,17 @@ describe('admin/brute-force/stats.get', () => {
 
   it('returns brute-force stats for admin', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
-    mockGetBruteForceStats.mockResolvedValue({ totalAttempts: 100, blockedIps: 5 })
+    mockGetBruteForceStats.mockResolvedValue({
+      blockedIpsCount: 5,
+      recentAttempts24h: 100,
+      recentFailed24h: 30,
+      recentSuccess24h: 70
+    })
 
     const result = await handler(mockEvent)
-    expect(result).toEqual({ stats: { totalAttempts: 100, blockedIps: 5 } })
+    expect(result).toEqual({
+      stats: { blockedIpsCount: 5, recentAttempts24h: 100, recentFailed24h: 30, recentSuccess24h: 70 }
+    })
   })
 
   it('throws 403 for non-admin', async () => {

@@ -82,4 +82,24 @@ describe('middleware/session-validate', () => {
 
     expect(mockTouchSession).toHaveBeenCalledTimes(1)
   })
+
+  it('treats getUserSession rejection as no session', async () => {
+    mockGetUserSession.mockRejectedValue(new Error('corrupt cookie'))
+    const event = { path: '/api/test' } as never
+    const result = await callHandler(event)
+    expect(result).toBeUndefined()
+  })
+
+  it('passes when event.path is undefined', async () => {
+    const event = { path: undefined } as never
+    const result = await callHandler(event)
+    expect(result).toBeUndefined()
+  })
+
+  it('passes when sessionId is undefined', async () => {
+    mockGetUserSession.mockResolvedValue({ sessionId: undefined })
+    const event = { path: '/api/test' } as never
+    const result = await callHandler(event)
+    expect(result).toBeUndefined()
+  })
 })

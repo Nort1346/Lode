@@ -152,6 +152,13 @@ describe('debug/prowlarr.get', () => {
     const result = await handler(mockEvent)
     expect(result.downloadableCount).toBe(0)
     expect(result.filteredCount).toBe(1)
+    expect(result.filteredReasons).toEqual([
+      expect.objectContaining({
+        title: 'Unreachable',
+        indexer: 'PrivateTracker',
+        reason: 'no magnetUrl and no downloadUrl'
+      })
+    ])
   })
 
   it('marks Polish trackers as downloadable', async () => {

@@ -113,11 +113,15 @@ describe('browse/spotlights.get', () => {
 
   it('deduplicates items by type and id', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    mockFisheryYatesShuffle.mockReturnValueOnce([
+      { type: 'movie', id: 28 },
+      { type: 'tv', id: 10759 }
+    ])
     mockGetMoviesByGenre.mockResolvedValue({
       results: [
         {
-          id: 1,
-          title: 'Movie 1',
+          id: 99,
+          title: 'Shared',
           overview: '',
           poster_path: '/p.jpg',
           backdrop_path: '/b.jpg',
@@ -129,8 +133,8 @@ describe('browse/spotlights.get', () => {
     mockGetTvByGenre.mockResolvedValue({
       results: [
         {
-          id: 1,
-          title: 'TV 1',
+          id: 99,
+          name: 'Shared TV',
           overview: '',
           poster_path: '/p.jpg',
           backdrop_path: '/b.jpg',
@@ -143,6 +147,7 @@ describe('browse/spotlights.get', () => {
     const result = await handler(mockEvent)
     const ids = result.items.map((i: { id: number; type: string }) => `${i.type}-${i.id}`)
     expect(new Set(ids).size).toBe(ids.length)
+    expect(result.items).toHaveLength(2)
   })
 
   it('uses default locale when query param is invalid', async () => {

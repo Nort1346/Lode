@@ -30,17 +30,22 @@ describe('admin/brute-force/config.put', () => {
 
   it('saves config and returns success for admin', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
-    mockReadBody.mockResolvedValue({ maxAttempts: 10 })
+    mockReadBody.mockResolvedValue({ maxAttemptsPerIp: 10 })
     mockSaveBruteForceConfig.mockResolvedValue(undefined)
-    mockGetBruteForceConfig.mockResolvedValue({ maxAttempts: 10 })
+    mockGetBruteForceConfig.mockResolvedValue({ maxAttemptsPerIp: 10, ipBlockDurationMinutes: 30, windowMinutes: 60 })
 
     const result = await handler(mockEvent)
-    expect(result).toEqual({ success: true, config: { maxAttempts: 10 } })
-    expect(mockSaveBruteForceConfig).toHaveBeenCalledWith({ maxAttempts: 10 })
+    expect(result).toEqual({
+      success: true,
+      config: { maxAttemptsPerIp: 10, ipBlockDurationMinutes: 30, windowMinutes: 60 }
+    })
+    expect(mockSaveBruteForceConfig).toHaveBeenCalledWith({ maxAttemptsPerIp: 10 })
     expect(mockLogActivity).toHaveBeenCalledWith(
       mockEvent,
       expect.objectContaining({
-        action: 'brute_force_config_update'
+        action: 'brute_force_config_update',
+        userId: 'a1',
+        username: 'admin'
       })
     )
   })

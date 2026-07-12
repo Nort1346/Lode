@@ -52,6 +52,14 @@ describe('logger', () => {
       expect(buffer.some((line) => line.includes('warn message'))).toBe(true)
     })
 
+    it('debug does NOT add to log buffer', () => {
+      const logger = createLogger('TestModule')
+      const bufferBefore = getLogBuffer().length
+      logger.debug('debug message')
+      const bufferAfter = getLogBuffer().length
+      expect(bufferAfter).toBe(bufferBefore)
+    })
+
     it('info with object and message', () => {
       const logger = createLogger('TestModule')
       logger.info({ key: 'value' }, 'context message')
@@ -65,6 +73,20 @@ describe('logger', () => {
       const buffer = getLogBuffer()
       expect(buffer.some((line) => line.includes('error occurred'))).toBe(true)
     })
+
+    it('info with printf-style format string', () => {
+      const logger = createLogger('TestModule')
+      logger.info('User %s has %d items', 'alice', 5)
+      const buffer = getLogBuffer()
+      expect(buffer.some((line) => line.includes('User alice has 5 items'))).toBe(true)
+    })
+
+    it('info with 0 args returns empty string', () => {
+      const logger = createLogger('TestModule')
+      ;(logger as unknown as { info: () => void }).info()
+      const buffer = getLogBuffer()
+      expect(buffer.length).toBeGreaterThan(0)
+    })
   })
 
   describe('getLogBuffer', () => {
@@ -73,6 +95,16 @@ describe('logger', () => {
       const buffer2 = getLogBuffer()
       expect(buffer1).not.toBe(buffer2)
       expect(buffer1).toEqual(buffer2)
+    })
+
+    it('caps buffer at 500 entries', () => {
+      const logger = createLogger('Overflow')
+      for (let i = 0; i < 600; i++) {
+        logger.info(`msg-${i}`)
+      }
+      const buffer = getLogBuffer()
+      expect(buffer.length).toBeLessThanOrEqual(500)
+      expect(buffer.some((line) => line.includes('msg-599'))).toBe(true)
     })
   })
 

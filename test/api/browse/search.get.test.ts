@@ -92,6 +92,7 @@ describe('browse/search.get', () => {
         results: expect.arrayContaining([expect.objectContaining({ type: 'movie' })])
       })
     )
+    expect(mockSearchTvShows).not.toHaveBeenCalled()
   })
 
   it('searches only tv', async () => {
@@ -104,6 +105,82 @@ describe('browse/search.get', () => {
         results: expect.arrayContaining([expect.objectContaining({ type: 'tv' })])
       })
     )
+    expect(mockSearchMovies).not.toHaveBeenCalled()
+  })
+
+  it('filters movies by genre', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    mockGetQuery.mockReturnValue({ q: 'test', movieGenre: '28,35' })
+
+    const result = await handler(mockEvent)
+    expect(result.results).toEqual(
+      expect.arrayContaining([expect.objectContaining({ genres: expect.arrayContaining(['28']) })])
+    )
+  })
+
+  it('filters tv by genre', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    mockGetQuery.mockReturnValue({ q: 'test', tvGenre: '18' })
+
+    const result = await handler(mockEvent)
+    expect(result.results).toEqual(
+      expect.arrayContaining([expect.objectContaining({ genres: expect.arrayContaining(['18']) })])
+    )
+  })
+
+  it('filters out movies with non-matching genre', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    mockGetQuery.mockReturnValue({ q: 'test', movieGenre: '99' })
+
+    const result = await handler(mockEvent)
+    expect(result.results.filter((r: { type: string }) => r.type === 'movie')).toHaveLength(0)
+  })
+
+  it('sorts results by rating descending', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    mockSearchMovies.mockResolvedValue({
+      results: [
+        {
+          id: 1,
+          title: 'Low',
+          overview: '',
+          poster_path: null,
+          backdrop_path: null,
+          release_date: null,
+          vote_average: 3.0,
+          genre_ids: []
+        },
+        {
+          id: 2,
+          title: 'High',
+          overview: '',
+          poster_path: null,
+          backdrop_path: null,
+          release_date: null,
+          vote_average: 9.0,
+          genre_ids: []
+        }
+      ]
+    })
+
+    const result = await handler(mockEvent)
+    expect(result.results[0]!.rating).toBeGreaterThanOrEqual(result.results[1]!.rating)
+  })
+
+  it('throws 502 on TMDB error', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    mockSearchMovies.mockRejectedValue(new Error('TMDB down'))
+
+    await expect(handler(mockEvent)).rejects.toThrow('502')
+  })
+
+  it('returns empty results when TMDB returns nothing', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    mockSearchMovies.mockResolvedValue({ results: [] })
+    mockSearchTvShows.mockResolvedValue({ results: [] })
+
+    const result = await handler(mockEvent)
+    expect(result.results).toEqual([])
   })
 
   it('throws 400 for short query', async () => {

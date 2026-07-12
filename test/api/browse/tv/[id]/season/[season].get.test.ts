@@ -190,4 +190,182 @@ describe('browse/tv/[id]/season/[season].get', () => {
       })
     )
   })
+
+  it('matches torrents to episodes via episodeRangeMatches', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    const mockProwlarr = { searchTv: vi.fn() }
+    mockUseProwlarr.mockReturnValue(mockProwlarr)
+    mockProwlarr.searchTv.mockResolvedValue([
+      {
+        title: 'Show.S01E01.1080p',
+        size: 1000,
+        seeders: 10,
+        leechers: 2,
+        indexer: 'Test',
+        magnetLink: 'magnet:?xt=urn:btih:aa',
+        downloadUrl: null,
+        guid: null,
+        categories: [5000],
+        isPrivate: false
+      },
+      {
+        title: 'Show.S01E02.720p',
+        size: 500,
+        seeders: 5,
+        leechers: 1,
+        indexer: 'Test',
+        magnetLink: 'magnet:?xt=urn:btih:bb',
+        downloadUrl: null,
+        guid: null,
+        categories: [5000],
+        isPrivate: false
+      }
+    ])
+    mockRankTorrents.mockImplementation((torrents: unknown[]) =>
+      (
+        torrents as Array<{
+          title: string
+          size: number
+          seeders: number
+          leechers: number
+          indexer: string
+          magnetLink: string
+          downloadUrl: null
+          guid: null
+          categories: number[]
+          isPrivate: boolean
+        }>
+      ).map((t) => ({
+        ...t,
+        score: 100,
+        percentage: 100,
+        recommended: true,
+        parsed: { resolution: '1080p', source: null, language: null }
+      }))
+    )
+
+    const result = await handler(mockEvent)
+    const eps = result as { episodes: Array<{ episodeNumber: number; torrents: unknown[] }> }
+    expect(eps.episodes[0]!.torrents).toHaveLength(1)
+    expect(eps.episodes[1]!.torrents).toHaveLength(1)
+  })
+
+  it('matches season packs via isSeasonPack', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    const mockProwlarr = { searchTv: vi.fn() }
+    mockUseProwlarr.mockReturnValue(mockProwlarr)
+    mockProwlarr.searchTv.mockResolvedValue([
+      {
+        title: 'Show.S01.Complete.1080p',
+        size: 5000,
+        seeders: 20,
+        leechers: 3,
+        indexer: 'Test',
+        magnetLink: 'magnet:?xt=urn:btih:cc',
+        downloadUrl: null,
+        guid: null,
+        categories: [5000],
+        isPrivate: false
+      }
+    ])
+    mockRankTorrents.mockImplementation((torrents: unknown[]) =>
+      (
+        torrents as Array<{
+          title: string
+          size: number
+          seeders: number
+          leechers: number
+          indexer: string
+          magnetLink: string
+          downloadUrl: null
+          guid: null
+          categories: number[]
+          isPrivate: boolean
+        }>
+      ).map((t) => ({
+        ...t,
+        score: 100,
+        percentage: 100,
+        recommended: true,
+        parsed: { resolution: '1080p', source: null, language: null }
+      }))
+    )
+
+    const result = await handler(mockEvent)
+    const packs = result as { seasonPacks: Array<{ title: string; isSeasonPack: boolean }> }
+    expect(packs.seasonPacks).toHaveLength(1)
+    expect(packs.seasonPacks[0]!.title).toBe('Show.S01.Complete.1080p')
+  })
+
+  it('retries with original_name when first search returns 0 results', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    mockGetTvShowDetails.mockResolvedValue({
+      id: 456,
+      name: 'English Name',
+      original_name: 'Original Japanese Name',
+      first_air_date: '2024-01-01',
+      external_ids: { imdb_id: null }
+    })
+    const mockProwlarr = { searchTv: vi.fn() }
+    mockUseProwlarr.mockReturnValue(mockProwlarr)
+    mockProwlarr.searchTv.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        title: 'Original.Ep01',
+        size: 1000,
+        seeders: 5,
+        leechers: 1,
+        indexer: 'T',
+        magnetLink: 'magnet:?xt=urn:btih:dd',
+        downloadUrl: null,
+        guid: null,
+        categories: [5000],
+        isPrivate: false
+      }
+    ])
+    mockRankTorrents.mockImplementation((torrents: unknown[]) =>
+      (
+        torrents as Array<{
+          title: string
+          size: number
+          seeders: number
+          leechers: number
+          indexer: string
+          magnetLink: string
+          downloadUrl: null
+          guid: null
+          categories: number[]
+          isPrivate: boolean
+        }>
+      ).map((t) => ({
+        ...t,
+        score: 100,
+        percentage: 100,
+        recommended: true,
+        parsed: { resolution: null, source: null, language: null }
+      }))
+    )
+
+    await handler(mockEvent)
+    expect(mockProwlarr.searchTv).toHaveBeenCalledTimes(2)
+    expect(mockProwlarr.searchTv).toHaveBeenNthCalledWith(
+      1,
+      'English Name',
+      'Original Japanese Name',
+      '2024',
+      null,
+      1,
+      'en',
+      expect.anything()
+    )
+    expect(mockProwlarr.searchTv).toHaveBeenNthCalledWith(
+      2,
+      'Original Japanese Name',
+      'English Name',
+      '2024',
+      null,
+      1,
+      'en',
+      expect.anything()
+    )
+  })
 })

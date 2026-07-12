@@ -91,6 +91,10 @@ describe('browse/tv/[id].get', () => {
         show: expect.objectContaining({ id: 456, name: 'Test Show' })
       })
     )
+    const seasons = (result as { show: { seasons: Array<{ seasonNumber: number }> } }).show.seasons
+    expect(seasons).toHaveLength(2)
+    expect(seasons.every((s) => s.seasonNumber > 0)).toBe(true)
+    expect(seasons.find((s) => s.seasonNumber === 0)).toBeUndefined()
   })
 
   it('throws 400 for invalid ID', async () => {
