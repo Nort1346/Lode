@@ -224,6 +224,12 @@ if ! command -v docker &> /dev/null; then
 fi
 ok "Docker $(docker --version | sed -n 's/.*version \([^ ,]*\).*/\1/p')"
 
+if ! docker info &> /dev/null; then
+  err "Docker daemon is not running. Start Docker Desktop and try again."
+  exit 1
+fi
+ok "Docker daemon running"
+
 if ! docker compose version &> /dev/null 2>&1; then
   err "Docker Compose plugin is not installed."
   exit 1

@@ -244,6 +244,15 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 Write-Ok "Docker $(docker --version)"
 
 try {
+    docker info 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Docker daemon not running" }
+} catch {
+    Write-Err "Docker daemon is not running. Start Docker Desktop and try again."
+    exit 1
+}
+Write-Ok "Docker daemon running"
+
+try {
     $composeVersion = docker compose version 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Docker Compose not found" }
 } catch {
@@ -551,10 +560,10 @@ Write-Host ""
 # -- Next steps
 $steps = @(
     $(if ($script:HAS_GUM) { gum style --foreground 14 '  Next steps:' } else { '  Next steps:' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   1. Login with admin / admin → Admin > Users' } else { '   1. Login with admin / admin → Admin > Users' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   2. qBittorrent → Settings > Web UI > API Key' } else { '   2. qBittorrent → Settings > Web UI > API Key' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   3. Jellyfin → /media/Movies, /media/Series' } else { '   3. Jellyfin → /media/Movies, /media/Series' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   4. Prowlarr → Add indexers + FlareSolverr proxy' } else { '   4. Prowlarr → Add indexers + FlareSolverr proxy' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   1. Login with admin / admin -> Admin > Users' } else { '   1. Login with admin / admin -> Admin > Users' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   2. qBittorrent -> Settings > Web UI > API Key' } else { '   2. qBittorrent -> Settings > Web UI > API Key' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   3. Jellyfin -> /media/Movies, /media/Series' } else { '   3. Jellyfin -> /media/Movies, /media/Series' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   4. Prowlarr -> Add indexers + FlareSolverr proxy' } else { '   4. Prowlarr -> Add indexers + FlareSolverr proxy' })
 )
 $stepsMsg = $steps -join "`n"
 Write-SummarySection $stepsMsg
