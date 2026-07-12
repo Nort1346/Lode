@@ -1,3 +1,5 @@
+name: streamhub
+
 services:
   redis:
     image: redis:7-alpine
@@ -31,7 +33,7 @@ services:
     container_name: streamhub-prowlarr
     restart: unless-stopped
     ports:
-      - '9696:9696'
+      - '9900:9696'
     volumes:
       - prowlarr-config:/config
 
@@ -43,8 +45,8 @@ services:
       - '8191:8191'
 
   streamhub:
-    build: .
-    #image: ghcr.io/nort1346/streamhub:latest
+    #build: .
+    image: ghcr.io/nort1346/streamhub:latest
     container_name: streamhub
     ports:
       - '5757:5757'

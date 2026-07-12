@@ -84,7 +84,7 @@ docker compose logs -f       # view logs
 |---------|------|---------|
 | `streamhub` | 5757 | Application |
 | `qbittorrent` | 8080 | Torrent client |
-| `prowlarr` | 9696 | Indexer manager |
+| `prowlarr` | 9900 | Indexer manager |
 | `jellyfin` | 8096 | Media server |
 | `redis` | 6379 | Caching (optional) |
 | `dozzle` | 8082 | Live log viewer |

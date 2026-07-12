@@ -17,7 +17,7 @@ docker compose logs -f  # view logs
 | `streamhub` | Built from Dockerfile | 5757 | Main application |
 | `redis` | `redis:7-alpine` | 6379 | Caching (optional) |
 | `qbittorrent` | `linuxserver/qbittorrent` | 8080 | Torrent client |
-| `prowlarr` | `linuxserver/prowlarr` | 9696 | Indexer manager |
+| `prowlarr` | `linuxserver/prowlarr` | 9900 | Indexer manager |
 | `jellyfin` | `jellyfin/jellyfin` | 8096 | Media server |
 | `postgres` | `postgres:16-alpine` | 5432 | Database (optional) |
 | `dozzle` | `amir20/dozzle:latest` | 8082 | Log viewer |

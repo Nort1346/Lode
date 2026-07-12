@@ -162,16 +162,23 @@ function Test-Port {
     param([string]$Host_, [int]$Port, [int]$Timeout = 60)
     $elapsed = 0
     while ($elapsed -lt $Timeout) {
+        $tcp = $null
         try {
             $tcp = New-Object System.Net.Sockets.TcpClient
-            $tcp.Connect($Host_, $Port)
-            $tcp.Close()
-            return $true
+            $task = $tcp.ConnectAsync($Host_, $Port)
+            if ($task.Wait(5000)) {
+                $tcp.Close()
+                return $true
+            }
         }
         catch {
-            Start-Sleep -Seconds 2
-            $elapsed += 2
+            # connection failed
         }
+        finally {
+            if ($tcp) { $tcp.Dispose() }
+        }
+        Start-Sleep -Seconds 2
+        $elapsed += 2
     }
     Write-Err "Timeout waiting for ${Host_}:${Port} after ${Timeout}s"
     return $false
@@ -235,7 +242,7 @@ if ($script:HAS_GUM) {
 
 # -- 1. Prerequisites -------------------------------------------------
 
-Write-Step "[1/11] Checking prerequisites"
+Write-Step "[1/12] Checking prerequisites"
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
@@ -269,7 +276,7 @@ Write-Ok "curl available"
 
 # -- 2. Create .env ---------------------------------------------------
 
-Write-Step "[2/11] Setting up .env file"
+Write-Step "[2/12] Setting up .env file"
 
 if (-not (Test-Path .env)) {
     if (Test-Path .env.example) {
@@ -283,12 +290,13 @@ if (-not (Test-Path .env)) {
     Write-Warn ".env exists - keeping existing config"
 }
 
-New-Item -ItemType Directory -Path "media" -Force | Out-Null
-Write-Ok "Created media directory"
+New-Item -ItemType Directory -Path "media/Movies" -Force | Out-Null
+New-Item -ItemType Directory -Path "media/Series" -Force | Out-Null
+Write-Ok "Created media directories (media/Movies, media/Series)"
 
 # -- 3. Generate secrets ----------------------------------------------
 
-Write-Step "[3/11] Generating secrets"
+Write-Step "[3/12] Generating secrets"
 
 $SESSION_PASSWORD = New-SecretPassword -Length 32
 $TRACKER_KEY = New-SecretHex -Bytes 32
@@ -312,6 +320,8 @@ Write-Ok "Session password generated"
 Write-Ok "Tracker encryption key generated"
 
 # -- 4. Download docker-compose.yml if needed ---------------------------
+
+Write-Step "[4/12] Downloading docker-compose.yml"
 
 if (Test-Path "docker-compose.yml") {
     if ($script:HAS_GUM) {
@@ -340,6 +350,31 @@ Invoke-Spinner "Pulling images..." { docker compose pull redis qbittorrent prowl
 
 docker compose up -d --remove-orphans redis qbittorrent prowlarr flaresolverr jellyfin dozzle
 
+$failedServices = @()
+$psOutput = docker compose ps --format json 2>$null
+if ($psOutput) {
+    foreach ($line in ($psOutput -split "`n")) {
+        if (-not $line) { continue }
+        try {
+            $json = $line | ConvertFrom-Json
+            if ($json.State -ne "running") {
+                $failedServices += $json.Service
+                $lastLog = docker compose logs $json.Service --tail 3 2>&1 | Select-Object -Last 1
+                Write-Warn "$($json.Service) failed to start: $lastLog"
+            }
+        } catch { }
+    }
+}
+
+if ($failedServices -contains 'redis') {
+    Write-Err "Redis failed to start. Cannot continue."
+    exit 1
+}
+if ($failedServices -contains 'qbittorrent') {
+    Write-Err "qBittorrent failed to start. Cannot continue."
+    exit 1
+}
+
 Write-Info "Waiting for Redis..."
 Test-Port -Host_ "localhost" -Port 6379 -Timeout 30 | Out-Null
 
@@ -353,11 +388,19 @@ $QBIT_TEMP_PASS = docker logs streamhub-qbittorrent 2>&1 |
     ForEach-Object { ($_ -replace '.*A temporary password is provided for this session:\s*', '').Trim() } |
     Select-Object -First 1
 
-Write-Info "Waiting for Prowlarr..."
-Test-Port -Host_ "localhost" -Port 9696 -Timeout 60 | Out-Null
+if ($failedServices -notcontains 'prowlarr') {
+    Write-Info "Waiting for Prowlarr..."
+    Test-Port -Host_ "localhost" -Port 9900 -Timeout 60 | Out-Null
+} else {
+    Write-Warn "Prowlarr not running -- you can configure it later (step 8)"
+}
 
-Write-Info "Waiting for Jellyfin..."
-Test-Port -Host_ "localhost" -Port 8096 -Timeout 90 | Out-Null
+if ($failedServices -notcontains 'jellyfin') {
+    Write-Info "Waiting for Jellyfin..."
+    Test-Port -Host_ "localhost" -Port 8096 -Timeout 90 | Out-Null
+} else {
+    Write-Warn "Jellyfin not running -- you can configure it later (step 6)"
+}
 
 Write-Ok "All infrastructure services are running"
 
@@ -428,7 +471,7 @@ Write-Step "[8/12] Prowlarr API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Prowlarr API key:" -ForegroundColor White
-Write-Host "  1. Open http://localhost:9696 in your browser" -ForegroundColor Gray
+Write-Host "  1. Open http://localhost:9900 in your browser" -ForegroundColor Gray
 Write-Host "  2. Go to Settings > General" -ForegroundColor Gray
 Write-Host "  3. Find the API Key field" -ForegroundColor Gray
 Write-Host "  4. Copy the API key" -ForegroundColor Gray
@@ -501,8 +544,11 @@ if ($discordKey) {
 Write-Step "[11/12] Pulling StreamHub"
 
 Invoke-Spinner "Pulling StreamHub image..." { docker compose pull streamhub 2>$null }
-if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
-    Write-Warn "Could not pull StreamHub image -- will try to start anyway"
+
+if (-not (docker image inspect ghcr.io/nort1346/streamhub:latest 2>$null)) {
+    Write-Err "Failed to pull StreamHub image. Check your network."
+    Write-Err "You can also try manually: docker compose pull streamhub"
+    exit 1
 }
 
 Write-Ok "StreamHub image pulled"
@@ -516,7 +562,15 @@ Update-EnvFile "NUXT_REDIS_URL" "redis://redis:6379"
 Update-EnvFile "NUXT_PROWLARR_URL" "http://prowlarr:9696"
 Update-EnvFile "DB_DRIVER" "sqlite"
 
-Invoke-Spinner "Starting StreamHub..." { docker compose up -d streamhub }
+docker compose up -d streamhub 2>$null
+
+Start-Sleep -Seconds 3
+$streamhubUp = docker compose ps streamhub 2>$null | Select-String "Up"
+if (-not $streamhubUp) {
+    Write-Err "StreamHub container is not running. Check logs:"
+    Write-Err "  docker compose logs streamhub"
+    exit 1
+}
 
 Write-Info "Waiting for StreamHub to start (first start may take 1-2 minutes)..."
 Test-Port -Host_ "localhost" -Port 5757 -Timeout 120 | Out-Null
@@ -538,7 +592,7 @@ Write-Host ""
 $services = @(
     (Get-SummaryRow "StreamHub" "http://localhost:5757"),
     (Get-SummaryRow "qBittorrent" "http://localhost:8080"),
-    (Get-SummaryRow "Prowlarr" "http://localhost:9696"),
+    (Get-SummaryRow "Prowlarr" "http://localhost:9900"),
     (Get-SummaryRow "Jellyfin" "http://localhost:8096"),
     (Get-SummaryRow "FlareSolverr" "http://localhost:8191")
 )
@@ -561,9 +615,8 @@ Write-Host ""
 $steps = @(
     $(if ($script:HAS_GUM) { gum style --foreground 14 '  Next steps:' } else { '  Next steps:' }),
     $(if ($script:HAS_GUM) { gum style --foreground 14 '   1. Login with admin / admin -> Admin > Users' } else { '   1. Login with admin / admin -> Admin > Users' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   2. qBittorrent -> Settings > Web UI > API Key' } else { '   2. qBittorrent -> Settings > Web UI > API Key' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   3. Jellyfin -> /media/Movies, /media/Series' } else { '   3. Jellyfin -> /media/Movies, /media/Series' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   4. Prowlarr -> Add indexers + FlareSolverr proxy' } else { '   4. Prowlarr -> Add indexers + FlareSolverr proxy' })
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   2. Jellyfin -> Add libraries: Movies (/media/Movies) and Series (/media/Series)' } else { '   2. Jellyfin -> Add libraries: Movies (/media/Movies) and Series (/media/Series)' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   3. Prowlarr -> Add indexers + FlareSolverr proxy' } else { '   3. Prowlarr -> Add indexers + FlareSolverr proxy' })
 )
 $stepsMsg = $steps -join "`n"
 Write-SummarySection $stepsMsg

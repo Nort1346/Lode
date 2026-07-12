@@ -216,7 +216,7 @@ fi
 
 # -- 1. Prerequisites --------------------------------------------------
 
-step "[1/11] Checking prerequisites"
+step "[1/12] Checking prerequisites"
 
 if ! command -v docker &> /dev/null; then
   err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
@@ -244,7 +244,7 @@ ok "curl available"
 
 # -- 2. Create .env ----------------------------------------------------
 
-step "[2/11] Setting up .env file"
+step "[2/12] Setting up .env file"
 
 if [ ! -f .env ]; then
   if [ -f .env.example ]; then
@@ -258,12 +258,12 @@ else
   warn ".env exists -- keeping existing config"
 fi
 
-mkdir -p media
-ok "Created media directory"
+mkdir -p media/Movies media/Series
+ok "Created media directories (media/Movies, media/Series)"
 
 # -- 3. Generate secrets -----------------------------------------------
 
-step "[3/11] Generating secrets"
+step "[3/12] Generating secrets"
 
 SESSION_PASSWORD=$(generate_password 32)
 TRACKER_KEY=$(generate_hex 32)
@@ -287,6 +287,8 @@ ok "Session password generated"
 ok "Tracker encryption key generated"
 
 # -- 4. Download docker-compose.yml if needed ---------------------------
+
+step "[4/12] Downloading docker-compose.yml"
 
 if [ -f docker-compose.yml ]; then
   if [ "$HAS_GUM" = true ]; then
@@ -318,6 +320,27 @@ fi
 
 docker compose up -d --remove-orphans redis qbittorrent prowlarr flaresolverr jellyfin dozzle
 
+failed_services=()
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  svc=$(echo "$line" | grep -o '"Service":"[^"]*"' | cut -d'"' -f4)
+  state=$(echo "$line" | grep -o '"State":"[^"]*"' | cut -d'"' -f4)
+  if [ "$state" != "running" ] && [ -n "$svc" ]; then
+    failed_services+=("$svc")
+    last_log=$(docker compose logs "$svc" --tail 3 2>&1 | tail -1)
+    warn "$svc failed to start: $last_log"
+  fi
+done < <(docker compose ps --format json 2>/dev/null)
+
+if [[ " ${failed_services[*]} " =~ " redis " ]]; then
+  err "Redis failed to start. Cannot continue."
+  exit 1
+fi
+if [[ " ${failed_services[*]} " =~ " qbittorrent " ]]; then
+  err "qBittorrent failed to start. Cannot continue."
+  exit 1
+fi
+
 info "Waiting for Redis..."
 wait_for_port "localhost" "6379" 30 || true
 
@@ -328,11 +351,19 @@ sleep 3
 
 QBIT_TEMP_PASS=$(docker logs streamhub-qbittorrent 2>&1 | sed -n 's/.*A temporary password is provided for this session: *//p' | tail -1) || true
 
-info "Waiting for Prowlarr..."
-wait_for_port "localhost" "9696" 60 || true
+if [[ " ${failed_services[*]} " =~ " prowlarr " ]]; then
+  warn "Prowlarr not running -- you can configure it later (step 8)"
+else
+  info "Waiting for Prowlarr..."
+  wait_for_port "localhost" "9900" 60 || true
+fi
 
-info "Waiting for Jellyfin..."
-wait_for_port "localhost" "8096" 90 || true
+if [[ " ${failed_services[*]} " =~ " jellyfin " ]]; then
+  warn "Jellyfin not running -- you can configure it later (step 6)"
+else
+  info "Waiting for Jellyfin..."
+  wait_for_port "localhost" "8096" 90 || true
+fi
 
 ok "All infrastructure services are running"
 
@@ -409,7 +440,7 @@ step "[8/12] Prowlarr API Key"
 
 echo ""
 echo "Follow these steps to get your Prowlarr API key:"
-echo "  1. Open http://localhost:9696 in your browser"
+echo "  1. Open http://localhost:9900 in your browser"
 echo "  2. Go to Settings > General"
 echo "  3. Find the API Key field"
 echo "  4. Copy the API key"
@@ -538,7 +569,7 @@ echo ""
 SERVICES_TABLE=$(cat <<TABLE
 $(summary_row "StreamHub" "http://localhost:5757")
 $(summary_row "qBittorrent" "http://localhost:8080")
-$(summary_row "Prowlarr" "http://localhost:9696")
+$(summary_row "Prowlarr" "http://localhost:9900")
 $(summary_row "Jellyfin" "http://localhost:8096")
 $(summary_row "FlareSolverr" "http://localhost:8191")
 TABLE
@@ -563,9 +594,8 @@ echo ""
 STEPS=$(cat <<STEPS
 $(gum style --foreground 14 '  Next steps:')
 $(gum style --foreground 14 '   1. Login with admin / admin → Admin > Users')
-$(gum style --foreground 14 '   2. qBittorrent → Settings > Web UI > API Key')
-$(gum style --foreground 14 '   3. Jellyfin → /media/Movies, /media/Series')
-$(gum style --foreground 14 '   4. Prowlarr → Add indexers + FlareSolverr proxy')
+$(gum style --foreground 14 '   2. Jellyfin → Add libraries: Movies (/media/Movies) and Series (/media/Series)')
+$(gum style --foreground 14 '   3. Prowlarr → Add indexers + FlareSolverr proxy')
 STEPS
 )
 

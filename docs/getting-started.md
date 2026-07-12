@@ -27,7 +27,7 @@ NUXT_QBITTORRENT_URL=http://localhost:8080
 NUXT_QBITTORRENT_API_KEY=your-qbittorrent-api-key
 NUXT_SESSION_PASSWORD=your-random-32-char-string
 NUXT_TMDB_API_KEY=your-tmdb-api-key
-NUXT_PROWLARR_URL=http://127.0.0.1:9696
+NUXT_PROWLARR_URL=http://127.0.0.1:9900
 NUXT_PROWLARR_API_KEY=your-prowlarr-api-key
 NUXT_TRACKER_ENCRYPTION_KEY=replace_me_with_64_hex_chars
 ```

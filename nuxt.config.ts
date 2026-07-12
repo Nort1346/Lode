@@ -51,7 +51,7 @@ export default defineNuxtConfig({
     },
     redisUrl: '',
     tmdbApiKey: '',
-    prowlarrUrl: 'http://127.0.0.1:9696',
+    prowlarrUrl: 'http://127.0.0.1:9900',
     prowlarrApiKey: '',
     qbittorrentUrl: 'http://127.0.0.1:8080',
     qbittorrentApiKey: '',
