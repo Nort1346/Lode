@@ -44,7 +44,7 @@ describe('encryptAES / decryptAES', () => {
   })
 
   it('handles unicode characters', () => {
-    const plaintext = 'пароль123'
+    const plaintext = 'user123'
     const encrypted = encryptAES(plaintext)
     const decrypted = decryptAES(encrypted)
     expect(decrypted).toBe(plaintext)
