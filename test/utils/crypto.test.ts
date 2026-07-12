@@ -5,9 +5,7 @@ const mockRuntimeConfig = {
   trackerEncryptionKey: 'a'.repeat(64)
 }
 
-vi.mock('nuxt/app', () => ({
-  useRuntimeConfig: () => mockRuntimeConfig
-}))
+vi.stubGlobal('useRuntimeConfig', () => mockRuntimeConfig)
 
 describe('encryptAES / decryptAES', () => {
   beforeEach(() => {

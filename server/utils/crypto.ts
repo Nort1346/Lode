@@ -1,5 +1,4 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
-import { useRuntimeConfig } from 'nuxt/app'
 
 const ALGO = 'aes-256-gcm'
 

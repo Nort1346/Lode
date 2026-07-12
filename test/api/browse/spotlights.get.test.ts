@@ -28,7 +28,7 @@ vi.mock('#server/utils/shuffle', () => ({
   fisherYatesShuffle: mockFisheryYatesShuffle
 }))
 
-vi.mock('~/types/locale', () => ({
+vi.mock('~~/app/types/locale', () => ({
   SupportedLocale: { PL: 'pl', EN: 'en', DE: 'de', FR: 'fr', ES: 'es' },
   DEFAULT_LOCALE: 'en'
 }))

@@ -2,7 +2,7 @@ import { getMoviesByGenre, getTvByGenre, getImageUrl } from '#server/utils/tmdb'
 import { cacheGet, cacheSet, CACHE_TTL } from '#server/utils/cache'
 import { fisherYatesShuffle } from '#server/utils/shuffle'
 import type { SpotlightItem, SpotlightGenreEntry } from '#server/types/browse'
-import { SupportedLocale, DEFAULT_LOCALE } from '~/types/locale'
+import { SupportedLocale, DEFAULT_LOCALE } from '~~/app/types/locale'
 
 const GENRE_POOL: SpotlightGenreEntry[] = [
   { type: 'movie', id: 28 },
