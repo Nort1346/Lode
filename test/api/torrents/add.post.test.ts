@@ -1,313 +1,408 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockGetUserSession = vi.fn()
-const mockGet = vi.fn()
-const mockRun = vi.fn()
-const mockAll = vi.fn()
-const mockAddTorrent = vi.fn()
-const mockAddTorrentFile = vi.fn()
-const mockDeleteTorrent = vi.fn()
-const mockMoveToTop = vi.fn()
-const mockLogActivity = vi.fn()
-
-const mockUseQBittorrent = vi.fn(() => ({
-  addTorrent: mockAddTorrent,
-  addTorrentFile: mockAddTorrentFile,
-  deleteTorrent: mockDeleteTorrent,
-  moveToTop: mockMoveToTop
-}))
+const mockReadBody = vi.fn()
+const mockGetFreshUser = vi.hoisted(() => vi.fn())
+const mockCheckCooldown = vi.hoisted(() => vi.fn())
+const mockSetCooldown = vi.hoisted(() => vi.fn())
+const mockWithTorrentAddLock = vi.hoisted(() => vi.fn())
+const mockUseDb = vi.hoisted(() => vi.fn())
+const mockUseQBittorrent = vi.hoisted(() => vi.fn())
+const mockGetMovieDetails = vi.hoisted(() => vi.fn())
+const mockGetTvShowDetails = vi.hoisted(() => vi.fn())
+const mockGetImageUrl = vi.hoisted(() => vi.fn())
+const mockCheckAllDisks = vi.hoisted(() => vi.fn())
+const mockIsDiskCheckEnabled = vi.hoisted(() => vi.fn())
+const mockGetDiskMinFreeGb = vi.hoisted(() => vi.fn())
+const mockLogActivity = vi.hoisted(() => vi.fn())
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
-vi.stubGlobal(
-  'useDb',
-  vi.fn(() => ({
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          get: mockGet,
-          all: mockAll
-        }))
-      }))
-    })),
-    insert: vi.fn(() => ({
-      values: vi.fn(() => ({ run: mockRun }))
-    })),
-    transaction: vi.fn((fn: () => void) => fn())
-  }))
-)
-vi.stubGlobal('logActivity', mockLogActivity)
-vi.stubGlobal('parseDeviceName', vi.fn())
-vi.stubGlobal('crypto', { randomUUID: () => 'dl-uuid' })
-vi.stubGlobal(
-  'useRuntimeConfig',
-  vi.fn(() => ({
-    savePathMovies: '/movies',
-    savePathSeries: '/series',
-    savePathGames: '/games',
-    savePathBooks: '/books',
-    savePathMusic: '/music',
-    disks: ''
-  }))
-)
+vi.stubGlobal('readBody', mockReadBody)
+vi.stubGlobal('useDb', mockUseDb)
+const mockUseRuntimeConfig = vi.fn()
+vi.stubGlobal('useRuntimeConfig', mockUseRuntimeConfig)
 vi.stubGlobal('useQBittorrent', mockUseQBittorrent)
+vi.stubGlobal('logActivity', mockLogActivity)
 vi.stubGlobal(
-  'useQBittorrent',
-  vi.fn(() => ({
-    addTorrent: mockAddTorrent,
-    addTorrentFile: mockAddTorrentFile,
-    deleteTorrent: mockDeleteTorrent,
-    moveToTop: mockMoveToTop.mockResolvedValue(undefined)
-  }))
+  'formatSize',
+  vi.fn((bytes: number) => `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`)
 )
 
-vi.mock('node:crypto', () => ({
-  randomUUID: () => 'dl-uuid'
-}))
-
-vi.mock('drizzle-orm', () => ({
-  eq: vi.fn(() => ({})),
-  and: vi.fn(() => ({}))
-}))
-
-vi.mock('#server/utils/user', () => ({
-  getFreshUser: vi.fn(() => ({
-    id: 'u1',
-    canSubmit: true,
-    activeTorrentLimit: 3,
-    dailyDownloadLimit: 5,
-    maxTorrentSizeGb: 20
-  }))
-}))
-
-vi.mock('#server/database/schema', () => ({
-  downloads: { userId: 'userId', status: 'status' },
-  users: { id: 'id' }
-}))
-
+vi.mock('#server/utils/user', () => ({ getFreshUser: mockGetFreshUser }))
 vi.mock('#server/utils/mutex', () => ({
-  withTorrentAddLock: vi.fn((fn: () => Promise<unknown>) => fn()),
-  checkCooldown: vi.fn(() => ({ ok: true, remainingMs: 0 })),
-  setCooldown: vi.fn()
+  withTorrentAddLock: mockWithTorrentAddLock,
+  checkCooldown: mockCheckCooldown,
+  setCooldown: mockSetCooldown
 }))
-
-vi.mock('#server/utils/disk', () => ({
-  checkAllDisks: vi.fn(() => []),
-  isDiskCheckEnabled: vi.fn(() => false),
-  getDiskMinFreeGb: vi.fn(() => 50)
-}))
-
 vi.mock('#server/utils/tmdb', () => ({
-  getMovieDetails: vi.fn(() => Promise.resolve({ poster_path: '/poster.jpg' })),
-  getTvShowDetails: vi.fn(() => Promise.resolve({ poster_path: '/poster.jpg' })),
-  getImageUrl: vi.fn(() => 'https://image.tmdb.org/poster.jpg')
+  getMovieDetails: mockGetMovieDetails,
+  getTvShowDetails: mockGetTvShowDetails,
+  getImageUrl: mockGetImageUrl
 }))
-
+vi.mock('#server/utils/disk', () => ({
+  checkAllDisks: mockCheckAllDisks,
+  isDiskCheckEnabled: mockIsDiskCheckEnabled,
+  getDiskMinFreeGb: mockGetDiskMinFreeGb
+}))
 vi.mock('#server/utils/logger', () => ({
-  createLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn() }))
+  createLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }))
 }))
 
 import handler from '#server/api/torrents/add.post'
-import { readBody } from 'h3'
-import { checkCooldown } from '#server/utils/mutex'
-import { getFreshUser } from '#server/utils/user'
+
+const defaultUser = { id: 'u1', role: 'user', username: 'testuser' }
+const adminUser = { id: 'a1', role: 'admin', username: 'admin' }
+const defaultFreshUser = {
+  canSubmit: true,
+  activeTorrentLimit: 3,
+  dailyDownloadLimit: 10,
+  maxTorrentSizeGb: 20
+}
+const mockQbit = {
+  addTorrent: vi.fn(),
+  addTorrentFile: vi.fn(),
+  deleteTorrent: vi.fn().mockResolvedValue(undefined),
+  moveToTop: vi.fn().mockResolvedValue(undefined),
+  getTorrentFiles: vi.fn()
+}
+const mockDb = {
+  select: vi.fn(() => ({
+    from: vi.fn(() => ({
+      where: vi.fn(() => ({
+        all: vi.fn(() => []),
+        get: vi.fn(() => undefined)
+      }))
+    }))
+  })),
+  insert: vi.fn(() => ({
+    values: vi.fn(() => ({
+      run: vi.fn()
+    }))
+  })),
+  transaction: vi.fn((fn: () => void) => fn())
+}
+
+function stubConfig(overrides: Record<string, string> = {}) {
+  const defaults: Record<string, string> = {
+    savePathMovies: '/data/movies',
+    savePathSeries: '/data/series',
+    savePathGames: '/data/games',
+    savePathBooks: '/data/books',
+    savePathMusic: '/data/music'
+  }
+  vi.mocked(mockUseRuntimeConfig).mockReturnValue({ ...defaults, disks: '', ...overrides } as never)
+}
 
 describe('torrents/add.post', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockAll.mockReturnValue([])
-    vi.mocked(checkCooldown).mockReturnValue({ ok: true, remainingMs: 0 })
-    mockAddTorrent.mockResolvedValue(undefined)
-    mockAddTorrentFile.mockResolvedValue(undefined)
-    mockDeleteTorrent.mockResolvedValue(undefined)
-    mockMoveToTop.mockResolvedValue(undefined)
-    mockUseQBittorrent.mockReturnValue({
-      addTorrent: mockAddTorrent,
-      addTorrentFile: mockAddTorrentFile,
-      deleteTorrent: mockDeleteTorrent,
-      moveToTop: mockMoveToTop
+    mockGetUserSession.mockResolvedValue({ user: defaultUser })
+    mockGetFreshUser.mockReturnValue(defaultFreshUser)
+    mockCheckCooldown.mockReturnValue({ ok: true, remainingMs: 0 })
+    mockWithTorrentAddLock.mockImplementation(async (fn: () => Promise<unknown>) => fn())
+    mockUseDb.mockReturnValue(mockDb)
+    mockUseQBittorrent.mockReturnValue(mockQbit)
+    mockIsDiskCheckEnabled.mockReturnValue(false)
+    stubConfig()
+    mockDb.select.mockReset()
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => []),
+          get: vi.fn(() => undefined)
+        }))
+      }))
     } as never)
+    mockQbit.addTorrent.mockResolvedValue({
+      hash: 'abc123',
+      name: 'Test',
+      size: 1000000000,
+      progress: 0,
+      eta: 0,
+      dlspeed: 0,
+      upspeed: 0,
+      downloaded: 0
+    })
+    mockQbit.addTorrentFile.mockResolvedValue({
+      hash: 'abc123',
+      name: 'Test.torrent',
+      size: 1000000000,
+      progress: 0,
+      eta: 0,
+      dlspeed: 0,
+      upspeed: 0,
+      downloaded: 0
+    })
   })
 
   const mockEvent = {} as never
 
-  it('adds torrent via magnet link', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    vi.mocked(readBody).mockResolvedValue({
-      magnetLink: 'magnet:?xt=urn:btih:abc123',
-      savePath: 'movies'
-    })
-    mockAddTorrent.mockResolvedValue({
-      hash: 'abc123',
-      name: 'Movie',
-      size: 1000,
-      progress: 0,
-      eta: 100,
-      dlspeed: 512,
-      upspeed: 0,
-      downloaded: 0
-    })
-
-    const result = await handler(mockEvent)
-    expect(result).toEqual(expect.objectContaining({ success: true }))
-    expect(mockAddTorrent).toHaveBeenCalledWith('magnet:?xt=urn:btih:abc123', '/movies', 'movies', expect.any(String))
-  })
-
-  it('adds torrent via file', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    const fileBase64 = Buffer.from('torrent-data').toString('base64')
-    vi.mocked(readBody).mockResolvedValue({
-      torrentFile: fileBase64,
-      fileName: 'movie.torrent',
-      savePath: 'movies'
-    })
-    mockAddTorrentFile.mockResolvedValue({
-      hash: 'abc123',
-      name: 'Movie',
-      size: 1000,
-      progress: 0,
-      eta: 100,
-      dlspeed: 512,
-      upspeed: 0,
-      downloaded: 0
-    })
-
-    const result = await handler(mockEvent)
-    expect(result).toEqual(expect.objectContaining({ success: true }))
-    expect(mockAddTorrentFile).toHaveBeenCalled()
-  })
-
-  it('throws 400 when no magnet, file, or url provided', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    vi.mocked(readBody).mockResolvedValue({ savePath: 'movies' })
-
-    await expect(handler(mockEvent)).rejects.toThrow('400: Magnet link, torrent URL, or .torrent file is required')
-  })
-
-  it('throws 400 for invalid save path', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    vi.mocked(readBody).mockResolvedValue({
-      magnetLink: 'magnet:?xt=urn:btih:abc123',
-      savePath: 'invalid'
-    })
-
-    await expect(handler(mockEvent)).rejects.toThrow('400: Valid save path is required')
-  })
-
   it('throws 401 when not authenticated', async () => {
     mockGetUserSession.mockResolvedValue({ user: undefined })
-
-    await expect(handler(mockEvent)).rejects.toThrow('401: Not authenticated')
+    await expect(handler(mockEvent)).rejects.toThrow('401')
   })
 
-  it('throws 403 when user cannot submit', async () => {
-    vi.mocked(getFreshUser).mockReturnValueOnce({
-      id: 'u1',
-      canSubmit: false,
-      activeTorrentLimit: 3,
-      dailyDownloadLimit: 5,
-      maxTorrentSizeGb: 20
+  it('throws 404 when user not found', async () => {
+    mockGetFreshUser.mockReturnValue(undefined)
+    await expect(handler(mockEvent)).rejects.toThrow('404')
+  })
+
+  it('throws 403 when non-admin cannot submit', async () => {
+    mockGetFreshUser.mockReturnValue({ ...defaultFreshUser, canSubmit: false })
+    await expect(handler(mockEvent)).rejects.toThrow('403')
+  })
+
+  it('allows admin even without canSubmit', async () => {
+    mockGetUserSession.mockResolvedValue({ user: adminUser })
+    mockGetFreshUser.mockReturnValue({ ...defaultFreshUser, canSubmit: false })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+  })
+
+  it('throws 429 when cooldown active', async () => {
+    mockCheckCooldown.mockReturnValue({ ok: false, remainingMs: 3000 })
+    await expect(handler(mockEvent)).rejects.toThrow('429')
+  })
+
+  it('throws 400 when no magnet/file/url provided', async () => {
+    mockReadBody.mockResolvedValue({ savePath: 'movies' })
+    await expect(handler(mockEvent)).rejects.toThrow('400')
+  })
+
+  it('throws 400 for invalid magnet prefix', async () => {
+    mockReadBody.mockResolvedValue({ magnetLink: 'invalid-magnet', savePath: 'movies' })
+    await expect(handler(mockEvent)).rejects.toThrow('400')
+  })
+
+  it('throws 400 for invalid downloadUrl', async () => {
+    mockReadBody.mockResolvedValue({ downloadUrl: 'ftp://example.com/file.torrent', savePath: 'movies' })
+    await expect(handler(mockEvent)).rejects.toThrow('400')
+  })
+
+  it('throws 400 for invalid torrent file extension', async () => {
+    mockReadBody.mockResolvedValue({ torrentFile: 'dGVzdA==', fileName: 'file.txt', savePath: 'movies' })
+    await expect(handler(mockEvent)).rejects.toThrow('400')
+  })
+
+  it('throws 413 for torrent file too large', async () => {
+    const bigFile = 'A'.repeat(8 * 1024 * 1024)
+    mockReadBody.mockResolvedValue({ torrentFile: bigFile, fileName: 'big.torrent', savePath: 'movies' })
+    await expect(handler(mockEvent)).rejects.toThrow('413')
+  })
+
+  it('throws 400 for invalid savePath', async () => {
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'invalid' })
+    await expect(handler(mockEvent)).rejects.toThrow('400')
+  })
+
+  it('throws 400 when savePath not configured', async () => {
+    stubConfig({ savePathMovies: '' })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+    await expect(handler(mockEvent)).rejects.toThrow('400')
+  })
+
+  it('throws 429 when active torrent limit reached (non-admin)', async () => {
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => [{ id: 'd1' }, { id: 'd2' }, { id: 'd3' }]),
+          get: vi.fn(() => undefined)
+        }))
+      }))
     } as never)
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-
-    await expect(handler(mockEvent)).rejects.toThrow('403: You do not have permission to submit torrents')
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+    await expect(handler(mockEvent)).rejects.toThrow('429')
   })
 
-  it('throws 429 on cooldown', async () => {
-    vi.mocked(checkCooldown).mockReturnValue({ ok: false, remainingMs: 30000 })
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-
-    await expect(handler(mockEvent)).rejects.toThrow('429: Please wait')
+  it('throws 429 when daily download limit reached (non-admin)', async () => {
+    const todayDownloads = Array.from({ length: 10 }, (_, i) => ({
+      id: `d${i}`,
+      createdAt: new Date().toISOString(),
+      status: 'downloading'
+    }))
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => todayDownloads),
+          get: vi.fn(() => undefined)
+        }))
+      }))
+    } as never)
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+    await expect(handler(mockEvent)).rejects.toThrow('429')
   })
 
-  it('calls moveToTop for admin', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'admin1', role: 'admin', username: 'admin' } })
-    vi.mocked(readBody).mockResolvedValue({
-      magnetLink: 'magnet:?xt=urn:btih:abc123',
-      savePath: 'movies'
+  it('successful magnet download', async () => {
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'magnet:?xt=urn:btih:abc',
+      '/data/movies',
+      'movies',
+      expect.stringMatching(/^dl-/)
+    )
+  })
+
+  it('normalizes magnet:// to magnet:', async () => {
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet://xt=urn:btih:abc', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'magnet:xt=urn:btih:abc',
+      expect.any(String),
+      expect.any(String),
+      expect.any(String)
+    )
+  })
+
+  it('successful downloadUrl download', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Map([['content-type', 'application/octet-stream']])
     })
-    mockAddTorrent.mockResolvedValue({
-      hash: 'abc123',
-      name: 'Movie',
-      size: 1000,
+    mockReadBody.mockResolvedValue({ downloadUrl: 'https://example.com/file.torrent', savePath: 'series' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'https://example.com/file.torrent',
+      '/data/series',
+      'series',
+      expect.stringMatching(/^dl-/)
+    )
+    vi.mocked(global.fetch).mockReset()
+  })
+
+  it('throws 400 when URL returns HTML', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Map([['content-type', 'text/html']])
+    })
+    mockReadBody.mockResolvedValue({ downloadUrl: 'https://example.com/page', savePath: 'movies' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400')
+    vi.mocked(global.fetch).mockReset()
+  })
+
+  it('passes URL to qBittorrent even when fetch fails', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+    mockReadBody.mockResolvedValue({ downloadUrl: 'https://example.com/file.torrent', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    vi.mocked(global.fetch).mockReset()
+  })
+
+  it('successful .torrent file upload', async () => {
+    const fileContent = Buffer.from('d8:intervali1440e').toString('base64')
+    mockReadBody.mockResolvedValue({ torrentFile: fileContent, fileName: 'test.torrent', savePath: 'music' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrentFile).toHaveBeenCalled()
+  })
+
+  it('throws 413 when torrent too large', async () => {
+    mockQbit.addTorrent.mockResolvedValue({
+      hash: 'abc',
+      name: 'Huge',
+      size: 30 * 1024 * 1024 * 1024,
       progress: 0,
-      eta: 100,
-      dlspeed: 512,
+      eta: 0,
+      dlspeed: 0,
       upspeed: 0,
       downloaded: 0
+    })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('413')
+    expect(mockQbit.deleteTorrent).toHaveBeenCalledWith('abc', true)
+  })
+
+  it('throws 507 when disk full', async () => {
+    mockQbit.addTorrent.mockResolvedValue({
+      hash: 'abc',
+      name: 'Big',
+      size: 10 * 1024 * 1024 * 1024,
+      progress: 0,
+      eta: 0,
+      dlspeed: 0,
+      upspeed: 0,
+      downloaded: 0
+    })
+    stubConfig({ disks: '/data' })
+    mockIsDiskCheckEnabled.mockReturnValue(true)
+    mockGetDiskMinFreeGb.mockReturnValue(10)
+    mockCheckAllDisks.mockReturnValue([
+      { path: '/data', available: true, freeBytes: 1 * 1024 * 1024 * 1024, freeFormatted: '1.0 GB' }
+    ])
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('507')
+    expect(mockQbit.deleteTorrent).toHaveBeenCalledWith('abc', true)
+  })
+
+  it('admin calls moveToTop', async () => {
+    mockGetUserSession.mockResolvedValue({ user: adminUser })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    await handler(mockEvent)
+    expect(mockQbit.moveToTop).toHaveBeenCalledWith([expect.any(String)])
+  })
+
+  it('non-admin does not call moveToTop', async () => {
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    await handler(mockEvent)
+    expect(mockQbit.moveToTop).not.toHaveBeenCalled()
+  })
+
+  it('fetches movie poster from TMDB', async () => {
+    mockGetMovieDetails.mockResolvedValue({ poster_path: '/poster.jpg' })
+    mockGetImageUrl.mockImplementation((path: string | null) => (path ? `https://image.tmdb.org${path}` : null))
+    mockReadBody.mockResolvedValue({
+      magnetLink: 'magnet:?xt=urn:btih:abc',
+      savePath: 'movies',
+      tmdbId: 123,
+      mediaType: 'movie'
     })
 
     await handler(mockEvent)
-    expect(mockMoveToTop).toHaveBeenCalledWith(['abc123'])
+    expect(mockGetMovieDetails).toHaveBeenCalledWith(123)
   })
 
-  it('does not call moveToTop for regular user', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    vi.mocked(readBody).mockResolvedValue({
-      magnetLink: 'magnet:?xt=urn:btih:abc123',
-      savePath: 'movies'
-    })
-    mockAddTorrent.mockResolvedValue({
-      hash: 'abc123',
-      name: 'Movie',
-      size: 1000,
-      progress: 0,
-      eta: 100,
-      dlspeed: 512,
-      upspeed: 0,
-      downloaded: 0
+  it('fetches tv poster from TMDB', async () => {
+    mockGetTvShowDetails.mockResolvedValue({ poster_path: '/poster.jpg' })
+    mockGetImageUrl.mockImplementation((path: string | null) => (path ? `https://image.tmdb.org${path}` : null))
+    mockReadBody.mockResolvedValue({
+      magnetLink: 'magnet:?xt=urn:btih:abc',
+      savePath: 'series',
+      tmdbId: 456,
+      mediaType: 'tv'
     })
 
     await handler(mockEvent)
-    expect(mockMoveToTop).not.toHaveBeenCalled()
+    expect(mockGetTvShowDetails).toHaveBeenCalledWith(456)
   })
 
-  it('deletes torrent when too large for user', async () => {
-    vi.mocked(getFreshUser).mockReturnValueOnce({
-      id: 'u1',
-      canSubmit: true,
-      activeTorrentLimit: 3,
-      dailyDownloadLimit: 5,
-      maxTorrentSizeGb: 1
-    } as never)
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    vi.mocked(readBody).mockResolvedValue({
-      magnetLink: 'magnet:?xt=urn:btih:abc123',
-      savePath: 'movies'
-    })
-    mockAddTorrent.mockResolvedValue({
-      hash: 'abc123',
-      name: 'Movie',
-      size: 2 * 1024 * 1024 * 1024,
-      progress: 0,
-      eta: 100,
-      dlspeed: 512,
-      upspeed: 0,
-      downloaded: 0
-    })
-    mockDeleteTorrent.mockResolvedValue(undefined)
-
-    await expect(handler(mockEvent)).rejects.toThrow('413: Torrent too large')
-    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', true)
-  })
-
-  it('logs activity after adding torrent', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    vi.mocked(readBody).mockResolvedValue({
-      magnetLink: 'magnet:?xt=urn:btih:abc123',
-      savePath: 'movies'
-    })
-    mockAddTorrent.mockResolvedValue({
-      hash: 'abc123',
-      name: 'Movie',
-      size: 1000,
-      progress: 0,
-      eta: 100,
-      dlspeed: 512,
-      upspeed: 0,
-      downloaded: 0
-    })
+  it('logs activity with torrent_add', async () => {
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
 
     await handler(mockEvent)
     expect(mockLogActivity).toHaveBeenCalledWith(mockEvent, expect.objectContaining({ action: 'torrent_add' }))
+  })
+
+  it('sets cooldown after validation', async () => {
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    await handler(mockEvent)
+    expect(mockSetCooldown).toHaveBeenCalledWith('u1')
   })
 })
