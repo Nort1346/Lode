@@ -103,7 +103,7 @@ onMounted(() => {
   <div class="card p-6 mb-4">
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-2">
-        <UIcon name="i-lucide-tv" class="w-5 h-5 text-blue-500" />
+        <UIcon name="i-simple-icons-jellyfin" class="w-5 h-5 text-blue-500" />
         <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('admin.jellyfinPresets') }}</h3>
       </div>
       <USwitch v-model="presets.syncEnabled" />

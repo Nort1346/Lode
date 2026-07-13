@@ -112,7 +112,7 @@ onMounted(fetchLibraries)
 <template>
   <div class="border-t border-zinc-200 dark:border-white/10 pt-4 mt-4">
     <h3 class="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-2 mb-4">
-      <UIcon name="i-lucide-tv" class="w-4 h-4 text-blue-500" />
+      <UIcon name="i-simple-icons-jellyfin" class="w-4 h-4 text-blue-500" />
       Jellyfin
     </h3>
 

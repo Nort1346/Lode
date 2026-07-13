@@ -7,12 +7,12 @@ const services = ref<ServiceStatus[]>([])
 const loading = ref(true)
 
 const serviceIcons: Record<string, string> = {
-  qBittorrent: 'i-lucide-download',
-  Prowlarr: 'i-lucide-search',
-  Jellyfin: 'i-lucide-play',
-  Redis: 'i-lucide-database',
-  Discord: 'i-lucide-message-square',
-  FlareSolverr: 'i-lucide-shield'
+  qBittorrent: 'i-simple-icons-qbittorrent',
+  Prowlarr: 'i-simple-icons-rss',
+  Jellyfin: 'i-simple-icons-jellyfin',
+  Redis: 'i-simple-icons-redis',
+  Discord: 'i-simple-icons-discord',
+  FlareSolverr: 'i-simple-icons-cloudflare'
 }
 
 const serviceColors: Record<string, string> = {
