@@ -27,6 +27,7 @@ function toggleTheme() {
 const isDark = computed(() => colorMode.value === 'dark')
 
 async function handleLogin() {
+  if (loading.value) return
   loading.value = true
   error.value = ''
 
@@ -40,7 +41,6 @@ async function handleLogin() {
   } catch (e: unknown) {
     const err = mapApiError(e)
     error.value = err.data?.statusMessage || t('login.failed')
-  } finally {
     loading.value = false
   }
 }
@@ -94,6 +94,7 @@ async function handleLogin() {
               size="lg"
               class="w-full justify-center"
               :loading="loading"
+              :disabled="loading"
               :label="t('login.signIn')"
             />
           </div>
