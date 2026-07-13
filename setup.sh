@@ -320,23 +320,23 @@ fi
 
 docker compose up -d --remove-orphans redis qbittorrent prowlarr flaresolverr jellyfin dozzle
 
-failed_services=()
+failed_services=""
 while IFS= read -r line; do
   [ -z "$line" ] && continue
   svc=$(echo "$line" | grep -o '"Service":"[^"]*"' | cut -d'"' -f4)
   state=$(echo "$line" | grep -o '"State":"[^"]*"' | cut -d'"' -f4)
   if [ "$state" != "running" ] && [ -n "$svc" ]; then
-    failed_services+=("$svc")
+    failed_services="$failed_services $svc"
     last_log=$(docker compose logs "$svc" --tail 3 2>&1 | tail -1)
     warn "$svc failed to start: $last_log"
   fi
 done < <(docker compose ps --format json 2>/dev/null)
 
-if [[ " ${failed_services[*]} " =~ " redis " ]]; then
+if [[ " $failed_services " =~ " redis " ]]; then
   err "Redis failed to start. Cannot continue."
   exit 1
 fi
-if [[ " ${failed_services[*]} " =~ " qbittorrent " ]]; then
+if [[ " $failed_services " =~ " qbittorrent " ]]; then
   err "qBittorrent failed to start. Cannot continue."
   exit 1
 fi
@@ -351,14 +351,14 @@ sleep 3
 
 QBIT_TEMP_PASS=$(docker logs streamhub-qbittorrent 2>&1 | sed -n 's/.*A temporary password is provided for this session: *//p' | tail -1) || true
 
-if [[ " ${failed_services[*]} " =~ " prowlarr " ]]; then
+if [[ " $failed_services " =~ " prowlarr " ]]; then
   warn "Prowlarr not running -- you can configure it later (step 8)"
 else
   info "Waiting for Prowlarr..."
   wait_for_port "localhost" "9900" 60 || true
 fi
 
-if [[ " ${failed_services[*]} " =~ " jellyfin " ]]; then
+if [[ " $failed_services " =~ " jellyfin " ]]; then
   warn "Jellyfin not running -- you can configure it later (step 6)"
 else
   info "Waiting for Jellyfin..."
