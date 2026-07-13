@@ -1,8 +1,5 @@
 import type { Directive, DirectiveBinding } from 'vue'
-
-interface RevealState {
-  observer: IntersectionObserver
-}
+import type { RevealState } from '~/types/directives'
 
 const state = new WeakMap<HTMLElement, RevealState>()
 
@@ -43,5 +40,9 @@ export const vReveal: Directive = {
       s.observer.disconnect()
       state.delete(el)
     }
+  },
+
+  getSSRProps() {
+    return {}
   }
 }
