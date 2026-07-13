@@ -1,4 +1,4 @@
-import { users } from '#server/database/schema'
+import { users, sessions } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { syncUserDelete } from '#server/utils/sync'
 
@@ -32,6 +32,10 @@ export default defineEventHandler(async (event) => {
   }
 
   db.delete(users).where(eq(users.id, id)).run()
+
+  // SECURITY: delete all active sessions for the user so a deleted user
+  // cannot keep using an existing session to access the app
+  db.delete(sessions).where(eq(sessions.userId, id)).run()
 
   logActivity(event, {
     action: 'user_delete',

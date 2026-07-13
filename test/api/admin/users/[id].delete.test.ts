@@ -7,6 +7,7 @@ const mockGetUser = vi.fn()
 const mockGetRouterParam = vi.fn()
 const mockLogActivity = vi.fn()
 const mockSyncUserDelete = vi.hoisted(() => vi.fn())
+const mockDelete = vi.fn(() => ({ where: vi.fn(() => ({ run: mockRun })) }))
 
 vi.mock('#server/utils/sync', () => ({
   syncUserDelete: mockSyncUserDelete
@@ -17,10 +18,12 @@ vi.mock('drizzle-orm', () => ({
 }))
 
 vi.mock('#server/database/schema', () => ({
-  users: { id: 'id', role: 'role' }
+  users: { id: 'id', role: 'role' },
+  sessions: { id: 'id', userId: 'userId' }
 }))
 
 import handler from '#server/api/admin/users/[id].delete'
+import { users, sessions } from '#server/database/schema'
 
 describe('admin/users/[id].delete', () => {
   beforeEach(() => {
@@ -49,11 +52,7 @@ describe('admin/users/[id].delete', () => {
             }))
           }))
         })),
-        delete: vi.fn(() => ({
-          where: vi.fn(() => ({
-            run: mockRun
-          }))
-        }))
+        delete: mockDelete
       }))
     )
   }
@@ -68,6 +67,17 @@ describe('admin/users/[id].delete', () => {
     expect(mockSyncUserDelete).toHaveBeenCalledWith('u1')
     expect(mockRun).toHaveBeenCalled()
     expect(mockLogActivity).toHaveBeenCalled()
+  })
+
+  it('deletes all sessions for the user when deleted', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockGetRouterParam.mockReturnValue('u1')
+    stubDb({ id: 'u1', username: 'user1', role: 'user' })
+
+    await handler(mockEvent)
+
+    expect(mockDelete).toHaveBeenCalledWith(users)
+    expect(mockDelete).toHaveBeenCalledWith(sessions)
   })
 
   it('throws 400 when id missing', async () => {
