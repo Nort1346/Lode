@@ -132,14 +132,6 @@ const savePathLabels: Record<string, string> = {
   music: '🎵 Music',
   books: '📚 Books'
 }
-
-const { root: statsRef, revealed: statsRevealed } = useReveal()
-const { root: downloadsRef, revealed: downloadsRevealed } = useReveal()
-const { root: heroRef, revealed: heroRevealed } = useReveal()
-const { root: c1Ref, revealed: c1Revealed } = useReveal()
-const { root: c2Ref, revealed: c2Revealed } = useReveal()
-const { root: c3Ref, revealed: c3Revealed } = useReveal()
-const { root: reqRef, revealed: reqRevealed } = useReveal()
 </script>
 
 <template>
@@ -154,7 +146,7 @@ const { root: reqRef, revealed: reqRevealed } = useReveal()
       </div>
     </div>
 
-    <div ref="statsRef" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 reveal" :class="{ revealed: statsRevealed }">
+    <div v-reveal class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
       <div class="card p-5 reveal-delay-1">
         <div class="flex items-center gap-4">
           <div
@@ -211,7 +203,11 @@ const { root: reqRef, revealed: reqRevealed } = useReveal()
       </div>
     </div>
 
-    <div ref="downloadsRef" class="card p-5 md:p-6 mb-8 reveal" :class="{ revealed: downloadsRevealed }">
+    <div v-reveal>
+      <HeroSection :trending-items="trendingItems" />
+    </div>
+
+    <div v-reveal class="card p-5 md:p-6 mb-8">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('dashboard.activeTorrents') }}</h2>
         <UButton to="/browse" icon="i-lucide-search" :label="t('dashboard.browse')" size="sm" />
@@ -324,21 +320,17 @@ const { root: reqRef, revealed: reqRevealed } = useReveal()
       </div>
     </div>
 
-    <div ref="heroRef" class="reveal" :class="{ revealed: heroRevealed }">
-      <HeroSection :trending-items="trendingItems" />
-    </div>
-
-    <div ref="reqRef" class="reveal" :class="{ revealed: reqRevealed }">
+    <div v-reveal>
       <RequestCarousel />
     </div>
 
-    <div ref="c1Ref" class="reveal" :class="{ revealed: c1Revealed }">
+    <div v-reveal="1">
       <MediaCarousel :title="t('dashboard.trendingNow')" :items="trendingItems" @item-click="goToItem" />
     </div>
-    <div ref="c2Ref" class="reveal" :class="{ revealed: c2Revealed }">
+    <div v-reveal="2">
       <MediaCarousel :title="t('browse.popularMovies')" :items="popularMovies" @item-click="goToItem" />
     </div>
-    <div ref="c3Ref" class="reveal" :class="{ revealed: c3Revealed }">
+    <div v-reveal="3">
       <MediaCarousel :title="t('browse.popularTv')" :items="popularTvShows" @item-click="goToItem" />
     </div>
   </div>

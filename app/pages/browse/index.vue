@@ -27,8 +27,10 @@
       <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-amber-500" />
     </div>
 
-    <div
+    <TransitionGroup
       v-else-if="results.length > 0"
+      name="card-list"
+      tag="div"
       class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
     >
       <MediaCard
@@ -44,25 +46,29 @@
         :in-library="item.inLibrary"
         @click="goToItem(item)"
       />
-    </div>
+    </TransitionGroup>
 
     <div v-else-if="hasActiveSearch" class="py-20 text-center text-zinc-500 dark:text-zinc-400">
       {{ t('browse.noResults') }}
     </div>
 
     <template v-else>
-      <MediaCarousel
-        :title="t('browse.trending')"
-        :items="trendingItems"
-        :loading="trendingPending"
-        @item-click="goToItem"
-      />
-      <MediaCarousel
-        :title="t('browse.popularMovies')"
-        :items="popularMoviesTyped"
-        :loading="popularPending"
-        @item-click="goToItem"
-      />
+      <div v-reveal>
+        <MediaCarousel
+          :title="t('browse.trending')"
+          :items="trendingItems"
+          :loading="trendingPending"
+          @item-click="goToItem"
+        />
+      </div>
+      <div v-reveal="1">
+        <MediaCarousel
+          :title="t('browse.popularMovies')"
+          :items="popularMoviesTyped"
+          :loading="popularPending"
+          @item-click="goToItem"
+        />
+      </div>
 
       <InviewSection @visible="popularTvVisible = true">
         <MediaCarousel

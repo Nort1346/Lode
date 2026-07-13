@@ -173,6 +173,15 @@
   animation-delay: 0.3s;
 }
 
+/* TransitionGroup for card lists */
+.card-list-enter-active {
+  animation: fade-in-up 0.4s ease-out;
+}
+
+.card-list-leave-active {
+  animation: fade-in-up 0.3s ease-in reverse;
+}
+
 /* Notification animations */
 @keyframes bell-shake {
   0%,
