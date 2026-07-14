@@ -38,6 +38,8 @@ const pendingAvatarRemoved = ref(false)
 
 const saving = ref(false)
 const error = ref('')
+const showGeneratedPassword = ref(false)
+const passwordFocused = ref(false)
 
 const syncStatusColor = (status: string) => {
   if (status === 'synced') return 'bg-green-500/10 text-green-700 dark:text-green-400'
@@ -144,6 +146,14 @@ function openEdit(user: AdminUser) {
   pendingAvatarRemoved.value = false
   error.value = ''
   showModal.value = true
+}
+
+function handleGeneratePassword() {
+  form.password = generatePassword()
+  showGeneratedPassword.value = true
+  setTimeout(() => {
+    showGeneratedPassword.value = false
+  }, 5000)
 }
 
 async function saveUser() {
@@ -449,7 +459,22 @@ function onExpiresAtInput(event: Event) {
               </UFormField>
 
               <UFormField :label="editingUser ? t('admin.newPassword') : t('admin.password')">
-                <UInput v-model="form.password" type="password" class="w-full" />
+                <div class="flex gap-2">
+                  <UInput
+                    v-model="form.password"
+                    :type="passwordFocused || showGeneratedPassword ? 'text' : 'password'"
+                    class="flex-1"
+                    @focus="passwordFocused = true"
+                    @blur="passwordFocused = false"
+                  />
+                  <UButton
+                    v-if="!editingUser"
+                    icon="i-lucide-dice-5"
+                    variant="outline"
+                    :label="t('admin.generatePassword')"
+                    @click="handleGeneratePassword"
+                  />
+                </div>
               </UFormField>
 
               <UFormField :label="t('admin.tableRole')">

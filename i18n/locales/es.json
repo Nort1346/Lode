@@ -177,6 +177,7 @@
     "username": "Nombre de usuario",
     "newPassword": "Nueva contraseña (dejar vacío para conservar)",
     "password": "Contraseña",
+    "generatePassword": "Generar",
     "roleUser": "Usuario",
     "roleAdmin": "Admin",
     "dailyLimit": "Límite diario",

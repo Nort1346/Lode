@@ -117,7 +117,7 @@ onMounted(fetchLibraries)
     </h3>
 
     <div class="grid grid-cols-1 lg:grid-cols-[auto_1fr_1fr] gap-4">
-      <div class="flex flex-col items-center gap-3 lg:w-45">
+      <div class="flex flex-col items-center gap-3 lg:w-45 lg:self-center">
         <button
           type="button"
           class="shrink-0 rounded-full overflow-hidden ring-2 ring-zinc-200 dark:ring-white/10 hover:ring-blue-400 dark:hover:ring-blue-500 transition-all cursor-pointer focus:outline-none focus:ring-blue-500"
