@@ -15,9 +15,32 @@ pnpm db:generate      # Generate Drizzle migration files
 pnpm db:migrate       # Run SQLite migrations
 pnpm db:migrate-pg    # Migrate SQLite data to PostgreSQL
 pnpm db:studio        # Open Drizzle Studio (visual DB inspector)
+pnpm test             # Run Vitest test suite (API routes, middleware, server utils)
+pnpm test:watch       # Run Vitest in watch mode
+pnpm test:coverage    # Run tests with V8 coverage reporting
+pnpm typecheck:test   # Type-check the test suite (test/tsconfig.json)
 ```
 
-There are **no test files or test framework** in this project. If you write tests, use whatever framework is added (check package.json first).
+The project uses **Vitest** (`vitest` 4.x) with `@nuxt/test-utils` and `@vitest/coverage-v8`:
+
+- Config: `vitest.config.ts` (node environment, `test/**/*.test.ts`, setup via `test/setup.ts`). Path aliases `#server`, `#db`, `#utils`, `#server/types` are mapped to `server/`.
+- Tests cover API route handlers (`test/api/`), middleware (`test/middleware/`), and server utils (`test/utils/`). External services (TMDB, Prowlarr, qBittorrent, Jellyfin, Discord) are mocked; API handlers are invoked directly with a mocked `event`.
+- `pnpm typecheck` runs `nuxt typecheck` plus `vue-tsc --noEmit -p test/tsconfig.json`.
+
+See [docs/development.md](./docs/development.md#testing) for the full testing guide.
+
+### Testing gotchas
+- `test/setup.ts` stubs h3 globals so handlers run without a server: `defineEventHandler` is an identity stub, `readBody`/`getQuery` are mockable `vi.fn()`s.
+- The stubbed `createError` THROWS a string `"<statusCode>: <statusMessage>"`, so assertions look like `await expect(handler(event)).rejects.toThrow('400: ...')`.
+- Handlers are imported directly (e.g. `import handler from '#server/api/auth/login.post'`) and invoked with a mock `event` object; per-test globals (`useDb`, `getUserSession`, etc.) are stubbed with `vi.stubGlobal`.
+- External services are always mocked (`vi.mock('@node-rs/bcrypt')`, `vi.mock('#server/utils/sync')`, etc.) — no network calls in tests.
+- Put test files next to the code they cover, mirroring `server/` layout under `test/`. Type-check tests separately with `pnpm typecheck:test` (uses `test/tsconfig.json`).
+
+## Environment Variables
+
+StreamHub is configured entirely through env vars (see `.env.example`). Nuxt maps `NUXT_*` vars into `runtimeConfig` by lowercasing and stripping the prefix: `NUXT_TMDB_API_KEY` → `useRuntimeConfig().tmdbApiKey`, `NUXT_QBITTORRENT_URL` → `runtimeConfig.qbittorrentUrl`. Public vars need the `NUXT_PUBLIC_` prefix (e.g. `NUXT_PUBLIC_VAPID_PUBLIC_KEY`). `DB_DRIVER` (sqlite/postgres) selects the DB driver and is NOT a `NUXT_` var.
+
+Required for a working instance: `NUXT_SESSION_PASSWORD`, `NUXT_TMDB_API_KEY`, `NUXT_PROWLARR_URL` + `NUXT_PROWLARR_API_KEY`, `NUXT_QBITTORRENT_URL` + `NUXT_QBITTORRENT_API_KEY`, `NUXT_TRACKER_ENCRYPTION_KEY`. Optional: Jellyfin, Redis, Discord webhook, FlareSolverr, VAPID keys, disk monitoring.
 
 ## Docker Requirements
 
@@ -97,21 +120,28 @@ import { helper } from '#utils'       // → ./server/utils
 
 ### Database
 - Drizzle ORM with SQLite (default) or PostgreSQL
+- Driver is chosen by the `DB_DRIVER` env var (`sqlite` or `postgres`)
 - Schema in `server/database/schema.ts`
 - Migrations in `server/database/migrations/`
-- Run `pnpm dev` to auto-apply migrations
+- Run `pnpm dev` to auto-apply migrations (it runs `scripts/migrate.mjs` before `nuxt dev`)
 - All timestamps stored as ISO 8601 text strings
+- **DB access gotcha**: `useDb()` is SYNCHRONOUS and only works with SQLite. With `DB_DRIVER=postgres` it throws — you must use `useDbAsync()` (returns a Promise) and `await` it. Most existing handlers use `useDb()` and will break under Postgres unless converted.
+- **Redis caching** (optional): `server/utils/cache.ts` uses `ioredis`. If `NUXT_REDIS_URL` is empty, `cacheGet`/`cacheSet` silently no-op. Used to cache TMDB/Prowlarr results.
 
 ### i18n
-- Default locale: `pl` (Polish) — all Polish translations MUST be in Polish
+- Default locale is `en` (set in `nuxt.config.ts` `defaultLocale: 'en'`) — NOT Polish, despite what some docs prose claim.
+- Five locales exist: `pl`, `en`, `de`, `fr`, `es` (files in `i18n/locales/`).
+- Polish translations MUST still be in Polish — no English fallbacks for the `pl` locale.
 - Use `t('key')` from `useI18n()` in Vue, `useI18nServer()` in server code
 - When changing locale: `setLocale($event)` — NOT `locale.value = $event`
 - No Google Translate — all translations are manually written
 - UI strings: no hardcoded text, always through i18n keys
+- The locale is passed as a `locale` query param to all `/api/browse/*` endpoints for TMDB localization
 
 ### Vue / Component Patterns
 - `<script setup lang="ts">` — always use script setup with TypeScript
-- `useFetch` / `$fetch` for API calls — `$fetch` on client, `eventFetch` on server
+- `useFetch` / `$fetch` for API calls from Vue components
+- Server API route handlers do NOT call other routes over HTTP — they import and call server utils (e.g. `useDb()`, `getUserSession()`) directly. There is no `eventFetch` helper.
 - `useReveal()` composable for scroll-triggered animations
 - Use Nuxt UI 4 components (`UButton`, `UModal`, `USelect`, etc.)
 - Overlay system: `useOverlay()` + `ConfirmDialog.vue`

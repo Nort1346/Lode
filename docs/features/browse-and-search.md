@@ -68,12 +68,13 @@ async function markInLibrary<T extends { id: number }>(
 
 ## Reveal Animations
 
-All carousels use `useReveal()` composable with IntersectionObserver:
+All carousels are animated with the globally registered `v-reveal` Vue directive (IntersectionObserver based):
 
-- **Root margin**: `100px` (triggers before element is fully visible)
-- **One-shot**: Observer disconnects after first intersection
-- **CSS-based**: Uses `.hero-fade-in` and `.reveal` CSS animations
-- **Zero dependencies**: Pure IntersectionObserver + CSS, no GSAP
+- **Usage**: Add `v-reveal` to any element to animate it on scroll. Pass a number (`v-reveal="2"` or `v-reveal="3"`) to apply a staggered delay class (`reveal-delay-2` / `reveal-delay-3`).
+- **Behavior**: Adds the `reveal` class on mount. When the element scrolls into view (root margin `100px`, before fully visible) the `revealed` class is added and the observer disconnects (one-shot).
+- **SSR-safe**: The directive is registered in `app/plugins/directives.ts` and exposes `getSSRProps()` so it renders without crashing during server-side rendering.
+- **CSS-based**: Uses `.reveal` / `.revealed` CSS classes (defined in `app/assets/css/main.css`).
+- **Zero dependencies**: Pure IntersectionObserver + CSS, no GSAP.
 
 ## TMDB Locale
 

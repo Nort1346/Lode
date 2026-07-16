@@ -85,6 +85,8 @@ Active user sessions.
 | `ip` / `userAgent` / `deviceName` | text |
 | `createdAt` / `lastActiveAt` | text |
 
+When a user is deleted, all of their active sessions are removed automatically.
+
 ### `custom_trackers`
 Private tracker configurations.
 

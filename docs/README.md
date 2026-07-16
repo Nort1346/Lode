@@ -40,4 +40,4 @@ Self-hosted streaming hub for managing torrent downloads. Browse movies and TV s
 
 ### Guides
 - [Migrating to PostgreSQL](./MIGRATE-TO-POSTGRES.md) — Step-by-step SQLite to PostgreSQL migration
-- [Development](./development.md) — Scripts, ESLint config, code conventions
+- [Development](./development.md) — Scripts, ESLint config, code conventions, Vitest testing

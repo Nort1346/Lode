@@ -16,7 +16,7 @@ Self-hosted streaming hub for managing torrent downloads. Browse movies and TV s
 | **Browse & Search** | TMDB carousels, spotlights, full-text search with genre filters |
 | **Torrent Ranking** | Configurable 240-point scoring engine — resolution, language, seeders, source |
 | **Private Trackers** | Cookie and login-based auth with auto-retry on session expiry |
-| **User Management** | Per-user limits, session control, brute force protection, auto-expiration |
+| **User Management** | Per-user limits, session control, brute force protection, auto-expiration, password generation |
 | **Jellyfin Sync** | Library detection, user CRUD sync, avatar upload, Live TV config |
 | **Notifications** | SSE real-time, Discord webhooks, browser push (VAPID) |
 | **Admin Panel** | Live logs, system status, disk monitoring, ranking config |

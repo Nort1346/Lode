@@ -83,7 +83,7 @@ interface SyncProvider {
 - Upload: Validates image, processes with Sharp, saves to `public/avatars/`
 - Syncs to Jellyfin as raw binary (NOT base64)
 - Delete: Removes from both local storage and Jellyfin
-- Displayed in sidebar and user management
+- Displayed in sidebar and user management (centered within its container)
 
 ## Jellyfin Presets
 

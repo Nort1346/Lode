@@ -17,6 +17,13 @@ The admin panel provides comprehensive management tools for users, downloads, sy
 | Logs | `/admin/logs` | Activity logs + live log stream |
 | Settings | `/admin/settings` | System status, disk, Discord, Jellyfin |
 
+## User Management
+
+The Users page (`/admin/users`) lets admins create, edit, and delete user accounts.
+
+- When creating a new user, an optional **password generator** button produces a secure random 20-character password (uppercase, lowercase, digits, and symbols via `crypto.getRandomValues`). The generated value is revealed briefly, then masked again.
+- Editing an existing user does not expose the password generator (passwords are only set on creation or via the password field).
+
 ## Live Logs
 
 ### Activity Logs (`/admin/logs`)
@@ -37,6 +44,7 @@ The admin panel provides comprehensive management tools for users, downloads, sy
 - See device name, IP, user agent, last active
 - Revoke individual sessions
 - Revoke all sessions for a user
+- Deleting a user automatically removes all of their active sessions (so a deleted user cannot keep using an existing session)
 - Max sessions enforced per user (configurable)
 
 ## Disk Status

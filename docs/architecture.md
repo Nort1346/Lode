@@ -18,7 +18,7 @@
 ```
 ├── app/                        # Frontend (Nuxt 4 app dir)
 │   ├── components/             # Vue components (MediaCard, HeroSection, etc.)
-│   ├── composables/            # Composables (useReveal, useNotifications, etc.)
+│   ├── composables/            # Composables (useNotifications, useCarouselOverflow, etc.)
 │   ├── layouts/                # Default layout with sidebar
 │   ├── middleware/              # Route guards (auth, admin, submit)
 │   ├── pages/                  # File-based routing
@@ -74,7 +74,7 @@ The default layout (`app/layouts/default.vue`) provides:
 
 | Composable | Purpose |
 |-----------|---------|
-| `useReveal()` | IntersectionObserver-based scroll reveal animation |
+| `v-reveal` directive | IntersectionObserver-based scroll reveal animation (registered in `app/plugins/directives.ts`) |
 | `useCarouselOverflow()` | Detects horizontal overflow and provides scroll controls |
 | `useGoToItem()` | Navigate to movie/TV detail page |
 | `useCopyToClipboard()` | Copy text with toast feedback |

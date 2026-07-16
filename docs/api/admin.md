@@ -52,7 +52,7 @@ Partial update — only send fields to change.
 DELETE /api/admin/users/[id]
 ```
 
-Cannot delete admin users. Jellyfin delete must succeed before local delete.
+Cannot delete admin users. Jellyfin delete must succeed before local delete. All active sessions for the deleted user are also removed.
 
 ---
 
