@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex flex-col gap-3 rounded-xl border border-purple-500/30 bg-purple-500/5 p-4 sm:flex-row sm:items-center sm:justify-between"
+    class="flex flex-col gap-3 rounded-xl border border-purple-400 bg-white/50 p-4 dark:border-purple-500/30 dark:bg-purple-500/5 sm:flex-row sm:items-center sm:justify-between"
   >
     <div class="min-w-0 flex-1">
       <span class="flex items-center gap-2 text-xs font-bold text-purple-500">

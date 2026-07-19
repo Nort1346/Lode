@@ -2,7 +2,11 @@
   <div>
     <div
       class="flex flex-wrap items-center gap-3 rounded-lg p-2 transition-colors"
-      :class="torrent.recommended ? 'bg-amber-500/5 ring-1 ring-amber-500/30' : 'bg-zinc-100/50 dark:bg-zinc-700/30'"
+      :class="
+        torrent.recommended
+          ? 'bg-white/50 ring-1 ring-amber-400/60 dark:bg-amber-500/10 dark:ring-amber-500/30'
+          : 'bg-zinc-100/50 dark:bg-zinc-700/30'
+      "
     >
       <span
         class="text-xs font-bold"

@@ -47,7 +47,7 @@
       }"
     >
       <div
-        class="h-full w-full bg-linear-to-b from-white/70 via-white/40 to-default dark:from-black/95 dark:via-black/70"
+        class="h-full w-full bg-linear-to-b from-white/90 via-white/70 to-default dark:from-black/95 dark:via-black/70"
       />
     </div>
 
@@ -100,7 +100,7 @@
           :href="`https://www.imdb.com/title/${movie.imdbId}/`"
           target="_blank"
           rel="noopener noreferrer"
-          class="mt-4 inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-amber-500 transition-colors"
+          class="mt-4 inline-flex items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400 hover:text-amber-500 transition-colors"
         >
           <UIcon name="i-lucide-external-link" class="size-3.5" />
           IMDB: {{ movie.imdbId }}
@@ -110,7 +110,7 @@
           <UButton
             v-if="requestStatus === null"
             color="primary"
-            variant="outline"
+            variant="soft"
             icon="i-lucide-message-square-plus"
             class="cursor-pointer"
             :loading="requesting"
@@ -138,7 +138,7 @@
           </p>
           <UButton
             color="error"
-            variant="outline"
+            variant="soft"
             class="cursor-pointer"
             :icon="wishlisted ? 'i-lucide-heart-off' : 'i-lucide-heart'"
             @click="toggleWishlist"
@@ -192,7 +192,7 @@
           class="flex flex-col gap-3 rounded-xl border p-4 transition-all sm:flex-row sm:items-center sm:justify-between"
           :class="
             torrent.recommended
-              ? 'border-amber-500/50 bg-amber-500/5 shadow-md shadow-amber-500/10'
+              ? 'border-amber-400 bg-white/50 shadow-md shadow-amber-500/10 dark:border-amber-500/50 dark:bg-amber-500/5'
               : 'border-zinc-200 bg-white/50 dark:border-zinc-700 dark:bg-zinc-800/50'
           "
         >

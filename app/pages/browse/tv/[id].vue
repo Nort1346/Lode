@@ -49,7 +49,7 @@
       }"
     >
       <div
-        class="h-full w-full bg-linear-to-b from-white/70 via-white/40 to-default dark:from-black/95 dark:via-black/70"
+        class="h-full w-full bg-linear-to-b from-white/90 via-white/70 to-default dark:from-black/95 dark:via-black/70"
       />
     </div>
 
@@ -102,7 +102,7 @@
           :href="`https://www.imdb.com/title/${show.imdbId}/`"
           target="_blank"
           rel="noopener noreferrer"
-          class="mt-4 inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-amber-500 transition-colors"
+          class="mt-4 inline-flex items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400 hover:text-amber-500 transition-colors"
         >
           <UIcon name="i-lucide-external-link" class="size-3.5" />
           IMDB: {{ show.imdbId }}
@@ -112,7 +112,7 @@
           <UButton
             v-if="requestStatus === null"
             color="primary"
-            variant="outline"
+            variant="soft"
             icon="i-lucide-message-square-plus"
             class="cursor-pointer"
             :loading="requesting"
@@ -140,7 +140,7 @@
           </p>
           <UButton
             color="error"
-            variant="outline"
+            variant="soft"
             class="cursor-pointer"
             :icon="wishlisted ? 'i-lucide-heart-off' : 'i-lucide-heart'"
             @click="toggleWishlist"
