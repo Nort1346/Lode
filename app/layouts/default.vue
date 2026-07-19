@@ -93,7 +93,7 @@ watch(
   <div class="bg-main min-h-screen flex flex-col">
     <!-- Mobile header -->
     <div
-      class="md:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-white/8 bg-white dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-30"
+      class="lg:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-white/8 bg-white dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-30"
     >
       <button
         class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
@@ -114,10 +114,10 @@ watch(
     </div>
 
     <!-- Mobile overlay -->
-    <div v-if="mobileOpen" class="mobile-overlay md:hidden" @click="mobileOpen = false" />
+    <div v-if="mobileOpen" class="mobile-overlay lg:hidden" @click="mobileOpen = false" />
 
     <!-- Mobile sidebar -->
-    <div class="mobile-sidebar sidebar md:hidden" :class="{ open: mobileOpen }">
+    <div class="mobile-sidebar sidebar lg:hidden" :class="{ open: mobileOpen }">
       <div class="p-4 flex flex-col h-full">
         <div class="flex items-center justify-between mb-6">
           <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">StreamHub</NuxtLink>
@@ -180,7 +180,7 @@ watch(
     </div>
 
     <!-- Desktop sidebar -->
-    <aside class="hidden md:flex sidebar w-64 p-4 flex-col fixed h-full z-20 overflow-y-auto min-h-0">
+    <aside class="lg:flex max-lg:hidden sidebar w-64 p-4 flex-col fixed h-full z-20 overflow-y-auto min-h-0">
       <div class="mb-6 px-2">
         <NuxtLink to="/dashboard" class="text-xl font-bold text-gradient">StreamHub</NuxtLink>
       </div>
@@ -245,7 +245,7 @@ watch(
     </aside>
 
     <!-- Main content -->
-    <main class="flex-1 md:ml-64 p-4 md:p-6">
+    <main class="flex-1 lg:ml-64 p-4 lg:p-6">
       <slot />
       <PwaInstallPrompt />
       <PwaIOSInstallBanner />

@@ -185,293 +185,62 @@
       <div v-else-if="seasonData">
         <div v-if="seasonData.seasonPacks.length > 0" class="mb-6">
           <h3 class="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ t('tv.seasonPacks') }}</h3>
-          <div class="space-y-2">
-            <div
+          <div class="flex flex-col gap-4">
+            <BrowseSeasonPackCard
               v-for="(pack, idx) in seasonData.seasonPacks"
               :key="'pack-' + idx"
-              class="flex flex-col gap-3 rounded-xl border border-purple-500/30 bg-purple-500/5 p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div class="flex-1 min-w-0">
-                <span class="flex items-center gap-2 text-xs font-bold text-purple-500">
-                  <UIcon name="i-lucide-layers" class="size-3" />
-                  {{ t('tv.seasonPack') }}
-                </span>
-                <p class="mt-1 line-clamp-1 text-sm text-zinc-800 dark:text-zinc-200">{{ pack.title }}</p>
-                <div class="mt-1 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-                  <span>{{ pack.sizeFormatted }}</span>
-                  <span class="flex items-center gap-1 text-emerald-500">
-                    <UIcon name="i-lucide-arrow-up" class="size-3" />
-                    {{ pack.seeders }}
-                  </span>
-                  <span>{{ pack.indexer }}</span>
-                </div>
-              </div>
-              <UButton
-                :color="isPrivateLimitExceeded(pack.isPrivate) ? 'error' : 'warning'"
-                icon="i-lucide-download"
-                size="sm"
-                class="cursor-pointer"
-                :loading="downloadingPackIdx === idx"
-                :disabled="
-                  (pack.magnetLink === null && pack.guid === null && pack.downloadUrl === null) ||
-                  isPrivateLimitExceeded(pack.isPrivate)
-                "
-                @click="
-                  downloadTorrent(
-                    pack.magnetLink,
-                    `${show?.name ?? ''} S${String(selectedSeason).padStart(2, '0')} Season Pack`,
-                    String(idx),
-                    'pack',
-                    pack.guid,
-                    pack.indexer,
-                    pack.downloadUrl,
-                    pack.size
-                  )
-                "
-              >
-                {{ isPrivateLimitExceeded(pack.isPrivate) ? t('tv.limitReached') : t('tv.downloadSeason') }}
-              </UButton>
-              <UButton
-                v-if="isDev"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-bug"
-                @click="toggleDebug(`pack-${idx}`)"
-              />
-              <div
-                v-if="isDev && debugOpenKey === `pack-${idx}`"
-                class="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
-              >
-                <div class="mb-2 flex items-center gap-2 font-bold text-zinc-500 dark:text-zinc-400">
-                  <UIcon name="i-lucide-bug" class="size-3" />
-                  Dev Info
-                </div>
-                <div class="space-y-1.5">
-                  <div class="flex items-center gap-2">
-                    <span class="w-24 text-zinc-400">indexer:</span>
-                    <span class="text-zinc-700 dark:text-zinc-300">{{ pack.indexer }}</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span class="w-24 text-zinc-400">magnetLink:</span>
-                    <span
-                      class="max-w-xs truncate"
-                      :class="pack.magnetLink ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
-                    >
-                      {{ pack.magnetLink ?? '-' }}
-                    </span>
-                    <UButton
-                      v-if="pack.magnetLink"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-copy"
-                      @click="copyToClipboard(pack.magnetLink!)"
-                    />
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span class="w-24 text-zinc-400">downloadUrl:</span>
-                    <span
-                      class="max-w-xs truncate"
-                      :class="pack.downloadUrl ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
-                    >
-                      {{ pack.downloadUrl ?? '-' }}
-                    </span>
-                    <UButton
-                      v-if="pack.downloadUrl"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-copy"
-                      @click="copyToClipboard(pack.downloadUrl!)"
-                    />
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span class="w-24 text-zinc-400">guid:</span>
-                    <span
-                      class="max-w-xs truncate"
-                      :class="pack.guid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
-                    >
-                      {{ pack.guid ?? '-' }}
-                    </span>
-                    <UButton
-                      v-if="pack.guid"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-copy"
-                      @click="copyToClipboard(pack.guid!)"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+              :pack="pack"
+              :loading="downloadingPackIdx === idx"
+              :disabled="
+                (pack.magnetLink === null && pack.guid === null && pack.downloadUrl === null) ||
+                isPrivateLimitExceeded(pack.isPrivate)
+              "
+              :limit-exceeded="isPrivateLimitExceeded(pack.isPrivate)"
+              :is-dev="isDev"
+              :debug-open="debugOpenKey === `pack-${idx}`"
+              @download="
+                downloadTorrent(
+                  pack.magnetLink,
+                  `${show?.name ?? ''} S${String(selectedSeason).padStart(2, '0')} Season Pack`,
+                  String(idx),
+                  'pack',
+                  pack.guid,
+                  pack.indexer,
+                  pack.downloadUrl,
+                  pack.size
+                )
+              "
+              @toggle-debug="toggleDebug(`pack-${idx}`)"
+            />
           </div>
         </div>
 
-        <div class="space-y-3">
-          <div
+        <div class="flex flex-col gap-4">
+          <BrowseEpisodeCard
             v-for="ep in seasonData.episodes"
             :key="ep.id"
-            class="rounded-xl border border-zinc-200 bg-white/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50"
-          >
-            <div class="flex gap-4">
-              <div v-if="ep.stillUrl" class="hidden w-32 shrink-0 sm:block">
-                <img :src="ep.stillUrl" :alt="ep.name" class="w-full rounded-lg object-cover" loading="lazy" />
-              </div>
-              <div class="flex-1">
-                <div class="flex items-center gap-2">
-                  <span class="text-sm font-bold text-amber-500">E{{ String(ep.episodeNumber).padStart(2, '0') }}</span>
-                  <span v-if="ep.rating > 0" class="flex items-center gap-1 text-xs text-amber-500">
-                    <UIcon name="i-lucide-star" class="size-3" />
-                    {{ ep.rating.toFixed(1) }}
-                  </span>
-                  <span v-if="ep.runtime" class="text-xs text-zinc-500 dark:text-zinc-400"
-                    >{{ ep.runtime }} {{ t('common.min') }}</span
-                  >
-                </div>
-                <h3 class="mt-1 font-semibold text-zinc-900 dark:text-white">{{ ep.name }}</h3>
-                <p class="mt-1 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">{{ ep.overview }}</p>
-
-                <div v-if="ep.torrents.length > 0" class="mt-3 space-y-1">
-                  <div
-                    v-for="(tr, tIdx) in ep.torrents.slice(0, 3)"
-                    :key="tIdx"
-                    class="flex items-center gap-3 rounded-lg p-2 transition-colors"
-                    :class="
-                      tr.recommended ? 'bg-amber-500/5 ring-1 ring-amber-500/30' : 'bg-zinc-100/50 dark:bg-zinc-700/30'
-                    "
-                  >
-                    <span
-                      class="text-xs font-bold"
-                      :class="
-                        tr.percentage >= 80
-                          ? 'text-emerald-500'
-                          : tr.percentage >= 60
-                            ? 'text-amber-500'
-                            : 'text-zinc-500'
-                      "
-                    >
-                      {{ tr.percentage }}%
-                    </span>
-                    <span v-if="tr.recommended" class="text-xs text-amber-500">
-                      <UIcon name="i-lucide-star" class="size-3" />
-                    </span>
-                    <span class="flex-1 truncate text-xs text-zinc-700 dark:text-zinc-300">{{ tr.title }}</span>
-                    <span class="text-xs text-zinc-500">{{ tr.sizeFormatted }}</span>
-                    <span class="flex items-center gap-1 text-xs text-emerald-500">
-                      <UIcon name="i-lucide-arrow-up" class="size-3" />{{ tr.seeders }}
-                    </span>
-                    <span class="text-xs text-zinc-500">{{ tr.indexer }}</span>
-                    <UButton
-                      size="xs"
-                      :color="isPrivateLimitExceeded(tr.isPrivate) ? 'error' : 'warning'"
-                      :variant="isPrivateLimitExceeded(tr.isPrivate) ? 'solid' : 'ghost'"
-                      icon="i-lucide-download"
-                      class="cursor-pointer"
-                      :loading="downloadingKey === `ep-${ep.episodeNumber}-${tIdx}`"
-                      :disabled="
-                        (tr.magnetLink === null && tr.guid === null && tr.downloadUrl === null) ||
-                        isPrivateLimitExceeded(tr.isPrivate)
-                      "
-                      @click="
-                        downloadTorrent(
-                          tr.magnetLink,
-                          `${show?.name ?? ''} S${String(selectedSeason).padStart(2, '0')}E${String(ep.episodeNumber).padStart(2, '0')} ${ep.name}`,
-                          `ep-${ep.episodeNumber}-${tIdx}`,
-                          undefined,
-                          tr.guid,
-                          tr.indexer,
-                          tr.downloadUrl,
-                          tr.size
-                        )
-                      "
-                    >
-                      <template v-if="isPrivateLimitExceeded(tr.isPrivate)">
-                        {{ t('tv.limitReached') }}
-                      </template>
-                    </UButton>
-                    <UButton
-                      v-if="isDev"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-bug"
-                      @click="toggleDebug(`ep-${ep.episodeNumber}-${tIdx}`)"
-                    />
-                    <div
-                      v-if="isDev && debugOpenKey === `ep-${ep.episodeNumber}-${tIdx}`"
-                      class="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
-                    >
-                      <div class="mb-2 flex items-center gap-2 font-bold text-zinc-500 dark:text-zinc-400">
-                        <UIcon name="i-lucide-bug" class="size-3" />
-                        Dev Info
-                      </div>
-                      <div class="space-y-1.5">
-                        <div class="flex items-center gap-2">
-                          <span class="w-24 text-zinc-400">indexer:</span>
-                          <span class="text-zinc-700 dark:text-zinc-300">{{ tr.indexer }}</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                          <span class="w-24 text-zinc-400">magnetLink:</span>
-                          <span
-                            class="max-w-xs truncate"
-                            :class="tr.magnetLink ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
-                          >
-                            {{ tr.magnetLink ?? '-' }}
-                          </span>
-                          <UButton
-                            v-if="tr.magnetLink"
-                            size="xs"
-                            color="neutral"
-                            variant="ghost"
-                            icon="i-lucide-copy"
-                            @click="copyToClipboard(tr.magnetLink!)"
-                          />
-                        </div>
-                        <div class="flex items-center gap-2">
-                          <span class="w-24 text-zinc-400">downloadUrl:</span>
-                          <span
-                            class="max-w-xs truncate"
-                            :class="tr.downloadUrl ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
-                          >
-                            {{ tr.downloadUrl ?? '-' }}
-                          </span>
-                          <UButton
-                            v-if="tr.downloadUrl"
-                            size="xs"
-                            color="neutral"
-                            variant="ghost"
-                            icon="i-lucide-copy"
-                            @click="copyToClipboard(tr.downloadUrl!)"
-                          />
-                        </div>
-                        <div class="flex items-center gap-2">
-                          <span class="w-24 text-zinc-400">guid:</span>
-                          <span
-                            class="max-w-xs truncate"
-                            :class="tr.guid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'"
-                          >
-                            {{ tr.guid ?? '-' }}
-                          </span>
-                          <UButton
-                            v-if="tr.guid"
-                            size="xs"
-                            color="neutral"
-                            variant="ghost"
-                            icon="i-lucide-copy"
-                            @click="copyToClipboard(tr.guid!)"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <p v-else class="mt-2 text-xs text-zinc-400 dark:text-zinc-500">{{ t('tv.noTorrents') }}</p>
-              </div>
-            </div>
-          </div>
+            :episode="ep"
+            :show-name="show?.name ?? ''"
+            :selected-season="selectedSeason"
+            :downloading-key="downloadingKey"
+            :is-dev="isDev"
+            :debug-key="debugOpenKey"
+            :is-private-limit-exceeded="isPrivateLimitExceeded"
+            @download-torrent="
+              (payload) =>
+                downloadTorrent(
+                  payload.magnetLink,
+                  payload.label,
+                  payload.key,
+                  payload.type,
+                  payload.guid,
+                  payload.indexer,
+                  payload.downloadUrl,
+                  payload.size
+                )
+            "
+            @toggle-debug="(key) => toggleDebug(key)"
+          />
         </div>
       </div>
     </div>
@@ -505,7 +274,6 @@
 <script setup lang="ts">
 import type { ShowData, SeasonData } from '~/types/browse'
 import type { RequestStatus } from '~/types/requests'
-import { useCopyToClipboard } from '~/composables/useClipboard'
 
 const route = useRoute()
 const selectedSeason = ref(1)
@@ -527,8 +295,6 @@ const isDev = computed(() => import.meta.dev && user.value?.role === 'admin')
 function toggleDebug(key: string) {
   debugOpenKey.value = debugOpenKey.value === key ? null : key
 }
-
-const { copyToClipboard } = useCopyToClipboard()
 
 const {
   data: showData,
