@@ -10,7 +10,7 @@ Self-hosted streaming hub for managing torrent downloads. Browse movies and TV s
 
 ### Architecture
 - [Architecture](./architecture.md) — Project structure, tech stack, composables, layout system
-- [Database](./database.md) — Schema (14 tables), migrations, SQLite vs PostgreSQL
+- [Database](./database.md) — Schema (13 tables), migrations, SQLite vs PostgreSQL
 - [Deployment](./deployment.md) — Docker setup, Dockerfile stages, volumes, production tips
 
 ### Features

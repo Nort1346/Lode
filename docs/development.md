@@ -84,7 +84,7 @@ putSetting('prep_speed_mb', '15')
 
 ### i18n
 
-- Default locale: `pl` (Polish)
+- Default locale: `en` (English)
 - All UI strings MUST use `t('key')` from `useI18n()`
 - When changing locale: `setLocale($event)` (not `locale = $event`)
 - Polish translations MUST be in Polish — no English fallbacks for Polish locale

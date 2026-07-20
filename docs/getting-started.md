@@ -9,8 +9,8 @@
 ## Install
 
 ```bash
-git clone <your-repo-url>
-cd requesting-site
+git clone https://github.com/Nort1346/StreamHub.git
+cd StreamHub
 pnpm install
 ```
 

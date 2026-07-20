@@ -1,0 +1,75 @@
+name: Bug report
+description: Report a problem with StreamHub
+title: '[Bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please fill this out as completely as possible.
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce the issue?
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: StreamHub version
+      description: Commit hash, tag, or Docker image tag you are running.
+    validations:
+      required: true
+  - type: dropdown
+    id: db
+    attributes:
+      label: Database driver
+      options:
+        - SQLite
+        - PostgreSQL
+    validations:
+      required: true
+  - type: dropdown
+    id: deploy
+    attributes:
+      label: Deployment
+      options:
+        - Docker Compose
+        - Manual / pnpm dev
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste logs from the admin Live Logs view or container output. Redact secrets/API keys.
+      render: shell
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checks
+      options:
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: I have redacted all secrets and API keys from logs/screenshots.
+          required: true

@@ -9,7 +9,7 @@
 | Database | Drizzle ORM — SQLite (default) or PostgreSQL |
 | Auth | `nuxt-auth-utils` (cookie sessions) |
 | Icons | Lucide + Simple Icons (via `@iconify-json/*`) |
-| i18n | `@nuxtjs/i18n` v10 — Polish (default) + English |
+| i18n | `@nuxtjs/i18n` v10 — English (default) + pl, de, fr, es (5 locales) |
 | PWA | `@vite-pwa/nuxt` — auto-update, service worker |
 | Logging | Pino with ring buffer for SSE live logs |
 
@@ -43,7 +43,7 @@
 │   ├── plugins/                # Server plugins (seed, torrent-sync, etc.)
 │   ├── types/                  # Server type definitions
 │   └── utils/                  # Server utilities (30+ files)
-├── i18n/locales/               # pl.json, en.json
+├── i18n/locales/               # pl, en, de, fr, es (5 locales)
 ├── shared/                     # Shared type augmentations (auth.d.ts)
 ├── docs/                       # This documentation
 ├── scripts/                    # Migration scripts
@@ -63,7 +63,7 @@
 
 The default layout (`app/layouts/default.vue`) provides:
 
-- **Desktop**: Fixed left sidebar (64px width) with navigation, user info, theme toggle, language selector, and logout
+- **Desktop**: Fixed left sidebar (256px / w-64 width) with navigation, user info, theme toggle, language selector, and logout
 - **Mobile**: Slide-out sidebar with overlay, hamburger menu trigger
 - **Dynamic navigation**: Items added conditionally based on `canSubmit` permission and `admin` role
 - **Theme**: Dark/light mode via `useColorMode()` with toggle button

@@ -293,11 +293,11 @@ step "[4/12] Downloading docker-compose.yml"
 if [ -f docker-compose.yml ]; then
   if [ "$HAS_GUM" = true ]; then
     gum confirm --default=false "docker-compose.yml already exists. Download latest version from GitHub?" && \
-      curl -fsSL https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml -o docker-compose.yml
+      curl -fsSL https://raw.githubusercontent.com/Nort1346/StreamHub/main/docker-compose.yml -o docker-compose.yml
   else
     read -rp "docker-compose.yml already exists. Download latest version? [y/N] " answer
     if [[ "$answer" =~ ^[Yy]$ ]]; then
-      curl -fsSL https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml -o docker-compose.yml
+      curl -fsSL https://raw.githubusercontent.com/Nort1346/StreamHub/main/docker-compose.yml -o docker-compose.yml
     fi
   fi
   ok "Using docker-compose.yml"

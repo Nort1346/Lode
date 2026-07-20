@@ -8,7 +8,7 @@ StreamHub uses **Drizzle ORM** with dual database support:
 
 The schema is defined in `server/database/schema.ts`. Migrations live in `server/database/migrations/`.
 
-## Schema (14 Tables)
+## Schema (13 Tables)
 
 ### `users`
 Core user accounts.

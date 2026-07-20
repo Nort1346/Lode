@@ -1,20 +1,47 @@
-# StreamHub
+<p align="center">
+  <img src="./public/logo_full.svg" alt="StreamHub" style="margin: 20px 0;">
+</p>
 
-![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxtdotjs&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
-![Drizzle ORM](https://img.shields.io/badge/Drizzle-ORM-C5F74F?logo=drizzle&logoColor=black)
-![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)
-![License](https://img.shields.io/badge/License-AGPL--3.0-orange)
+<p align="center">
+  <img src="https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxtdotjs&logoColor=white" alt="Nuxt">
+  <img src="https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Drizzle-ORM-C5F74F?logo=drizzle&logoColor=black" alt="Drizzle">
+  <img src="https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/License-AGPL--3.0-orange" alt="License">
+  <img src="https://github.com/Nort1346/StreamHub/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <img src="https://img.shields.io/docker/pulls/ghcr.io/nort1346/streamhub" alt="Docker pulls">
+  <img src="https://img.shields.io/badge/i18n-en%20%7C%20pl%20%7C%20de%20%7C%20fr%20%7C%20es-3178C6" alt="i18n">
+</p>
 
-Self-hosted streaming hub for managing torrent downloads. Browse movies and TV shows from TMDB, find torrents via Prowlarr, and download with one click.
+<p align="center">
+  Self-hosted streaming hub for managing torrent downloads. Browse movies and TV shows from TMDB, find torrents via Prowlarr, and download with one click.
+</p>
+
+## Get started
+
+Paste this into your terminal and follow the guided setup:
+
+**Linux / macOS**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.sh | bash
+```
+
+**Windows (PowerShell)**
+
+```powershell
+irm https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.ps1 | iex
+```
+
+The script checks Docker, pulls the full stack, generates secrets, and walks you through each API key. Prefer manual setup? See [Quick Start](#quick-start) below.
 
 ## Features
 
 | | |
 |---|---|
 | **Browse & Search** | TMDB carousels, spotlights, full-text search with genre filters |
-| **Torrent Ranking** | Configurable 240-point scoring engine — resolution, language, seeders, source |
+| **Torrent Ranking** | Configurable 240-point scoring engine - resolution, language, seeders, source |
 | **Private Trackers** | Cookie and login-based auth with auto-retry on session expiry |
 | **User Management** | Per-user limits, session control, brute force protection, auto-expiration, password generation |
 | **Jellyfin Sync** | Library detection, user CRUD sync, avatar upload, Live TV config |
@@ -22,23 +49,17 @@ Self-hosted streaming hub for managing torrent downloads. Browse movies and TV s
 | **Admin Panel** | Live logs, system status, disk monitoring, ranking config |
 | **PWA** | Installable app with offline support and push notifications |
 
+## Preview
+
+<p align="center">
+  <img src="./public/preview.png" alt="StreamHub preview" />
+</p>
+
 ## Quick Start
 
 ### Option 1: Auto-Setup (Recommended)
 
-Run one command and follow the guided setup:
-
-**Linux / macOS:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/nort1346/streamhub/main/setup.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/nort1346/streamhub/main/setup.ps1 | iex
-```
-
-The setup script will guide you through 12 steps:
+Run the one-line command from [Get started](#get-started), then the guided script walks you through 12 steps:
 1. Check prerequisites (Docker, Docker Compose)
 2. Create `.env` from `.env.example`
 3. Generate secrets (session password, tracker encryption key)
@@ -63,14 +84,14 @@ After setup, open **http://localhost:5757** and login with `admin / admin`. Crea
 - qBittorrent with WebUI API key enabled
 
 ```bash
-git clone <your-repo-url>
-cd requesting-site
+git clone https://github.com/Nort1346/StreamHub.git
+cd StreamHub
 pnpm install
 cp .env.example .env    # then edit with your settings
 pnpm dev                # opens at http://localhost:5757
 ```
 
-Default admin: `admin` / `admin` — login and create users in Admin > Users.
+Default admin: `admin` / `admin` - login and create users in Admin > Users.
 
 ## Docker
 
@@ -94,7 +115,7 @@ docker compose logs -f       # view logs
 | Layer | Technology |
 |-------|-----------|
 | Framework | Nuxt 4 + Nuxt UI 4 + Tailwind CSS v4 |
-| Database | Drizzle ORM — SQLite (default) or PostgreSQL |
+| Database | Drizzle ORM - SQLite (default) or PostgreSQL |
 | Auth | nuxt-auth-utils (cookie sessions, bcrypt) |
 | Integrations | TMDB, Prowlarr, qBittorrent, Jellyfin, Discord |
 | Notifications | SSE + Web Push (VAPID) + Discord webhooks |
@@ -104,14 +125,57 @@ docker compose logs -f       # view logs
 
 Full documentation lives in [`docs/`](./docs/):
 
-- **[Getting Started](./docs/getting-started.md)** — Prerequisites, installation, first run
-- **[Configuration](./docs/configuration.md)** — All environment variables and settings
-- **[Architecture](./docs/architecture.md)** — Project structure, tech stack, composables
-- **[Database](./docs/database.md)** — Schema (14 tables), migrations, SQLite vs PostgreSQL
-- **[Deployment](./docs/deployment.md)** — Docker setup, production tips
-- **[Features](./docs/features/)** — 13 feature guides (browse, torrents, users, Jellyfin, etc.)
-- **[API Reference](./docs/api/)** — Complete endpoint documentation
+- **[Getting Started](./docs/getting-started.md)** - Prerequisites, installation, first run
+- **[Configuration](./docs/configuration.md)** - All environment variables and settings
+- **[Architecture](./docs/architecture.md)** - Project structure, tech stack, composables
+- **[Database](./docs/database.md)** - Schema (13 tables), migrations, SQLite vs PostgreSQL
+- **[Deployment](./docs/deployment.md)** - Docker setup, production tips
+- **[Features](./docs/features/)** - 13 feature guides (browse, torrents, users, Jellyfin, etc.)
+- **[API Reference](./docs/api/)** - Complete endpoint documentation
+
+## Why StreamHub
+
+Unlike request-only tools (Overseerr, Seerr) that stop at "request and forget", StreamHub owns the full loop:
+
+- **One-click download** - picks the best torrent via a 240-point ranking engine and sends it straight to qBittorrent.
+- **Private tracker support** - cookie/login auth with auto-retry on session expiry, not just public indexers.
+- **Built-in user system** - per-user limits, session control, brute-force protection, and auto-expiration. No external auth provider required.
+- **Jellyfin-native** - library detection, user sync, and avatar management out of the box.
+- **Real-time everything** - SSE live logs, browser push (VAPID), and Discord notifications.
+- **Self-hosted first** - Docker Compose stack, SQLite by default (PostgreSQL optional), no cloud dependency.
+
+## StreamHub vs Seerr
+
+Both manage media requests across Jellyfin, Emby, and Plex libraries. The difference is *who controls the download*:
+
+| | StreamHub | [Seerr](https://github.com/seerr-team/seerr) |
+|---|---|---|
+| **Primary flow** | Browse TMDB → rank torrents → send to qBittorrent | Request → *arr (Radarr/Sonarr) fetches |
+| **Torrent control** | Direct qBittorrent, one-click, manual pick | Delegated to *arr, no manual torrent pick |
+| **Torrent ranking** | Built-in 240-point scoring engine | None (left to *arr) |
+| **Private trackers** | Cookie/login auth with auto-retry | Via *arr indexers only |
+| **User management** | Built-in: per-user limits, brute-force, sessions, expiry | Media-server OAuth only |
+| **Real-time logs** | SSE live logs in admin panel | - |
+| **Notifications** | SSE + Discord + browser push (VAPID) | Discord / Slack / Telegram webhooks |
+| **PWA** | Installable, offline, push notifications | Mobile-responsive UI |
+| **Media servers** | Jellyfin (Emby planned) | Jellyfin, Emby, Plex |
+| **Auto-setup** | One-command `setup.sh` / `setup.ps1` (Docker + guided keys) | Manual compose / docs only |
+| **Translations** | EN, PL, DE, FR, ES (community) | Crowdsourced via Weblate |
+| **Best for** | Owning the full download loop + custom user tiers | *arr users wanting request management on top |
+
+Seerr is excellent if you already run the *arr stack and want request management layered on top. StreamHub is for self-hosters who want to own the entire download loop and run their own user tiers without a separate media-server login.
+
+## Roadmap
+
+- [ ] Emby support (additional media server)
+- [ ] Prowlarr indexer management (add/configure indexers from StreamHub admin)
+
+Got an idea? [Open a feature request](.github/ISSUE_TEMPLATE/feature_request.yml).
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for setup, testing, and PR guidelines.
 
 ## License
 
-[AGPL-3.0](LICENSE) — Copyright (C) 2026 Nort
+[AGPL-3.0](LICENSE) - Copyright (C) 2026 Nort
