@@ -232,7 +232,7 @@
                 {{ formatLanguage(torrent.language) }}
               </span>
             </div>
-            <p class="mt-1 line-clamp-1 text-sm text-zinc-800 dark:text-zinc-200">{{ torrent.title }}</p>
+            <BrowseTorrentTitle class="mt-1" :text="torrent.title" />
             <div class="mt-1 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
               <span>{{ torrent.sizeFormatted }}</span>
               <span class="flex items-center gap-1 text-emerald-500">

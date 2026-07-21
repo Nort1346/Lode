@@ -19,7 +19,19 @@
       <span v-if="torrent.recommended" class="hidden text-xs text-amber-500 sm:inline-flex">
         <UIcon name="i-lucide-star" class="size-3" />
       </span>
-      <span class="min-w-0 flex-1 text-xs text-zinc-700 line-clamp-2 dark:text-zinc-300">{{ torrent.title }}</span>
+      <div ref="containerRef" class="min-w-0 flex-1 overflow-hidden">
+        <span
+          ref="textRef"
+          class="text-xs text-zinc-700 dark:text-zinc-300"
+          :class="
+            isOverflowing
+              ? ['marquee-text', phase === 'first' ? 'is-marquee-active' : 'is-marquee-looping']
+              : 'line-clamp-2'
+          "
+          :style="isOverflowing ? { '--marquee-distance': `${scrollDistance}px` } : undefined"
+          >{{ torrent.title }}</span
+        >
+      </div>
       <span class="hidden text-xs text-zinc-500 sm:inline">{{ torrent.sizeFormatted }}</span>
       <span class="flex items-center gap-1 text-xs text-emerald-500">
         <UIcon name="i-lucide-arrow-up" class="size-3" />{{ torrent.seeders }}
@@ -136,4 +148,9 @@ defineEmits<{
 
 const { t } = useI18n()
 const { copyToClipboard } = useCopyToClipboard()
+const { containerRef, textRef, isVisible, isOverflowing, scrollDistance, phase, recheck } = useMarquee()
+
+watch(isOverflowing, () => {
+  nextTick(recheck)
+})
 </script>

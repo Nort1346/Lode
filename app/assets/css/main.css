@@ -294,3 +294,71 @@
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
+
+.marquee-text {
+  white-space: nowrap;
+  display: inline-block;
+  opacity: 1;
+}
+
+/* pierwsze uruchomienie — bez fade-in na starcie */
+.marquee-text.is-marquee-active {
+  animation: marquee-scroll-first 5s ease-in-out 1 forwards;
+}
+
+/* każda kolejna pętla — z fade-in */
+.marquee-text.is-marquee-looping {
+  animation: marquee-scroll 5s ease-in-out infinite;
+}
+
+@keyframes marquee-scroll-first {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  70% {
+    transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
+    opacity: 1;
+  }
+  85% {
+    transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
+    opacity: 1;
+  }
+  93% {
+    transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
+    opacity: 0;
+  }
+  93.5%,
+  100% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  4% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  70% {
+    transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
+    opacity: 1;
+  }
+  85% {
+    transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
+    opacity: 1;
+  }
+  93% {
+    transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
+    opacity: 0;
+  }
+  93.5%,
+  100% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+}
