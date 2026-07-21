@@ -92,6 +92,7 @@ export interface Session {
   lastActiveAt: string
   username: string | null
   role: string | null
+  avatarUrl: string | null
 }
 
 export interface CustomTracker {

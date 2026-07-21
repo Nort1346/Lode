@@ -73,10 +73,14 @@ function timeAgo(dateStr: string) {
 }
 
 const groupedSessions = computed(() => {
-  const map = new Map<string, { username: string; role: string | null; sessions: Session[] }>()
+  const map = new Map<
+    string,
+    { username: string; role: string | null; avatarUrl: string | null; sessions: Session[] }
+  >()
   for (const s of sessions.value) {
     const key = s.userId
-    if (!map.has(key)) map.set(key, { username: s.username ?? 'Unknown', role: s.role, sessions: [] })
+    if (!map.has(key))
+      map.set(key, { username: s.username ?? 'Unknown', role: s.role, avatarUrl: s.avatarUrl, sessions: [] })
     map.get(key)!.sessions.push(s)
   }
   return Array.from(map.values())
@@ -105,7 +109,7 @@ const groupedSessions = computed(() => {
       <div v-for="group in groupedSessions" :key="group.username" class="card p-6">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
-            <UAvatar :alt="group.username" size="md" />
+            <UAvatar :src="group.avatarUrl ?? undefined" :alt="group.username" size="md" />
             <div>
               <span class="text-sm font-semibold text-zinc-900 dark:text-white">{{ group.username }}</span>
               <span

@@ -15,7 +15,8 @@ export default defineEventHandler(async (event) => {
       createdAt: sessions.createdAt,
       lastActiveAt: sessions.lastActiveAt,
       username: users.username,
-      role: users.role
+      role: users.role,
+      avatarUrl: users.avatarUrl
     })
     .from(sessions)
     .leftJoin(users, eq(sessions.userId, users.id))
