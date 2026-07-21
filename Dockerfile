@@ -1,5 +1,5 @@
-ARG NODE_VERSION=22
-ARG PNPM_VERSION=11.5.2
+ARG NODE_VERSION=24
+ARG PNPM_VERSION=11.15.1
 
 # ── Base ─────────────────────────────────────────────────────
 FROM node:${NODE_VERSION}-bookworm-slim AS base
