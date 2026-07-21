@@ -47,7 +47,7 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="bg-main min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="bg-main min-h-dvh flex flex-col items-center justify-center p-4 pb-safe px-safe">
     <button
       class="flex items-center justify-center fixed top-4 right-4 p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors shadow-sm"
       @click="toggleTheme"
@@ -55,15 +55,15 @@ async function handleLogin() {
       <UIcon :name="isDark ? 'i-lucide-sun' : 'i-lucide-moon'" class="w-5 h-5" />
     </button>
 
-    <div class="w-full max-w-md">
-      <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-gradient mb-2">StreamHub</h1>
-        <p class="text-zinc-500 dark:text-zinc-400">{{ t('login.subtitle') }}</p>
+    <div class="w-full max-w-md px-4">
+      <div class="text-center mb-6 sm:mb-8 pt-safe">
+        <h1 class="text-3xl sm:text-4xl font-bold text-gradient mb-2">StreamHub</h1>
+        <p class="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base">{{ t('login.subtitle') }}</p>
       </div>
 
-      <div class="card p-8">
+      <div class="card p-5 sm:p-8">
         <form @submit.prevent="handleLogin">
-          <div class="space-y-4">
+          <div class="space-y-4 px-1 sm:px-0">
             <UFormField :label="t('login.usernameLabel')">
               <UInput
                 v-model="form.username"
@@ -71,6 +71,7 @@ async function handleLogin() {
                 icon="i-lucide-user"
                 class="w-full"
                 size="lg"
+                autocomplete="username"
               />
             </UFormField>
 
@@ -82,6 +83,7 @@ async function handleLogin() {
                 icon="i-lucide-lock"
                 class="w-full"
                 size="lg"
+                autocomplete="current-password"
               />
             </UFormField>
 
