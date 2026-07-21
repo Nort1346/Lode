@@ -80,7 +80,7 @@ function goToRequest(req: Request) {
               if (el) cardRefs[idx] = el as HTMLElement
             }
           "
-          class="shrink-0 w-44 cursor-pointer group"
+          class="shrink-0 w-36 sm:w-44 md:w-48 lg:w-52 cursor-pointer group"
           style="
             transform-style: preserve-3d;
             will-change: transform;
