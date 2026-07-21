@@ -89,7 +89,8 @@ onUnmounted(() => {
 <template>
   <div
     v-if="heroCurrent"
-    class="relative mb-8 overflow-hidden rounded-2xl h-95 sm:h-120 md:h-140 lg:h-160 xl:h-180 hero-entrance"
+    class="relative mb-8 overflow-hidden rounded-2xl cursor-pointer h-95 sm:h-120 md:h-140 lg:h-160 xl:h-180 hero-entrance"
+    @click="goToItem(heroCurrent)"
   >
     <!-- Current image -->
     <img
@@ -149,8 +150,8 @@ onUnmounted(() => {
           :label="t('dashboard.heroCTA')"
           icon="i-lucide-play"
           size="lg"
-          class="cursor-pointer"
-          @click="goToItem(heroCurrent)"
+          class="cursor-pointer font-bold"
+          @click.stop="goToItem(heroCurrent)"
         />
       </div>
     </div>

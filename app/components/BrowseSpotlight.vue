@@ -73,7 +73,7 @@ watch(
           :label="t('browse.spotlightCTA')"
           icon="i-lucide-play"
           size="md"
-          class="cursor-pointer"
+          class="cursor-pointer font-bold"
           @click.stop="goToItem(item)"
         />
       </div>
