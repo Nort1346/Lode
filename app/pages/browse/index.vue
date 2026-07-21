@@ -79,7 +79,9 @@
         />
       </InviewSection>
 
-      <BrowseSpotlight v-if="spotlights[0]" :item="spotlights[0]" />
+      <div v-reveal>
+        <BrowseSpotlight v-if="spotlights[0]" :item="spotlights[0]" />
+      </div>
 
       <InviewSection v-for="g in movieGenres" :key="`movie-${g.id}`" @visible="genreVisible[`movie-${g.id}`] = true">
         <MediaCarousel
@@ -90,7 +92,9 @@
         />
       </InviewSection>
 
-      <BrowseSpotlight v-if="spotlights[1]" :item="spotlights[1]" />
+      <div v-reveal>
+        <BrowseSpotlight v-if="spotlights[1]" :item="spotlights[1]" />
+      </div>
 
       <InviewSection v-for="g in tvGenres" :key="`tv-${g.id}`" @visible="genreVisible[`tv-${g.id}`] = true">
         <MediaCarousel
@@ -101,7 +105,9 @@
         />
       </InviewSection>
 
-      <BrowseSpotlight v-if="spotlights[2]" :item="spotlights[2]" />
+      <div v-reveal>
+        <BrowseSpotlight v-if="spotlights[2]" :item="spotlights[2]" />
+      </div>
 
       <InviewSection @visible="topRatedVisible = true">
         <MediaCarousel
