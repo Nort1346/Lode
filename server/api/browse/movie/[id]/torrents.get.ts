@@ -38,11 +38,9 @@ export default defineEventHandler(async (event) => {
     try {
       const rankingConfig = await getRankingConfig()
       const year = movie.release_date?.slice(0, 4) ?? ''
-      let rawResults = await prowlarr.searchByQuery(`${movie.title} ${year}`.trim(), locale, [
-        PROWLARR_CATEGORIES.MOVIES
-      ])
+      let rawResults = await prowlarr.searchByQuery(`${movie.title} ${year}`.trim(), [PROWLARR_CATEGORIES.MOVIES])
       if (rawResults.length === 0 && movie.original_title !== movie.title) {
-        rawResults = await prowlarr.searchByQuery(`${movie.original_title} ${year}`.trim(), locale, [
+        rawResults = await prowlarr.searchByQuery(`${movie.original_title} ${year}`.trim(), [
           PROWLARR_CATEGORIES.MOVIES
         ])
       }

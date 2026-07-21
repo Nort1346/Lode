@@ -39,11 +39,11 @@ export default defineEventHandler(async (event) => {
       const rankingConfig = await getRankingConfig()
       const year = show.first_air_date?.slice(0, 4) ?? ''
       const imdbId = show.external_ids?.imdb_id ?? null
-      let rawResults = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, null, locale, [
+      let rawResults = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, null, [
         PROWLARR_CATEGORIES.TV
       ])
       if (rawResults.length === 0 && show.original_name !== show.name) {
-        rawResults = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, null, locale, [
+        rawResults = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, null, [
           PROWLARR_CATEGORIES.TV
         ])
       }

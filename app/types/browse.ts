@@ -4,6 +4,7 @@ export interface MovieData {
   id: number
   title: string
   originalTitle: string
+  originalLanguage: string
   overview: string
   posterUrl: string | null
   backdropUrl: string | null
@@ -20,6 +21,7 @@ export interface ShowData {
   id: number
   name: string
   originalName: string
+  originalLanguage: string
   overview: string
   posterUrl: string | null
   backdropUrl: string | null

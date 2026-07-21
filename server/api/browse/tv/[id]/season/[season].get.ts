@@ -110,12 +110,12 @@ export default defineEventHandler(async (event) => {
       log.info(
         `[Season] Searching: show="${show.name}" original="${show.original_name}" season=${seasonNumber} imdb=${imdbId ?? 'none'}`
       )
-      rawTorrents = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, seasonNumber, locale, [
+      rawTorrents = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, seasonNumber, [
         PROWLARR_CATEGORIES.TV
       ])
       if (rawTorrents.length === 0 && show.original_name !== show.name) {
         log.info(`[Season] Retrying with original name: "${show.original_name}"`)
-        rawTorrents = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, seasonNumber, locale, [
+        rawTorrents = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, seasonNumber, [
           PROWLARR_CATEGORIES.TV
         ])
       }

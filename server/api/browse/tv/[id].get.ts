@@ -29,6 +29,7 @@ export default defineEventHandler(async (event) => {
     id: show.id,
     name: show.name,
     originalName: show.original_name,
+    originalLanguage: show.original_language,
     overview: show.overview,
     posterUrl: getImageUrl(show.poster_path, 'w780'),
     backdropUrl: getImageUrl(show.backdrop_path, 'original'),

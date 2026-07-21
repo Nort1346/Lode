@@ -83,6 +83,16 @@
             <UIcon name="i-lucide-star" class="size-4" />
             {{ show.rating.toFixed(1) }}
           </span>
+          <UDropdownMenu :items="languageDropdownItems">
+            <UButton
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-languages"
+              :label="getCurrentLanguageLabel(show?.originalLanguage)"
+              trailing-icon="i-lucide-chevron-down"
+              class="text-zinc-500 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400"
+            />
+          </UDropdownMenu>
         </div>
 
         <div class="mt-3 flex flex-wrap gap-2">
@@ -287,7 +297,7 @@ const wishlistId = ref<string | null>(null)
 const debugOpenKey = ref<string | null>(null)
 const requestModalOpen = ref(false)
 const requestNote = ref('')
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { user } = useUserSession()
 
 const isDev = computed(() => import.meta.dev && user.value?.role === 'admin')
@@ -296,13 +306,25 @@ function toggleDebug(key: string) {
   debugOpenKey.value = debugOpenKey.value === key ? null : key
 }
 
+const { mediaLanguage, getLanguageOptions, getCurrentLanguageLabel } = useMediaLanguage()
+
+const languageDropdownItems = computed(() =>
+  getLanguageOptions(show.value?.originalLanguage).map((opt) => ({
+    label: opt.label,
+    icon: opt.icon,
+    onSelect() {
+      mediaLanguage.value = opt.value
+    }
+  }))
+)
+
 const {
   data: showData,
   pending,
   error
 } = await useFetch<{ show: ShowData }>(
-  computed(() => `/api/browse/tv/${route.params.id}?locale=${locale.value}`),
-  { watch: [locale] }
+  computed(() => `/api/browse/tv/${route.params.id}?locale=${mediaLanguage.value}`),
+  { watch: [mediaLanguage] }
 )
 
 const show = computed(() => showData.value?.show ?? null)
@@ -321,8 +343,8 @@ const {
   pending: seasonPending,
   error: seasonError
 } = useLazyFetch<SeasonData>(
-  computed(() => `/api/browse/tv/${route.params.id}/season/${selectedSeason.value}?locale=${locale.value}`),
-  { watch: [selectedSeason, locale] }
+  computed(() => `/api/browse/tv/${route.params.id}/season/${selectedSeason.value}?locale=${mediaLanguage.value}`),
+  { watch: [selectedSeason, mediaLanguage] }
 )
 
 const seasonLimitInfo = computed(() => {

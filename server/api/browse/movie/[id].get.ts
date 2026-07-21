@@ -29,6 +29,7 @@ export default defineEventHandler(async (event) => {
     id: movie.id,
     title: movie.title,
     originalTitle: movie.original_title,
+    originalLanguage: movie.original_language,
     overview: movie.overview,
     posterUrl: getImageUrl(movie.poster_path, 'w780'),
     backdropUrl: getImageUrl(movie.backdrop_path, 'original'),

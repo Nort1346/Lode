@@ -211,9 +211,9 @@ export class ProwlarrClient {
     return results
   }
 
-  async searchByQuery(query: string, locale = 'en', categories?: number[]): Promise<ProwlarrResult[]> {
+  async searchByQuery(query: string, categories?: number[]): Promise<ProwlarrResult[]> {
     const catsKey = categories?.join(',') ?? 'all'
-    const cacheKey = `prowlarr:query:${query}:${locale}:${catsKey}`
+    const cacheKey = `prowlarr:query:${query}:${catsKey}`
     const cached = await cacheGet<ProwlarrResult[]>(cacheKey)
     if (cached !== null) return cached
 
@@ -246,13 +246,12 @@ export class ProwlarrClient {
     year: string,
     imdbId: string | null,
     seasonNumber: number | null,
-    locale = 'en',
     categories?: number[]
   ): Promise<ProwlarrResult[]> {
     const seasonPad = seasonNumber !== null ? String(seasonNumber).padStart(2, '0') : null
     const seasonNum = seasonNumber !== null ? String(seasonNumber) : null
     const nameKey = imdbId !== null && imdbId.length > 0 ? imdbId : `${showName}:${seasonPad ?? 'all'}`
-    const cacheKey = `prowlarr:tv:${nameKey}:${year}:${locale}`
+    const cacheKey = `prowlarr:tv:${nameKey}:${year}`
     const cached = await cacheGet<ProwlarrResult[]>(cacheKey)
     if (cached !== null) return cached
 
@@ -275,7 +274,7 @@ export class ProwlarrClient {
     }
 
     // 2. Text search - covers private trackers
-    promises.push(this.searchTvText(showName, originalName, seasonPad, seasonNum, year, locale, categories))
+    promises.push(this.searchTvText(showName, originalName, seasonPad, seasonNum, year, categories))
 
     const settled = await Promise.all(promises)
     const hasImdb = imdbId !== null && imdbId.length > 0
@@ -306,7 +305,6 @@ export class ProwlarrClient {
     seasonPad: string | null,
     seasonNum: string | null,
     year: string,
-    locale: string,
     categories?: number[]
   ): Promise<ProwlarrResult[]> {
     // Build focused queries - most specific first
@@ -334,7 +332,7 @@ export class ProwlarrClient {
     // Try queries sequentially - stop at first non-empty
     for (const query of queries) {
       log.info(`[Prowlarr] searchTv: text search "${query}"`)
-      const results = await this.searchByQuery(query, locale, categories)
+      const results = await this.searchByQuery(query, categories)
       if (results.length > 0) {
         log.info(`[Prowlarr] searchTv: "${query}" → ${results.length} results`)
         return results

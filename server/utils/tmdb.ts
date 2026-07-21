@@ -11,7 +11,7 @@ import type {
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
 
-const LOCALE_MAP: Record<string, string> = {
+const TMDB_BCP47_MAP: Record<string, string> = {
   pl: 'pl-PL',
   en: 'en-US',
   de: 'de-DE',
@@ -20,7 +20,12 @@ const LOCALE_MAP: Record<string, string> = {
 }
 
 export function resolveTmdbLanguage(locale: string): string {
-  return LOCALE_MAP[locale] ?? 'en-US'
+  if (locale === 'original') return ''
+  if (locale.includes('-')) {
+    const shortCode = locale.split('-')[0] ?? locale
+    return TMDB_BCP47_MAP[shortCode] ?? locale
+  }
+  return TMDB_BCP47_MAP[locale] ?? 'en-US'
 }
 
 function resolveTmdbLogoLanguage(locale: string): string {
@@ -164,7 +169,7 @@ export async function getMovieDetails(id: number, locale = 'en'): Promise<TmdbMo
 
   const url = new URL(`${TMDB_BASE}/movie/${id}`)
   url.searchParams.set('api_key', getApiKey())
-  url.searchParams.set('language', lang)
+  if (lang) url.searchParams.set('language', lang)
   url.searchParams.set('append_to_response', 'external_ids')
 
   const response = await fetch(url.toString())
@@ -188,7 +193,7 @@ export async function getTvShowDetails(id: number, locale = 'en'): Promise<TmdbT
 
   const url = new URL(`${TMDB_BASE}/tv/${id}`)
   url.searchParams.set('api_key', getApiKey())
-  url.searchParams.set('language', lang)
+  if (lang) url.searchParams.set('language', lang)
   url.searchParams.set('append_to_response', 'external_ids')
 
   const response = await fetch(url.toString())
@@ -207,7 +212,7 @@ export async function getSeasonDetails(showId: number, seasonNumber: number, loc
 
   const url = new URL(`${TMDB_BASE}/tv/${showId}/season/${seasonNumber}`)
   url.searchParams.set('api_key', getApiKey())
-  url.searchParams.set('language', lang)
+  if (lang) url.searchParams.set('language', lang)
 
   const response = await fetch(url.toString())
   if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
