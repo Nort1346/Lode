@@ -11,22 +11,10 @@ import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/uti
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { checkForDangerousFiles } from '#server/utils/safe-download'
 import { createLogger } from '#server/utils/logger'
+import type { DownloadBody } from '#server/types/browse'
+import { SAVE_PATH_KEYS, type SavePathKey } from '#server/types/torrent'
 
 const log = createLogger('Download')
-
-interface DownloadBody {
-  magnetLink?: string
-  downloadUrl?: string
-  guid?: string
-  indexer?: string
-  label: string
-  savePath: string
-  tmdbId?: number
-  mediaType?: string
-}
-
-const SAVE_PATH_KEYS = ['movies', 'series', 'games', 'music', 'books'] as const
-type SavePathKey = (typeof SAVE_PATH_KEYS)[number]
 
 export default defineEventHandler(async (event) => {
   const t0 = Date.now()

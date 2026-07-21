@@ -1,19 +1,8 @@
 import { gotScraping } from 'got-scraping'
 import { createLogger } from '#server/utils/logger'
+import type { DetectedForm, SessionCacheEntry } from '#server/types/tracker'
 
 const log = createLogger('TrackerAuth')
-
-interface DetectedForm {
-  action: string
-  usernameField: string
-  passwordField: string
-  hiddenFields: Record<string, string>
-}
-
-interface SessionCacheEntry {
-  cookie: string
-  expiresAt: number
-}
 
 const SESSION_CACHE_TTL = 60 * 60 * 1000
 const sessionCache = new Map<string, SessionCacheEntry>()

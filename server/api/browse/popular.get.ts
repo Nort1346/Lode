@@ -1,6 +1,7 @@
 import { getPopularMovies, getPopularTvShows, getImageUrl } from '#server/utils/tmdb'
 import { markInLibrary } from '#server/utils/browse-utils'
 import { getActiveSyncProviders } from '#server/utils/sync'
+import type { BrowseItem } from '#server/types/browse'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -13,18 +14,6 @@ export default defineEventHandler(async (event) => {
 
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'en'
-
-  type BrowseItem = {
-    id: number
-    type: 'movie' | 'tv'
-    title: string
-    overview: string
-    posterUrl: string | null
-    backdropUrl: string | null
-    year: string
-    rating: number
-    genres: string[]
-  }
 
   try {
     const [movieData, tvData] = await Promise.all([getPopularMovies(locale), getPopularTvShows(locale)])

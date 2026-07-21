@@ -3,11 +3,7 @@ import { compare } from '@node-rs/bcrypt'
 import { sessions, users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { syncUserDisable } from '#server/utils/sync'
-
-interface LoginBody {
-  username: string
-  password: string
-}
+import type { LoginBody } from '#server/types/auth'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<LoginBody>(event)

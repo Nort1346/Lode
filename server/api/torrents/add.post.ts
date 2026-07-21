@@ -6,22 +6,9 @@ import { getFreshUser } from '#server/utils/user'
 import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { createLogger } from '#server/utils/logger'
+import { SAVE_PATH_KEYS, type AddTorrentBody, type SavePathKey } from '#server/types/torrent'
 
 const log = createLogger('Add')
-
-interface AddTorrentBody {
-  magnetLink?: string
-  downloadUrl?: string
-  torrentFile?: string
-  fileName?: string
-  savePath: string
-  label?: string
-  tmdbId?: number
-  mediaType?: string
-}
-
-const SAVE_PATH_KEYS = ['movies', 'series', 'games', 'music', 'books'] as const
-type SavePathKey = (typeof SAVE_PATH_KEYS)[number]
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

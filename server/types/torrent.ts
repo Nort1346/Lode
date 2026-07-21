@@ -51,3 +51,26 @@ export interface TorrentMeta {
 }
 
 export type SavePathKey = 'movies' | 'series' | 'games' | 'books' | 'music'
+
+export const SAVE_PATH_KEYS = ['movies', 'series', 'games', 'music', 'books'] as const
+
+export interface AddTorrentBody {
+  magnetLink?: string
+  downloadUrl?: string
+  torrentFile?: string
+  fileName?: string
+  savePath: string
+  label?: string
+  tmdbId?: number
+  mediaType?: string
+}
+
+export interface MutexEntry {
+  resolve: () => void
+}
+
+export interface SyncResult {
+  synced: number
+  completed: number
+  failed: number
+}

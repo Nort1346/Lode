@@ -2,12 +2,7 @@ import { decryptAES } from '#server/utils/crypto'
 import { customTrackers } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { performTrackerLogin } from '#server/utils/tracker-auth'
-
-interface TestLoginBody {
-  loginUrl?: string
-  loginUsername?: string
-  loginPassword?: string
-}
+import type { TestLoginBody } from '#server/types/tracker'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)

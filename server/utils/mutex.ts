@@ -1,6 +1,4 @@
-interface MutexEntry {
-  resolve: () => void
-}
+import type { MutexEntry } from '#server/types/torrent'
 
 const queue: MutexEntry[] = []
 let locked = false

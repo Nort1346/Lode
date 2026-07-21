@@ -8,29 +8,7 @@ import {
   getDefaultSyncSettings,
   upsertSyncUserSettings
 } from '#server/utils/sync'
-
-interface UpdateUserBody {
-  username?: string
-  password?: string
-  role?: string
-  isActive?: boolean
-  dailyDownloadLimit?: number
-  activeTorrentLimit?: number
-  maxTorrentSizeGb?: number
-  privateTrackerLimit?: number
-  downloadsToday?: number
-  discordId?: string | null
-  canSubmit?: boolean
-  maxSessions?: number
-  jellyfinLibraryAccess?: string[] | 'all'
-  jellyfinEnableVideoTranscoding?: boolean
-  jellyfinEnableAudioTranscoding?: boolean
-  jellyfinEnableRemuxing?: boolean
-  jellyfinEnableLiveTvAccess?: boolean
-  jellyfinEnableLiveTvManagement?: boolean
-  jellyfinMaxActiveSessions?: number
-  expiresAt?: string | null
-}
+import type { UpdateUserBody } from '#server/types/admin'
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)

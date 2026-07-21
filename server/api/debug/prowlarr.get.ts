@@ -1,20 +1,8 @@
 import { getEnabledCustomTrackerNames, POLISH_TRACKERS } from '#server/utils/prowlarr'
 import { createLogger } from '#server/utils/logger'
+import type { ProwlarrDebugRelease } from '#server/types/prowlarr'
 
 const log = createLogger('Debug')
-
-interface ProwlarrDebugRelease {
-  title: string
-  indexer: string
-  size: number
-  seeders: number | null
-  leechers: number | null
-  magnetUrl: string | null
-  downloadUrl: string | null
-  guid: string
-  categories: number[]
-  infoUrl: string
-}
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

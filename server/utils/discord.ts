@@ -13,6 +13,7 @@ import { createLogger } from '#server/utils/logger'
 import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
 import type { DiscordLocale } from '#server/types/i18n'
 import type { DownloadCompleteData, TmdbMeta, RequestPendingData } from '#server/types/discord'
+import type { TorrentMeta } from '#server/types/torrent'
 import { formatSize } from '#server/utils/format'
 
 const log = createLogger('Discord')
@@ -85,13 +86,6 @@ function savePathLabel(savePath: string, t: ReturnType<typeof createT>): string 
 
 function addSeparator(container: ContainerBuilder): void {
   container.addSeparatorComponents((sep: SeparatorBuilder) => sep.setSpacing(2))
-}
-
-interface TorrentMeta {
-  resolution: string | null
-  source: string | null
-  language: string | null
-  codec: string | null
 }
 
 function parseTorrentName(name: string): TorrentMeta {

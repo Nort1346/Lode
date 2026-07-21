@@ -1,16 +1,7 @@
 import { customTrackers } from '#server/database/schema'
 import { eq, and, ne } from 'drizzle-orm'
 import { encryptAES } from '#server/utils/crypto'
-
-interface UpdateTrackerBody {
-  indexerName?: string
-  trackerType?: 'guid' | 'counting'
-  cookie?: string
-  loginUrl?: string
-  loginUsername?: string
-  loginPassword?: string
-  enabled?: boolean
-}
+import type { UpdateTrackerBody } from '#server/types/tracker'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAdmin(event)

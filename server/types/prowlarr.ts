@@ -35,3 +35,16 @@ export interface TrackerCookieConfig {
   enabled: boolean
   cookie: string
 }
+
+export interface ProwlarrDebugRelease {
+  title: string
+  indexer: string
+  size: number
+  seeders: number | null
+  leechers: number | null
+  magnetUrl: string | null
+  downloadUrl: string | null
+  guid: string
+  categories: number[]
+  infoUrl: string
+}

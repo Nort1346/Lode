@@ -1,6 +1,7 @@
 import { getTopRatedMovies, getImageUrl } from '#server/utils/tmdb'
 import { markInLibrary } from '#server/utils/browse-utils'
 import { getActiveSyncProviders } from '#server/utils/sync'
+import type { BrowseItem } from '#server/types/browse'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -14,17 +15,6 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'en'
 
-  type BrowseItem = {
-    id: number
-    type: 'movie'
-    title: string
-    overview: string
-    posterUrl: string | null
-    backdropUrl: string | null
-    year: string
-    rating: number
-  }
-
   try {
     const data = await getTopRatedMovies(locale)
 
@@ -36,7 +26,8 @@ export default defineEventHandler(async (event) => {
       posterUrl: getImageUrl(m.poster_path),
       backdropUrl: getImageUrl(m.backdrop_path, 'w780'),
       year: m.release_date?.slice(0, 4) ?? '',
-      rating: m.vote_average
+      rating: m.vote_average,
+      genres: []
     }))
 
     const marked = await markInLibrary(movies, libraryProvider)

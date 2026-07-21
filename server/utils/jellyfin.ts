@@ -1,10 +1,7 @@
+import type { JellyfinItemDto } from '#server/types/jellyfin'
+
 const JELLYFIN_AUTH_HEADER_PREFIX = 'MediaBrowser Token'
 const LIBRARY_CACHE_TTL = 5 * 60 * 1000
-
-interface JellyfinItemDto {
-  Id: string
-  ProviderIds?: Record<string, string>
-}
 
 export class JellyfinClient {
   private baseUrl: string

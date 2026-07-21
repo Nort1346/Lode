@@ -3,27 +3,7 @@ import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { syncNewUser, getDefaultSyncSettings } from '#server/utils/sync'
-
-interface CreateUserBody {
-  username: string
-  password: string
-  role?: string
-  dailyDownloadLimit?: number
-  activeTorrentLimit?: number
-  maxTorrentSizeGb?: number
-  privateTrackerLimit?: number
-  canSubmit?: boolean
-  maxSessions?: number
-  discordId?: string | null
-  jellyfinLibraryAccess?: string[] | 'all'
-  jellyfinEnableVideoTranscoding?: boolean
-  jellyfinEnableAudioTranscoding?: boolean
-  jellyfinEnableRemuxing?: boolean
-  jellyfinEnableLiveTvAccess?: boolean
-  jellyfinEnableLiveTvManagement?: boolean
-  jellyfinMaxActiveSessions?: number
-  expiresAt?: string | null
-}
+import type { CreateUserBody } from '#server/types/admin'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)

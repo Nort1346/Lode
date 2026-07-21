@@ -3,14 +3,9 @@ import { eq } from 'drizzle-orm'
 import { sendDownloadCompleteWebhook } from './discord'
 import { notifyDownloadComplete } from './notifications'
 import { createLogger } from '#server/utils/logger'
+import type { SyncResult } from '#server/types/torrent'
 
 const log = createLogger('TorrentSync')
-
-interface SyncResult {
-  synced: number
-  completed: number
-  failed: number
-}
 
 const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
 
@@ -113,7 +108,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
             dl.userId,
             dl.id,
             dl.mediaType,
-            dl.torrentName || dl.label || 'Download',
+            dl.label || dl.torrentName || 'Download',
             dl.posterUrl,
             dl.sizeBytes,
             dl.savePath,
@@ -159,7 +154,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           dl.userId,
           dl.id,
           dl.mediaType,
-          dl.torrentName || dl.label || 'Download',
+          dl.label || dl.torrentName || 'Download',
           dl.posterUrl,
           dl.sizeBytes,
           dl.savePath,
@@ -241,7 +236,7 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
           dl.userId,
           dl.id,
           dl.mediaType,
-          dl.torrentName || dl.label || 'Download',
+          dl.label || dl.torrentName || 'Download',
           dl.posterUrl,
           dl.sizeBytes,
           dl.savePath,

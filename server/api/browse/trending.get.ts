@@ -1,6 +1,7 @@
 import { getTrending, getLogosForItems, getImageUrl } from '#server/utils/tmdb'
 import { markInLibrary } from '#server/utils/browse-utils'
 import { getActiveSyncProviders } from '#server/utils/sync'
+import type { TrendingItem } from '#server/types/browse'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -13,18 +14,6 @@ export default defineEventHandler(async (event) => {
 
   const query = getQuery(event)
   const locale = (query.locale as string) ?? 'en'
-
-  type TrendingItem = {
-    id: number
-    type: 'movie' | 'tv'
-    title: string
-    overview: string
-    posterUrl: string | null
-    backdropUrl: string | null
-    logoUrl: string | null
-    year: string
-    rating: number
-  }
 
   try {
     const items = await getTrending(locale)

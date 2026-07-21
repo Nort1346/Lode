@@ -1,6 +1,7 @@
 import { getMoviesByGenre, getTvByGenre, getImageUrl } from '#server/utils/tmdb'
 import { markInLibrary } from '#server/utils/browse-utils'
 import { getActiveSyncProviders } from '#server/utils/sync'
+import type { BrowseItem } from '#server/types/browse'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -20,17 +21,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid genreId' })
   }
 
-  type BrowseItem = {
-    id: number
-    type: 'movie' | 'tv'
-    title: string
-    overview: string
-    posterUrl: string | null
-    backdropUrl: string | null
-    year: string
-    rating: number
-  }
-
   try {
     if (mediaType === 'movie') {
       const data = await getMoviesByGenre(genreId, locale)
@@ -42,7 +32,8 @@ export default defineEventHandler(async (event) => {
         posterUrl: getImageUrl(m.poster_path),
         backdropUrl: getImageUrl(m.backdrop_path, 'original'),
         year: m.release_date?.slice(0, 4) ?? '',
-        rating: m.vote_average
+        rating: m.vote_average,
+        genres: []
       }))
       return { items: await markInLibrary(movies, libraryProvider) }
     }
@@ -56,7 +47,8 @@ export default defineEventHandler(async (event) => {
       posterUrl: getImageUrl(t.poster_path),
       backdropUrl: getImageUrl(t.backdrop_path, 'original'),
       year: t.first_air_date?.slice(0, 4) ?? '',
-      rating: t.vote_average
+      rating: t.vote_average,
+      genres: []
     }))
     return { items: await markInLibrary(tv, libraryProvider) }
   } catch (err) {
