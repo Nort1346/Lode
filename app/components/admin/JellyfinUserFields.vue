@@ -1,12 +1,25 @@
 <script setup lang="ts">
 import type { JellyfinLibrary } from '~/types/admin'
-import type { JellyfinUserFieldsProps } from '../../types/sync'
 
-const props = withDefaults(defineProps<JellyfinUserFieldsProps>(), {
-  editing: false,
-  avatarUrl: null,
-  username: ''
-})
+const props = withDefaults(
+  defineProps<{
+    jellyfinLibraryAccess: string[] | 'all'
+    jellyfinEnableVideoTranscoding: boolean
+    jellyfinEnableAudioTranscoding: boolean
+    jellyfinEnableRemuxing: boolean
+    jellyfinEnableLiveTvAccess: boolean
+    jellyfinEnableLiveTvManagement: boolean
+    jellyfinMaxActiveSessions: number
+    editing?: boolean
+    avatarUrl?: string | null
+    username?: string
+  }>(),
+  {
+    editing: false,
+    avatarUrl: null,
+    username: ''
+  }
+)
 
 const emit = defineEmits<{
   'update:jellyfinLibraryAccess': [value: string[] | 'all']
