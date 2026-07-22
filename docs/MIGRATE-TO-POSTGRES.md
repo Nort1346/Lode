@@ -6,22 +6,22 @@ This guide walks you through migrating your StreamHub database from SQLite to Po
 
 - Docker and Docker Compose running
 - Existing SQLite database at `./data/app.db`
-- PostgreSQL container configured in `docker-compose.yml` (already included)
+- PostgreSQL container configured in `docker-compose.postgres.yml` (already included)
 
 ## Quick Start
 
 ```bash
 # 1. Make sure PostgreSQL is running
-docker compose up -d postgres
+docker compose -f docker-compose.postgres.yml up -d postgres
 
 # 2. Run a dry run to preview what will be migrated
-docker compose run --rm \
+docker compose -f docker-compose.postgres.yml run --rm \
   -e DB_DRIVER=postgres \
   -e DATABASE_URL=postgresql://streamhub:changeme@postgres:5432/streamhub \
   streamhub node scripts/migrate-sqlite-to-pg.mjs --dry-run
 
 # 3. Run the actual migration
-docker compose run --rm \
+docker compose -f docker-compose.postgres.yml run --rm \
   -e DB_DRIVER=postgres \
   -e DATABASE_URL=postgresql://streamhub:changeme@postgres:5432/streamhub \
   streamhub node scripts/migrate-sqlite-to-pg.mjs
@@ -31,23 +31,23 @@ docker compose run --rm \
 #    Set DATABASE_URL=postgresql://streamhub:changeme@postgres:5432/streamhub
 
 # 5. Restart everything
-docker compose up -d
+docker compose -f docker-compose.postgres.yml up -d
 ```
 
 ## Step-by-Step
 
 ### 1. Start PostgreSQL
 
-The `docker-compose.yml` already includes a `postgres:16-alpine` service with a healthcheck. Start it with:
+The `docker-compose.postgres.yml` already includes a `postgres:16-alpine` service with a healthcheck. Start it with:
 
 ```bash
-docker compose up -d postgres
+docker compose -f docker-compose.postgres.yml up -d postgres
 ```
 
 Verify it's healthy:
 
 ```bash
-docker compose ps postgres
+docker compose -f docker-compose.postgres.yml ps postgres
 ```
 
 ### 2. Dry Run (Optional)
@@ -55,7 +55,7 @@ docker compose ps postgres
 Preview what the migration will do without making any changes to PostgreSQL:
 
 ```bash
-docker compose run --rm \
+docker compose -f docker-compose.postgres.yml run --rm \
   -e DB_DRIVER=postgres \
   -e DATABASE_URL=postgresql://streamhub:changeme@postgres:5432/streamhub \
   streamhub node scripts/migrate-sqlite-to-pg.mjs --dry-run
@@ -68,7 +68,7 @@ This will print the row counts for each table in your SQLite database.
 Execute the migration:
 
 ```bash
-docker compose run --rm \
+docker compose -f docker-compose.postgres.yml run --rm \
   -e DB_DRIVER=postgres \
   -e DATABASE_URL=postgresql://streamhub:changeme@postgres:5432/streamhub \
   streamhub node scripts/migrate-sqlite-to-pg.mjs
@@ -92,12 +92,12 @@ DB_DRIVER=postgres
 DATABASE_URL=postgresql://streamhub:changeme@postgres:5432/streamhub
 ```
 
-> **Important:** The `DATABASE_URL` password must match `POSTGRES_PASSWORD` in `docker-compose.yml`.
+> **Important:** The `DATABASE_URL` password must match `POSTGRES_PASSWORD` in `docker-compose.postgres.yml`.
 
 ### 5. Restart the Application
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.postgres.yml up -d
 ```
 
 The entrypoint will run PostgreSQL migrations (schema is already created by the script, so this is a no-op) and then start the application.
@@ -129,7 +129,7 @@ The entrypoint will run PostgreSQL migrations (schema is already created by the 
 PostgreSQL already contains data. If you want to replace it, re-run with `--force`:
 
 ```bash
-docker compose run --rm \
+docker compose -f docker-compose.postgres.yml run --rm \
   -e DB_DRIVER=postgres \
   -e DATABASE_URL=postgresql://streamhub:changeme@postgres:5432/streamhub \
   streamhub node scripts/migrate-sqlite-to-pg.mjs --force
@@ -148,7 +148,7 @@ The `DATABASE_URL` environment variable must be set. Pass it with `-e` when runn
 The runtime container includes `better-sqlite3` native binaries compiled during the build stage. Both build and runtime images use Debian Bookworm, so the binaries are compatible. If you encounter issues, rebuild the image:
 
 ```bash
-docker compose build streamhub
+docker compose -f docker-compose.postgres.yml build streamhub
 ```
 
 ## Rolling Back
@@ -157,6 +157,6 @@ To switch back to SQLite after migration:
 
 1. Set `DB_DRIVER=sqlite` in `.env`
 2. Remove or comment out `DATABASE_URL` in `.env`
-3. Restart: `docker compose up -d`
+3. Restart: `docker compose -f docker-compose.sqlite.yml up -d`
 
 Your SQLite database at `.data/app.db` is untouched during the migration.

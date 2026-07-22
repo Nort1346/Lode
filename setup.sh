@@ -122,6 +122,11 @@ if [ "$HAS_GUM" = true ]; then
   read_input() {
     gum input --placeholder "$1"
   }
+
+  gum_menu() {
+    local prompt="$1"; shift
+    gum choose --header "$prompt" "$@"
+  }
 else
   RED='\033[0;31m'
   GREEN='\033[0;32m'
@@ -150,6 +155,20 @@ else
   read_input() {
     read -rp "$1: " result
     echo "$result"
+  }
+
+  gum_menu() {
+    local prompt="$1"; shift
+    local options=("$@")
+    echo "$prompt"
+    local i=1
+    for opt in "${options[@]}"; do
+      echo "  $i) $opt"
+      i=$((i + 1))
+    done
+    local choice
+    read -rp "Enter choice [1-${#options[@]}]: " choice
+    echo "${options[$((choice - 1))]}"
   }
 fi
 
@@ -196,6 +215,50 @@ update_env() {
   fi
 }
 
+# -- Self-update check --------------------------------------------------
+
+SETUP_URL="https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.sh"
+SETUP_NEW=$(mktemp)
+SETUP_SELF="$0"
+COMPOSE_TMP=$(mktemp)
+
+cleanup() {
+  rm -f "$SETUP_NEW" "$COMPOSE_TMP"
+}
+trap cleanup EXIT
+
+if curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
+  if ! diff -q "$SETUP_SELF" "$SETUP_NEW" &>/dev/null; then
+    echo ""
+    if [ "$HAS_GUM" = true ]; then
+      gum style --foreground "#FFD700" --border normal --border-foreground "#FFD700" \
+        --padding "0 1" --bold "A newer version of setup.sh is available."
+    else
+      echo -e "  A newer version of setup.sh is available."
+    fi
+    echo ""
+    if [ "$HAS_GUM" = true ]; then
+      gum confirm --default=false "Update setup.sh and restart?" && {
+        cp "$SETUP_SELF" "${SETUP_SELF}.bak"
+        cp "$SETUP_NEW" "$SETUP_SELF"
+        chmod +x "$SETUP_SELF"
+        ok "Updated setup.sh. Restarting..."
+        exec "$SETUP_SELF" "$@"
+      }
+    else
+      read -rp "Update setup.sh and restart? [y/N] " answer
+      if [[ "$answer" =~ ^[Yy]$ ]]; then
+        cp "$SETUP_SELF" "${SETUP_SELF}.bak"
+        cp "$SETUP_NEW" "$SETUP_SELF"
+        chmod +x "$SETUP_SELF"
+        ok "Updated setup.sh. Restarting..."
+        exec "$SETUP_SELF" "$@"
+      fi
+    fi
+    warn "Continuing with current version..."
+  fi
+fi
+
 # -- Banner ------------------------------------------------------------
 
 header "StreamHub Auto-Setup v1.0"
@@ -216,7 +279,7 @@ fi
 
 # -- 1. Prerequisites --------------------------------------------------
 
-step "[1/12] Checking prerequisites"
+step "[1/13] Checking prerequisites"
 
 if ! command -v docker &> /dev/null; then
   err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
@@ -244,7 +307,7 @@ ok "curl available"
 
 # -- 2. Create .env ----------------------------------------------------
 
-step "[2/12] Setting up .env file"
+step "[2/13] Setting up .env file"
 
 if [ ! -f .env ]; then
   if [ -f .env.example ]; then
@@ -263,7 +326,7 @@ ok "Created media directories (media/Movies, media/Series)"
 
 # -- 3. Generate secrets -----------------------------------------------
 
-step "[3/12] Generating secrets"
+step "[3/13] Generating secrets"
 
 SESSION_PASSWORD=$(generate_password 32)
 TRACKER_KEY=$(generate_hex 32)
@@ -286,39 +349,123 @@ fi
 ok "Session password generated"
 ok "Tracker encryption key generated"
 
-# -- 4. Download docker-compose.yml if needed ---------------------------
+# -- 4. Database driver choice ----------------------------------------
 
-step "[4/12] Downloading docker-compose.yml"
+step "[4/13] Database driver"
 
-if [ -f docker-compose.yml ]; then
+DB_DRIVER_CHOICE="sqlite"
+
+existing_db_driver=$(grep "^DB_DRIVER=" .env 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')
+
+if [ -n "$existing_db_driver" ] && [ "$existing_db_driver" != "sqlite" ]; then
   if [ "$HAS_GUM" = true ]; then
-    gum confirm --default=false "docker-compose.yml already exists. Download latest version from GitHub?" && \
-      curl -fsSL https://raw.githubusercontent.com/Nort1346/StreamHub/main/docker-compose.yml -o docker-compose.yml
+    gum style --foreground "#FFD700" --border normal --border-foreground "#FFD700" \
+      --padding "0 1" --bold "Existing database driver: $existing_db_driver"
   else
-    read -rp "docker-compose.yml already exists. Download latest version? [y/N] " answer
+    echo -e "  Existing database driver: $existing_db_driver"
+  fi
+fi
+
+echo ""
+echo "Choose your database driver:"
+echo "  SQLite    — Zero config, file-based, recommended for most users"
+echo "  PostgreSQL — Full-featured, requires more resources"
+echo ""
+
+DB_DRIVER_CHOICE=$(gum_menu "Select database driver:" "SQLite (recommended)" "PostgreSQL")
+
+if [[ "$DB_DRIVER_CHOICE" == *"PostgreSQL"* ]]; then
+  DB_DRIVER_CHOICE="postgres"
+else
+  DB_DRIVER_CHOICE="sqlite"
+fi
+
+ok "Database driver: $DB_DRIVER_CHOICE"
+
+if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
+  COMPOSE_FILE="docker-compose.postgres.yml"
+else
+  COMPOSE_FILE="docker-compose.sqlite.yml"
+fi
+
+# -- 5. Download docker-compose if needed -------------------------------
+
+step "[5/13] Downloading $COMPOSE_FILE"
+
+COMPOSE_URL_BASE="https://raw.githubusercontent.com/Nort1346/StreamHub/main"
+
+if [ -f "$COMPOSE_FILE" ]; then
+  if [ "$HAS_GUM" = true ]; then
+    gum confirm --default=false "$COMPOSE_FILE already exists. Download latest version from GitHub?" && {
+      info "Downloading $COMPOSE_FILE..."
+      if curl -fsSL "${COMPOSE_URL_BASE}/${COMPOSE_FILE}" -o "$COMPOSE_TMP" 2>/dev/null; then
+        if ! diff -q "$COMPOSE_FILE" "$COMPOSE_TMP" &>/dev/null; then
+          warn "$COMPOSE_FILE has changed"
+          diff --color=auto "$COMPOSE_FILE" "$COMPOSE_TMP" || true
+          echo ""
+          gum confirm --default=false "Replace $COMPOSE_FILE with latest version?" && {
+            cp "$COMPOSE_FILE" "${COMPOSE_FILE}.bak"
+            cp "$COMPOSE_TMP" "$COMPOSE_FILE"
+            ok "$COMPOSE_FILE updated (backup saved as ${COMPOSE_FILE}.bak)"
+          } || {
+            warn "Keeping existing $COMPOSE_FILE"
+          }
+        else
+          ok "$COMPOSE_FILE is already up to date"
+        fi
+      else
+        err "Failed to download $COMPOSE_FILE"
+      fi
+    }
+  else
+    read -rp "$COMPOSE_FILE already exists. Download latest version? [y/N] " answer
     if [[ "$answer" =~ ^[Yy]$ ]]; then
-      curl -fsSL https://raw.githubusercontent.com/Nort1346/StreamHub/main/docker-compose.yml -o docker-compose.yml
+      info "Downloading $COMPOSE_FILE..."
+      if curl -fsSL "${COMPOSE_URL_BASE}/${COMPOSE_FILE}" -o "$COMPOSE_TMP" 2>/dev/null; then
+        if ! diff -q "$COMPOSE_FILE" "$COMPOSE_TMP" &>/dev/null; then
+          warn "$COMPOSE_FILE has changed"
+          diff "$COMPOSE_FILE" "$COMPOSE_TMP" || true
+          echo ""
+          read -rp "Replace $COMPOSE_FILE with latest version? [y/N] " replace
+          if [[ "$replace" =~ ^[Yy]$ ]]; then
+            cp "$COMPOSE_FILE" "${COMPOSE_FILE}.bak"
+            cp "$COMPOSE_TMP" "$COMPOSE_FILE"
+            ok "$COMPOSE_FILE updated (backup saved as ${COMPOSE_FILE}.bak)"
+          else
+            warn "Keeping existing $COMPOSE_FILE"
+          fi
+        else
+          ok "$COMPOSE_FILE is already up to date"
+        fi
+      else
+        err "Failed to download $COMPOSE_FILE"
+      fi
     fi
   fi
-  ok "Using docker-compose.yml"
+  ok "Using $COMPOSE_FILE"
 else
-  info "Downloading docker-compose.yml..."
-  curl -fsSL https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml -o docker-compose.yml
-  ok "docker-compose.yml downloaded"
+  info "Downloading $COMPOSE_FILE..."
+  curl -fsSL "${COMPOSE_URL_BASE}/${COMPOSE_FILE}" -o "$COMPOSE_FILE"
+  ok "$COMPOSE_FILE downloaded"
 fi
 
-# -- 5. Start infrastructure services ---------------------------------
+# -- 6. Start infrastructure services ---------------------------------
 
-step "[5/12] Starting infrastructure services"
+step "[6/13] Starting infrastructure services"
+
+INFRA_SERVICES="redis qbittorrent prowlarr flaresolverr jellyfin dozzle"
+if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
+  INFRA_SERVICES="redis qbittorrent prowlarr flaresolverr jellyfin dozzle postgres"
+fi
 
 if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Pulling images..." -- docker compose pull redis qbittorrent prowlarr flaresolverr jellyfin dozzle || true
+  gum spin --spinner dot --title "Pulling images..." -- docker compose -f "$COMPOSE_FILE" pull $INFRA_SERVICES || true
 else
   info "Pulling images..."
-  docker compose pull redis qbittorrent prowlarr flaresolverr jellyfin dozzle || true
+  docker compose -f "$COMPOSE_FILE" pull $INFRA_SERVICES || true
 fi
 
-docker compose up -d --remove-orphans redis qbittorrent prowlarr flaresolverr jellyfin dozzle
+docker compose -f "$COMPOSE_FILE" up -d --remove-orphans $INFRA_SERVICES
 
 failed_services=""
 while IFS= read -r line; do
@@ -327,10 +474,10 @@ while IFS= read -r line; do
   state=$(echo "$line" | grep -o '"State":"[^"]*"' | cut -d'"' -f4)
   if [ "$state" != "running" ] && [ -n "$svc" ]; then
     failed_services="$failed_services $svc"
-    last_log=$(docker compose logs "$svc" --tail 3 2>&1 | tail -1)
+    last_log=$(docker compose -f "$COMPOSE_FILE" logs "$svc" --tail 3 2>&1 | tail -1)
     warn "$svc failed to start: $last_log"
   fi
-done < <(docker compose ps --format json 2>/dev/null)
+done < <(docker compose -f "$COMPOSE_FILE" ps --format json 2>/dev/null)
 
 if [[ " $failed_services " =~ " redis " ]]; then
   err "Redis failed to start. Cannot continue."
@@ -338,6 +485,10 @@ if [[ " $failed_services " =~ " redis " ]]; then
 fi
 if [[ " $failed_services " =~ " qbittorrent " ]]; then
   err "qBittorrent failed to start. Cannot continue."
+  exit 1
+fi
+if [[ " $failed_services " =~ " postgres " ]]; then
+  err "PostgreSQL failed to start. Cannot continue."
   exit 1
 fi
 
@@ -367,12 +518,17 @@ fi
 
 ok "All infrastructure services are running"
 
+if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
+  info "Waiting for PostgreSQL..."
+  wait_for_port "localhost" "5432" 30 || true
+fi
+
 info "Waiting 10s for services to fully initialize..."
 sleep 10
 
 # -- 5. Jellyfin API Key -----------------------------------------------
 
-step "[6/12] Jellyfin API Key"
+step "[7/13] Jellyfin API Key"
 
 echo ""
 echo "Follow these steps to get your Jellyfin API key:"
@@ -394,7 +550,7 @@ fi
 
 # -- 6. qBittorrent WebUI + API Key -----------------------------------
 
-step "[7/12] qBittorrent WebUI + API Key"
+step "[8/13] qBittorrent WebUI + API Key"
 
 if [ -n "${QBIT_TEMP_PASS:-}" ]; then
   echo ""
@@ -436,7 +592,7 @@ fi
 
 # -- 7. Prowlarr API Key -----------------------------------------------
 
-step "[8/12] Prowlarr API Key"
+step "[9/13] Prowlarr API Key"
 
 echo ""
 echo "Follow these steps to get your Prowlarr API key:"
@@ -462,7 +618,7 @@ fi
 
 # -- 8. TMDB API Key ---------------------------------------------------
 
-step "[9/12] TMDB API Key"
+step "[10/13] TMDB API Key"
 
 echo ""
 echo "Follow these steps to get your TMDB API key:"
@@ -488,7 +644,7 @@ fi
 
 # -- 9. Discord Webhook (optional) ------------------------------------
 
-step "[10/12] Discord Webhook (optional)"
+step "[11/13] Discord Webhook (optional)"
 
 echo ""
 echo "Get notified when downloads complete."
@@ -510,18 +666,18 @@ fi
 
 # -- 10. Pull StreamHub ------------------------------------------------
 
-step "[11/12] Pulling StreamHub"
+step "[12/13] Pulling StreamHub"
 
 if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Pulling StreamHub image..." -- docker compose pull streamhub || true
+  gum spin --spinner dot --title "Pulling StreamHub image..." -- docker compose -f "$COMPOSE_FILE" pull streamhub || true
 else
   info "Pulling StreamHub image..."
-  docker compose pull streamhub || true
+  docker compose -f "$COMPOSE_FILE" pull streamhub || true
 fi
 
 if ! docker image inspect ghcr.io/nort1346/streamhub:latest &> /dev/null; then
   err "Failed to pull StreamHub image. Check your network and try again."
-  err "You can also try manually: docker compose pull streamhub"
+  err "You can also try manually: docker compose -f $COMPOSE_FILE pull streamhub"
   exit 1
 fi
 
@@ -529,23 +685,30 @@ ok "StreamHub image pulled"
 
 # -- 10. Start StreamHub -----------------------------------------------
 
-step "[12/12] Starting StreamHub"
+step "[13/13] Starting StreamHub"
 
 update_env "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 update_env "NUXT_REDIS_URL" "redis://redis:6379"
 update_env "NUXT_PROWLARR_URL" "http://prowlarr:9696"
-update_env "DB_DRIVER" "sqlite"
+update_env "DB_DRIVER" "$DB_DRIVER_CHOICE"
 
-if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Starting StreamHub..." -- docker compose up -d streamhub || true
-else
-  info "Starting StreamHub..."
-  docker compose up -d streamhub || true
+if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
+  POSTGRES_PASSWORD=$(generate_password 32)
+  update_env "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
+  update_env "DATABASE_URL" "postgresql://streamhub:${POSTGRES_PASSWORD}@postgres:5432/streamhub"
+  ok "PostgreSQL password generated"
 fi
 
-if ! docker compose ps streamhub 2>/dev/null | grep -q "Up"; then
+if [ "$HAS_GUM" = true ]; then
+  gum spin --spinner dot --title "Starting StreamHub..." -- docker compose -f "$COMPOSE_FILE" up -d streamhub || true
+else
+  info "Starting StreamHub..."
+  docker compose -f "$COMPOSE_FILE" up -d streamhub || true
+fi
+
+if ! docker compose -f "$COMPOSE_FILE" ps streamhub 2>/dev/null | grep -q "Up"; then
   err "StreamHub container failed to start. Check logs:"
-  err "  docker compose logs streamhub"
+  err "  docker compose -f $COMPOSE_FILE logs streamhub"
 fi
 
 info "Waiting for StreamHub to start (first start may take 1-2 minutes)..."
@@ -556,7 +719,7 @@ ok "StreamHub is running at http://localhost:5757"
 # -- Summary -----------------------------------------------------------
 
 HAS_DOZZLE=false
-if docker compose ps dozzle 2>/dev/null | grep -q "Up"; then
+if docker compose -f "$COMPOSE_FILE" ps dozzle 2>/dev/null | grep -q "Up"; then
   HAS_DOZZLE=true
 fi
 
@@ -572,6 +735,7 @@ $(summary_row "qBittorrent" "http://localhost:8080")
 $(summary_row "Prowlarr" "http://localhost:9900")
 $(summary_row "Jellyfin" "http://localhost:8096")
 $(summary_row "FlareSolverr" "http://localhost:8191")
+$(summary_row "Database" "$DB_DRIVER_CHOICE")
 TABLE
 )
 

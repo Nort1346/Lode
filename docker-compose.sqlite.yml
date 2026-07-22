@@ -1,0 +1,99 @@
+name: streamhub
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: streamhub-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: streamhub-qbittorrent
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+      - '6881:6881'
+      - '6881:6881/udp'
+    volumes:
+      - qbittorrent-config:/config
+      - ./media:/media
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Warsaw
+      - WEBUI_PORT=8080
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: streamhub-prowlarr
+    restart: unless-stopped
+    ports:
+      - '9900:9696'
+    volumes:
+      - prowlarr-config:/config
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: streamhub-flaresolverr
+    restart: unless-stopped
+    ports:
+      - '8191:8191'
+
+  streamhub:
+    #build: .
+    image: ghcr.io/nort1346/streamhub:latest
+    container_name: streamhub
+    ports:
+      - '5757:5757'
+    volumes:
+      - ./data:/app/.data
+      - streamhub-avatars:/app/.output/public/avatars
+      - ./media:/media
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - NITRO_PORT=5757
+    depends_on:
+      redis:
+        condition: service_started
+      qbittorrent:
+        condition: service_started
+    restart: unless-stopped
+
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: streamhub-jellyfin
+    restart: unless-stopped
+    ports:
+      - '8096:8096'
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      - ./media:/media
+    environment:
+      - JELLYFIN_PublishedServerUrl=http://localhost:8096
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: streamhub-dozzle
+    restart: unless-stopped
+    ports:
+      - '8082:8080'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - DOZZLE_FILTER=label=com.docker.compose.project=streamhub
+
+volumes:
+  redis-data:
+  streamhub-avatars:
+  qbittorrent-config:
+  prowlarr-config:
+  jellyfin-config:
+  jellyfin-cache:

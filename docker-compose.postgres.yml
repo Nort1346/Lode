@@ -64,6 +64,8 @@ services:
         condition: service_started
       qbittorrent:
         condition: service_started
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   jellyfin:
@@ -90,24 +92,23 @@ services:
     environment:
       - DOZZLE_FILTER=label=com.docker.compose.project=streamhub
 
-  # ── PostgreSQL (uncomment when DB_DRIVER=postgres) ────────
-  # postgres:
-  #   image: postgres:16-alpine
-  #   container_name: streamhub-postgres
-  #   restart: unless-stopped
-  #   environment:
-  #     POSTGRES_DB: streamhub
-  #     POSTGRES_USER: streamhub
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #   ports:
-  #     - '5432:5432'
-  #   healthcheck:
-  #     test: ['CMD-SHELL', 'pg_isready -U streamhub']
-  #     interval: 5s
-  #     timeout: 3s
-  #     retries: 5
+  postgres:
+    image: postgres:16-alpine
+    container_name: streamhub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: streamhub
+      POSTGRES_USER: streamhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U streamhub']
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 volumes:
   redis-data:
@@ -116,4 +117,4 @@ volumes:
   prowlarr-config:
   jellyfin-config:
   jellyfin-cache:
-  # postgres-data:
+  postgres-data:

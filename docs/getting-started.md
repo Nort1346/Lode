@@ -54,8 +54,9 @@ Open `http://localhost:5757`. Default admin credentials: `admin` / `admin`.
 
 ```bash
 cp .env.example .env   # configure first
-docker compose up -d --build
-docker compose logs -f  # view logs
+docker compose -f docker-compose.sqlite.yml up -d --build     # SQLite
+# docker compose -f docker-compose.postgres.yml up -d --build # PostgreSQL
+docker compose -f docker-compose.sqlite.yml logs -f            # view logs
 ```
 
 ## Verify Installation

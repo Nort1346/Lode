@@ -6,8 +6,9 @@
 
 ```bash
 cp .env.example .env   # configure first
-docker compose up -d --build
-docker compose logs -f  # view logs
+docker compose -f docker-compose.sqlite.yml up -d --build     # SQLite
+# docker compose -f docker-compose.postgres.yml up -d --build # PostgreSQL
+docker compose -f docker-compose.sqlite.yml logs -f            # view logs
 ```
 
 ### Services
@@ -83,6 +84,6 @@ See [Configuration](./configuration.md) for the full list of environment variabl
 
 ## Logs
 
-- **Docker logs**: `docker compose logs -f streamhub`
+- **Docker logs**: `docker compose -f docker-compose.sqlite.yml logs -f streamhub`
 - **Dozzle UI**: `http://localhost:8082`
 - **Live logs**: Admin → Settings → Live Logs (SSE stream)

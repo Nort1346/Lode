@@ -63,7 +63,7 @@ Run the one-line command from [Get started](#get-started), then the guided scrip
 1. Check prerequisites (Docker, Docker Compose)
 2. Create `.env` from `.env.example`
 3. Generate secrets (session password, tracker encryption key)
-4. Download `docker-compose.yml` from GitHub
+4. Download the appropriate `docker-compose` file (`docker-compose.sqlite.yml` or `docker-compose.postgres.yml`)
 5. Start infrastructure services (Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle)
 6. Get your **Jellyfin API key** (guided instructions)
 7. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
@@ -97,8 +97,10 @@ Default admin: `admin` / `admin` - login and create users in Admin > Users.
 
 ```bash
 cp .env.example .env        # configure first
-docker compose up -d --build
-docker compose logs -f       # view logs
+# Choose one:
+docker compose -f docker-compose.sqlite.yml up -d --build     # SQLite (default)
+# docker compose -f docker-compose.postgres.yml up -d --build # PostgreSQL
+docker compose -f docker-compose.sqlite.yml logs -f            # view logs
 ```
 
 | Service | Port | Purpose |

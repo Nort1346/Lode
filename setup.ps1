@@ -215,6 +215,67 @@ function Read-GumInput {
     }
 }
 
+function Select-GumMenu {
+    param([string]$Prompt, [string[]]$Options)
+    if ($script:HAS_GUM) {
+        return gum choose --header $Prompt $Options
+    } else {
+        Write-Host $Prompt
+        for ($i = 0; $i -lt $Options.Count; $i++) {
+            Write-Host "  $($i + 1)) $($Options[$i])"
+        }
+        $choice = Read-Host "Enter choice [1-$($Options.Count)]"
+        return $Options[[int]$choice - 1]
+    }
+}
+
+# -- Self-update check --------------------------------------------------
+
+$SETUP_URL = "https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.ps1"
+$SETUP_NEW = Join-Path $env:TEMP "setup.ps1.new"
+$SETUP_SELF = $MyInvocation.MyCommand.Path
+
+try {
+    Invoke-WebRequest -Uri $SETUP_URL -OutFile $SETUP_NEW -UseBasicParsing 2>$null
+    if ($LASTEXITCODE -eq 0 -and (Test-Path $SETUP_NEW)) {
+        $currentHash = (Get-FileHash $SETUP_SELF -Algorithm SHA256).Hash
+        $newHash = (Get-FileHash $SETUP_NEW -Algorithm SHA256).Hash
+        if ($currentHash -ne $newHash) {
+            Write-Host ""
+            if ($script:HAS_GUM) {
+                gum style --foreground "#FFD700" --border normal --border-foreground "#FFD700" --padding "0 1" --bold "A newer version of setup.ps1 is available."
+            } else {
+                Write-Host "  A newer version of setup.ps1 is available." -ForegroundColor Yellow
+            }
+            Write-Host ""
+            if ($script:HAS_GUM) {
+                gum confirm --default=false "Update setup.ps1 and restart?"
+                if ($LASTEXITCODE -eq 0) {
+                    Copy-Item $SETUP_SELF "$SETUP_SELF.bak" -Force
+                    Copy-Item $SETUP_NEW $SETUP_SELF -Force
+                    Write-Ok "Updated setup.ps1. Restarting..."
+                    & $SETUP_SELF
+                    exit
+                }
+            } else {
+                $answer = Read-Host "Update setup.ps1 and restart? (y/N)"
+                if ($answer -match '^[Yy]$') {
+                    Copy-Item $SETUP_SELF "$SETUP_SELF.bak" -Force
+                    Copy-Item $SETUP_NEW $SETUP_SELF -Force
+                    Write-Ok "Updated setup.ps1. Restarting..."
+                    & $SETUP_SELF
+                    exit
+                }
+            }
+            Write-Warn "Continuing with current version..."
+        }
+    }
+} catch {
+    # Silently continue if update check fails
+} finally {
+    if (Test-Path $SETUP_NEW) { Remove-Item $SETUP_NEW -Force -ErrorAction SilentlyContinue }
+}
+
 # -- Banner -----------------------------------------------------------
 
 Write-Header "StreamHub Auto-Setup v1.0"
@@ -242,7 +303,7 @@ if ($script:HAS_GUM) {
 
 # -- 1. Prerequisites -------------------------------------------------
 
-Write-Step "[1/12] Checking prerequisites"
+Write-Step "[1/13] Checking prerequisites"
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
@@ -276,7 +337,7 @@ Write-Ok "curl available"
 
 # -- 2. Create .env ---------------------------------------------------
 
-Write-Step "[2/12] Setting up .env file"
+Write-Step "[2/13] Setting up .env file"
 
 if (-not (Test-Path .env)) {
     if (Test-Path .env.example) {
@@ -296,7 +357,7 @@ Write-Ok "Created media directories (media/Movies, media/Series)"
 
 # -- 3. Generate secrets ----------------------------------------------
 
-Write-Step "[3/12] Generating secrets"
+Write-Step "[3/13] Generating secrets"
 
 $SESSION_PASSWORD = New-SecretPassword -Length 32
 $TRACKER_KEY = New-SecretHex -Bytes 32
@@ -319,39 +380,137 @@ if (-not (Test-EnvMinLength -Key "NUXT_TRACKER_ENCRYPTION_KEY" -MinLength 32)) {
 Write-Ok "Session password generated"
 Write-Ok "Tracker encryption key generated"
 
-# -- 4. Download docker-compose.yml if needed ---------------------------
+# -- 4. Database driver choice ----------------------------------------
 
-Write-Step "[4/12] Downloading docker-compose.yml"
+Write-Step "[4/13] Database driver"
 
-if (Test-Path "docker-compose.yml") {
+$DB_DRIVER_CHOICE = "sqlite"
+
+$existingDbDriver = (Select-String -Path ".env" -Pattern "^DB_DRIVER=(.*)" -ErrorAction SilentlyContinue | Select-Object -First 1).Matches[0].Groups[1].Value
+
+if ($existingDbDriver -and $existingDbDriver -ne "sqlite") {
     if ($script:HAS_GUM) {
-        gum confirm --default=false "docker-compose.yml already exists. Download latest version from GitHub?"
-        if ($LASTEXITCODE -eq 0) {
-            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml" -OutFile "docker-compose.yml"
-        }
+        gum style --foreground "#FFD700" --border normal --border-foreground "#FFD700" --padding "0 1" --bold "Existing database driver: $existingDbDriver"
     } else {
-        $answer = Read-Host "docker-compose.yml already exists. Download latest version? (y/N)"
-        if ($answer -match '^[Yy]$') {
-            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml" -OutFile "docker-compose.yml"
-        }
+        Write-Host "  Existing database driver: $existingDbDriver" -ForegroundColor Yellow
     }
-    Write-Ok "Using docker-compose.yml"
-} else {
-    Write-Info "Downloading docker-compose.yml..."
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nort1346/streamhub/main/docker-compose.yml" -OutFile "docker-compose.yml"
-    Write-Ok "docker-compose.yml downloaded"
 }
 
-# -- 5. Start infrastructure services --------------------------------
+Write-Host ""
+Write-Host "Choose your database driver:" -ForegroundColor White
+Write-Host "  SQLite    - Zero config, file-based, recommended for most users" -ForegroundColor Gray
+Write-Host "  PostgreSQL - Full-featured, requires more resources" -ForegroundColor Gray
+Write-Host ""
 
-Write-Step "[5/12] Starting infrastructure services"
+$dbChoice = Select-GumMenu -Prompt "Select database driver:" -Options @("SQLite (recommended)", "PostgreSQL")
 
-Invoke-Spinner "Pulling images..." { docker compose pull redis qbittorrent prowlarr flaresolverr jellyfin dozzle 2>$null }
+if ($dbChoice -match "PostgreSQL") {
+    $DB_DRIVER_CHOICE = "postgres"
+} else {
+    $DB_DRIVER_CHOICE = "sqlite"
+}
 
-docker compose up -d --remove-orphans redis qbittorrent prowlarr flaresolverr jellyfin dozzle
+Write-Ok "Database driver: $DB_DRIVER_CHOICE"
+
+if ($DB_DRIVER_CHOICE -eq "postgres") {
+    $COMPOSE_FILE = "docker-compose.postgres.yml"
+} else {
+    $COMPOSE_FILE = "docker-compose.sqlite.yml"
+}
+
+# -- 5. Download docker-compose if needed ------------------------------
+
+Write-Step "[5/13] Downloading $COMPOSE_FILE"
+
+$COMPOSE_URL_BASE = "https://raw.githubusercontent.com/Nort1346/StreamHub/main"
+$COMPOSE_TMP = Join-Path $env:TEMP "docker-compose.new.yml"
+
+if (Test-Path $COMPOSE_FILE) {
+    if ($script:HAS_GUM) {
+        gum confirm --default=false "$COMPOSE_FILE already exists. Download latest version from GitHub?"
+        if ($LASTEXITCODE -eq 0) {
+            Write-Info "Downloading $COMPOSE_FILE..."
+            try {
+                Invoke-WebRequest -Uri "$COMPOSE_URL_BASE/$COMPOSE_FILE" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
+                $currentHash = (Get-FileHash $COMPOSE_FILE -Algorithm SHA256).Hash
+                $newHash = (Get-FileHash $COMPOSE_TMP -Algorithm SHA256).Hash
+                if ($currentHash -ne $newHash) {
+                    Write-Warn "$COMPOSE_FILE has changed"
+                    Write-Host (Compare-Object (Get-Content $COMPOSE_FILE) (Get-Content $COMPOSE_TMP) | ForEach-Object {
+                        $prefix = if ($_.SideIndicator -eq "<=") { "-" } else { "+" }
+                        "$prefix $($_.InputObject)"
+                    }) -ForegroundColor Yellow
+                    Write-Host ""
+                    gum confirm --default=false "Replace $COMPOSE_FILE with latest version?"
+                    if ($LASTEXITCODE -eq 0) {
+                        Copy-Item $COMPOSE_FILE "$COMPOSE_FILE.bak" -Force
+                        Copy-Item $COMPOSE_TMP $COMPOSE_FILE -Force
+                        Write-Ok "$COMPOSE_FILE updated (backup saved as $COMPOSE_FILE.bak)"
+                    } else {
+                        Write-Warn "Keeping existing $COMPOSE_FILE"
+                    }
+                } else {
+                    Write-Ok "$COMPOSE_FILE is already up to date"
+                }
+            } catch {
+                Write-Err "Failed to download $COMPOSE_FILE"
+            }
+        }
+    } else {
+        $answer = Read-Host "$COMPOSE_FILE already exists. Download latest version? (y/N)"
+        if ($answer -match '^[Yy]$') {
+            Write-Info "Downloading $COMPOSE_FILE..."
+            try {
+                Invoke-WebRequest -Uri "$COMPOSE_URL_BASE/$COMPOSE_FILE" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
+                $currentHash = (Get-FileHash $COMPOSE_FILE -Algorithm SHA256).Hash
+                $newHash = (Get-FileHash $COMPOSE_TMP -Algorithm SHA256).Hash
+                if ($currentHash -ne $newHash) {
+                    Write-Warn "$COMPOSE_FILE has changed"
+                    Write-Host (Compare-Object (Get-Content $COMPOSE_FILE) (Get-Content $COMPOSE_TMP) | ForEach-Object {
+                        $prefix = if ($_.SideIndicator -eq "<=") { "-" } else { "+" }
+                        "$prefix $($_.InputObject)"
+                    })
+                    Write-Host ""
+                    $replace = Read-Host "Replace $COMPOSE_FILE with latest version? (y/N)"
+                    if ($replace -match '^[Yy]$') {
+                        Copy-Item $COMPOSE_FILE "$COMPOSE_FILE.bak" -Force
+                        Copy-Item $COMPOSE_TMP $COMPOSE_FILE -Force
+                        Write-Ok "$COMPOSE_FILE updated (backup saved as $COMPOSE_FILE.bak)"
+                    } else {
+                        Write-Warn "Keeping existing $COMPOSE_FILE"
+                    }
+                } else {
+                    Write-Ok "$COMPOSE_FILE is already up to date"
+                }
+            } catch {
+                Write-Err "Failed to download $COMPOSE_FILE"
+            }
+        }
+    }
+    Write-Ok "Using $COMPOSE_FILE"
+} else {
+    Write-Info "Downloading $COMPOSE_FILE..."
+    Invoke-WebRequest -Uri "$COMPOSE_URL_BASE/$COMPOSE_FILE" -OutFile $COMPOSE_FILE
+    Write-Ok "$COMPOSE_FILE downloaded"
+}
+
+if (Test-Path $COMPOSE_TMP) { Remove-Item $COMPOSE_TMP -Force -ErrorAction SilentlyContinue }
+
+# -- 6. Start infrastructure services --------------------------------
+
+Write-Step "[6/13] Starting infrastructure services"
+
+$INFRA_SERVICES = @("redis", "qbittorrent", "prowlarr", "flaresolverr", "jellyfin", "dozzle")
+if ($DB_DRIVER_CHOICE -eq "postgres") {
+    $INFRA_SERVICES += "postgres"
+}
+
+Invoke-Spinner "Pulling images..." { docker compose -f $COMPOSE_FILE pull $INFRA_SERVICES 2>$null }
+
+docker compose -f $COMPOSE_FILE up -d --remove-orphans $INFRA_SERVICES
 
 $failedServices = @()
-$psOutput = docker compose ps --format json 2>$null
+$psOutput = docker compose -f $COMPOSE_FILE ps --format json 2>$null
 if ($psOutput) {
     foreach ($line in ($psOutput -split "`n")) {
         if (-not $line) { continue }
@@ -359,7 +518,7 @@ if ($psOutput) {
             $json = $line | ConvertFrom-Json
             if ($json.State -ne "running") {
                 $failedServices += $json.Service
-                $lastLog = docker compose logs $json.Service --tail 3 2>&1 | Select-Object -Last 1
+                $lastLog = docker compose -f $COMPOSE_FILE logs $json.Service --tail 3 2>&1 | Select-Object -Last 1
                 Write-Warn "$($json.Service) failed to start: $lastLog"
             }
         } catch { }
@@ -372,6 +531,10 @@ if ($failedServices -contains 'redis') {
 }
 if ($failedServices -contains 'qbittorrent') {
     Write-Err "qBittorrent failed to start. Cannot continue."
+    exit 1
+}
+if ($failedServices -contains 'postgres') {
+    Write-Err "PostgreSQL failed to start. Cannot continue."
     exit 1
 }
 
@@ -404,12 +567,17 @@ if ($failedServices -notcontains 'jellyfin') {
 
 Write-Ok "All infrastructure services are running"
 
+if ($DB_DRIVER_CHOICE -eq "postgres") {
+    Write-Info "Waiting for PostgreSQL..."
+    Test-Port -Host_ "localhost" -Port 5432 -Timeout 30 | Out-Null
+}
+
 Write-Info "Waiting 10s for services to fully initialize..."
 Start-Sleep -Seconds 10
 
 # -- 5. Jellyfin API Key ----------------------------------------------
 
-Write-Step "[6/12] Jellyfin API Key"
+Write-Step "[7/13] Jellyfin API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Jellyfin API key:" -ForegroundColor White
@@ -431,7 +599,7 @@ if ($jellyfinKey) {
 
 # -- 6. qBittorrent WebUI + API Key ------------------------------------
 
-Write-Step "[7/12] qBittorrent WebUI + API Key"
+Write-Step "[8/13] qBittorrent WebUI + API Key"
 
 if ($QBIT_TEMP_PASS) {
     Write-Host ""
@@ -467,7 +635,7 @@ if ($qbitKey) {
 
 # -- 7. Prowlarr API Key ----------------------------------------------
 
-Write-Step "[8/12] Prowlarr API Key"
+Write-Step "[9/13] Prowlarr API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Prowlarr API key:" -ForegroundColor White
@@ -493,7 +661,7 @@ if ($prowlarrKey) {
 
 # -- 8. TMDB API Key --------------------------------------------------
 
-Write-Step "[9/12] TMDB API Key"
+Write-Step "[10/13] TMDB API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your TMDB API key:" -ForegroundColor White
@@ -519,7 +687,7 @@ if ($tmdbKey) {
 
 # -- 9. Discord Webhook (optional) ------------------------------------
 
-Write-Step "[10/12] Discord Webhook (optional)"
+Write-Step "[11/13] Discord Webhook (optional)"
 
 Write-Host ""
 Write-Host "Get notified when downloads complete." -ForegroundColor White
@@ -541,13 +709,13 @@ if ($discordKey) {
 
 # -- 10. Pull StreamHub -----------------------------------------------
 
-Write-Step "[11/12] Pulling StreamHub"
+Write-Step "[12/13] Pulling StreamHub"
 
-Invoke-Spinner "Pulling StreamHub image..." { docker compose pull streamhub 2>$null }
+Invoke-Spinner "Pulling StreamHub image..." { docker compose -f $COMPOSE_FILE pull streamhub 2>$null }
 
 if (-not (docker image inspect ghcr.io/nort1346/streamhub:latest 2>$null)) {
     Write-Err "Failed to pull StreamHub image. Check your network."
-    Write-Err "You can also try manually: docker compose pull streamhub"
+    Write-Err "You can also try manually: docker compose -f $COMPOSE_FILE pull streamhub"
     exit 1
 }
 
@@ -555,20 +723,27 @@ Write-Ok "StreamHub image pulled"
 
 # -- 10. Start StreamHub ----------------------------------------------
 
-Write-Step "[12/12] Starting StreamHub"
+Write-Step "[13/13] Starting StreamHub"
 
 Update-EnvFile "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 Update-EnvFile "NUXT_REDIS_URL" "redis://redis:6379"
 Update-EnvFile "NUXT_PROWLARR_URL" "http://prowlarr:9696"
-Update-EnvFile "DB_DRIVER" "sqlite"
+Update-EnvFile "DB_DRIVER" $DB_DRIVER_CHOICE
 
-docker compose up -d streamhub 2>$null
+if ($DB_DRIVER_CHOICE -eq "postgres") {
+    $POSTGRES_PASSWORD = New-SecretPassword -Length 32
+    Update-EnvFile "POSTGRES_PASSWORD" $POSTGRES_PASSWORD
+    Update-EnvFile "DATABASE_URL" "postgresql://streamhub:${POSTGRES_PASSWORD}@postgres:5432/streamhub"
+    Write-Ok "PostgreSQL password generated"
+}
+
+docker compose -f $COMPOSE_FILE up -d streamhub 2>$null
 
 Start-Sleep -Seconds 3
-$streamhubUp = docker compose ps streamhub 2>$null | Select-String "Up"
+$streamhubUp = docker compose -f $COMPOSE_FILE ps streamhub 2>$null | Select-String "Up"
 if (-not $streamhubUp) {
     Write-Err "StreamHub container is not running. Check logs:"
-    Write-Err "  docker compose logs streamhub"
+    Write-Err "  docker compose -f $COMPOSE_FILE logs streamhub"
     exit 1
 }
 
@@ -579,7 +754,7 @@ Write-Ok "StreamHub is running at http://localhost:5757"
 
 # -- Summary ----------------------------------------------------------
 
-$dozzleUp = docker compose ps dozzle 2>$null | Select-String "Up"
+$dozzleUp = docker compose -f $COMPOSE_FILE ps dozzle 2>$null | Select-String "Up"
 $hasDozzle = $dozzleUp -ne $null
 
 # -- Header
@@ -594,7 +769,8 @@ $services = @(
     (Get-SummaryRow "qBittorrent" "http://localhost:8080"),
     (Get-SummaryRow "Prowlarr" "http://localhost:9900"),
     (Get-SummaryRow "Jellyfin" "http://localhost:8096"),
-    (Get-SummaryRow "FlareSolverr" "http://localhost:8191")
+    (Get-SummaryRow "FlareSolverr" "http://localhost:8191"),
+    (Get-SummaryRow "Database" $DB_DRIVER_CHOICE)
 )
 if ($hasDozzle) {
     $services += (Get-SummaryRow "Dozzle" "http://localhost:8082")
