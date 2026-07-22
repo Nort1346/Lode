@@ -30,7 +30,7 @@ function startCacheCleanup() {
 
 export async function getBruteForceConfig(): Promise<BruteForceConfig> {
   try {
-    const value = getSetting(SETTINGS.BRUTE_FORCE_CONFIG)
+    const value = await getSetting(SETTINGS.BRUTE_FORCE_CONFIG)
     if (value !== undefined && value !== '') {
       return { ...DEFAULT_CONFIG, ...(JSON.parse(value) as Partial<BruteForceConfig>) }
     }
@@ -42,7 +42,7 @@ export async function getBruteForceConfig(): Promise<BruteForceConfig> {
 
 export async function saveBruteForceConfig(config: Partial<BruteForceConfig>): Promise<void> {
   const merged = { ...DEFAULT_CONFIG, ...config }
-  putSetting(SETTINGS.BRUTE_FORCE_CONFIG, JSON.stringify(merged))
+  await putSetting(SETTINGS.BRUTE_FORCE_CONFIG, JSON.stringify(merged))
 }
 
 export async function isIpBlocked(ip: string): Promise<boolean> {

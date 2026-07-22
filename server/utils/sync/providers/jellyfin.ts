@@ -16,7 +16,7 @@ export class JellyfinSyncProvider implements SyncProvider {
   }
 
   async isEnabled(): Promise<boolean> {
-    const setting = getSetting(SETTINGS.JELLYFIN_SYNC_ENABLED)
+    const setting = await getSetting(SETTINGS.JELLYFIN_SYNC_ENABLED)
     if (setting === 'false') return false
 
     const client = useJellyfin()

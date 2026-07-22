@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
 
   const presets: Record<string, string> = {}
   for (const key of PRESET_KEYS) {
-    presets[key] = getSetting(key) ?? ''
+    presets[key] = (await getSetting(key)) ?? ''
   }
 
   const libraryAccessValue = presets[SETTINGS.JELLYFIN_DEFAULT_LIBRARY_ACCESS] ?? ''

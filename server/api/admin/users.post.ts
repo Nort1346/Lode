@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const id = randomUUID()
-  const syncSettings = getDefaultSyncSettings({
+  const syncSettings = await getDefaultSyncSettings({
     libraryAccess: body.jellyfinLibraryAccess,
     enableVideoTranscoding: body.jellyfinEnableVideoTranscoding,
     enableAudioTranscoding: body.jellyfinEnableAudioTranscoding,

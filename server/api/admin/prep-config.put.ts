@@ -6,11 +6,11 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{ enabled?: boolean; speedMb?: number }>(event)
 
   if (body.enabled !== undefined) {
-    putSetting(SETTINGS.PREP_COUNTDOWN_ENABLED, body.enabled ? 'true' : 'false')
+    await putSetting(SETTINGS.PREP_COUNTDOWN_ENABLED, body.enabled ? 'true' : 'false')
   }
 
   if (body.speedMb !== undefined) {
-    putSetting(SETTINGS.PREP_SPEED_MB, String(Math.max(1, Math.min(100, Math.round(body.speedMb)))))
+    await putSetting(SETTINGS.PREP_SPEED_MB, String(Math.max(1, Math.min(100, Math.round(body.speedMb)))))
   }
 
   logActivity(event, {

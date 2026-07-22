@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
 
-  const syncSettings = getSyncUserSettings(id, 'jellyfin')
+  const syncSettings = await getSyncUserSettings(id, 'jellyfin')
   const existingMapping = getProviderUserId(id, 'jellyfin')
 
   let action: 'synced' | 'created'

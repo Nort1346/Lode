@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
 
   const hasJellyfin = getProviderUserId(session.user.id, 'jellyfin') !== null
   if (hasJellyfin) {
-    const syncSettings = getSyncUserSettings(session.user.id, 'jellyfin')
+    const syncSettings = await getSyncUserSettings(session.user.id, 'jellyfin')
     try {
       await syncUserUpdate(session.user.id, { username: user.username, password: body.newPassword }, syncSettings)
     } catch (error) {

@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: `Locale must be one of: ${DISCORD_LOCALE_OPTIONS.join(', ')}` })
   }
 
-  putSetting(SETTINGS.DISCORD_LOCALE, locale)
+  await putSetting(SETTINGS.DISCORD_LOCALE, locale)
 
   return { locale }
 })

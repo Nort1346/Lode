@@ -6,11 +6,11 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{ minFreeSpaceGb?: number; checkEnabled?: boolean }>(event)
 
   if (body.checkEnabled !== undefined) {
-    putSetting(SETTINGS.DISK_CHECK_ENABLED, body.checkEnabled ? 'true' : 'false')
+    await putSetting(SETTINGS.DISK_CHECK_ENABLED, body.checkEnabled ? 'true' : 'false')
   }
 
   if (body.minFreeSpaceGb !== undefined) {
-    putSetting(SETTINGS.DISK_MIN_FREE_GB, String(body.minFreeSpaceGb))
+    await putSetting(SETTINGS.DISK_MIN_FREE_GB, String(body.minFreeSpaceGb))
   }
 
   logActivity(event, {

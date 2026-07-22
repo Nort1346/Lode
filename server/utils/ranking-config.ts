@@ -20,7 +20,7 @@ function dehydrateThresholds(thresholds: RankingSizeThreshold[]): RankingSizeThr
 }
 
 export async function getRankingConfig(): Promise<RankingConfig> {
-  const value = getSetting(SETTINGS.RANKING_CONFIG)
+  const value = await getSetting(SETTINGS.RANKING_CONFIG)
 
   if (value === undefined) return { ...DEFAULT_RANKING_CONFIG }
 
@@ -55,9 +55,9 @@ export async function saveRankingConfig(config: RankingConfig): Promise<void> {
     }
   }
 
-  putSetting(SETTINGS.RANKING_CONFIG, JSON.stringify(toStore))
+  await putSetting(SETTINGS.RANKING_CONFIG, JSON.stringify(toStore))
 }
 
 export async function resetRankingConfig(): Promise<void> {
-  deleteSetting(SETTINGS.RANKING_CONFIG)
+  await deleteSetting(SETTINGS.RANKING_CONFIG)
 }

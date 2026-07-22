@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
   const body = await readBody<{ enabled: boolean }>(event)
 
-  putSetting(SETTINGS.DISCORD_MENTIONS_ENABLED, body.enabled ? 'true' : 'false')
+  await putSetting(SETTINGS.DISCORD_MENTIONS_ENABLED, body.enabled ? 'true' : 'false')
 
   logActivity(event, {
     action: 'discord_mentions_update',

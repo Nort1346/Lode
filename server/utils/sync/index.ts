@@ -8,7 +8,7 @@ import { SETTINGS } from '#server/types/settings'
 
 const ALL_PROVIDERS: SyncProvider[] = [new JellyfinSyncProvider()]
 
-function defaultSyncSettingsOverrides(): {
+async function defaultSyncSettingsOverrides(): Promise<{
   libraryAccess: string[] | 'all'
   enableVideoTranscoding: boolean
   enableAudioTranscoding: boolean
@@ -16,19 +16,20 @@ function defaultSyncSettingsOverrides(): {
   enableLiveTvAccess: boolean
   enableLiveTvManagement: boolean
   maxActiveSessions: number
-} {
+}> {
   return {
-    libraryAccess: JSON.parse(getSetting(SETTINGS.JELLYFIN_DEFAULT_LIBRARY_ACCESS) ?? '"all"') as string[] | 'all',
-    enableVideoTranscoding: getSetting(SETTINGS.JELLYFIN_DEFAULT_VIDEO_TRANSCODING) !== 'false',
-    enableAudioTranscoding: getSetting(SETTINGS.JELLYFIN_DEFAULT_AUDIO_TRANSCODING) !== 'false',
-    enableRemuxing: getSetting(SETTINGS.JELLYFIN_DEFAULT_REMUXING) !== 'false',
-    enableLiveTvAccess: getSetting(SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_ACCESS) !== 'false',
-    enableLiveTvManagement: getSetting(SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_MANAGEMENT) === 'true',
-    maxActiveSessions: Number(getSetting(SETTINGS.JELLYFIN_DEFAULT_MAX_ACTIVE_SESSIONS) ?? '0')
+    libraryAccess: JSON.parse((await getSetting(SETTINGS.JELLYFIN_DEFAULT_LIBRARY_ACCESS)) ?? '"all"') as
+      string[] | 'all',
+    enableVideoTranscoding: (await getSetting(SETTINGS.JELLYFIN_DEFAULT_VIDEO_TRANSCODING)) !== 'false',
+    enableAudioTranscoding: (await getSetting(SETTINGS.JELLYFIN_DEFAULT_AUDIO_TRANSCODING)) !== 'false',
+    enableRemuxing: (await getSetting(SETTINGS.JELLYFIN_DEFAULT_REMUXING)) !== 'false',
+    enableLiveTvAccess: (await getSetting(SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_ACCESS)) !== 'false',
+    enableLiveTvManagement: (await getSetting(SETTINGS.JELLYFIN_DEFAULT_LIVE_TV_MANAGEMENT)) === 'true',
+    maxActiveSessions: Number((await getSetting(SETTINGS.JELLYFIN_DEFAULT_MAX_ACTIVE_SESSIONS)) ?? '0')
   }
 }
 
-export function getDefaultSyncSettings(overrides?: {
+export async function getDefaultSyncSettings(overrides?: {
   libraryAccess?: string[] | 'all'
   enableVideoTranscoding?: boolean
   enableAudioTranscoding?: boolean
@@ -36,8 +37,8 @@ export function getDefaultSyncSettings(overrides?: {
   enableLiveTvAccess?: boolean
   enableLiveTvManagement?: boolean
   maxActiveSessions?: number
-}): SyncUserSettings {
-  const defaults = defaultSyncSettingsOverrides()
+}): Promise<SyncUserSettings> {
+  const defaults = await defaultSyncSettingsOverrides()
   return {
     libraryAccess: overrides?.libraryAccess ?? defaults.libraryAccess,
     enableVideoTranscoding: overrides?.enableVideoTranscoding ?? defaults.enableVideoTranscoding,
@@ -49,7 +50,7 @@ export function getDefaultSyncSettings(overrides?: {
   }
 }
 
-export function getSyncUserSettings(userId: string, providerName: string): SyncUserSettings {
+export async function getSyncUserSettings(userId: string, providerName: string): Promise<SyncUserSettings> {
   const db = useDb()
   const row = db
     .select()
@@ -58,7 +59,7 @@ export function getSyncUserSettings(userId: string, providerName: string): SyncU
     .get()
 
   if (!row) {
-    return defaultSyncSettingsOverrides()
+    return await defaultSyncSettingsOverrides()
   }
 
   return {

@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   await requireAdmin(event)
 
   return {
-    enabled: getSetting(SETTINGS.PREP_COUNTDOWN_ENABLED) === 'true',
-    speedMb: Number(getSetting(SETTINGS.PREP_SPEED_MB) ?? '15')
+    enabled: (await getSetting(SETTINGS.PREP_COUNTDOWN_ENABLED)) === 'true',
+    speedMb: Number((await getSetting(SETTINGS.PREP_SPEED_MB)) ?? '15')
   }
 })

@@ -72,7 +72,7 @@ describe('brute-force', () => {
 
   describe('getBruteForceConfig', () => {
     it('returns defaults when no setting saved', async () => {
-      vi.mocked(getSetting).mockReturnValue(undefined)
+      vi.mocked(getSetting).mockResolvedValue(undefined)
       const { getBruteForceConfig } = await loadBruteForce()
       const config = await getBruteForceConfig()
       expect(config).toEqual({
@@ -83,7 +83,7 @@ describe('brute-force', () => {
     })
 
     it('merges saved config with defaults', async () => {
-      vi.mocked(getSetting).mockReturnValue(JSON.stringify({ maxAttemptsPerIp: 10 }))
+      vi.mocked(getSetting).mockResolvedValue(JSON.stringify({ maxAttemptsPerIp: 10 }))
       const { getBruteForceConfig } = await loadBruteForce()
       const config = await getBruteForceConfig()
       expect(config.maxAttemptsPerIp).toBe(10)
@@ -91,7 +91,7 @@ describe('brute-force', () => {
     })
 
     it('returns defaults on malformed JSON', async () => {
-      vi.mocked(getSetting).mockReturnValue('not-json')
+      vi.mocked(getSetting).mockResolvedValue('not-json')
       const { getBruteForceConfig } = await loadBruteForce()
       const config = await getBruteForceConfig()
       expect(config.maxAttemptsPerIp).toBe(5)
@@ -100,7 +100,7 @@ describe('brute-force', () => {
 
   describe('saveBruteForceConfig', () => {
     it('saves merged config to settings', async () => {
-      vi.mocked(getSetting).mockReturnValue(undefined)
+      vi.mocked(getSetting).mockResolvedValue(undefined)
       const { saveBruteForceConfig } = await loadBruteForce()
       await saveBruteForceConfig({ maxAttemptsPerIp: 3 })
       expect(putSetting).toHaveBeenCalledWith('brute_force_config', expect.stringContaining('"maxAttemptsPerIp":3'))
@@ -109,7 +109,7 @@ describe('brute-force', () => {
 
   describe('isIpBlocked', () => {
     it('returns false when no failed attempts', async () => {
-      vi.mocked(getSetting).mockReturnValue(undefined)
+      vi.mocked(getSetting).mockResolvedValue(undefined)
       const mockGet = vi.fn(() => ({ cnt: 0 }))
       mockSelect.mockReturnValue({
         from: vi.fn(() => ({
@@ -123,7 +123,7 @@ describe('brute-force', () => {
     })
 
     it('returns true when failed attempts exceed limit', async () => {
-      vi.mocked(getSetting).mockReturnValue(undefined)
+      vi.mocked(getSetting).mockResolvedValue(undefined)
       const mockGet = vi.fn(() => ({ cnt: 5 }))
       mockSelect.mockReturnValue({
         from: vi.fn(() => ({
@@ -137,7 +137,7 @@ describe('brute-force', () => {
     })
 
     it('returns true from cache on subsequent calls', async () => {
-      vi.mocked(getSetting).mockReturnValue(undefined)
+      vi.mocked(getSetting).mockResolvedValue(undefined)
       const mockGet = vi.fn(() => ({ cnt: 5 }))
       mockSelect.mockReturnValue({
         from: vi.fn(() => ({
@@ -152,7 +152,7 @@ describe('brute-force', () => {
     })
 
     it('returns false after cache expires', async () => {
-      vi.mocked(getSetting).mockReturnValue(undefined)
+      vi.mocked(getSetting).mockResolvedValue(undefined)
       const mockGet = vi.fn(() => ({ cnt: 5 }))
       mockSelect.mockReturnValue({
         from: vi.fn(() => ({
@@ -172,7 +172,7 @@ describe('brute-force', () => {
 
   describe('blockIp', () => {
     it('adds ip to cache and inserts record', async () => {
-      vi.mocked(getSetting).mockReturnValue(undefined)
+      vi.mocked(getSetting).mockResolvedValue(undefined)
       const mockRun = vi.fn()
       mockInsert.mockReturnValue({ values: vi.fn(() => ({ run: mockRun })) })
 
@@ -183,7 +183,7 @@ describe('brute-force', () => {
     })
 
     it('uses custom duration when provided', async () => {
-      vi.mocked(getSetting).mockReturnValue(undefined)
+      vi.mocked(getSetting).mockResolvedValue(undefined)
       const mockRun = vi.fn()
       mockInsert.mockReturnValue({ values: vi.fn(() => ({ run: mockRun })) })
 
@@ -207,7 +207,7 @@ describe('brute-force', () => {
 
   describe('getBlockedIps', () => {
     it('returns empty array when no blocked ips', async () => {
-      vi.mocked(getSetting).mockReturnValue(undefined)
+      vi.mocked(getSetting).mockResolvedValue(undefined)
       const { getBlockedIps } = await loadBruteForce()
       const result = await getBlockedIps()
       expect(result).toEqual([])
@@ -216,7 +216,7 @@ describe('brute-force', () => {
 
   describe('getBruteForceStats', () => {
     it('returns zeroed stats when no attempts', async () => {
-      vi.mocked(getSetting).mockReturnValue(undefined)
+      vi.mocked(getSetting).mockResolvedValue(undefined)
       const mockGet = vi.fn(() => ({ cnt: 0 }))
       mockSelect.mockReturnValue({
         from: vi.fn(() => ({
