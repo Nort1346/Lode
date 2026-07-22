@@ -244,6 +244,13 @@
     "syncSynced": "Synchronisiert",
     "syncPending": "Ausstehend",
     "syncFailed": "Sync-Fehler",
+    "forceSync": "Sync erzwingen",
+    "forceSyncConfirm": "Diesen Benutzer mit Jellyfin synchronisieren? Wenn kein Jellyfin-Konto existiert, wird ein neues Passwort für StreamHub und Jellyfin generiert.",
+    "forceSyncCreated": "Benutzer in Jellyfin erstellt",
+    "forceSyncSynced": "Einstellungen synchronisiert",
+    "forceSyncPassword": "Neues Passwort (an Benutzer weitergeben)",
+    "forceSyncPasswordDesc": "Ein neues Passwort wurde für diesen Benutzer in StreamHub und Jellyfin gesetzt. Teilen Sie es dem Benutzer mit.",
+    "forceSyncError": "Sync fehlgeschlagen",
     "loading": "Laden"
   },
   "logs": {

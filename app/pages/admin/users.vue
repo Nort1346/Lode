@@ -8,6 +8,7 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+const toast = useToast()
 const users = ref<AdminUser[]>([])
 const loading = ref(true)
 const showModal = ref(false)
@@ -40,6 +41,9 @@ const saving = ref(false)
 const error = ref('')
 const showGeneratedPassword = ref(false)
 const passwordFocused = ref(false)
+const syncingUserId = ref<string | null>(null)
+const tempPasswordModal = ref(false)
+const tempPasswordValue = ref('')
 
 const syncStatusColor = (status: string) => {
   if (status === 'synced') return 'bg-green-500/10 text-green-700 dark:text-green-400'
@@ -249,6 +253,36 @@ async function toggleActive(user: { id: string; isActive: boolean }) {
   }
 }
 
+async function forceSync(user: AdminUser) {
+  if (!confirm(t('admin.forceSyncConfirm'))) return
+
+  syncingUserId.value = user.id
+  try {
+    const res = (await $fetch(`/api/admin/users/${user.id}/sync`, {
+      method: 'POST'
+    })) as { success: boolean; action: 'synced' | 'created'; tempPassword?: string }
+
+    if (res.action === 'created' && res.tempPassword) {
+      tempPasswordValue.value = res.tempPassword
+      tempPasswordModal.value = true
+      toast.add({ title: t('admin.forceSyncCreated'), color: 'success' })
+    } else {
+      toast.add({ title: t('admin.forceSyncSynced'), color: 'success' })
+    }
+
+    await fetchUsers()
+  } catch (e: unknown) {
+    const err = e as { data?: { statusMessage?: string } }
+    toast.add({ title: t('admin.forceSyncError'), description: err.data?.statusMessage, color: 'error' })
+  } finally {
+    syncingUserId.value = null
+  }
+}
+
+function copyTempPassword() {
+  navigator.clipboard.writeText(tempPasswordValue.value)
+}
+
 const roleOptions = computed(() => [
   { label: t('admin.roleUser'), value: 'user' },
   { label: t('admin.roleAdmin'), value: 'admin' }
@@ -425,6 +459,14 @@ function onExpiresAtInput(event: Event) {
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-1">
+                  <UButton
+                    icon="i-lucide-refresh-cw"
+                    variant="ghost"
+                    size="xs"
+                    :loading="syncingUserId === u.id"
+                    :title="t('admin.forceSync')"
+                    @click="forceSync(u)"
+                  />
                   <UButton icon="i-lucide-pencil" variant="ghost" size="xs" @click="openEdit(u)" />
                   <UButton
                     v-if="u.role !== 'admin'"
@@ -563,6 +605,24 @@ function onExpiresAtInput(event: Event) {
             />
           </div>
         </form>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="tempPasswordModal" :title="t('admin.forceSyncPassword')">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-zinc-500 dark:text-zinc-400">
+            {{ t('admin.forceSyncPasswordDesc') }}
+          </p>
+          <div class="flex items-center gap-2">
+            <code
+              class="flex-1 p-3 rounded-lg bg-zinc-100 dark:bg-white/5 text-sm font-mono text-zinc-900 dark:text-white select-all"
+            >
+              {{ tempPasswordValue }}
+            </code>
+            <UButton icon="i-lucide-copy" variant="outline" size="sm" @click="copyTempPassword" />
+          </div>
+        </div>
       </template>
     </UModal>
   </div>
