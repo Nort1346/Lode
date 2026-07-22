@@ -620,5 +620,18 @@
     "iosTitle": "Ajouter à l'écran d'accueil",
     "iosDescription": "Allez dans Partager, puis 'Ajouter à l'écran d'accueil'",
     "dismiss": "Pas maintenant"
+  },
+  "profile": {
+    "title": "Profil",
+    "dicebearTitle": "Choisir un avatar",
+    "dicebearDesc": "Sélectionnez un style dans la collection ci-dessous",
+    "uploadTitle": "Téléverser un avatar personnalisé",
+    "uploadDesc": "JPG, PNG ou WebP, 5 Mo max",
+    "uploadButton": "Téléverser l'avatar",
+    "removeButton": "Supprimer l'avatar",
+    "saved": "Avatar enregistré",
+    "uploaded": "Avatar téléversé",
+    "removed": "Avatar supprimé",
+    "error": "Une erreur s'est produite"
   }
 }

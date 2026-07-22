@@ -620,5 +620,18 @@
     "iosTitle": "Add to Home Screen",
     "iosDescription": "Go to Share, then 'Add to Home Screen'",
     "dismiss": "Not now"
+  },
+  "profile": {
+    "title": "Profile",
+    "dicebearTitle": "Choose an Avatar",
+    "dicebearDesc": "Pick a style from the collection below",
+    "uploadTitle": "Upload Custom Avatar",
+    "uploadDesc": "JPG, PNG or WebP, max 5 MB",
+    "uploadButton": "Upload Avatar",
+    "removeButton": "Remove Avatar",
+    "saved": "Avatar saved",
+    "uploaded": "Avatar uploaded",
+    "removed": "Avatar removed",
+    "error": "Something went wrong"
   }
 }

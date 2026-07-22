@@ -620,5 +620,18 @@
     "iosTitle": "Dodaj do ekranu głównego",
     "iosDescription": "Wejdź w Udostępnij, następnie 'Dodaj do ekranu głównego'",
     "dismiss": "Nie teraz"
+  },
+  "profile": {
+    "title": "Profil",
+    "dicebearTitle": "Wybierz avatar",
+    "dicebearDesc": "Wybierz styl z poniższej kolekcji",
+    "uploadTitle": "Prześlij własny avatar",
+    "uploadDesc": "JPG, PNG lub WebP, maks. 5 MB",
+    "uploadButton": "Prześlij avatar",
+    "removeButton": "Usuń avatar",
+    "saved": "Avatar zapisany",
+    "uploaded": "Avatar przesłany",
+    "removed": "Avatar usunięty",
+    "error": "Coś poszło nie tak"
   }
 }

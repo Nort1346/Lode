@@ -620,5 +620,18 @@
     "iosTitle": "Añadir a la pantalla de inicio",
     "iosDescription": "Ve a Compartir, luego 'Añadir a la pantalla de inicio'",
     "dismiss": "Ahora no"
+  },
+  "profile": {
+    "title": "Perfil",
+    "dicebearTitle": "Elegir un avatar",
+    "dicebearDesc": "Selecciona un estilo de la colección",
+    "uploadTitle": "Subir avatar personalizado",
+    "uploadDesc": "JPG, PNG o WebP, máx. 5 MB",
+    "uploadButton": "Subir avatar",
+    "removeButton": "Eliminar avatar",
+    "saved": "Avatar guardado",
+    "uploaded": "Avatar subido",
+    "removed": "Avatar eliminado",
+    "error": "Algo salió mal"
   }
 }

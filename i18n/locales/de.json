@@ -620,5 +620,18 @@
     "iosTitle": "Zum Home-Bildschirm hinzufügen",
     "iosDescription": "Tippen Sie auf Teilen, dann auf 'Zum Home-Bildschirm hinzufügen'",
     "dismiss": "Nicht jetzt"
+  },
+  "profile": {
+    "title": "Profil",
+    "dicebearTitle": "Avatar auswählen",
+    "dicebearDesc": "Wählen Sie einen Stil aus der Sammlung",
+    "uploadTitle": "Eigenen Avatar hochladen",
+    "uploadDesc": "JPG, PNG oder WebP, max. 5 MB",
+    "uploadButton": "Avatar hochladen",
+    "removeButton": "Avatar entfernen",
+    "saved": "Avatar gespeichert",
+    "uploaded": "Avatar hochgeladen",
+    "removed": "Avatar entfernt",
+    "error": "Etwas ist schiefgelaufen"
   }
 }

@@ -18,7 +18,7 @@ export default defineEventHandler((event) => {
   }
 
   setResponseHeader(event, 'Content-Type', 'image/jpeg')
-  setResponseHeader(event, 'Cache-Control', 'public, max-age=31536000, immutable')
+  setResponseHeader(event, 'Cache-Control', 'no-store')
 
   return sendStream(event, createReadStream(filePath))
 })

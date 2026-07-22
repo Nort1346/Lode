@@ -11,6 +11,13 @@ const { t, locale, locales, setLocale } = useI18n()
 const { connect, disconnect, checkPermission, permissionGranted, subscribeToPush } = useNotifications()
 
 const { data: me } = useFetch('/api/user/me')
+const avatarVersion = useState('avatarVersion', () => 0)
+
+const sidebarAvatarSrc = computed(() => {
+  const url = me.value?.avatarUrl
+  if (!url) return undefined
+  return `${url}?v=${avatarVersion.value}`
+})
 
 const mobileOpen = ref(false)
 
@@ -147,8 +154,11 @@ watch(
         </nav>
 
         <div class="border-t border-zinc-200 dark:border-white/8 pt-4 mt-4 space-y-3 pb-6">
-          <div class="flex items-center gap-3 px-3 mb-2">
-            <UAvatar :src="me?.avatarUrl ?? undefined" :alt="user?.username" size="sm" />
+          <NuxtLink
+            to="/user"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
+          >
+            <UAvatar :src="sidebarAvatarSrc" :alt="user?.username" size="sm" />
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-zinc-900 dark:text-white truncate">
                 {{ user?.username }}
@@ -157,7 +167,7 @@ watch(
                 {{ user?.role }}
               </p>
             </div>
-          </div>
+          </NuxtLink>
           <div class="flex items-center gap-3 px-3 my-6">
             <USelect
               :model-value="locale"
@@ -213,8 +223,11 @@ watch(
           {{ isDark ? t('theme.light') : t('theme.dark') }}
         </button>
 
-        <div class="flex items-center gap-3 px-3">
-          <UAvatar :src="me?.avatarUrl ?? undefined" :alt="user?.username" size="sm" />
+        <NuxtLink
+          to="/user"
+          class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
+        >
+          <UAvatar :src="sidebarAvatarSrc" :alt="user?.username" size="sm" />
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-zinc-900 dark:text-white truncate">
               {{ user?.username }}
@@ -223,7 +236,7 @@ watch(
               {{ user?.role }}
             </p>
           </div>
-        </div>
+        </NuxtLink>
         <div class="flex items-center gap-3 px-3 my-4">
           <USelect
             :model-value="locale"
