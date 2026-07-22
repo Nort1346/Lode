@@ -148,7 +148,7 @@ defineEmits<{
 
 const { t } = useI18n()
 const { copyToClipboard } = useCopyToClipboard()
-const { containerRef, textRef, isVisible, isOverflowing, scrollDistance, phase, recheck } = useMarquee()
+const { containerRef, textRef, isOverflowing, scrollDistance, phase, recheck } = useMarquee()
 
 watch(isOverflowing, () => {
   nextTick(recheck)

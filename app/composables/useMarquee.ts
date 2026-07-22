@@ -21,6 +21,7 @@ export function useMarquee() {
 
   function onAnimationEnd() {
     phase.value = 'loop'
+    void textRef.value?.offsetWidth
   }
 
   function resetPhase() {
@@ -49,13 +50,9 @@ export function useMarquee() {
     const ro = new ResizeObserver(checkOverflow)
     if (containerRef.value) ro.observe(containerRef.value)
 
-    watch(
-      () => textRef.value,
-      (el, _old) => {
-        if (_old) _old.removeEventListener('animationend', onAnimationEnd)
-        if (el) el.addEventListener('animationend', onAnimationEnd)
-      }
-    )
+    if (textRef.value) {
+      textRef.value.addEventListener('animationend', onAnimationEnd)
+    }
 
     onUnmounted(() => {
       observer?.disconnect()

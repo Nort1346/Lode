@@ -324,11 +324,11 @@
     transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
     opacity: 1;
   }
-  93% {
+  95% {
     transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
     opacity: 0;
   }
-  93.5%,
+  95.5%,
   100% {
     transform: translateX(0);
     opacity: 0;
@@ -340,7 +340,7 @@
     transform: translateX(0);
     opacity: 0;
   }
-  4% {
+  6% {
     transform: translateX(0);
     opacity: 1;
   }
@@ -352,11 +352,11 @@
     transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
     opacity: 1;
   }
-  93% {
+  95% {
     transform: translateX(calc(-1 * var(--marquee-distance, 0px)));
     opacity: 0;
   }
-  93.5%,
+  95.5%,
   100% {
     transform: translateX(0);
     opacity: 0;
