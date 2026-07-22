@@ -639,6 +639,16 @@
     "saved": "Avatar zapisany",
     "uploaded": "Avatar przesłany",
     "removed": "Avatar usunięty",
-    "error": "Coś poszło nie tak"
+    "error": "Coś poszło nie tak",
+    "passwordTitle": "Zmień hasło",
+    "passwordDesc": "Wpisz aktualne hasło oraz nowe",
+    "currentPassword": "Aktualne hasło",
+    "newPassword": "Nowe hasło",
+    "confirmPassword": "Potwierdź nowe hasło",
+    "savePassword": "Zapisz hasło",
+    "passwordChanged": "Hasło zmienione",
+    "passwordMismatch": "Hasła nie są takie same",
+    "passwordTooShort": "Hasło musi mieć min. 8 znaków",
+    "passwordSame": "Nowe hasło musi się różnić od aktualnego"
   }
 }

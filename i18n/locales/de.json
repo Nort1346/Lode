@@ -639,6 +639,16 @@
     "saved": "Avatar gespeichert",
     "uploaded": "Avatar hochgeladen",
     "removed": "Avatar entfernt",
-    "error": "Etwas ist schiefgelaufen"
+    "error": "Etwas ist schiefgelaufen",
+    "passwordTitle": "Passwort ändern",
+    "passwordDesc": "Geben Sie Ihr aktuelles Passwort und ein neues ein",
+    "currentPassword": "Aktuelles Passwort",
+    "newPassword": "Neues Passwort",
+    "confirmPassword": "Neues Passwort bestätigen",
+    "savePassword": "Passwort speichern",
+    "passwordChanged": "Passwort geändert",
+    "passwordMismatch": "Passwörter stimmen nicht überein",
+    "passwordTooShort": "Passwort muss mindestens 8 Zeichen lang sein",
+    "passwordSame": "Neues Passwort muss sich vom aktuellen unterscheiden"
   }
 }

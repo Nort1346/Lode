@@ -639,6 +639,16 @@
     "saved": "Avatar enregistré",
     "uploaded": "Avatar téléversé",
     "removed": "Avatar supprimé",
-    "error": "Une erreur s'est produite"
+    "error": "Une erreur s'est produite",
+    "passwordTitle": "Changer le mot de passe",
+    "passwordDesc": "Entrez votre mot de passe actuel et un nouveau",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "savePassword": "Enregistrer le mot de passe",
+    "passwordChanged": "Mot de passe modifié",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+    "passwordSame": "Le nouveau mot de passe doit différer de l'actuel"
   }
 }

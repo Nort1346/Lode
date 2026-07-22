@@ -639,6 +639,16 @@
     "saved": "Avatar guardado",
     "uploaded": "Avatar subido",
     "removed": "Avatar eliminado",
-    "error": "Algo salió mal"
+    "error": "Algo salió mal",
+    "passwordTitle": "Cambiar contraseña",
+    "passwordDesc": "Ingresa tu contraseña actual y una nueva",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar nueva contraseña",
+    "savePassword": "Guardar contraseña",
+    "passwordChanged": "Contraseña cambiada",
+    "passwordMismatch": "Las contraseñas no coinciden",
+    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+    "passwordSame": "La nueva contraseña debe ser diferente a la actual"
   }
 }

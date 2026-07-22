@@ -639,6 +639,16 @@
     "saved": "Avatar saved",
     "uploaded": "Avatar uploaded",
     "removed": "Avatar removed",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "passwordTitle": "Change Password",
+    "passwordDesc": "Enter your current password and a new one",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "savePassword": "Save password",
+    "passwordChanged": "Password changed",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordSame": "New password must differ from current"
   }
 }

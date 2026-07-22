@@ -112,6 +112,39 @@ async function removeAvatar() {
     saving.value = false
   }
 }
+
+const currentPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const changingPassword = ref(false)
+
+const passwordError = computed(() => {
+  if (newPassword.value && newPassword.value.length < 8) return t('profile.passwordTooShort')
+  if (confirmPassword.value && newPassword.value !== confirmPassword.value) return t('profile.passwordMismatch')
+  if (newPassword.value && newPassword.value === currentPassword.value) return t('profile.passwordSame')
+  return ''
+})
+
+async function changePassword() {
+  if (passwordError.value || !currentPassword.value || !newPassword.value) return
+  changingPassword.value = true
+  try {
+    await $fetch('/api/user/password', {
+      method: 'POST',
+      body: { currentPassword: currentPassword.value, newPassword: newPassword.value }
+    })
+    currentPassword.value = ''
+    newPassword.value = ''
+    confirmPassword.value = ''
+    toast.add({ title: t('profile.passwordChanged'), color: 'success' })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : t('profile.error')
+    const data = (err as { data?: { statusMessage?: string } }).data
+    toast.add({ title: t('profile.error'), description: data?.statusMessage || msg, color: 'error' })
+  } finally {
+    changingPassword.value = false
+  }
+}
 </script>
 
 <template>
@@ -135,6 +168,30 @@ async function removeAvatar() {
           <p class="text-2xl font-bold text-zinc-900 dark:text-white">{{ user?.username }}</p>
           <p class="text-sm text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">{{ user?.role }}</p>
         </div>
+      </div>
+
+      <div class="border-y border-zinc-200 dark:border-white/10 py-6">
+        <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-1">{{ t('profile.passwordTitle') }}</h2>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">{{ t('profile.passwordDesc') }}</p>
+        <form class="space-y-4 max-w-sm" @submit.prevent="changePassword">
+          <UFormField :label="t('profile.currentPassword')">
+            <UInput v-model="currentPassword" type="password" class="w-full" autocomplete="current-password" />
+          </UFormField>
+          <UFormField :label="t('profile.newPassword')">
+            <UInput v-model="newPassword" type="password" class="w-full" autocomplete="new-password" />
+          </UFormField>
+          <UFormField :label="t('profile.confirmPassword')">
+            <UInput v-model="confirmPassword" type="password" class="w-full" autocomplete="new-password" />
+          </UFormField>
+          <p v-if="passwordError" class="text-sm text-red-500">{{ passwordError }}</p>
+          <UButton
+            type="submit"
+            variant="outline"
+            :label="t('profile.savePassword')"
+            :loading="changingPassword"
+            :disabled="!!passwordError || !currentPassword || !newPassword || !confirmPassword"
+          />
+        </form>
       </div>
 
       <div>
