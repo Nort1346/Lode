@@ -61,49 +61,59 @@ function detectSeasonPack(title: string): boolean {
 }
 
 function scoreResolution(parsed: ParsedTitle, config: RankingConfig): number {
-  if (parsed.resolution === null) return 5
-  return config.resolutions[parsed.resolution] ?? 5
+  if (parsed.resolution === null) return 0
+  const rawScore = config.resolutions[parsed.resolution] ?? 0
+  return (rawScore / DEFAULT_RANKING_CONFIG.weights.resolution) * config.weights.resolution
 }
 
 function scoreLanguage(parsed: ParsedTitle, config: RankingConfig): number {
   if (parsed.language !== null) {
     const lang = config.languages.find((l) => l.code === parsed.language)
-    if (lang !== undefined) return lang.score
+    if (lang !== undefined) {
+      return (lang.score / DEFAULT_RANKING_CONFIG.weights.language) * config.weights.language
+    }
   }
   const fallback = config.languages.find((l) => l.isFallback === true)
-  return fallback?.score ?? 8
+  const fallbackScore = fallback?.score ?? 0
+  return (fallbackScore / DEFAULT_RANKING_CONFIG.weights.language) * config.weights.language
 }
 
-function scoreSeeders(seeders: number): number {
+function scoreSeeders(seeders: number, config: RankingConfig): number {
   if (seeders <= 0) return 0
-  return Math.min(100, Math.round(11 * Math.log2(seeders + 1)))
+  const rawScore = Math.min(100, Math.round(11 * Math.log2(seeders + 1)))
+  return (rawScore / DEFAULT_RANKING_CONFIG.weights.seeders) * config.weights.seeders
 }
 
 function scoreSizeFromThresholds(
   sizeBytes: number,
-  thresholds: Array<{ min: number; max: number; score: number }>
+  thresholds: Array<{ min: number; max: number; score: number }>,
+  weight: number
 ): number {
   const sizeGB = sizeBytes / (1024 * 1024 * 1024)
   for (const t of thresholds) {
-    if (sizeGB >= t.min && sizeGB < t.max) return t.score
+    if (sizeGB >= t.min && sizeGB < t.max) {
+      return (t.score / DEFAULT_RANKING_CONFIG.weights.size) * weight
+    }
   }
-  return 3
+  return 0
 }
 
 function scoreSize(sizeBytes: number, type: 'movie' | 'series', isSeasonPack: boolean, config: RankingConfig): number {
-  if (type === 'movie') return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.movie)
-  if (isSeasonPack) return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.seasonPack)
-  return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.series)
+  if (type === 'movie') return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.movie, config.weights.size)
+  if (isSeasonPack) return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.seasonPack, config.weights.size)
+  return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.series, config.weights.size)
 }
 
 function scoreSource(parsed: ParsedTitle, config: RankingConfig): number {
-  if (parsed.source === null) return 3
-  return config.sources[parsed.source] ?? 3
+  if (parsed.source === null) return 0
+  const rawScore = config.sources[parsed.source] ?? 0
+  return (rawScore / DEFAULT_RANKING_CONFIG.weights.source) * config.weights.source
 }
 
 function scoreGroup(parsed: ParsedTitle, config: RankingConfig): number {
   if (parsed.group === null) return 0
-  return config.knownGroups.includes(parsed.group) ? 5 : 0
+  const rawScore = config.knownGroups.includes(parsed.group) ? 5 : 0
+  return (rawScore / DEFAULT_RANKING_CONFIG.weights.group) * config.weights.group
 }
 
 function scoreTitleRelevance(torrentTitle: string, mediaTitle: string, year: string, config: RankingConfig): number {
@@ -137,7 +147,7 @@ function calculateScore(
 
   const resolution = scoreResolution(parsed, config)
   const language = scoreLanguage(parsed, config)
-  const seeders = scoreSeeders(result.seeders)
+  const seeders = scoreSeeders(result.seeders, config)
   const size = scoreSize(result.size, type, isSeasonPack, config)
   const source = scoreSource(parsed, config)
   const group = scoreGroup(parsed, config)
