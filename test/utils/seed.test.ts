@@ -1,52 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockUseDbAsync = vi.hoisted(() => vi.fn())
-const mockDbGet = vi.hoisted(() => vi.fn())
-const mockDbRun = vi.hoisted(() => vi.fn())
-const mockInsert = vi.fn(() => ({ values: vi.fn(() => ({ run: vi.fn(() => ({ changes: 1 })) })) }))
-const mockUpdate = vi.fn(() => ({
-  set: vi.fn(() => ({
-    where: vi.fn(() => ({
-      run: mockDbRun
-    }))
-  }))
-}))
-const mockGet = vi.fn()
-const mockWhere = vi.fn(() => ({ get: mockGet }))
-const mockFrom = vi.fn(() => ({ where: mockWhere }))
-const mockSelect = vi.fn(() => ({ from: mockFrom }))
-const mockHash = vi.hoisted(() => vi.fn(() => Promise.resolve('hashed-password')))
-
-vi.mock('#server/utils/db', () => ({
-  useDbAsync: mockUseDbAsync,
-  dbGet: mockDbGet,
-  dbRun: mockDbRun
-}))
-
-vi.mock('#server/utils/logger', () => ({
-  createLogger: vi.fn(() => ({ info: vi.fn() }))
-}))
-
-vi.mock('#server/database/schema', () => ({
+const mockRepos = vi.hoisted(() => ({
   users: {
-    id: 'id',
-    username: 'username',
-    role: 'role',
-    isActive: 'isActive',
-    password: 'password'
+    findByRole: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn()
   }
 }))
 
-vi.mock('drizzle-orm', () => ({
-  eq: vi.fn((col, val) => ({ col, val }))
+const mockHash = vi.hoisted(() => vi.fn(() => Promise.resolve('hashed-password')))
+
+vi.mock('#server/repositories', () => ({
+  getReposAsync: vi.fn(() => Promise.resolve(mockRepos))
+}))
+
+vi.mock('@node-rs/bcrypt', () => ({
+  hash: mockHash
 }))
 
 vi.mock('node:crypto', () => ({
   randomUUID: vi.fn(() => 'mock-uuid')
 }))
 
-vi.mock('@node-rs/bcrypt', () => ({
-  hash: mockHash
+vi.mock('#server/utils/logger', () => ({
+  createLogger: vi.fn(() => ({ info: vi.fn() }))
 }))
 
 import { ensureAdminExists } from '#server/utils/seed'
@@ -54,25 +31,29 @@ import { ensureAdminExists } from '#server/utils/seed'
 describe('ensureAdminExists', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseDbAsync.mockResolvedValue({ select: mockSelect, insert: mockInsert, update: mockUpdate })
-    mockDbRun.mockResolvedValue({ changes: 1 })
   })
 
   it('does not create admin when one already exists', async () => {
-    mockDbGet.mockResolvedValue({ id: 'admin-1' })
+    mockRepos.users.findByRole.mockResolvedValue([{ id: 'admin-1', isActive: true }])
     await ensureAdminExists()
-    expect(mockInsert).not.toHaveBeenCalled()
+    expect(mockRepos.users.create).not.toHaveBeenCalled()
   })
 
   it('creates admin when none exists', async () => {
-    mockDbGet.mockResolvedValue(undefined)
+    mockRepos.users.findByRole.mockResolvedValue([])
     await ensureAdminExists()
-    expect(mockInsert).toHaveBeenCalled()
+    expect(mockRepos.users.create).toHaveBeenCalled()
   })
 
   it('uses bcrypt hash for password', async () => {
-    mockDbGet.mockResolvedValue(undefined)
+    mockRepos.users.findByRole.mockResolvedValue([])
     await ensureAdminExists()
     expect(mockHash).toHaveBeenCalledWith('admin', 12)
+  })
+
+  it('re-activates inactive admin', async () => {
+    mockRepos.users.findByRole.mockResolvedValue([{ id: 'admin-1', isActive: false }])
+    await ensureAdminExists()
+    expect(mockRepos.users.update).toHaveBeenCalledWith('admin-1', { isActive: true })
   })
 })

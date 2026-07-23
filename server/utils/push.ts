@@ -1,8 +1,6 @@
 import webPush from 'web-push'
-import { pushSubscriptions } from '#server/database/schema'
-import { eq } from 'drizzle-orm'
+import { getReposAsync } from '#server/repositories'
 import { createLogger } from '#server/utils/logger'
-import { useDbAsync, dbAll, dbRun } from '#server/utils/db'
 
 const log = createLogger('Push')
 
@@ -61,8 +59,8 @@ export async function sendPushNotification(
 }
 
 export async function sendPushToUser(userId: string, payload: Record<string, unknown>): Promise<void> {
-  const db = await useDbAsync()
-  const subs = await dbAll(db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId)))
+  const repos = await getReposAsync()
+  const subs = await repos.pushSubscriptions.findByUser(userId)
 
   if (subs.length === 0) return
 
@@ -73,7 +71,7 @@ export async function sendPushToUser(userId: string, payload: Record<string, unk
     )
 
     if (!alive) {
-      await dbRun(db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id)))
+      await repos.pushSubscriptions.delete(sub.id)
     }
   }
 }

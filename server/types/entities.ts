@@ -19,7 +19,7 @@ export interface User {
   syncStatus: 'synced' | 'pending' | 'failed'
 }
 
-export type CreateUserInput = Omit<User, 'syncStatus'>
+export type CreateUserInput = Pick<User, 'id' | 'username' | 'password' | 'createdAt'> & Partial<Omit<User, 'id' | 'syncStatus'>>
 export type UpdateUserInput = Partial<Omit<User, 'id'>>
 
 export interface Download {

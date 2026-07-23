@@ -1,9 +1,7 @@
 import { execSync } from 'node:child_process'
-import { settings } from '#server/database/schema'
-import { eq } from 'drizzle-orm'
+import { getReposAsync } from '#server/repositories'
 import type { DiskStatus } from '#server/types/disk'
 import { formatSize } from '#server/utils/format'
-import { useDbAsync, dbGet } from '#server/utils/db'
 
 function getDiskInfo(path: string): { totalBytes: number; freeBytes: number } | null {
   try {
@@ -79,18 +77,18 @@ export function findTargetDisk(disks: string[], targetPath: string, minFreeGb: n
 }
 
 export async function isDiskCheckEnabled(): Promise<boolean> {
-  const db = await useDbAsync()
-  const row = await dbGet(db.select().from(settings).where(eq(settings.key, 'disk_check_enabled')))
-  if (row?.value === 'true') return true
-  if (row?.value === 'false') return false
+  const repos = await getReposAsync()
+  const value = await repos.settings.get('disk_check_enabled')
+  if (value === 'true') return true
+  if (value === 'false') return false
   return useRuntimeConfig().diskSpaceCheckEnabled as boolean
 }
 
 export async function getDiskMinFreeGb(): Promise<number> {
-  const db = await useDbAsync()
-  const row = await dbGet(db.select().from(settings).where(eq(settings.key, 'disk_min_free_gb')))
-  if (row?.value !== undefined) {
-    const parsed = Number(row.value)
+  const repos = await getReposAsync()
+  const value = await repos.settings.get('disk_min_free_gb')
+  if (value !== undefined) {
+    const parsed = Number(value)
     if (!Number.isNaN(parsed) && parsed >= 0) return parsed
   }
   return useRuntimeConfig().minFreeSpaceGb as number

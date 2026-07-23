@@ -1,7 +1,5 @@
-import { downloads } from '#server/database/schema'
-import { and, eq } from 'drizzle-orm'
+import { getReposAsync } from '#server/repositories'
 import { getFreshUser } from '#server/utils/user'
-import { useDbAsync, dbAll } from '#server/utils/db'
 import type { DailyLimitResult } from '#server/types/limits'
 
 export async function checkDailyLimit(userId: string): Promise<DailyLimitResult> {
@@ -14,22 +12,17 @@ export async function checkDailyLimit(userId: string): Promise<DailyLimitResult>
     return { reached: false, activeCount: 0, todayCount: 0, limit: freshUser.dailyDownloadLimit }
   }
 
-  const db = await useDbAsync()
+  const repos = await getReposAsync()
   const limit = freshUser.dailyDownloadLimit
 
-  const activeCount = (
-    await dbAll(
-      db
-        .select()
-        .from(downloads)
-        .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
-    )
-  ).length
+  const activeDownloads = await repos.downloads.findActiveByUser(userId)
+  const activeCount = activeDownloads.length
 
+  const allDownloads = await repos.downloads.findByUser(userId)
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
 
-  const todayCount = (await dbAll(db.select().from(downloads).where(eq(downloads.userId, userId)))).filter(
+  const todayCount = allDownloads.filter(
     (d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed'
   ).length
 

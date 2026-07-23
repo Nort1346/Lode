@@ -1,3 +1,4 @@
+import { useDbAsync } from '#server/utils/db'
 import type { AppDb, SqliteDb } from '#server/types/database'
 import { createUserRepo } from './users'
 import { createDownloadRepo } from './downloads'
@@ -74,4 +75,12 @@ export function getRepos(db: AppDb): Repos {
 
 export function resetRepos(): void {
   _repos = null
+}
+
+/**
+ * Async convenience — gets or creates repos using the configured DB driver.
+ * Handlers can simply: const repos = await getReposAsync()
+ */
+export async function getReposAsync(): Promise<Repos> {
+  return getRepos(await useDbAsync())
 }

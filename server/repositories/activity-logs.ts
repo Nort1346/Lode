@@ -1,6 +1,6 @@
 import { activityLogs } from '#server/database/schema'
 import { eq, lt, desc, count, and } from 'drizzle-orm'
-import { dbGet, dbAll, dbRun } from '#server/utils/db'
+import { dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
 import type { ActivityLog } from '#server/types/entities'
 

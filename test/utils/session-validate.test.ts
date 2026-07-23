@@ -1,35 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockUseDbAsync = vi.hoisted(() => vi.fn())
-const mockDbGet = vi.hoisted(() => vi.fn())
-const mockDbAll = vi.hoisted(() => vi.fn())
-const mockDbRun = vi.hoisted(() => vi.fn())
-const mockSelect = vi.fn()
-const mockAll = vi.fn()
-const mockGet = vi.fn()
-const mockWhere = vi.fn(() => ({ get: mockGet, run: vi.fn(), all: mockAll }))
-const mockDeleteWhere = vi.fn(() => ({ run: vi.fn() }))
-const mockFrom = vi.fn(() => ({ where: mockWhere }))
-const mockUpdate = vi.fn(() => ({ set: vi.fn(() => ({ where: mockWhere })) }))
-
-vi.mock('#server/utils/db', () => ({
-  useDbAsync: mockUseDbAsync,
-  dbGet: mockDbGet,
-  dbAll: mockDbAll,
-  dbRun: mockDbRun
-}))
-
-vi.mock('#server/database/schema', () => ({
+const mockRepos = vi.hoisted(() => ({
   sessions: {
-    id: 'id',
-    userId: 'userId',
-    createdAt: 'createdAt',
-    lastActiveAt: 'lastActiveAt'
+    findById: vi.fn(),
+    findUserSessions: vi.fn(),
+    touch: vi.fn(),
+    delete: vi.fn()
   }
 }))
 
-vi.mock('drizzle-orm', () => ({
-  eq: vi.fn((col, val) => ({ col, val }))
+vi.mock('#server/repositories', () => ({
+  getReposAsync: vi.fn(() => Promise.resolve(mockRepos))
 }))
 
 import { validateSession, touchSession, enforceMaxSessions } from '#server/utils/session-validate'
@@ -37,19 +18,16 @@ import { validateSession, touchSession, enforceMaxSessions } from '#server/utils
 describe('validateSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseDbAsync.mockResolvedValue({ select: mockSelect })
-    mockSelect.mockReturnValue({ from: mockFrom })
-    mockWhere.mockReturnValue({ get: mockGet, run: vi.fn(), all: mockAll })
   })
 
   it('returns true when session exists', async () => {
-    mockDbGet.mockResolvedValue({ id: 'session-1' })
+    mockRepos.sessions.findById.mockResolvedValue({ id: 'session-1' })
     const result = await validateSession('session-1')
     expect(result).toBe(true)
   })
 
   it('returns false when session does not exist', async () => {
-    mockDbGet.mockResolvedValue(undefined)
+    mockRepos.sessions.findById.mockResolvedValue(undefined)
     const result = await validateSession('session-1')
     expect(result).toBe(false)
   })
@@ -58,47 +36,40 @@ describe('validateSession', () => {
 describe('touchSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseDbAsync.mockResolvedValue({ update: mockUpdate })
   })
 
   it('updates lastActiveAt timestamp', async () => {
-    mockWhere.mockReturnValue({ get: mockGet, run: vi.fn(), all: mockAll })
-    mockDbRun.mockResolvedValue({ changes: 1 })
     await touchSession('session-1')
-    expect(mockUpdate).toHaveBeenCalled()
+    expect(mockRepos.sessions.touch).toHaveBeenCalledWith('session-1', expect.any(String))
   })
 })
 
 describe('enforceMaxSessions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    const mockDelete = vi.fn(() => ({ where: mockDeleteWhere }))
-    mockUseDbAsync.mockResolvedValue({ select: mockSelect, delete: mockDelete })
-    mockSelect.mockReturnValue({ from: mockFrom })
-    mockWhere.mockReturnValue({ get: mockGet, run: vi.fn(), all: mockAll })
   })
 
   it('does nothing when maxSessions is 0 or negative', async () => {
     await enforceMaxSessions('user-1', 0)
-    expect(mockSelect).not.toHaveBeenCalled()
+    expect(mockRepos.sessions.findUserSessions).not.toHaveBeenCalled()
   })
 
   it('does nothing when session count is under limit', async () => {
-    mockDbAll.mockResolvedValue([
+    mockRepos.sessions.findUserSessions.mockResolvedValue([
       { id: 's1', createdAt: '2024-01-01T00:00:00.000Z' },
       { id: 's2', createdAt: '2024-01-02T00:00:00.000Z' }
     ])
     await enforceMaxSessions('user-1', 5)
-    expect(mockDeleteWhere).not.toHaveBeenCalled()
+    expect(mockRepos.sessions.delete).not.toHaveBeenCalled()
   })
 
   it('deletes oldest sessions when over limit', async () => {
-    mockDbAll.mockResolvedValue([
+    mockRepos.sessions.findUserSessions.mockResolvedValue([
       { id: 's1', createdAt: '2024-01-01T00:00:00.000Z' },
       { id: 's2', createdAt: '2024-01-02T00:00:00.000Z' },
       { id: 's3', createdAt: '2024-01-03T00:00:00.000Z' }
     ])
     await enforceMaxSessions('user-1', 2)
-    expect(mockDeleteWhere).toHaveBeenCalledTimes(1)
+    expect(mockRepos.sessions.delete).toHaveBeenCalledTimes(1)
   })
 })
