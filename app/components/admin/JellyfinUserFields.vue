@@ -75,7 +75,9 @@ function toggleLibraryAccess() {
 }
 
 function toggleLibrary(libraryId: string) {
-  const current = Array.isArray(props.jellyfinLibraryAccess) ? [...props.jellyfinLibraryAccess] : []
+  const current = Array.isArray(props.jellyfinLibraryAccess)
+    ? [...props.jellyfinLibraryAccess]
+    : libraries.value.map((l) => l.id)
 
   const index = current.indexOf(libraryId)
   if (index >= 0) {

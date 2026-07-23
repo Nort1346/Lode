@@ -37,7 +37,9 @@ function toggleLibraryAccess() {
 }
 
 function toggleLibrary(libraryId: string) {
-  const current = Array.isArray(presets.libraryAccess) ? [...presets.libraryAccess] : []
+  const current = Array.isArray(presets.libraryAccess)
+    ? [...presets.libraryAccess]
+    : libraries.value.map((l) => l.id)
 
   const index = current.indexOf(libraryId)
   if (index >= 0) {
