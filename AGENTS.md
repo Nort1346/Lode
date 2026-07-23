@@ -116,16 +116,20 @@ import { helper } from '#utils'       // → ./server/utils
 - Cookie-based sessions via `nuxt-auth-utils`
 - Session cookie `secure: false` for HTTP dev access
 - Session validation middleware on every `/api/` request
+- Middleware checks `is_active` — disabled users get session cleared + 401
+- `requireUser()` queries DB for fresh user data (not stale cookie) — fixes role staleness
 - Password order for Jellyfin sync: plain text to Jellyfin FIRST, then bcrypt for StreamHub
 
 ### Database
 - Drizzle ORM with SQLite (default) or PostgreSQL
 - Driver is chosen by the `DB_DRIVER` env var (`sqlite` or `postgres`)
-- Schema in `server/database/schema.ts`
+- Schema in `server/database/schema.ts` — runtime resolver selects PG or SQLite based on `DB_DRIVER`
 - Migrations in `server/database/migrations/`
 - Run `pnpm dev` to auto-apply migrations (it runs `scripts/migrate.mjs` before `nuxt dev`)
 - All timestamps stored as ISO 8601 text strings
-- **DB access gotcha**: `useDb()` is SYNCHRONOUS and only works with SQLite. With `DB_DRIVER=postgres` it throws — you must use `useDbAsync()` (returns a Promise) and `await` it. Most existing handlers use `useDb()` and will break under Postgres unless converted.
+- **Repository layer**: Use `getReposAsync()` to access typed repos (`server/repositories/`). Prefer repos over raw drizzle queries in new code. Tests should mock `#server/repositories` instead of direct db mocks.
+- **DB access gotcha**: `useDb()` is SYNCHRONOUS and only works with SQLite. With `DB_DRIVER=postgres` it throws — use `getReposAsync()` (preferred) or `useDbAsync()` (returns a Promise).
+- **Entity types**: All app-level types in `server/types/entities.ts` — never use raw DB column types in handlers.
 - **Redis caching** (optional): `server/utils/cache.ts` uses `ioredis`. If `NUXT_REDIS_URL` is empty, `cacheGet`/`cacheSet` silently no-op. Used to cache TMDB/Prowlarr results.
 
 ### i18n

@@ -39,9 +39,17 @@
 │   │   ├── user/               # me, limits
 │   │   └── wishlist/           # CRUD + check
 │   ├── database/               # Drizzle schema + migrations
+│   │   ├── drivers/            # SQLite and PostgreSQL DB drivers
+│   │   ├── schema.ts           # Runtime resolver (PG/SQLite based on DB_DRIVER)
+│   │   ├── schema.sqlite.ts    # SQLite table definitions
+│   │   └── schema.pg.ts        # PostgreSQL table definitions
 │   ├── middleware/              # Brute force, session validation
 │   ├── plugins/                # Server plugins (seed, torrent-sync, etc.)
+│   ├── repositories/           # Data access layer (13 repos + factory)
 │   ├── types/                  # Server type definitions
+│   │   ├── entities.ts         # App-level entity types (User, Download, etc.)
+│   │   ├── database.ts         # SqliteDb, PgDb, AppDb types
+│   │   └── settings.ts         # SETTINGS constant system
 │   └── utils/                  # Server utilities (30+ files)
 ├── i18n/locales/               # pl, en, de, fr, es (5 locales)
 ├── shared/                     # Shared type augmentations (auth.d.ts)
@@ -97,7 +105,7 @@ The default layout (`app/layouts/default.vue`) provides:
 | Middleware | Location | Purpose |
 |-----------|----------|---------|
 | `brute-force.ts` | `server/` | Blocks IPs with too many failed login attempts |
-| `session-validate.ts` | `server/` | Validates session still exists in DB, touches lastActive |
+| `session-validate.ts` | `server/` | Validates session in DB, checks `is_active`, touches lastActive, cleans stale entries |
 | `auth.ts` | `app/` | Redirects unauthenticated users to `/login` |
 | `admin.ts` | `app/` | Restricts admin pages to admin role |
 | `submit.ts` | `app/` | Checks `canSubmit` permission before accessing submit page |
@@ -105,8 +113,38 @@ The default layout (`app/layouts/default.vue`) provides:
 ## Data Flow
 
 1. **User action** → Vue component calls API endpoint
-2. **API endpoint** → Validates session, checks permissions
-3. **Server utils** → Interact with external services (TMDB, Prowlarr, qBittorrent, Jellyfin)
-4. **Database** → Persists state (Drizzle ORM)
-5. **SSE** → Pushes real-time notifications to connected clients
-6. **Background plugins** → Sync torrent status, expire users, clean logs
+2. **API endpoint** → Session middleware validates session + `is_active` in DB
+3. **Handler** → Calls `requireUser()` (fresh DB query) or `requireAdmin()` for auth
+4. **Repository layer** → Data access via `getReposAsync()` → typed repo methods
+5. **Server utils** → Interact with external services (TMDB, Prowlarr, qBittorrent, Jellyfin)
+6. **Database** → Persists state (Drizzle ORM via `dbGet`/`dbAll`/`dbRun` helpers)
+7. **SSE** → Pushes real-time notifications to connected clients
+8. **Background plugins** → Sync torrent status, expire users, clean logs
+
+## Repository Layer
+
+Data access is centralized through 13 typed repositories in `server/repositories/`:
+
+| Repository | Table | Purpose |
+|-----------|-------|---------|
+| `UserRepo` | `users` | CRUD, find by username/role, expired users |
+| `DownloadRepo` | `downloads` | CRUD, paginated queries, active/completed counts |
+| `SettingRepo` | `settings` | Key-value get/set/delete |
+| `SessionRepo` | `sessions` | CRUD, touch, find by user |
+| `RequestRepo` | `requests` | CRUD, duplicate detection, paginated |
+| `NotificationRepo` | `notifications` | Unread queries, mark read/all read |
+| `CustomTrackerRepo` | `custom_trackers` | CRUD, name uniqueness check |
+| `ActivityLogRepo` | `activity_logs` | Paginated, count filtered, cleanup |
+| `LoginAttemptRepo` | `login_attempts` | Failed count, cleanup |
+| `PushSubscriptionRepo` | `push_subscriptions` | Find by user/endpoint, CRUD |
+| `WishlistRepo` | `wishlist` | Find by user, duplicate check |
+| `SyncProviderRepo` | `sync_providers` | Find by user/provider, update status |
+| `SyncUserSettingsRepo` | `sync_user_settings` | Upsert, find, delete |
+
+Factory access:
+```ts
+const repos = await getReposAsync()  // creates once, caches
+const user = await repos.users.findById(userId)
+```
+
+Both SQLite and PostgreSQL share the same repo interface. The `dbGet`/`dbAll`/`dbRun` helpers handle dialect differences at runtime.

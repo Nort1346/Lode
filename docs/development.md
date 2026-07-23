@@ -146,4 +146,5 @@ pnpm typecheck:test  # type-check tests only
 - External services (TMDB, Prowlarr, qBittorrent, Jellyfin, Discord) are mocked in tests — no network calls.
 - API route tests invoke handlers directly with a mocked `event` object.
 - Add a `.test.ts` file next to the code it covers, following the same directory layout as `server/`.
+- Mock the repository layer (`#server/repositories`) instead of direct drizzle queries — simpler, faster, and tests the handler logic not the query builder.
 

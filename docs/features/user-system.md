@@ -78,9 +78,23 @@ Server middleware (`server/middleware/brute-force.ts`) intercepts POST requests 
 
 Server middleware (`server/middleware/session-validate.ts`):
 - Validates session exists in DB on every API request
+- **Checks `is_active`** — disabled users get session cleared + 401 thrown
 - Clears invalid sessions automatically
 - Touches `lastActiveAt` every 60 seconds
 - Skips auth helper routes (`/_auth/`)
+- Cleans stale in-memory touch map entries periodically
+
+### Fresh User Data
+
+`requireUser()` (called by `requireAdmin()` and all protected handlers) queries the DB for current user data on every request — it does NOT rely on stale cookie data. This fixes role staleness: if an admin demotes a user, the demoted user loses access immediately without needing to log out.
+
+```ts
+// requireUser() flow:
+// 1. Read session from cookie
+// 2. Query users table for fresh data
+// 3. Return fresh User object (not stale cookie snapshot)
+const user = await requireUser(event)  // always current
+```
 
 ## User Creation
 

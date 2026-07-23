@@ -10,6 +10,17 @@ The schema is defined in `server/database/schema.ts`. Migrations live in `server
 
 ## Schema (13 Tables)
 
+### Runtime Schema Resolver
+
+`server/database/schema.ts` dynamically selects the correct schema at runtime based on `DB_DRIVER`:
+
+```ts
+const driver = process.env.DB_DRIVER ?? 'sqlite'
+const schema = driver === 'postgres' ? pgSchema : sqliteSchemaRuntime
+```
+
+Both schemas define identical table and column names. The type-level cast to SQLite types ensures TypeScript compatibility. The actual PG/SQLite type mapping is handled by the DB instance created via `drivers/`.
+
 ### `users`
 Core user accounts.
 
@@ -165,6 +176,49 @@ Opens Drizzle Studio for visual database inspection.
 | File | `.data/app.db` | Remote server |
 | Concurrency | Single writer | Full concurrency |
 | Best for | Development, small deployments | Production, multi-user |
+
+## Repository Layer
+
+Data access is centralized through typed repositories in `server/repositories/`. Each table has a corresponding repo with a typed interface:
+
+```ts
+// Usage
+const repos = await getReposAsync()
+const user = await repos.users.findById(userId)
+await repos.users.update(userId, { role: 'admin' })
+```
+
+Factory functions (`getRepos`, `getReposAsync`) create and cache repo instances. Both SQLite and PostgreSQL share the same repo interface — the `dbGet`/`dbAll`/`dbRun` helpers handle dialect differences at runtime.
+
+### Why repos over raw drizzle queries?
+
+- **Type safety**: Each repo method has typed input/output (see `server/types/entities.ts`)
+- **Testability**: Tests mock `getReposAsync()` instead of entire drizzle query chains
+- **Consistency**: Single place to add cross-cutting concerns (logging, validation)
+- **PG compatibility**: Repos use `useDbAsync()` internally, safe for both dialects
+
+## Entity Types
+
+All entity types are in `server/types/entities.ts` — the single source of truth for app-level types:
+
+| Type | Description |
+|------|-------------|
+| `User` | Full user record (all columns) |
+| `CreateUserInput` | Required fields for user creation |
+| `UpdateUserInput` | Partial user update |
+| `Download` | Download record |
+| `CreateDownloadInput` / `UpdateDownloadInput` | Download mutations |
+| `Setting` | Key-value setting |
+| `Session` | Active session |
+| `Request` | Media request |
+| `Notification` | In-app notification |
+| `CustomTracker` | Private tracker config |
+| `ActivityLog` | Audit trail entry |
+| `LoginAttempt` | Brute force tracking |
+| `PushSubscription` | Web Push subscription |
+| `WishlistItem` | Wishlist entry |
+| `SyncProvider` | Jellyfin user mapping |
+| `SyncUserSettings` | Per-user Jellyfin permissions |
 
 ### Driver Selection
 

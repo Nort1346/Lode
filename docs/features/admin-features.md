@@ -30,7 +30,7 @@ The Users page (`/admin/users`) lets admins create, edit, and delete user accoun
 - Paginated audit trail
 - Filterable by action type and user
 - Automatic cleanup after 90 days
-- Actions tracked: login, logout, register, user CRUD, settings changes
+- Actions tracked: login, login_failed, logout, register, user CRUD, user_password_change, user_force_sync, settings changes, tracker CRUD, brute force config, Discord mentions, disk config, ranking config, prep config
 
 ### Live Log Stream (`/admin/logs`)
 - Real-time SSE stream of Pino log output
