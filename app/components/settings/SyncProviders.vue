@@ -30,16 +30,14 @@ function isSelected(libraryId: string): boolean {
 
 function toggleLibraryAccess() {
   if (allLibrariesSelected.value) {
-    presets.libraryAccess = libraries.value.map((l) => l.id)
+    presets.libraryAccess = []
   } else {
     presets.libraryAccess = 'all'
   }
 }
 
 function toggleLibrary(libraryId: string) {
-  const current = Array.isArray(presets.libraryAccess)
-    ? [...presets.libraryAccess]
-    : libraries.value.map((l) => l.id)
+  const current = Array.isArray(presets.libraryAccess) ? [...presets.libraryAccess] : libraries.value.map((l) => l.id)
 
   const index = current.indexOf(libraryId)
   if (index >= 0) {
@@ -48,7 +46,7 @@ function toggleLibrary(libraryId: string) {
     current.push(libraryId)
   }
 
-  presets.libraryAccess = current.length === 0 ? 'all' : current
+  presets.libraryAccess = current
 }
 
 async function fetchLibraries() {

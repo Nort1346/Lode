@@ -65,10 +65,7 @@ async function fetchLibraries() {
 
 function toggleLibraryAccess() {
   if (allLibrariesSelected.value) {
-    emit(
-      'update:jellyfinLibraryAccess',
-      libraries.value.map((l) => l.id)
-    )
+    emit('update:jellyfinLibraryAccess', [])
   } else {
     emit('update:jellyfinLibraryAccess', 'all')
   }
@@ -86,7 +83,7 @@ function toggleLibrary(libraryId: string) {
     current.push(libraryId)
   }
 
-  emit('update:jellyfinLibraryAccess', current.length === 0 ? 'all' : current)
+  emit('update:jellyfinLibraryAccess', current)
 }
 
 function isSelected(libraryId: string): boolean {
