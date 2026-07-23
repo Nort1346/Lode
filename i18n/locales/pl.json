@@ -274,6 +274,8 @@
     "action_torrent_delete": "Usunięcie torrenta",
     "action_user_update": "Aktualizacja użytkownika",
     "action_user_delete": "Usunięcie użytkownika",
+    "action_user_password_change": "Zmiana hasła",
+    "action_user_force_sync": "Wymuszenie synchronizacji",
     "action_tracker_add": "Dodanie trackera",
     "action_tracker_update": "Aktualizacja trackera",
     "action_tracker_delete": "Usunięcie trackera",

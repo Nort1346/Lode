@@ -274,6 +274,8 @@
     "action_torrent_delete": "Torrent Delete",
     "action_user_update": "User Update",
     "action_user_delete": "User Delete",
+    "action_user_password_change": "Password Change",
+    "action_user_force_sync": "Force Sync",
     "action_tracker_add": "Tracker Add",
     "action_tracker_update": "Tracker Update",
     "action_tracker_delete": "Tracker Delete",

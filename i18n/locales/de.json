@@ -274,6 +274,8 @@
     "action_torrent_delete": "Torrent gelöscht",
     "action_user_update": "Benutzer aktualisiert",
     "action_user_delete": "Benutzer gelöscht",
+    "action_user_password_change": "Passwortänderung",
+    "action_user_force_sync": "Synchronisierung erzwingen",
     "action_tracker_add": "Tracker hinzugefügt",
     "action_tracker_update": "Tracker aktualisiert",
     "action_tracker_delete": "Tracker gelöscht",
