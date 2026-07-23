@@ -1,5 +1,5 @@
 import { eq, desc } from 'drizzle-orm'
-import { useDb } from '#server/utils/db'
+import { useDbAsync, dbAll } from '#server/utils/db'
 import { requests } from '#server/database/schema'
 
 export default defineEventHandler(async (event) => {
@@ -8,14 +8,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
 
-  const db = useDb()
+  const db = await useDbAsync()
 
-  const items = db
-    .select()
-    .from(requests)
-    .where(eq(requests.userId, session.user.id))
-    .orderBy(desc(requests.createdAt))
-    .all()
+  const items = await dbAll(
+    db.select().from(requests).where(eq(requests.userId, session.user.id)).orderBy(desc(requests.createdAt))
+  )
 
   return { requests: items }
 })

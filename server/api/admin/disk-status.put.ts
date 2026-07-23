@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
     await putSetting(SETTINGS.DISK_MIN_FREE_GB, String(body.minFreeSpaceGb))
   }
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'disk_config_update',
     userId: admin.id,
     username: admin.username,

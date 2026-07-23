@@ -5,6 +5,7 @@ import type { SyncProvider, SyncUserData, SyncUserSettings, SyncStatus } from '.
 import { JellyfinSyncProvider } from './providers/jellyfin'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
+import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 
 const ALL_PROVIDERS: SyncProvider[] = [new JellyfinSyncProvider()]
 
@@ -51,12 +52,13 @@ export async function getDefaultSyncSettings(overrides?: {
 }
 
 export async function getSyncUserSettings(userId: string, providerName: string): Promise<SyncUserSettings> {
-  const db = useDb()
-  const row = db
-    .select()
-    .from(syncUserSettings)
-    .where(and(eq(syncUserSettings.userId, userId), eq(syncUserSettings.providerName, providerName)))
-    .get()
+  const db = await useDbAsync()
+  const row = await dbGet(
+    db
+      .select()
+      .from(syncUserSettings)
+      .where(and(eq(syncUserSettings.userId, userId), eq(syncUserSettings.providerName, providerName)))
+  )
 
   if (!row) {
     return await defaultSyncSettingsOverrides()
@@ -73,34 +75,41 @@ export async function getSyncUserSettings(userId: string, providerName: string):
   }
 }
 
-export function upsertSyncUserSettings(userId: string, providerName: string, settings: SyncUserSettings): void {
-  const db = useDb()
-  const existing = db
-    .select()
-    .from(syncUserSettings)
-    .where(and(eq(syncUserSettings.userId, userId), eq(syncUserSettings.providerName, providerName)))
-    .get()
+export async function upsertSyncUserSettings(
+  userId: string,
+  providerName: string,
+  settings: SyncUserSettings
+): Promise<void> {
+  const db = await useDbAsync()
+  const existing = await dbGet(
+    db
+      .select()
+      .from(syncUserSettings)
+      .where(and(eq(syncUserSettings.userId, userId), eq(syncUserSettings.providerName, providerName)))
+  )
 
   const now = new Date().toISOString()
   const libraryAccess = JSON.stringify(settings.libraryAccess)
 
   if (existing) {
-    db.update(syncUserSettings)
-      .set({
-        libraryAccess,
-        enableVideoTranscoding: settings.enableVideoTranscoding,
-        enableAudioTranscoding: settings.enableAudioTranscoding,
-        enableRemuxing: settings.enableRemuxing,
-        enableLiveTvAccess: settings.enableLiveTvAccess,
-        enableLiveTvManagement: settings.enableLiveTvManagement,
-        maxActiveSessions: settings.maxActiveSessions,
-        updatedAt: now
-      })
-      .where(eq(syncUserSettings.id, existing.id))
-      .run()
+    await dbRun(
+      db
+        .update(syncUserSettings)
+        .set({
+          libraryAccess,
+          enableVideoTranscoding: settings.enableVideoTranscoding,
+          enableAudioTranscoding: settings.enableAudioTranscoding,
+          enableRemuxing: settings.enableRemuxing,
+          enableLiveTvAccess: settings.enableLiveTvAccess,
+          enableLiveTvManagement: settings.enableLiveTvManagement,
+          maxActiveSessions: settings.maxActiveSessions,
+          updatedAt: now
+        })
+        .where(eq(syncUserSettings.id, existing.id))
+    )
   } else {
-    db.insert(syncUserSettings)
-      .values({
+    await dbRun(
+      db.insert(syncUserSettings).values({
         id: randomUUID(),
         userId,
         providerName,
@@ -114,7 +123,7 @@ export function upsertSyncUserSettings(userId: string, providerName: string, set
         createdAt: now,
         updatedAt: now
       })
-      .run()
+    )
   }
 }
 
@@ -128,19 +137,20 @@ export async function getActiveSyncProviders(): Promise<SyncProvider[]> {
   return active
 }
 
-export function getProviderUserId(userId: string, providerName: string): string | null {
-  const db = useDb()
-  const row = db
-    .select()
-    .from(syncProviders)
-    .where(and(eq(syncProviders.userId, userId), eq(syncProviders.providerName, providerName)))
-    .get()
+export async function getProviderUserId(userId: string, providerName: string): Promise<string | null> {
+  const db = await useDbAsync()
+  const row = await dbGet(
+    db
+      .select()
+      .from(syncProviders)
+      .where(and(eq(syncProviders.userId, userId), eq(syncProviders.providerName, providerName)))
+  )
   return row?.providerUserId ?? null
 }
 
-export function getUserSyncStatuses(userId: string): SyncStatus[] {
-  const db = useDb()
-  const rows = db.select().from(syncProviders).where(eq(syncProviders.userId, userId)).all()
+export async function getUserSyncStatuses(userId: string): Promise<SyncStatus[]> {
+  const db = await useDbAsync()
+  const rows = await dbAll(db.select().from(syncProviders).where(eq(syncProviders.userId, userId)))
 
   return rows.map((row) => ({
     providerName: row.providerName,
@@ -169,7 +179,7 @@ export async function syncUserCreate(userId: string, data: SyncUserData, setting
 
   for (const provider of providers) {
     try {
-      const existingMapping = getProviderUserId(userId, provider.name)
+      const existingMapping = await getProviderUserId(userId, provider.name)
       if (existingMapping !== null) {
         await syncUserUpdate(userId, data, settings)
         continue
@@ -199,9 +209,9 @@ export async function syncUserCreate(userId: string, data: SyncUserData, setting
         }
       }
 
-      const db = useDb()
-      db.insert(syncProviders)
-        .values({
+      const db = await useDbAsync()
+      await dbRun(
+        db.insert(syncProviders).values({
           id: randomUUID(),
           userId,
           providerName: provider.name,
@@ -210,20 +220,20 @@ export async function syncUserCreate(userId: string, data: SyncUserData, setting
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         })
-        .run()
+      )
 
       try {
         await provider.updateUserSettings(providerUserId, settings)
-        upsertSyncUserSettings(userId, provider.name, settings)
+        await upsertSyncUserSettings(userId, provider.name, settings)
       } catch (settingsError) {
         const message = settingsError instanceof Error ? settingsError.message : String(settingsError)
         console.error(`[Sync] ${provider.name}.updateUserSettings failed for user ${userId}:`, message)
-        updateSyncStatus(userId, provider.name, 'failed', message)
+        await updateSyncStatus(userId, provider.name, 'failed', message)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.error(`[Sync] ${provider.name}.syncUserCreate failed for user ${userId}:`, message)
-      updateSyncStatus(userId, provider.name, 'failed', message)
+      await updateSyncStatus(userId, provider.name, 'failed', message)
     }
   }
 }
@@ -232,7 +242,7 @@ export async function syncUserUpdate(userId: string, data: SyncUserData, setting
   const providers = await getActiveSyncProviders()
 
   for (const provider of providers) {
-    let providerUserId = getProviderUserId(userId, provider.name)
+    let providerUserId = await getProviderUserId(userId, provider.name)
 
     if (providerUserId === null) {
       try {
@@ -241,7 +251,7 @@ export async function syncUserUpdate(userId: string, data: SyncUserData, setting
         const message = error instanceof Error ? error.message : String(error)
         console.error(`[Sync] ${provider.name}.retroactive create failed for user ${userId}:`, message)
       }
-      providerUserId = getProviderUserId(userId, provider.name)
+      providerUserId = await getProviderUserId(userId, provider.name)
       if (providerUserId === null) continue
     }
 
@@ -250,12 +260,12 @@ export async function syncUserUpdate(userId: string, data: SyncUserData, setting
         await provider.updateUserPassword(providerUserId, data.password)
       }
       await provider.updateUserSettings(providerUserId, settings)
-      updateSyncStatus(userId, provider.name, 'synced')
-      upsertSyncUserSettings(userId, provider.name, settings)
+      await updateSyncStatus(userId, provider.name, 'synced')
+      await upsertSyncUserSettings(userId, provider.name, settings)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.error(`[Sync] ${provider.name}.updateUser failed for user ${userId}:`, message)
-      updateSyncStatus(userId, provider.name, 'failed', message)
+      await updateSyncStatus(userId, provider.name, 'failed', message)
     }
   }
 }
@@ -264,7 +274,7 @@ export async function syncUserDelete(userId: string): Promise<void> {
   const providers = await getActiveSyncProviders()
 
   for (const provider of providers) {
-    const providerUserId = getProviderUserId(userId, provider.name)
+    const providerUserId = await getProviderUserId(userId, provider.name)
     if (providerUserId === null) {
       console.warn(`[Sync] ${provider.name}: no provider mapping for user ${userId}, skipping delete`)
       continue
@@ -278,16 +288,16 @@ export async function syncUserDelete(userId: string): Promise<void> {
     }
   }
 
-  const db = useDb()
-  db.delete(syncProviders).where(eq(syncProviders.userId, userId)).run()
-  db.delete(syncUserSettings).where(eq(syncUserSettings.userId, userId)).run()
+  const db = await useDbAsync()
+  await dbRun(db.delete(syncProviders).where(eq(syncProviders.userId, userId)))
+  await dbRun(db.delete(syncUserSettings).where(eq(syncUserSettings.userId, userId)))
 }
 
 export async function syncUserDisable(userId: string): Promise<void> {
   const providers = await getActiveSyncProviders()
 
   for (const provider of providers) {
-    const providerUserId = getProviderUserId(userId, provider.name)
+    const providerUserId = await getProviderUserId(userId, provider.name)
     if (providerUserId === null) {
       console.warn(`[Sync] ${provider.name}: no provider mapping for user ${userId}, skipping disable`)
       continue
@@ -295,11 +305,11 @@ export async function syncUserDisable(userId: string): Promise<void> {
 
     try {
       await provider.disableUser(providerUserId)
-      updateSyncStatus(userId, provider.name, 'synced')
+      await updateSyncStatus(userId, provider.name, 'synced')
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.error(`[Sync] ${provider.name}.disableUser failed for user ${userId}:`, message)
-      updateSyncStatus(userId, provider.name, 'failed', message)
+      await updateSyncStatus(userId, provider.name, 'failed', message)
     }
   }
 }
@@ -308,7 +318,7 @@ export async function syncUserEnable(userId: string): Promise<void> {
   const providers = await getActiveSyncProviders()
 
   for (const provider of providers) {
-    const providerUserId = getProviderUserId(userId, provider.name)
+    const providerUserId = await getProviderUserId(userId, provider.name)
     if (providerUserId === null) {
       console.warn(`[Sync] ${provider.name}: no provider mapping for user ${userId}, skipping enable`)
       continue
@@ -316,11 +326,11 @@ export async function syncUserEnable(userId: string): Promise<void> {
 
     try {
       await provider.enableUser(providerUserId)
-      updateSyncStatus(userId, provider.name, 'synced')
+      await updateSyncStatus(userId, provider.name, 'synced')
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.error(`[Sync] ${provider.name}.enableUser failed for user ${userId}:`, message)
-      updateSyncStatus(userId, provider.name, 'failed', message)
+      await updateSyncStatus(userId, provider.name, 'failed', message)
     }
   }
 }
@@ -329,7 +339,7 @@ export async function syncAvatar(userId: string, imageBuffer: Buffer): Promise<v
   const providers = await getActiveSyncProviders()
 
   for (const provider of providers) {
-    const providerUserId = getProviderUserId(userId, provider.name)
+    const providerUserId = await getProviderUserId(userId, provider.name)
     if (providerUserId === null) {
       console.warn(`[Sync] ${provider.name}: no provider mapping for user ${userId}, skipping avatar`)
       continue
@@ -348,7 +358,7 @@ export async function syncAvatarDelete(userId: string): Promise<void> {
   const providers = await getActiveSyncProviders()
 
   for (const provider of providers) {
-    const providerUserId = getProviderUserId(userId, provider.name)
+    const providerUserId = await getProviderUserId(userId, provider.name)
     if (providerUserId === null) {
       console.warn(`[Sync] ${provider.name}: no provider mapping for user ${userId}, skipping avatar delete`)
       continue
@@ -363,19 +373,21 @@ export async function syncAvatarDelete(userId: string): Promise<void> {
   }
 }
 
-function updateSyncStatus(
+async function updateSyncStatus(
   userId: string,
   providerName: string,
   status: 'synced' | 'pending' | 'failed',
   error?: string
-): void {
-  const db = useDb()
-  db.update(syncProviders)
-    .set({
-      syncStatus: status,
-      lastSyncError: error ?? null,
-      updatedAt: new Date().toISOString()
-    })
-    .where(and(eq(syncProviders.userId, userId), eq(syncProviders.providerName, providerName)))
-    .run()
+): Promise<void> {
+  const db = await useDbAsync()
+  await dbRun(
+    db
+      .update(syncProviders)
+      .set({
+        syncStatus: status,
+        lastSyncError: error ?? null,
+        updatedAt: new Date().toISOString()
+      })
+      .where(and(eq(syncProviders.userId, userId), eq(syncProviders.providerName, providerName)))
+  )
 }

@@ -40,6 +40,7 @@ describe('admin/sessions.get', () => {
         select: vi.fn(() => ({
           from: vi.fn(() => ({
             leftJoin: vi.fn(() => ({
+              get: vi.fn(),
               all: mockAll
             }))
           }))

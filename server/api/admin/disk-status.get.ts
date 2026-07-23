@@ -5,8 +5,8 @@ export default defineEventHandler(async (event) => {
 
   const config = useRuntimeConfig()
   const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
-  const minFreeGb = getDiskMinFreeGb()
-  const enabled = isDiskCheckEnabled()
+  const minFreeGb = await getDiskMinFreeGb()
+  const enabled = await isDiskCheckEnabled()
 
   const diskStatuses = checkAllDisks(disks, minFreeGb)
 

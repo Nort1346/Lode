@@ -1,5 +1,6 @@
 import { downloads, users, settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 import { sendDownloadCompleteWebhook } from './discord'
 import { notifyDownloadComplete } from './notifications'
 import { createLogger } from '#server/utils/logger'
@@ -9,17 +10,17 @@ const log = createLogger('TorrentSync')
 
 const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
 
-function isPrepCountdownEnabled(): boolean {
-  const row = useDb()
-    .select({ value: settings.value })
-    .from(settings)
-    .where(eq(settings.key, 'prep_countdown_enabled'))
-    .get()
+async function isPrepCountdownEnabled(): Promise<boolean> {
+  const db = await useDbAsync()
+  const row = await dbGet(
+    db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'prep_countdown_enabled'))
+  )
   return row?.value === 'true'
 }
 
-function getPrepSpeedMb(): number {
-  const row = useDb().select({ value: settings.value }).from(settings).where(eq(settings.key, 'prep_speed_mb')).get()
+async function getPrepSpeedMb(): Promise<number> {
+  const db = await useDbAsync()
+  const row = await dbGet(db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'prep_speed_mb')))
   return row !== undefined ? Number(row.value) : 15
 }
 
@@ -54,18 +55,18 @@ function notifyDiscord(
 }
 
 export async function syncTorrentStatus(): Promise<SyncResult> {
-  const db = useDb()
+  const db = await useDbAsync()
   const result: SyncResult = { synced: 0, completed: 0, failed: 0 }
 
-  const activeDownloads = db.select().from(downloads).where(eq(downloads.status, 'downloading')).all()
+  const activeDownloads = await dbAll(db.select().from(downloads).where(eq(downloads.status, 'downloading')))
 
   if (activeDownloads.length === 0) return result
 
-  const allUsers = db.select().from(users).all()
+  const allUsers = await dbAll(db.select().from(users))
   const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
   const discordIdMap = new Map(allUsers.map((u) => [u.id, u.discordId ?? null]))
 
-  const countdownEnabled = isPrepCountdownEnabled()
+  const countdownEnabled = await isPrepCountdownEnabled()
 
   let qbitTorrents
   try {
@@ -83,24 +84,26 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
       qbitTorrent = qbitTorrents.find((t) => t.name === dl.torrentName || t.name.includes(dl.torrentName))
 
       if (qbitTorrent !== undefined) {
-        db.update(downloads).set({ torrentHash: qbitTorrent.hash }).where(eq(downloads.id, dl.id)).run()
+        await dbRun(db.update(downloads).set({ torrentHash: qbitTorrent.hash }).where(eq(downloads.id, dl.id)))
         dl.torrentHash = qbitTorrent.hash
       }
     }
 
     if (qbitTorrent === undefined) {
       if (dl.downloadedBytes > 0 && dl.sizeBytes > 0 && dl.downloadedBytes >= dl.sizeBytes) {
-        db.update(downloads)
-          .set({
-            progress: 100,
-            etaSeconds: 0,
-            downloadSpeed: 0,
-            uploadSpeed: 0,
-            status: 'completed',
-            completedAt: new Date().toISOString()
-          })
-          .where(eq(downloads.id, dl.id))
-          .run()
+        await dbRun(
+          db
+            .update(downloads)
+            .set({
+              progress: 100,
+              etaSeconds: 0,
+              downloadSpeed: 0,
+              uploadSpeed: 0,
+              status: 'completed',
+              completedAt: new Date().toISOString()
+            })
+            .where(eq(downloads.id, dl.id))
+        )
         result.completed++
         if (!countdownEnabled) {
           void notifyDiscord(dl, userMap, discordIdMap)
@@ -116,7 +119,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           )
         }
       } else {
-        db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)).run()
+        await dbRun(db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)))
         result.failed++
       }
       continue
@@ -131,22 +134,24 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         completedStates.has(qbitTorrent.state))
 
     if (isComplete) {
-      db.update(downloads)
-        .set({
-          torrentName: qbitTorrent.name || dl.torrentName,
-          progress: 100,
-          etaSeconds: 0,
-          downloadSpeed: 0,
-          uploadSpeed: 0,
-          sizeBytes: qbitTorrent.size,
-          downloadedBytes: qbitTorrent.downloaded,
-          numSeeds: Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0),
-          numLeechs: qbitTorrent.num_leechs,
-          status: 'completed',
-          completedAt: new Date().toISOString()
-        })
-        .where(eq(downloads.id, dl.id))
-        .run()
+      await dbRun(
+        db
+          .update(downloads)
+          .set({
+            torrentName: qbitTorrent.name || dl.torrentName,
+            progress: 100,
+            etaSeconds: 0,
+            downloadSpeed: 0,
+            uploadSpeed: 0,
+            sizeBytes: qbitTorrent.size,
+            downloadedBytes: qbitTorrent.downloaded,
+            numSeeds: Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0),
+            numLeechs: qbitTorrent.num_leechs,
+            status: 'completed',
+            completedAt: new Date().toISOString()
+          })
+          .where(eq(downloads.id, dl.id))
+      )
       result.completed++
       if (!countdownEnabled) {
         void notifyDiscord(dl, userMap, discordIdMap)
@@ -162,20 +167,22 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         )
       }
     } else {
-      db.update(downloads)
-        .set({
-          torrentName: qbitTorrent.name || dl.torrentName,
-          progress: progressPct,
-          etaSeconds: qbitTorrent.eta,
-          downloadSpeed: qbitTorrent.dlspeed,
-          uploadSpeed: qbitTorrent.upspeed,
-          sizeBytes: qbitTorrent.size,
-          downloadedBytes: qbitTorrent.downloaded,
-          numSeeds: Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0),
-          numLeechs: qbitTorrent.num_leechs
-        })
-        .where(eq(downloads.id, dl.id))
-        .run()
+      await dbRun(
+        db
+          .update(downloads)
+          .set({
+            torrentName: qbitTorrent.name || dl.torrentName,
+            progress: progressPct,
+            etaSeconds: qbitTorrent.eta,
+            downloadSpeed: qbitTorrent.dlspeed,
+            uploadSpeed: qbitTorrent.upspeed,
+            sizeBytes: qbitTorrent.size,
+            downloadedBytes: qbitTorrent.downloaded,
+            numSeeds: Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0),
+            numLeechs: qbitTorrent.num_leechs
+          })
+          .where(eq(downloads.id, dl.id))
+      )
     }
 
     result.synced++
@@ -185,12 +192,12 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
 }
 
 export async function notifyJellyfinIfNeeded(): Promise<void> {
-  const db = useDb()
+  const db = await useDbAsync()
   const config = useRuntimeConfig()
   const jellyfin = useJellyfin()
 
-  const countdownEnabled = isPrepCountdownEnabled()
-  const prepSpeedMb = getPrepSpeedMb()
+  const countdownEnabled = await isPrepCountdownEnabled()
+  const prepSpeedMb = await getPrepSpeedMb()
   const prepSpeedBytes = prepSpeedMb * 1024 * 1024
 
   const savePathMap: Record<string, string> = {
@@ -201,16 +208,13 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
     music: config.savePathMusic
   }
 
-  const completedWithPrep = db
-    .select()
-    .from(downloads)
-    .where(eq(downloads.status, 'completed'))
-    .all()
-    .filter((d) => d.completedAt !== null)
+  const completedWithPrep = (await dbAll(db.select().from(downloads).where(eq(downloads.status, 'completed')))).filter(
+    (d) => d.completedAt !== null
+  )
 
   if (completedWithPrep.length === 0) return
 
-  const allUsers = db.select().from(users).all()
+  const allUsers = await dbAll(db.select().from(users))
   const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
   const discordIdMap = new Map(allUsers.map((u) => [u.id, u.discordId ?? null]))
 
@@ -243,7 +247,7 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
           dl.tmdbId
         )
       }
-      db.update(downloads).set({ completedAt: null }).where(eq(downloads.id, dl.id)).run()
+      await dbRun(db.update(downloads).set({ completedAt: null }).where(eq(downloads.id, dl.id)))
     }
   }
 

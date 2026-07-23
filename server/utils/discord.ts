@@ -8,6 +8,7 @@ import { Routes, MessageFlags } from 'discord-api-types/v10'
 import type { APIContainerComponent, APITextDisplayComponent } from 'discord-api-types/v10'
 import { settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { useDbAsync, dbGet } from '#server/utils/db'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from './tmdb'
 import { createLogger } from '#server/utils/logger'
 import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
@@ -22,15 +23,15 @@ const FALLBACK_POSTER_NAME = 'poster-not-found.png'
 const FALLBACK_POSTER_PATH = resolve(process.cwd(), 'public', FALLBACK_POSTER_NAME)
 const FALLBACK_POSTER_REF = `attachment://${FALLBACK_POSTER_NAME}`
 
-export function isDiscordMentionsEnabled(): boolean {
-  const db = useDb()
-  const row = db.select().from(settings).where(eq(settings.key, 'discord_mentions_enabled')).get()
+export async function isDiscordMentionsEnabled(): Promise<boolean> {
+  const db = await useDbAsync()
+  const row = await dbGet(db.select().from(settings).where(eq(settings.key, 'discord_mentions_enabled')))
   return row?.value === 'true'
 }
 
-export function getDiscordLocale(): DiscordLocale {
-  const db = useDb()
-  const row = db.select().from(settings).where(eq(settings.key, 'discord_locale')).get()
+export async function getDiscordLocale(): Promise<DiscordLocale> {
+  const db = await useDbAsync()
+  const row = await dbGet(db.select().from(settings).where(eq(settings.key, 'discord_locale')))
   const val = row?.value
   if (val !== undefined && val !== null && DISCORD_LOCALE_OPTIONS.includes(val as DiscordLocale)) {
     return val as DiscordLocale
@@ -39,7 +40,7 @@ export function getDiscordLocale(): DiscordLocale {
 }
 
 export async function fetchTmdbMeta(tmdbId: number, mediaType: string): Promise<TmdbMeta | null> {
-  const locale = getDiscordLocale()
+  const locale = await getDiscordLocale()
   try {
     if (mediaType === 'movie') {
       const movie = await getMovieDetails(tmdbId, locale)
@@ -134,7 +135,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
     return
   }
 
-  const locale = getDiscordLocale()
+  const locale = await getDiscordLocale()
   const t = createT(locale)
 
   let tmdb: TmdbMeta | null = null
@@ -215,7 +216,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
 
   const components: (APIContainerComponent | APITextDisplayComponent)[] = [container.toJSON()]
 
-  if (data.discordId !== null && data.discordId.length > 0 && isDiscordMentionsEnabled()) {
+  if (data.discordId !== null && data.discordId.length > 0 && (await isDiscordMentionsEnabled())) {
     const mentionText = new TextDisplayBuilder().setContent(`<@${data.discordId}>`)
     components.unshift(mentionText.toJSON())
   }
@@ -247,7 +248,7 @@ export async function notifyRequestPending(data: RequestPendingData): Promise<vo
   const webhookUrl = config.discordWebhookUrl as string
   if (!webhookUrl) return
 
-  const locale = getDiscordLocale()
+  const locale = await getDiscordLocale()
   const t = createT(locale)
 
   let tmdb: TmdbMeta | null = null

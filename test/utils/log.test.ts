@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { H3Event } from 'h3'
 
-const mockUseDb = vi.hoisted(() => vi.fn())
+const mockUseDbAsync = vi.hoisted(() => vi.fn())
+const mockDbRun = vi.hoisted(() => vi.fn())
 const mockInsert = vi.fn(() => ({ values: vi.fn(() => ({ run: vi.fn() })) }))
 
 vi.mock('#server/utils/db', () => ({
-  useDb: mockUseDb
+  useDbAsync: mockUseDbAsync,
+  dbRun: mockDbRun
 }))
 
 vi.mock('#server/database/schema', () => ({
@@ -40,26 +42,27 @@ import { logActivity } from '#server/utils/log'
 describe('logActivity', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseDb.mockReturnValue({ insert: mockInsert })
+    mockUseDbAsync.mockResolvedValue({ insert: mockInsert })
+    mockDbRun.mockResolvedValue({ changes: 1 })
   })
 
-  it('inserts activity log with provided fields', () => {
+  it('inserts activity log with provided fields', async () => {
     const event = {} as unknown as H3Event
-    logActivity(event, { action: 'test_action', userId: 'user-1', username: 'testuser', details: 'some details' })
+    await logActivity(event, { action: 'test_action', userId: 'user-1', username: 'testuser', details: 'some details' })
 
     expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ id: 'id', userId: 'userId' }))
   })
 
-  it('uses null for optional fields when not provided', () => {
+  it('uses null for optional fields when not provided', async () => {
     const event = {} as unknown as H3Event
-    logActivity(event, { action: 'test_action' })
+    await logActivity(event, { action: 'test_action' })
 
     expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ id: 'id' }))
   })
 
-  it('resolves IP address', () => {
+  it('resolves IP address', async () => {
     const event = {} as unknown as H3Event
-    logActivity(event, { action: 'login' })
+    await logActivity(event, { action: 'login' })
     expect(mockResolveIp).toHaveBeenCalledWith(event)
   })
 })

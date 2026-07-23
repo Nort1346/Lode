@@ -1,5 +1,6 @@
 import { wishlist } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -23,13 +24,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid media type' })
   }
 
-  const db = useDb()
+  const db = await useDbAsync()
 
-  const existing = db
-    .select()
-    .from(wishlist)
-    .where(and(eq(wishlist.userId, session.user.id), eq(wishlist.mediaType, mediaType), eq(wishlist.mediaId, mediaId)))
-    .get()
+  const existing = await dbGet(
+    db
+      .select()
+      .from(wishlist)
+      .where(
+        and(eq(wishlist.userId, session.user.id), eq(wishlist.mediaType, mediaType), eq(wishlist.mediaId, mediaId))
+      )
+  )
 
   if (existing) {
     throw createError({ statusCode: 409, statusMessage: 'Already in wishlist' })
@@ -37,8 +41,8 @@ export default defineEventHandler(async (event) => {
 
   const id = crypto.randomUUID()
 
-  db.insert(wishlist)
-    .values({
+  await dbRun(
+    db.insert(wishlist).values({
       id,
       userId: session.user.id,
       mediaType,
@@ -47,7 +51,7 @@ export default defineEventHandler(async (event) => {
       mediaPoster: mediaPoster ?? null,
       createdAt: new Date().toISOString()
     })
-    .run()
+  )
 
   return { success: true, id }
 })

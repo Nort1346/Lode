@@ -2,6 +2,7 @@ import { hash, compare } from '@node-rs/bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { syncUserUpdate, getSyncUserSettings, getProviderUserId } from '#server/utils/sync'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -23,8 +24,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'New password must differ from current' })
   }
 
-  const db = useDb()
-  const user = db.select().from(users).where(eq(users.id, session.user.id)).get()
+  const db = await useDbAsync()
+  const user = await dbGet(db.select().from(users).where(eq(users.id, session.user.id)))
 
   if (!user) {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
@@ -36,9 +37,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const hashedPassword = await hash(body.newPassword, 12)
-  db.update(users).set({ password: hashedPassword }).where(eq(users.id, session.user.id)).run()
+  await dbRun(db.update(users).set({ password: hashedPassword }).where(eq(users.id, session.user.id)))
 
-  const hasJellyfin = getProviderUserId(session.user.id, 'jellyfin') !== null
+  const hasJellyfin = (await getProviderUserId(session.user.id, 'jellyfin')) !== null
   if (hasJellyfin) {
     const syncSettings = await getSyncUserSettings(session.user.id, 'jellyfin')
     try {
@@ -48,7 +49,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'user_password_change',
     userId: session.user.id,
     username: user.username,

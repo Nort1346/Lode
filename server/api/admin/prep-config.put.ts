@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
     await putSetting(SETTINGS.PREP_SPEED_MB, String(Math.max(1, Math.min(100, Math.round(body.speedMb)))))
   }
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'prep_config_update',
     userId: admin.id,
     username: admin.username,

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockGetUserSession = vi.fn()
 const mockGet = vi.fn()
-const mockRun = vi.fn()
+const mockRun = vi.fn(() => ({ changes: 1 }))
 const mockLogActivity = vi.fn()
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
@@ -16,11 +16,11 @@ vi.stubGlobal(
     })),
     update: vi.fn(() => ({
       set: vi.fn(() => ({
-        where: vi.fn(() => ({ run: mockRun }))
+        where: vi.fn(() => ({ run: mockRun, get: vi.fn() }))
       }))
     })),
     insert: vi.fn(() => ({
-      values: vi.fn(() => ({ run: mockRun }))
+      values: vi.fn(() => ({ run: mockRun, get: vi.fn() }))
     }))
   }))
 )

@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { decryptAES } from '#server/utils/crypto'
 import { performTrackerLogin } from '#server/utils/tracker-auth'
 import { createLogger } from '#server/utils/logger'
+import { useDbAsync, dbGet, dbAll } from '#server/utils/db'
 import type { ProwlarrResult, ProwlarrRelease, TrackerType, TrackerCookieConfig } from '#server/types/prowlarr'
 
 const log = createLogger('Prowlarr')
@@ -17,10 +18,10 @@ export const PROWLARR_CATEGORIES = {
   BOOKS: 7000
 } as const
 
-export function getTrackerType(indexer: string): TrackerType | null {
+export async function getTrackerType(indexer: string): Promise<TrackerType | null> {
   if (POLISH_TRACKERS.includes(indexer)) return 'guid'
-  const db = useDb()
-  const row = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)).get()
+  const db = await useDbAsync()
+  const row = await dbGet(db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)))
   if (row === undefined) return null
   return row.trackerType as TrackerType
 }
@@ -29,8 +30,8 @@ export async function getTrackerCookieConfig(
   indexer: string,
   config: Record<string, unknown>
 ): Promise<TrackerCookieConfig | null> {
-  const db = useDb()
-  const row = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)).get()
+  const db = await useDbAsync()
+  const row = await dbGet(db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)))
 
   if (row !== undefined) {
     if (row.trackerType === 'counting') {
@@ -72,20 +73,20 @@ export async function getTrackerCookieConfig(
   return null
 }
 
-export function isPrivateTracker(indexer: string): boolean {
+export async function isPrivateTracker(indexer: string): Promise<boolean> {
   if (POLISH_TRACKERS.includes(indexer)) return true
-  const db = useDb()
-  const row = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)).get()
+  const db = await useDbAsync()
+  const row = await dbGet(db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)))
   return row !== undefined && row.enabled
 }
 
-export function getEnabledCustomTrackerNames(): string[] {
-  const db = useDb()
-  const rows = db.select().from(customTrackers).where(eq(customTrackers.enabled, true)).all()
+export async function getEnabledCustomTrackerNames(): Promise<string[]> {
+  const db = await useDbAsync()
+  const rows = await dbAll(db.select().from(customTrackers).where(eq(customTrackers.enabled, true)))
   return rows.map((r) => r.indexerName)
 }
 
-function normalizeResult(item: ProwlarrRelease): ProwlarrResult {
+async function normalizeResult(item: ProwlarrRelease): Promise<ProwlarrResult> {
   return {
     title: item.title,
     indexer: item.indexer,
@@ -99,7 +100,7 @@ function normalizeResult(item: ProwlarrRelease): ProwlarrResult {
     categories: item.categories ?? [],
     infoUrl: item.infoUrl ?? '',
     imdbId: item.imdbId ?? null,
-    isPrivate: isPrivateTracker(item.indexer)
+    isPrivate: await isPrivateTracker(item.indexer)
   }
 }
 
@@ -202,9 +203,9 @@ export class ProwlarrClient {
     }
     const raw = (await this.request('/api/v1/search', params)) as ProwlarrRelease[]
 
-    const customNames = getEnabledCustomTrackerNames()
+    const customNames = await getEnabledCustomTrackerNames()
     const results = deduplicateResults(
-      (raw ?? []).filter((item) => hasDownloadMethod(item, customNames)).map(normalizeResult)
+      await Promise.all((raw ?? []).filter((item) => hasDownloadMethod(item, customNames)).map(normalizeResult))
     )
 
     await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
@@ -223,7 +224,7 @@ export class ProwlarrClient {
     }
     const raw = (await this.request('/api/v1/search', params)) as ProwlarrRelease[]
 
-    const customNames = getEnabledCustomTrackerNames()
+    const customNames = await getEnabledCustomTrackerNames()
     const rawItems = raw ?? []
     const downloadable = rawItems.filter((item) => hasDownloadMethod(item, customNames))
     const filtered = rawItems.length - downloadable.length
@@ -231,7 +232,7 @@ export class ProwlarrClient {
       log.info(`[Prowlarr] searchByQuery: ${filtered}/${rawItems.length} results filtered (no download method)`)
     }
 
-    const results = deduplicateResults(downloadable.map(normalizeResult))
+    const results = deduplicateResults(await Promise.all(downloadable.map(normalizeResult)))
 
     // Don't cache empty results - retry on next request
     if (results.length > 0) {

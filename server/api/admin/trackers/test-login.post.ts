@@ -2,6 +2,7 @@ import { decryptAES } from '#server/utils/crypto'
 import { customTrackers } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { performTrackerLogin } from '#server/utils/tracker-auth'
+import { useDbAsync, dbGet } from '#server/utils/db'
 import type { TestLoginBody } from '#server/types/tracker'
 
 export default defineEventHandler(async (event) => {
@@ -19,8 +20,8 @@ export default defineEventHandler(async (event) => {
     trackerId !== '' &&
     (loginUrl === undefined || loginUrl.length === 0)
   ) {
-    const db = useDb()
-    const tracker = db.select().from(customTrackers).where(eq(customTrackers.id, trackerId)).get()
+    const db = await useDbAsync()
+    const tracker = await dbGet(db.select().from(customTrackers).where(eq(customTrackers.id, trackerId)))
     if (tracker === undefined) {
       throw createError({ statusCode: 404, statusMessage: 'Tracker not found' })
     }

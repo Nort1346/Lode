@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { stubAdminAuth } from '../../helpers'
 
 const mockGetUserSession = vi.fn()
-const mockRun = vi.fn()
+const mockRun = vi.fn(() => ({ changes: 1 }))
 const mockGetUser = vi.fn()
 const mockGetRouterParam = vi.fn()
 const mockLogActivity = vi.fn()
 const mockSyncUserDelete = vi.hoisted(() => vi.fn())
-const mockDelete = vi.fn(() => ({ where: vi.fn(() => ({ run: mockRun })) }))
+const mockDelete = vi.fn(() => ({ where: vi.fn(() => ({ run: mockRun, get: vi.fn() })) }))
 
 vi.mock('#server/utils/sync', () => ({
   syncUserDelete: mockSyncUserDelete

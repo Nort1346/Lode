@@ -1,7 +1,7 @@
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
   await resetRankingConfig()
-  logActivity(event, {
+  await logActivity(event, {
     action: 'ranking_config_reset',
     userId: admin.id,
     username: admin.username,

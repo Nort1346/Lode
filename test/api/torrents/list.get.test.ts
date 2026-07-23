@@ -35,6 +35,7 @@ vi.stubGlobal(
         if (callIndex > 1) {
           return {
             from: vi.fn(() => ({
+              get: vi.fn(),
               all: mockAllUsers
             }))
           }
@@ -45,6 +46,7 @@ vi.stubGlobal(
               orderBy: vi.fn(() => ({
                 limit: vi.fn(() => ({
                   offset: vi.fn(() => ({
+                    get: vi.fn(),
                     all: mockAll
                   }))
                 }))

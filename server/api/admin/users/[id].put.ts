@@ -8,6 +8,7 @@ import {
   getDefaultSyncSettings,
   upsertSyncUserSettings
 } from '#server/utils/sync'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import type { UpdateUserBody } from '#server/types/admin'
 
 export default defineEventHandler(async (event) => {
@@ -19,9 +20,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<UpdateUserBody>(event)
-  const db = useDb()
+  const db = await useDbAsync()
 
-  const user = db.select().from(users).where(eq(users.id, id)).get()
+  const user = await dbGet(db.select().from(users).where(eq(users.id, id)))
   if (!user) {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
@@ -87,8 +88,8 @@ export default defineEventHandler(async (event) => {
   }
 
   if (Object.keys(updates).length > 0) {
-    db.update(users).set(updates).where(eq(users.id, id)).run()
-    logActivity(event, {
+    await dbRun(db.update(users).set(updates).where(eq(users.id, id)))
+    await logActivity(event, {
       action: 'user_update',
       userId: admin.id,
       username: admin.username,
@@ -106,7 +107,7 @@ export default defineEventHandler(async (event) => {
     maxActiveSessions: body.jellyfinMaxActiveSessions
   })
 
-  upsertSyncUserSettings(id, 'jellyfin', syncSettings)
+  await upsertSyncUserSettings(id, 'jellyfin', syncSettings)
 
   if (body.isActive !== undefined && body.isActive !== user.isActive) {
     if (!body.isActive) {
@@ -116,7 +117,7 @@ export default defineEventHandler(async (event) => {
         console.error('[User] Jellyfin disable failed:', e)
       }
     } else {
-      db.update(users).set({ expiresAt: null }).where(eq(users.id, id)).run()
+      await dbRun(db.update(users).set({ expiresAt: null }).where(eq(users.id, id)))
       try {
         await syncUserEnable(id)
       } catch (e) {

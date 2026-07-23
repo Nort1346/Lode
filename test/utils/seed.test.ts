@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockUseDb = vi.hoisted(() => vi.fn())
+const mockUseDbAsync = vi.hoisted(() => vi.fn())
+const mockDbGet = vi.hoisted(() => vi.fn())
+const mockDbRun = vi.hoisted(() => vi.fn())
 const mockInsert = vi.fn(() => ({ values: vi.fn(() => ({ run: vi.fn() })) }))
 const mockGet = vi.fn()
 const mockWhere = vi.fn(() => ({ get: mockGet }))
@@ -9,7 +11,9 @@ const mockSelect = vi.fn(() => ({ from: mockFrom }))
 const mockHash = vi.hoisted(() => vi.fn(() => Promise.resolve('hashed-password')))
 
 vi.mock('#server/utils/db', () => ({
-  useDb: mockUseDb
+  useDbAsync: mockUseDbAsync,
+  dbGet: mockDbGet,
+  dbRun: mockDbRun
 }))
 
 vi.mock('#server/utils/logger', () => ({
@@ -43,23 +47,24 @@ import { ensureAdminExists } from '#server/utils/seed'
 describe('ensureAdminExists', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseDb.mockReturnValue({ select: mockSelect, insert: mockInsert })
+    mockUseDbAsync.mockResolvedValue({ select: mockSelect, insert: mockInsert })
+    mockDbRun.mockResolvedValue({ changes: 1 })
   })
 
   it('does not create admin when one already exists', async () => {
-    mockGet.mockReturnValue({ id: 'admin-1' })
+    mockDbGet.mockResolvedValue({ id: 'admin-1' })
     await ensureAdminExists()
     expect(mockInsert).not.toHaveBeenCalled()
   })
 
   it('creates admin when none exists', async () => {
-    mockGet.mockReturnValue(undefined)
+    mockDbGet.mockResolvedValue(undefined)
     await ensureAdminExists()
     expect(mockInsert).toHaveBeenCalled()
   })
 
   it('uses bcrypt hash for password', async () => {
-    mockGet.mockReturnValue(undefined)
+    mockDbGet.mockResolvedValue(undefined)
     await ensureAdminExists()
     expect(mockHash).toHaveBeenCalledWith('admin', 12)
   })

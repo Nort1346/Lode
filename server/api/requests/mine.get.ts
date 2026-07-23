@@ -1,5 +1,5 @@
 import { eq, and, desc } from 'drizzle-orm'
-import { useDb } from '#server/utils/db'
+import { useDbAsync, dbGet } from '#server/utils/db'
 import { requests } from '#server/database/schema'
 
 export default defineEventHandler(async (event) => {
@@ -16,20 +16,21 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing mediaType or mediaId' })
   }
 
-  const db = useDb()
+  const db = await useDbAsync()
 
-  const existing = db
-    .select()
-    .from(requests)
-    .where(
-      and(
-        eq(requests.userId, session.user.id),
-        eq(requests.mediaType, mediaType as 'movie' | 'tv'),
-        eq(requests.mediaId, mediaId)
+  const existing = await dbGet(
+    db
+      .select()
+      .from(requests)
+      .where(
+        and(
+          eq(requests.userId, session.user.id),
+          eq(requests.mediaType, mediaType as 'movie' | 'tv'),
+          eq(requests.mediaId, mediaId)
+        )
       )
-    )
-    .orderBy(desc(requests.createdAt))
-    .get()
+      .orderBy(desc(requests.createdAt))
+  )
 
   if (!existing) {
     return { status: null, adminNote: null }

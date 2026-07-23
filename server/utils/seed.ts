@@ -2,21 +2,21 @@ import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { hash } from '@node-rs/bcrypt'
 import { randomUUID } from 'node:crypto'
-import { useDb } from '#server/utils/db'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { createLogger } from '#server/utils/logger'
 
 const log = createLogger('DB')
 
 export async function ensureAdminExists() {
-  const db = useDb()
-  const admin = db.select().from(users).where(eq(users.role, 'admin')).get()
+  const db = await useDbAsync()
+  const admin = await dbGet(db.select().from(users).where(eq(users.role, 'admin')))
 
   if (!admin) {
     const id = randomUUID()
     const password = await hash('admin', 12)
 
-    db.insert(users)
-      .values({
+    await dbRun(
+      db.insert(users).values({
         id,
         username: 'admin',
         password,
@@ -28,7 +28,7 @@ export async function ensureAdminExists() {
         downloadsToday: 0,
         createdAt: new Date().toISOString()
       })
-      .run()
+    )
 
     log.info('Admin user created (username: admin, password: admin)')
   }

@@ -6,6 +6,7 @@ import type { BruteForceConfig, BlockedIpEntry, BruteForceStats } from '#server/
 import { SETTINGS } from '#server/types/settings'
 import { resolveIp } from '#server/utils/ip'
 import { getSetting, putSetting } from '#server/utils/settings'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 
 const DEFAULT_CONFIG: BruteForceConfig = {
   maxAttemptsPerIp: 5,
@@ -54,15 +55,16 @@ export async function isIpBlocked(ip: string): Promise<boolean> {
     return false
   }
 
-  const db = useDb()
+  const db = await useDbAsync()
   const config = await getBruteForceConfig()
   const windowStart = new Date(Date.now() - config.windowMinutes * 60_000).toISOString()
 
-  const row = db
-    .select({ cnt: count() })
-    .from(loginAttempts)
-    .where(and(eq(loginAttempts.ip, ip), eq(loginAttempts.success, false), gt(loginAttempts.createdAt, windowStart)))
-    .get()
+  const row = await dbGet(
+    db
+      .select({ cnt: count() })
+      .from(loginAttempts)
+      .where(and(eq(loginAttempts.ip, ip), eq(loginAttempts.success, false), gt(loginAttempts.createdAt, windowStart)))
+  )
 
   const failedCount = row?.cnt ?? 0
   if (failedCount >= config.maxAttemptsPerIp) {
@@ -78,12 +80,12 @@ export async function recordLoginAttempt(
   event: H3Event,
   options: { username: string; success: boolean }
 ): Promise<void> {
-  const db = useDb()
+  const db = await useDbAsync()
   const ip = resolveIp(event)
   const ua = getHeader(event, 'user-agent')
 
-  db.insert(loginAttempts)
-    .values({
+  await dbRun(
+    db.insert(loginAttempts).values({
       id: randomUUID(),
       ip: ip ?? 'unknown',
       username: options.username,
@@ -91,18 +93,19 @@ export async function recordLoginAttempt(
       userAgent: ua !== undefined && ua !== null && ua !== '' ? ua : null,
       createdAt: new Date().toISOString()
     })
-    .run()
+  )
 
   if (options.success || ip === null || ip === '') return
 
   const config = await getBruteForceConfig()
   const windowStart = new Date(Date.now() - config.windowMinutes * 60_000).toISOString()
 
-  const ipFailedRow = db
-    .select({ cnt: count() })
-    .from(loginAttempts)
-    .where(and(eq(loginAttempts.ip, ip), eq(loginAttempts.success, false), gt(loginAttempts.createdAt, windowStart)))
-    .get()
+  const ipFailedRow = await dbGet(
+    db
+      .select({ cnt: count() })
+      .from(loginAttempts)
+      .where(and(eq(loginAttempts.ip, ip), eq(loginAttempts.success, false), gt(loginAttempts.createdAt, windowStart)))
+  )
 
   const ipFailedCount = ipFailedRow?.cnt ?? 0
   if (ipFailedCount >= config.maxAttemptsPerIp) {
@@ -117,9 +120,9 @@ export async function blockIp(ip: string, _reason: string, durationMinutes?: num
   const blockUntil = Date.now() + duration * 60_000
   blockedIpsCache.set(ip, blockUntil)
 
-  const db = useDb()
-  db.insert(loginAttempts)
-    .values({
+  const db = await useDbAsync()
+  await dbRun(
+    db.insert(loginAttempts).values({
       id: randomUUID(),
       ip,
       username: null,
@@ -127,22 +130,20 @@ export async function blockIp(ip: string, _reason: string, durationMinutes?: num
       userAgent: null,
       createdAt: new Date().toISOString()
     })
-    .run()
+  )
 }
 
 export async function unblockIp(ip: string): Promise<void> {
   blockedIpsCache.delete(ip)
 
-  const db = useDb()
-  db.delete(loginAttempts)
-    .where(and(eq(loginAttempts.ip, ip), eq(loginAttempts.success, false)))
-    .run()
+  const db = await useDbAsync()
+  await dbRun(db.delete(loginAttempts).where(and(eq(loginAttempts.ip, ip), eq(loginAttempts.success, false))))
 }
 
 export async function getBlockedIps(): Promise<BlockedIpEntry[]> {
   startCacheCleanup()
   const entries: BlockedIpEntry[] = []
-  const db = useDb()
+  const db = await useDbAsync()
   const config = await getBruteForceConfig()
   const windowStart = new Date(Date.now() - config.windowMinutes * 60_000).toISOString()
 
@@ -151,11 +152,14 @@ export async function getBlockedIps(): Promise<BlockedIpEntry[]> {
       blockedIpsCache.delete(ip)
       continue
     }
-    const row = db
-      .select({ cnt: count() })
-      .from(loginAttempts)
-      .where(and(eq(loginAttempts.ip, ip), eq(loginAttempts.success, false), gt(loginAttempts.createdAt, windowStart)))
-      .get()
+    const row = await dbGet(
+      db
+        .select({ cnt: count() })
+        .from(loginAttempts)
+        .where(
+          and(eq(loginAttempts.ip, ip), eq(loginAttempts.success, false), gt(loginAttempts.createdAt, windowStart))
+        )
+    )
     entries.push({ ip, expiresAt, attemptsCount: row?.cnt ?? 0 })
   }
 
@@ -164,20 +168,24 @@ export async function getBlockedIps(): Promise<BlockedIpEntry[]> {
 
 export async function getBruteForceStats(): Promise<BruteForceStats> {
   startCacheCleanup()
-  const db = useDb()
+  const db = await useDbAsync()
   const since24h = new Date(Date.now() - 24 * 60 * 60_000).toISOString()
 
-  const totalRow = db.select({ cnt: count() }).from(loginAttempts).where(gt(loginAttempts.createdAt, since24h)).get()
-  const failedRow = db
-    .select({ cnt: count() })
-    .from(loginAttempts)
-    .where(and(eq(loginAttempts.success, false), gt(loginAttempts.createdAt, since24h)))
-    .get()
-  const successRow = db
-    .select({ cnt: count() })
-    .from(loginAttempts)
-    .where(and(eq(loginAttempts.success, true), gt(loginAttempts.createdAt, since24h)))
-    .get()
+  const totalRow = await dbGet(
+    db.select({ cnt: count() }).from(loginAttempts).where(gt(loginAttempts.createdAt, since24h))
+  )
+  const failedRow = await dbGet(
+    db
+      .select({ cnt: count() })
+      .from(loginAttempts)
+      .where(and(eq(loginAttempts.success, false), gt(loginAttempts.createdAt, since24h)))
+  )
+  const successRow = await dbGet(
+    db
+      .select({ cnt: count() })
+      .from(loginAttempts)
+      .where(and(eq(loginAttempts.success, true), gt(loginAttempts.createdAt, since24h)))
+  )
 
   let blockedIpsCount = 0
   for (const [, expiresAt] of blockedIpsCache) {
@@ -193,7 +201,7 @@ export async function getBruteForceStats(): Promise<BruteForceStats> {
 }
 
 export async function cleanupOldAttempts(): Promise<void> {
-  const db = useDb()
+  const db = await useDbAsync()
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString()
-  db.delete(loginAttempts).where(gt(loginAttempts.createdAt, cutoff)).run()
+  await dbRun(db.delete(loginAttempts).where(gt(loginAttempts.createdAt, cutoff)))
 }

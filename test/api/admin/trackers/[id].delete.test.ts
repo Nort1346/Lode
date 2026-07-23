@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { stubAdminAuth } from '../../helpers'
 
 const mockGetUserSession = vi.fn()
-const mockRun = vi.fn()
+const mockRun = vi.fn(() => ({ changes: 1 }))
 const mockGetTracker = vi.fn()
 const mockGetRouterParam = vi.fn()
 const mockLogActivity = vi.fn()
@@ -44,7 +44,8 @@ describe('admin/trackers/[id].delete', () => {
         })),
         delete: vi.fn(() => ({
           where: vi.fn(() => ({
-            run: mockRun
+            run: mockRun,
+            get: vi.fn()
           }))
         }))
       }))

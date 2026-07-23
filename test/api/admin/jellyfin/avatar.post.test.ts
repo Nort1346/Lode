@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { stubAdminAuth } from '../../helpers'
 
 const mockGetUserSession = vi.fn()
-const mockRun = vi.fn()
+const mockRun = vi.fn(() => ({ changes: 1 }))
 const mockSyncAvatar = vi.hoisted(() => vi.fn())
 const mockValidateAndProcessAvatar = vi.hoisted(() => vi.fn())
 
@@ -51,6 +51,7 @@ describe('admin/jellyfin/avatar.post', () => {
         update: vi.fn(() => ({
           set: vi.fn(() => ({
             where: vi.fn(() => ({
+              get: vi.fn(),
               run: mockRun
             }))
           }))

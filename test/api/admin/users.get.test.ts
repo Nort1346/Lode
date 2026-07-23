@@ -65,7 +65,8 @@ describe('admin/users.get', () => {
             all: vi.fn(() => {
               callCount++
               return users
-            })
+            }),
+            get: vi.fn(() => undefined)
           }))
         }))
       }))

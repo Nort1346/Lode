@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { useDb } from '#server/utils/db'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { requests } from '#server/database/schema'
 import { notifyRequestStatus } from '#server/utils/notifications'
 
@@ -24,24 +24,26 @@ export default defineEventHandler(async (event) => {
   const adminNote =
     rawAdminNote !== null && rawAdminNote !== undefined ? rawAdminNote.replace(/\n/g, ' ').trim().slice(0, 255) : null
 
-  const db = useDb()
+  const db = await useDbAsync()
 
-  const existing = db.select().from(requests).where(eq(requests.id, id)).get()
+  const existing = await dbGet(db.select().from(requests).where(eq(requests.id, id)))
   if (!existing) {
     throw createError({ statusCode: 404, statusMessage: 'Request not found' })
   }
 
-  db.update(requests)
-    .set({
-      status: status as 'accepted' | 'rejected',
-      adminNote: adminNote ?? null,
-      updatedAt: new Date().toISOString()
-    })
-    .where(eq(requests.id, id))
-    .run()
+  await dbRun(
+    db
+      .update(requests)
+      .set({
+        status: status as 'accepted' | 'rejected',
+        adminNote: adminNote ?? null,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(requests.id, id))
+  )
 
   if (status === 'accepted' || status === 'rejected') {
-    void notifyRequestStatus(
+    await notifyRequestStatus(
       existing.userId,
       id,
       status,

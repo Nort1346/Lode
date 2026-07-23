@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const mockCreateSqliteDb = vi.hoisted(() => vi.fn().mockReturnValue({ type: 'sqlite' }))
 const mockCreatePostgresDb = vi.hoisted(() => vi.fn().mockResolvedValue({ type: 'postgres' }))
 
+vi.unmock('#server/utils/db')
+
 vi.mock('#server/database/drivers/sqlite', () => ({
   createSqliteDb: mockCreateSqliteDb
 }))

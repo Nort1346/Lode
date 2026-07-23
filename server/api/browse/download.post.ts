@@ -1,6 +1,7 @@
 import { downloads, customTrackers } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
+import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 import { getTrackerCookieConfig, getTrackerType, isPrivateTracker } from '#server/utils/prowlarr'
 import { getFreshUser } from '#server/utils/user'
 import { clearSessionCache, performTrackerLogin } from '#server/utils/tracker-auth'
@@ -26,7 +27,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
     }
 
-    const freshUser = getFreshUser(session.user.id)
+    const freshUser = await getFreshUser(session.user.id)
     if (freshUser === undefined) {
       throw createError({ statusCode: 404, statusMessage: 'User not found' })
     }
@@ -53,7 +54,7 @@ export default defineEventHandler(async (event) => {
     const hasMagnet = rawMagnetLink.length > 0
     const hasDownloadUrl = downloadUrl.length > 0
     const hasGuid = guidUrl.length > 0
-    const isPrivateTrackerEnabled = isPrivateTracker(indexer)
+    const isPrivateTrackerEnabled = await isPrivateTracker(indexer)
 
     log.info(
       `[Download:1:START] user=${session.user.username} role=${session.user.role} indexer="${indexer}" isPrivate=${isPrivateTrackerEnabled} hasGuid=${hasGuid} hasMagnet=${hasMagnet} hasDownloadUrl=${hasDownloadUrl} label="${label}" savePath=${savePath}`
@@ -115,15 +116,16 @@ export default defineEventHandler(async (event) => {
 
     return await withTorrentAddLock(async () => {
       // ── 3: LIMITS (inside lock) ───────────────────────────────
-      const db = useDb()
+      const db = await useDbAsync()
 
       if (userRole !== 'admin') {
-        db.transaction(() => {
-          const userDownloads = db
-            .select()
-            .from(downloads)
-            .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
-            .all()
+        await db.transaction(async () => {
+          const userDownloads = await dbAll(
+            db
+              .select()
+              .from(downloads)
+              .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
+          )
 
           log.info(`[Download:3:LIMITS] active=${userDownloads.length}/${freshUser.activeTorrentLimit}`)
 
@@ -137,12 +139,9 @@ export default defineEventHandler(async (event) => {
           const todayStart = new Date()
           todayStart.setHours(0, 0, 0, 0)
 
-          const todayAll = db
-            .select()
-            .from(downloads)
-            .where(eq(downloads.userId, userId))
-            .all()
-            .filter((d) => new Date(d.createdAt) >= todayStart)
+          const todayAll = (await dbAll(db.select().from(downloads).where(eq(downloads.userId, userId)))).filter(
+            (d) => new Date(d.createdAt) >= todayStart
+          )
 
           const todayActive = todayAll.filter((d) => d.status !== 'failed' && d.status !== 'removed')
 
@@ -176,7 +175,7 @@ export default defineEventHandler(async (event) => {
       let torrent
       let storedMagnetLink: string
 
-      if (hasGuid && isPrivateTrackerEnabled && getTrackerType(indexer) === 'guid') {
+      if (hasGuid && isPrivateTrackerEnabled && (await getTrackerType(indexer)) === 'guid') {
         log.info(`[Download:5:TRACKER] entering private tracker path...`)
 
         const trackerConfig = await getTrackerCookieConfig(indexer, config)
@@ -207,7 +206,7 @@ export default defineEventHandler(async (event) => {
         )
 
         // Store tracker row for retry in step 7
-        const trackerRow = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)).get()
+        const trackerRow = await dbGet(db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexer)))
 
         // ── 6: FETCH via got-scraping (Chrome TLS impersonation) ─
         const cookiePreview = trackerConfig.cookie.substring(0, 20) + '...'
@@ -470,10 +469,10 @@ export default defineEventHandler(async (event) => {
       }
 
       // ── 9b: DISK CHECK POST-ADD ──────────────────────────────
-      if (torrent !== null && torrent.size > 0 && isDiskCheckEnabled()) {
+      if (torrent !== null && torrent.size > 0 && (await isDiskCheckEnabled())) {
         const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
         if (disks.length > 0) {
-          const allStatuses = checkAllDisks(disks, getDiskMinFreeGb())
+          const allStatuses = checkAllDisks(disks, await getDiskMinFreeGb())
           const lowDisk = allStatuses.find((d) => {
             if (!d.available) return true
             return torrent.size > d.freeBytes
@@ -484,8 +483,8 @@ export default defineEventHandler(async (event) => {
             )
             await qbit.deleteTorrent(torrent.hash, true).catch(() => {})
             const id = randomUUID()
-            db.insert(downloads)
-              .values({
+            await dbRun(
+              db.insert(downloads).values({
                 id,
                 userId,
                 label,
@@ -500,7 +499,7 @@ export default defineEventHandler(async (event) => {
                 mediaType: mediaType as 'movie' | 'tv' | null,
                 createdAt: new Date().toISOString()
               })
-              .run()
+            )
             throw createError({
               statusCode: 507,
               statusMessage: `Torrent too large for disk (${formatSize(torrent.size)}). Free: ${lowDisk.freeFormatted}${userRole === 'admin' ? ` on ${lowDisk.path}` : ''}`
@@ -531,12 +530,12 @@ export default defineEventHandler(async (event) => {
       }
 
       const id = randomUUID()
-      const isPrivateDownload = getTrackerType(indexer) !== null
+      const isPrivateDownload = (await getTrackerType(indexer)) !== null
       log.info(
         `[Download:10:DB] inserting: id=${id} status=downloading hash=${torrent?.hash ?? 'null'} isPrivate=${isPrivateDownload}`
       )
-      db.insert(downloads)
-        .values({
+      await dbRun(
+        db.insert(downloads).values({
           id,
           userId,
           label: label ?? '',
@@ -557,9 +556,9 @@ export default defineEventHandler(async (event) => {
           posterUrl,
           isPrivate: isPrivateDownload
         })
-        .run()
+      )
 
-      logActivity(event, {
+      await logActivity(event, {
         action: 'torrent_add',
         userId,
         username,

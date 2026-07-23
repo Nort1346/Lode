@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { stubAdminAuth } from '../../helpers'
 
 const mockGetUserSession = vi.fn()
-const mockRun = vi.fn()
+const mockRun = vi.fn(() => ({ changes: 1 }))
 const mockGetTracker = vi.fn()
 const mockGetNameTaken = vi.fn()
 const mockReadBody = vi.fn()

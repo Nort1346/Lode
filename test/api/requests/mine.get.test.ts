@@ -5,8 +5,9 @@ const mockGet = vi.fn()
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
 
-vi.mock('#server/utils/db', () => ({
-  useDb: vi.fn(() => ({
+vi.stubGlobal(
+  'useDb',
+  vi.fn(() => ({
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: vi.fn(() => ({
@@ -17,7 +18,7 @@ vi.mock('#server/utils/db', () => ({
       }))
     }))
   }))
-}))
+)
 
 vi.mock('#server/database/schema', () => ({
   requests: { userId: 'userId', mediaType: 'mediaType', mediaId: 'mediaId', createdAt: 'createdAt' }

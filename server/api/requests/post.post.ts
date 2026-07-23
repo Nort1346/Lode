@@ -1,4 +1,5 @@
 import { eq, and } from 'drizzle-orm'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { requests } from '#server/database/schema'
 import { notifyRequestPending } from '#server/utils/discord'
 
@@ -28,13 +29,16 @@ export default defineEventHandler(async (event) => {
   const userNote =
     rawUserNote !== null && rawUserNote !== undefined ? rawUserNote.replace(/\n/g, ' ').trim().slice(0, 255) : null
 
-  const db = useDb()
+  const db = await useDbAsync()
 
-  const existing = db
-    .select()
-    .from(requests)
-    .where(and(eq(requests.userId, session.user.id), eq(requests.mediaType, mediaType), eq(requests.mediaId, mediaId)))
-    .get()
+  const existing = await dbGet(
+    db
+      .select()
+      .from(requests)
+      .where(
+        and(eq(requests.userId, session.user.id), eq(requests.mediaType, mediaType), eq(requests.mediaId, mediaId))
+      )
+  )
 
   if (existing) {
     if (existing.status === 'pending') {
@@ -49,8 +53,8 @@ export default defineEventHandler(async (event) => {
   const id = crypto.randomUUID()
   const now = new Date().toISOString()
 
-  db.insert(requests)
-    .values({
+  await dbRun(
+    db.insert(requests).values({
       id,
       userId: session.user.id,
       username: session.user.username,
@@ -63,7 +67,7 @@ export default defineEventHandler(async (event) => {
       createdAt: now,
       updatedAt: now
     })
-    .run()
+  )
 
   notifyRequestPending({
     id,

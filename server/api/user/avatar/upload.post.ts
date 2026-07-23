@@ -4,6 +4,7 @@ import { validateAndProcessAvatar } from '#server/utils/avatar'
 import { syncAvatar } from '#server/utils/sync'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { useDbAsync, dbRun } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -32,11 +33,13 @@ export default defineEventHandler(async (event) => {
   const avatarPath = resolve(avatarsDir, `${session.user.id}.jpg`)
   writeFileSync(avatarPath, processedImage)
 
-  const db = useDb()
-  db.update(users)
-    .set({ avatarUrl: `/avatars/${session.user.id}.jpg` })
-    .where(eq(users.id, session.user.id))
-    .run()
+  const db = await useDbAsync()
+  await dbRun(
+    db
+      .update(users)
+      .set({ avatarUrl: `/avatars/${session.user.id}.jpg` })
+      .where(eq(users.id, session.user.id))
+  )
 
   await syncAvatar(session.user.id, processedImage)
 

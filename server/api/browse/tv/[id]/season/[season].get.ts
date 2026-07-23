@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
 
   const locale = (getQuery(event).locale as string | undefined) ?? 'en'
 
-  const limit = checkDailyLimit(session.user.id)
+  const limit = await checkDailyLimit(session.user.id)
   if (limit.reached) {
     throw createError({
       statusCode: 429,

@@ -3,6 +3,7 @@ import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { syncUserCreate, syncUserUpdate, getSyncUserSettings, getProviderUserId } from '#server/utils/sync'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -27,8 +28,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'User ID is required' })
   }
 
-  const db = useDb()
-  const user = db.select().from(users).where(eq(users.id, id)).get()
+  const db = await useDbAsync()
+  const user = await dbGet(db.select().from(users).where(eq(users.id, id)))
   if (!user) {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
@@ -52,7 +53,7 @@ export default defineEventHandler(async (event) => {
     action = 'created'
     tempPassword = generateTempPassword()
     const hashedPassword = await hash(tempPassword, 12)
-    db.update(users).set({ password: hashedPassword }).where(eq(users.id, id)).run()
+    await dbRun(db.update(users).set({ password: hashedPassword }).where(eq(users.id, id)))
 
     try {
       await syncUserCreate(id, { username: user.username, password: tempPassword }, syncSettings)
@@ -74,7 +75,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'user_force_sync',
     userId: admin.id,
     username: admin.username,

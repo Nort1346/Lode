@@ -5,13 +5,31 @@ const mockDbInsert = vi.fn()
 const mockDbUpdate = vi.fn()
 
 vi.stubGlobal(
-  'useDb',
-  vi.fn(() => ({
-    select: mockDbSelect,
-    insert: mockDbInsert,
-    update: mockDbUpdate
-  }))
+  'useDbAsync',
+  vi.fn(() =>
+    Promise.resolve({
+      select: mockDbSelect,
+      insert: mockDbInsert,
+      update: mockDbUpdate
+    })
+  )
 )
+
+vi.mock('#server/utils/db', () => ({
+  useDbAsync: vi.fn(() =>
+    Promise.resolve({
+      select: mockDbSelect,
+      insert: mockDbInsert,
+      update: mockDbUpdate
+    })
+  ),
+  dbGet: vi.fn(async (chain: { get(): unknown }) => chain.get()),
+  dbAll: vi.fn(async (chain: { all(): unknown[] }) => chain.all()),
+  dbRun: vi.fn(async (chain: { run(): { changes?: number } }) => {
+    const result = chain.run()
+    return { changes: result?.changes ?? 0 }
+  })
+}))
 
 vi.mock('#server/utils/sse-hubs', () => ({
   notifySseClients: vi.fn()
@@ -90,7 +108,7 @@ describe('notifications', () => {
   describe('createNotification', () => {
     it('inserts new notification when none exists', async () => {
       const mockGet = vi.fn(() => undefined)
-      const mockRun = vi.fn()
+      const mockRun = vi.fn(() => ({ changes: 1 }))
       mockDbSelect.mockReturnValue({
         from: vi.fn(() => ({
           where: vi.fn(() => ({ get: mockGet }))
@@ -123,7 +141,7 @@ describe('notifications', () => {
 
     it('updates existing unread notification of same type', async () => {
       const mockGet = vi.fn(() => ({ id: 'existing-id' }))
-      const mockRun = vi.fn()
+      const mockRun = vi.fn(() => ({ changes: 1 }))
       mockDbSelect.mockReturnValue({
         from: vi.fn(() => ({
           where: vi.fn(() => ({ get: mockGet }))
@@ -154,7 +172,7 @@ describe('notifications', () => {
   })
 
   describe('getUserNotifications', () => {
-    it('returns parsed notifications for user', () => {
+    it('returns parsed notifications for user', async () => {
       const mockAll = vi.fn(() => [
         {
           id: 'n1',
@@ -178,12 +196,12 @@ describe('notifications', () => {
         }))
       })
 
-      const result = getUserNotifications('user1')
+      const result = await getUserNotifications('user1')
       expect(result).toHaveLength(1)
       expect(result[0]!.data).toEqual({ downloadId: 'd1' })
     })
 
-    it('returns empty array when no notifications', () => {
+    it('returns empty array when no notifications', async () => {
       const mockAll = vi.fn(() => [])
       mockDbSelect.mockReturnValue({
         from: vi.fn(() => ({
@@ -195,13 +213,13 @@ describe('notifications', () => {
         }))
       })
 
-      const result = getUserNotifications('user1')
+      const result = await getUserNotifications('user1')
       expect(result).toEqual([])
     })
   })
 
   describe('getUnreadCount', () => {
-    it('returns unread count', () => {
+    it('returns unread count', async () => {
       const mockAll = vi.fn(() => [{ count: 5 }])
       mockDbSelect.mockReturnValue({
         from: vi.fn(() => ({
@@ -209,10 +227,10 @@ describe('notifications', () => {
         }))
       })
 
-      expect(getUnreadCount('user1')).toBe(5)
+      expect(await getUnreadCount('user1')).toBe(5)
     })
 
-    it('returns 0 when no unread', () => {
+    it('returns 0 when no unread', async () => {
       const mockAll = vi.fn(() => [{ count: 0 }])
       mockDbSelect.mockReturnValue({
         from: vi.fn(() => ({
@@ -220,10 +238,10 @@ describe('notifications', () => {
         }))
       })
 
-      expect(getUnreadCount('user1')).toBe(0)
+      expect(await getUnreadCount('user1')).toBe(0)
     })
 
-    it('returns 0 when no results', () => {
+    it('returns 0 when no results', async () => {
       const mockAll = vi.fn(() => [])
       mockDbSelect.mockReturnValue({
         from: vi.fn(() => ({
@@ -231,12 +249,12 @@ describe('notifications', () => {
         }))
       })
 
-      expect(getUnreadCount('user1')).toBe(0)
+      expect(await getUnreadCount('user1')).toBe(0)
     })
   })
 
   describe('markAsRead', () => {
-    it('marks notification as read and notifies SSE', () => {
+    it('marks notification as read and notifies SSE', async () => {
       const mockRun = vi.fn(() => ({ changes: 1 }))
       mockDbUpdate.mockReturnValue({
         set: vi.fn(() => ({
@@ -244,7 +262,7 @@ describe('notifications', () => {
         }))
       })
 
-      const result = markAsRead('notif1', 'user1')
+      const result = await markAsRead('notif1', 'user1')
       expect(result).toBe(true)
       expect(notifySseClients).toHaveBeenCalledWith('user1', {
         type: 'read_update',
@@ -252,7 +270,7 @@ describe('notifications', () => {
       })
     })
 
-    it('returns false when notification not found', () => {
+    it('returns false when notification not found', async () => {
       const mockRun = vi.fn(() => ({ changes: 0 }))
       mockDbUpdate.mockReturnValue({
         set: vi.fn(() => ({
@@ -260,13 +278,13 @@ describe('notifications', () => {
         }))
       })
 
-      const result = markAsRead('nonexistent', 'user1')
+      const result = await markAsRead('nonexistent', 'user1')
       expect(result).toBe(false)
     })
   })
 
   describe('markAllAsRead', () => {
-    it('marks all as read and returns count', () => {
+    it('marks all as read and returns count', async () => {
       const mockRun = vi.fn(() => ({ changes: 3 }))
       mockDbUpdate.mockReturnValue({
         set: vi.fn(() => ({
@@ -274,12 +292,12 @@ describe('notifications', () => {
         }))
       })
 
-      const result = markAllAsRead('user1')
+      const result = await markAllAsRead('user1')
       expect(result).toBe(3)
       expect(notifySseClients).toHaveBeenCalledWith('user1', { type: 'read_all_update' })
     })
 
-    it('returns 0 when nothing to mark', () => {
+    it('returns 0 when nothing to mark', async () => {
       const mockRun = vi.fn(() => ({ changes: 0 }))
       mockDbUpdate.mockReturnValue({
         set: vi.fn(() => ({
@@ -287,7 +305,7 @@ describe('notifications', () => {
         }))
       })
 
-      const result = markAllAsRead('user1')
+      const result = await markAllAsRead('user1')
       expect(result).toBe(0)
     })
   })

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { compare } from '@node-rs/bcrypt'
 import { sessions, users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { syncUserDisable } from '#server/utils/sync'
 import type { LoginBody } from '#server/types/auth'
 
@@ -14,19 +15,19 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })
   }
 
-  const db = useDb()
-  const user = db.select().from(users).where(eq(users.username, username)).get()
+  const db = await useDbAsync()
+  const user = await dbGet(db.select().from(users).where(eq(users.username, username)))
 
   if (!user) {
-    logActivity(event, { action: 'login_failed', username, details: 'User not found' })
+    await logActivity(event, { action: 'login_failed', username, details: 'User not found' })
     await recordLoginAttempt(event, { username, success: false })
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
   }
 
   if (user.expiresAt !== null && user.expiresAt !== '' && new Date(user.expiresAt) <= new Date()) {
-    db.update(users).set({ isActive: false }).where(eq(users.id, user.id)).run()
+    await dbRun(db.update(users).set({ isActive: false }).where(eq(users.id, user.id)))
     syncUserDisable(user.id).catch(() => {})
-    logActivity(event, {
+    await logActivity(event, {
       action: 'login_failed',
       userId: user.id,
       username: user.username,
@@ -37,7 +38,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (!user.isActive) {
-    logActivity(event, {
+    await logActivity(event, {
       action: 'login_failed',
       userId: user.id,
       username: user.username,
@@ -49,7 +50,12 @@ export default defineEventHandler(async (event) => {
 
   const valid = await compare(password, user.password)
   if (!valid) {
-    logActivity(event, { action: 'login_failed', userId: user.id, username: user.username, details: 'Wrong password' })
+    await logActivity(event, {
+      action: 'login_failed',
+      userId: user.id,
+      username: user.username,
+      details: 'Wrong password'
+    })
     await recordLoginAttempt(event, { username: user.username, success: false })
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
   }
@@ -62,8 +68,8 @@ export default defineEventHandler(async (event) => {
   const now = new Date().toISOString()
   const deviceName = parseDeviceName(ua)
 
-  db.insert(sessions)
-    .values({
+  await dbRun(
+    db.insert(sessions).values({
       id: sessionId,
       userId: user.id,
       ip,
@@ -72,7 +78,7 @@ export default defineEventHandler(async (event) => {
       createdAt: now,
       lastActiveAt: now
     })
-    .run()
+  )
 
   await enforceMaxSessions(user.id, user.maxSessions)
 
@@ -91,7 +97,7 @@ export default defineEventHandler(async (event) => {
     sessionId
   })
 
-  logActivity(event, { action: 'login', userId: user.id, username: user.username })
+  await logActivity(event, { action: 'login', userId: user.id, username: user.username })
 
   return { success: true, user: { id: user.id, username: user.username, role: user.role } }
 })

@@ -5,19 +5,21 @@ const mockAll = vi.fn()
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
 
-vi.mock('#server/utils/db', () => ({
-  useDb: vi.fn(() => ({
+vi.stubGlobal(
+  'useDb',
+  vi.fn(() => ({
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: vi.fn(() => ({
           orderBy: vi.fn(() => ({
+            get: vi.fn(),
             all: mockAll
           }))
         }))
       }))
     }))
   }))
-}))
+)
 
 vi.mock('#server/database/schema', () => ({
   requests: { userId: 'userId', createdAt: 'createdAt' }

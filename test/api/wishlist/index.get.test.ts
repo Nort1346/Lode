@@ -9,7 +9,7 @@ vi.stubGlobal(
   vi.fn(() => ({
     select: vi.fn(() => ({
       from: vi.fn(() => ({
-        where: vi.fn(() => ({ all: mockAll }))
+        where: vi.fn(() => ({ get: vi.fn(), all: mockAll }))
       }))
     }))
   }))

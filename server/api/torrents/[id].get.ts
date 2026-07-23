@@ -1,5 +1,6 @@
 import { downloads } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -12,8 +13,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Download ID is required' })
   }
 
-  const db = useDb()
-  const download = db.select().from(downloads).where(eq(downloads.id, id)).get()
+  const db = await useDbAsync()
+  const download = await dbGet(db.select().from(downloads).where(eq(downloads.id, id)))
 
   if (!download) {
     throw createError({ statusCode: 404, statusMessage: 'Download not found' })
@@ -37,18 +38,20 @@ export default defineEventHandler(async (event) => {
           progressPct >= 99.9 ||
           completedStates.has(torrent.state)
 
-        db.update(downloads)
-          .set({
-            progress: isComplete ? 100 : progressPct,
-            etaSeconds: isComplete ? 0 : torrent.eta,
-            downloadSpeed: isComplete ? 0 : torrent.dlspeed,
-            uploadSpeed: isComplete ? 0 : torrent.upspeed,
-            downloadedBytes: torrent.downloaded,
-            status: isComplete ? 'completed' : 'downloading',
-            completedAt: isComplete ? new Date().toISOString() : null
-          })
-          .where(eq(downloads.id, id))
-          .run()
+        await dbRun(
+          db
+            .update(downloads)
+            .set({
+              progress: isComplete ? 100 : progressPct,
+              etaSeconds: isComplete ? 0 : torrent.eta,
+              downloadSpeed: isComplete ? 0 : torrent.dlspeed,
+              uploadSpeed: isComplete ? 0 : torrent.upspeed,
+              downloadedBytes: torrent.downloaded,
+              status: isComplete ? 'completed' : 'downloading',
+              completedAt: isComplete ? new Date().toISOString() : null
+            })
+            .where(eq(downloads.id, id))
+        )
 
         return {
           ...download,

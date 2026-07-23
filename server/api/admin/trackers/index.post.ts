@@ -2,6 +2,7 @@ import { customTrackers } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { encryptAES } from '#server/utils/crypto'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import type { CreateTrackerBody } from '#server/types/tracker'
 
 export default defineEventHandler(async (event) => {
@@ -28,8 +29,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const db = useDb()
-  const existing = db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexerName)).get()
+  const db = await useDbAsync()
+  const existing = await dbGet(db.select().from(customTrackers).where(eq(customTrackers.indexerName, indexerName)))
 
   if (existing !== undefined) {
     throw createError({ statusCode: 409, statusMessage: `Tracker "${indexerName}" already exists` })
@@ -41,8 +42,8 @@ export default defineEventHandler(async (event) => {
   const loginUsernameValue = trackerType === 'guid' && hasLogin ? (body.loginUsername?.trim() ?? '') : null
   const loginPasswordValue = trackerType === 'guid' && hasLogin ? encryptAES(body.loginPassword?.trim() ?? '') : null
 
-  db.insert(customTrackers)
-    .values({
+  await dbRun(
+    db.insert(customTrackers).values({
       id,
       indexerName,
       trackerType,
@@ -53,9 +54,9 @@ export default defineEventHandler(async (event) => {
       enabled: true,
       createdAt: new Date().toISOString()
     })
-    .run()
+  )
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'tracker_add',
     userId: user.id,
     username: user.username,

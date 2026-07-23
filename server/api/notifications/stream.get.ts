@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
   const nodeRes = event.node.res
   const userId = session.user.id
 
-  const unreadCount = getUnreadCount(userId)
+  const unreadCount = await getUnreadCount(userId)
   nodeRes.write(`data: ${JSON.stringify({ type: 'init', unreadCount })}\n\n`)
 
   const unsubscribe = subscribeToNotifications(userId, (data) => {

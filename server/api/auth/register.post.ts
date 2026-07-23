@@ -2,6 +2,7 @@ import { hash } from '@node-rs/bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { syncNewUser, getDefaultSyncSettings } from '#server/utils/sync'
 import type { RegisterBody } from '#server/types/auth'
 
@@ -24,8 +25,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Only admins can create users' })
   }
 
-  const db = useDb()
-  const existing = db.select().from(users).where(eq(users.username, username)).get()
+  const db = await useDbAsync()
+  const existing = await dbGet(db.select().from(users).where(eq(users.username, username)))
   if (existing) {
     throw createError({ statusCode: 409, statusMessage: 'Username already exists' })
   }
@@ -43,8 +44,8 @@ export default defineEventHandler(async (event) => {
 
   const hashedPassword = await hash(password, 12)
 
-  db.insert(users)
-    .values({
+  await dbRun(
+    db.insert(users).values({
       id,
       username,
       password: hashedPassword,
@@ -57,17 +58,17 @@ export default defineEventHandler(async (event) => {
       createdAt: new Date().toISOString(),
       syncStatus: 'pending'
     })
-    .run()
+  )
 
   const syncStatus = await syncNewUser(id, { username, password }, syncSettings)
 
   if (syncStatus === 'synced') {
-    db.update(users).set({ syncStatus: 'synced' }).where(eq(users.id, id)).run()
+    await dbRun(db.update(users).set({ syncStatus: 'synced' }).where(eq(users.id, id)))
   } else {
-    db.update(users).set({ syncStatus: 'failed' }).where(eq(users.id, id)).run()
+    await dbRun(db.update(users).set({ syncStatus: 'failed' }).where(eq(users.id, id)))
   }
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'register',
     userId: session.user.id,
     username: session.user.username,

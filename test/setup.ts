@@ -20,3 +20,11 @@ vi.mock('h3', () => ({
   readBody: mockReadBody,
   getQuery: mockGetQuery
 }))
+
+vi.mock('#server/utils/db', async () => {
+  const actual = await vi.importActual<typeof import('#server/utils/db')>('#server/utils/db')
+  return {
+    ...actual,
+    useDbAsync: async () => (globalThis as { useDb?: () => unknown }).useDb?.()
+  }
+})

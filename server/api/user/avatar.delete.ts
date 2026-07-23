@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { syncAvatarDelete } from '#server/utils/sync'
 import { unlinkSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { useDbAsync, dbRun } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -10,8 +11,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
 
-  const db = useDb()
-  db.update(users).set({ avatarUrl: null }).where(eq(users.id, session.user.id)).run()
+  const db = await useDbAsync()
+  await dbRun(db.update(users).set({ avatarUrl: null }).where(eq(users.id, session.user.id)))
 
   const avatarPath = resolve(process.cwd(), '.output', 'public', 'avatars', `${session.user.id}.jpg`)
   try {

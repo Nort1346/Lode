@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const raw = (await response.json()) as ProwlarrDebugRelease[]
-  const customNames = getEnabledCustomTrackerNames()
+  const customNames = await getEnabledCustomTrackerNames()
 
   const results = raw.map((item) => {
     const hasMagnet = item.magnetUrl !== null && item.magnetUrl !== undefined

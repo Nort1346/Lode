@@ -31,7 +31,8 @@ describe('admin/trackers/index.get', () => {
       vi.fn(() => ({
         select: vi.fn(() => ({
           from: vi.fn(() => ({
-            all: mockAll
+            all: mockAll,
+            get: vi.fn()
           }))
         }))
       }))
@@ -55,7 +56,8 @@ describe('admin/trackers/index.get', () => {
       vi.fn(() => ({
         select: vi.fn(() => ({
           from: vi.fn(() => ({
-            all: mockAll
+            all: mockAll,
+            get: vi.fn()
           }))
         }))
       }))

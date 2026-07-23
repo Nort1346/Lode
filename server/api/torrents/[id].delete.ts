@@ -1,5 +1,6 @@
 import { downloads } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -12,8 +13,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Download ID is required' })
   }
 
-  const db = useDb()
-  const download = db.select().from(downloads).where(eq(downloads.id, id)).get()
+  const db = await useDbAsync()
+  const download = await dbGet(db.select().from(downloads).where(eq(downloads.id, id)))
 
   if (!download) {
     throw createError({ statusCode: 404, statusMessage: 'Download not found' })
@@ -32,9 +33,9 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  db.update(downloads).set({ status: 'removed' }).where(eq(downloads.id, id)).run()
+  await dbRun(db.update(downloads).set({ status: 'removed' }).where(eq(downloads.id, id)))
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'torrent_delete',
     userId: session.user.id,
     username: session.user.username,

@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { checkDailyLimit } from '#server/utils/limits'
 import { getFreshUser } from '#server/utils/user'
 
-const mockAll = vi.fn()
+const mockDbAll = vi.hoisted(() => vi.fn())
+const mockUseDbAsync = vi.hoisted(() => vi.fn())
 
 vi.mock('#server/database/schema', () => ({
   downloads: {
@@ -22,15 +23,8 @@ vi.mock('drizzle-orm', () => ({
 }))
 
 vi.mock('#server/utils/db', () => ({
-  useDb: () => ({
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          all: mockAll
-        })
-      })
-    })
-  })
+  useDbAsync: mockUseDbAsync,
+  dbAll: mockDbAll
 }))
 
 describe('checkDailyLimit', () => {
@@ -38,37 +32,43 @@ describe('checkDailyLimit', () => {
     vi.clearAllMocks()
   })
 
-  it('returns reached: false for non-existent user', () => {
-    vi.mocked(getFreshUser).mockReturnValue(undefined)
+  it('returns reached: false for non-existent user', async () => {
+    vi.mocked(getFreshUser).mockResolvedValue(undefined)
 
-    const result = checkDailyLimit('non-existent')
+    const result = await checkDailyLimit('non-existent')
     expect(result).toEqual({ reached: false, activeCount: 0, todayCount: 0, limit: 0 })
   })
 
-  it('returns reached: false when under limit', () => {
-    vi.mocked(getFreshUser).mockReturnValue({
+  it('returns reached: false when under limit', async () => {
+    vi.mocked(getFreshUser).mockResolvedValue({
       id: 'user1',
       dailyDownloadLimit: 5,
       role: 'user'
     } as never)
 
-    mockAll.mockReturnValue([{ id: '1' }, { id: '2' }])
+    const mockChain = {}
+    const mockSelect = vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => mockChain) })) }))
+    mockUseDbAsync.mockResolvedValue({ select: mockSelect })
+    mockDbAll.mockResolvedValue([{ id: '1' }, { id: '2' }])
 
-    const result = checkDailyLimit('user1')
+    const result = await checkDailyLimit('user1')
     expect(result.reached).toBe(false)
     expect(result.activeCount).toBe(2)
   })
 
-  it('returns reached: true when at limit', () => {
-    vi.mocked(getFreshUser).mockReturnValue({
+  it('returns reached: true when at limit', async () => {
+    vi.mocked(getFreshUser).mockResolvedValue({
       id: 'user1',
       dailyDownloadLimit: 2,
       role: 'user'
     } as never)
 
-    mockAll.mockReturnValue([{ id: '1' }, { id: '2' }, { id: '3' }])
+    const mockChain = {}
+    const mockSelect = vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => mockChain) })) }))
+    mockUseDbAsync.mockResolvedValue({ select: mockSelect })
+    mockDbAll.mockResolvedValue([{ id: '1' }, { id: '2' }, { id: '3' }])
 
-    const result = checkDailyLimit('user1')
+    const result = await checkDailyLimit('user1')
     expect(result.reached).toBe(true)
     expect(result.activeCount).toBe(3)
   })

@@ -1,6 +1,7 @@
 import { customTrackers } from '#server/database/schema'
 import { eq, and, ne } from 'drizzle-orm'
 import { encryptAES } from '#server/utils/crypto'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import type { UpdateTrackerBody } from '#server/types/tracker'
 
 export default defineEventHandler(async (event) => {
@@ -11,9 +12,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<UpdateTrackerBody>(event)
-  const db = useDb()
+  const db = await useDbAsync()
 
-  const existing = db.select().from(customTrackers).where(eq(customTrackers.id, id)).get()
+  const existing = await dbGet(db.select().from(customTrackers).where(eq(customTrackers.id, id)))
   if (existing === undefined) {
     throw createError({ statusCode: 404, statusMessage: 'Tracker not found' })
   }
@@ -29,11 +30,12 @@ export default defineEventHandler(async (event) => {
     if (!indexerName) {
       throw createError({ statusCode: 400, statusMessage: 'indexerName cannot be empty' })
     }
-    const nameTaken = db
-      .select()
-      .from(customTrackers)
-      .where(and(eq(customTrackers.indexerName, indexerName), ne(customTrackers.id, id)))
-      .get()
+    const nameTaken = await dbGet(
+      db
+        .select()
+        .from(customTrackers)
+        .where(and(eq(customTrackers.indexerName, indexerName), ne(customTrackers.id, id)))
+    )
     if (nameTaken !== undefined) {
       throw createError({ statusCode: 409, statusMessage: `Tracker "${indexerName}" already exists` })
     }
@@ -79,9 +81,9 @@ export default defineEventHandler(async (event) => {
     return { success: true }
   }
 
-  db.update(customTrackers).set(updates).where(eq(customTrackers.id, id)).run()
+  await dbRun(db.update(customTrackers).set(updates).where(eq(customTrackers.id, id)))
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'tracker_update',
     userId: user.id,
     username: user.username,

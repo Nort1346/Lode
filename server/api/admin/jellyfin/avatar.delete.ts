@@ -1,6 +1,7 @@
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { syncAvatarDelete } from '#server/utils/sync'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { unlinkSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -12,8 +13,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'userId is required' })
   }
 
-  const db = useDb()
-  const user = db.select().from(users).where(eq(users.id, body.userId)).get()
+  const db = await useDbAsync()
+  const user = await dbGet(db.select().from(users).where(eq(users.id, body.userId)))
 
   if (!user) {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
@@ -26,7 +27,7 @@ export default defineEventHandler(async (event) => {
     // file may not exist — ignore
   }
 
-  db.update(users).set({ avatarUrl: null }).where(eq(users.id, body.userId)).run()
+  await dbRun(db.update(users).set({ avatarUrl: null }).where(eq(users.id, body.userId)))
 
   await syncAvatarDelete(body.userId)
 

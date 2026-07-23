@@ -5,6 +5,7 @@ import { notifySseClients } from './sse-hubs'
 import { sendPushToUser } from './push'
 import { createLogger } from '#server/utils/logger'
 import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
+import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 
 import type { NotificationDataMap, NotificationItem, NotificationType as NotifType } from '#server/types/notifications'
 import type { DiscordLocale } from '#server/types/i18n'
@@ -20,9 +21,9 @@ import {
 
 const log = createLogger('Notifications')
 
-function getNotificationLocale(): DiscordLocale {
-  const db = useDb()
-  const row = db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'discord_locale')).get()
+async function getNotificationLocale(): Promise<DiscordLocale> {
+  const db = await useDbAsync()
+  const row = await dbGet(db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'discord_locale')))
   const locale = row?.value
   if (locale !== undefined && (DISCORD_LOCALE_OPTIONS as readonly string[]).includes(locale)) {
     return locale as DiscordLocale
@@ -38,18 +39,21 @@ export async function createNotification(
   message: string,
   link?: string
 ): Promise<void> {
-  const db = useDb()
+  const db = await useDbAsync()
   const now = new Date().toISOString()
   const resolvedLink = link ?? null
 
-  const existing = db
-    .select({ id: notifications.id })
-    .from(notifications)
-    .where(and(eq(notifications.userId, userId), eq(notifications.type, type), eq(notifications.read, false)))
-    .get()
+  const existing = await dbGet(
+    db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.type, type), eq(notifications.read, false)))
+  )
 
   if (existing !== undefined) {
-    db.update(notifications).set({ title, message, createdAt: now }).where(eq(notifications.id, existing.id)).run()
+    await dbRun(
+      db.update(notifications).set({ title, message, createdAt: now }).where(eq(notifications.id, existing.id))
+    )
 
     const item: NotificationItem = {
       id: existing.id,
@@ -77,8 +81,8 @@ export async function createNotification(
 
   const id = randomUUID()
 
-  db.insert(notifications)
-    .values({
+  await dbRun(
+    db.insert(notifications).values({
       id,
       userId,
       type,
@@ -89,7 +93,7 @@ export async function createNotification(
       read: false,
       createdAt: now
     })
-    .run()
+  )
 
   const item: NotificationItem = {
     id,
@@ -115,7 +119,7 @@ export async function createNotification(
   }).catch((err) => log.error(err, 'push failed for notification'))
 }
 
-export function notifyDownloadComplete(
+export async function notifyDownloadComplete(
   userId: string,
   downloadId: string,
   mediaType: 'movie' | 'tv' | null,
@@ -124,8 +128,8 @@ export function notifyDownloadComplete(
   sizeBytes: number,
   savePath: string,
   tmdbId: number | null
-): void {
-  const t = createT(getNotificationLocale())
+): Promise<void> {
+  const t = createT(await getNotificationLocale())
   const link =
     mediaType !== null && tmdbId !== null
       ? `/browse/${mediaType === 'movie' ? 'movie' : 'tv'}/${tmdbId}`
@@ -137,7 +141,7 @@ export function notifyDownloadComplete(
     mediaTitle || t('notifications.download_complete.title')
   )
 
-  void createNotification(
+  await createNotification(
     userId,
     NotificationType.DOWNLOAD_COMPLETE as NotifType,
     {
@@ -154,7 +158,7 @@ export function notifyDownloadComplete(
   )
 }
 
-export function notifyRequestStatus(
+export async function notifyRequestStatus(
   userId: string,
   requestId: string,
   status: 'accepted' | 'rejected',
@@ -163,15 +167,15 @@ export function notifyRequestStatus(
   mediaTitle: string,
   posterUrl: string | null,
   adminNote: string | null
-): void {
-  const t = createT(getNotificationLocale())
+): Promise<void> {
+  const t = createT(await getNotificationLocale())
   const link = `/browse/${mediaType === 'movie' ? 'movie' : 'tv'}/${mediaId}`
 
   if (status === 'accepted') {
     const title = t('notifications.request_accepted.title')
     const message = t('notifications.request_accepted.message').replace('{title}', mediaTitle)
 
-    void createNotification(
+    await createNotification(
       userId,
       NotificationType.REQUEST_ACCEPTED as NotifType,
       {
@@ -189,7 +193,7 @@ export function notifyRequestStatus(
     const title = t('notifications.request_rejected.title')
     const message = t('notifications.request_rejected.message').replace('{title}', mediaTitle)
 
-    void createNotification(
+    await createNotification(
       userId,
       NotificationType.REQUEST_REJECTED as NotifType,
       {
@@ -207,15 +211,16 @@ export function notifyRequestStatus(
   }
 }
 
-export function getUserNotifications(userId: string, limit = 50): NotificationItem[] {
-  const db = useDb()
-  const rows = db
-    .select()
-    .from(notifications)
-    .where(eq(notifications.userId, userId))
-    .orderBy(desc(notifications.createdAt))
-    .limit(limit)
-    .all()
+export async function getUserNotifications(userId: string, limit = 50): Promise<NotificationItem[]> {
+  const db = await useDbAsync()
+  const rows = await dbAll(
+    db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit)
+  )
 
   return rows.map((r) => ({
     ...r,
@@ -223,38 +228,41 @@ export function getUserNotifications(userId: string, limit = 50): NotificationIt
   }))
 }
 
-export function getUnreadCount(userId: string): number {
-  const db = useDb()
-  const [row] = db
-    .select({ count: count() })
-    .from(notifications)
-    .where(and(eq(notifications.userId, userId), eq(notifications.read, false)))
-    .all()
+export async function getUnreadCount(userId: string): Promise<number> {
+  const db = await useDbAsync()
+  const [row] = await dbAll(
+    db
+      .select({ count: count() })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.read, false)))
+  )
   return row?.count ?? 0
 }
 
-export function markAsRead(notificationId: string, userId: string): boolean {
-  const db = useDb()
-  const result = db
-    .update(notifications)
-    .set({ read: true })
-    .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)))
-    .run()
-  if (result.changes > 0) {
+export async function markAsRead(notificationId: string, userId: string): Promise<boolean> {
+  const db = await useDbAsync()
+  const { changes } = await dbRun(
+    db
+      .update(notifications)
+      .set({ read: true })
+      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)))
+  )
+  if (changes > 0) {
     notifySseClients(userId, { type: SSE_EVENT_READ_UPDATE, notificationId })
   }
-  return result.changes > 0
+  return changes > 0
 }
 
-export function markAllAsRead(userId: string): number {
-  const db = useDb()
-  const result = db
-    .update(notifications)
-    .set({ read: true })
-    .where(and(eq(notifications.userId, userId), eq(notifications.read, false)))
-    .run()
-  if (result.changes > 0) {
+export async function markAllAsRead(userId: string): Promise<number> {
+  const db = await useDbAsync()
+  const { changes } = await dbRun(
+    db
+      .update(notifications)
+      .set({ read: true })
+      .where(and(eq(notifications.userId, userId), eq(notifications.read, false)))
+  )
+  if (changes > 0) {
     notifySseClients(userId, { type: SSE_EVENT_READ_ALL_UPDATE })
   }
-  return result.changes
+  return changes
 }

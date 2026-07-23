@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
   const body = await readBody<RankingConfig>(event)
   await saveRankingConfig(body)
-  logActivity(event, {
+  await logActivity(event, {
     action: 'ranking_config_update',
     userId: admin.id,
     username: admin.username,

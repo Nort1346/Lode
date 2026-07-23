@@ -1,5 +1,5 @@
 import { eq, desc } from 'drizzle-orm'
-import { useDb } from '#server/utils/db'
+import { useDbAsync, dbAll } from '#server/utils/db'
 import { requests } from '#server/database/schema'
 
 export default defineEventHandler(async (event) => {
@@ -13,14 +13,14 @@ export default defineEventHandler(async (event) => {
   const page = Math.max(1, Number(query.page) || 1)
   const limit = 50
 
-  const db = useDb()
+  const db = await useDbAsync()
 
   const conditions =
     status !== null && status !== undefined
       ? eq(requests.status, status as 'pending' | 'accepted' | 'rejected')
       : undefined
 
-  const all = db.select().from(requests).where(conditions).orderBy(desc(requests.createdAt)).all()
+  const all = await dbAll(db.select().from(requests).where(conditions).orderBy(desc(requests.createdAt)))
 
   const total = all.length
   const totalPages = Math.ceil(total / limit)

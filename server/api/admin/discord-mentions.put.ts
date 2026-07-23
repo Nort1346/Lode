@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
 
   await putSetting(SETTINGS.DISCORD_MENTIONS_ENABLED, body.enabled ? 'true' : 'false')
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'discord_mentions_update',
     userId: admin.id,
     username: admin.username,

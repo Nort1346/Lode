@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing notification ID' })
   }
 
-  const updated = markAsRead(id, session.user.id)
+  const updated = await markAsRead(id, session.user.id)
   if (!updated) {
     throw createError({ statusCode: 404, statusMessage: 'Notification not found' })
   }

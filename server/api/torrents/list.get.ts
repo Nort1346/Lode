@@ -1,6 +1,7 @@
 import { downloads, users } from '#server/database/schema'
 import { eq, and, desc, count } from 'drizzle-orm'
 import type { InferSelectModel } from 'drizzle-orm'
+import { useDbAsync, dbGet, dbAll } from '#server/utils/db'
 import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrent-sync'
 
 type DownloadRow = InferSelectModel<typeof downloads> & { username?: string }
@@ -14,7 +15,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
 
-  const db = useDb()
+  const db = await useDbAsync()
   const query = getQuery(event)
 
   const rawPage = query.page
@@ -42,21 +43,16 @@ export default defineEventHandler(async (event) => {
     return eq(downloads.userId, session.user.id)
   })()
 
-  const countResult = db.select({ count: count() }).from(downloads).where(whereClause).get()
+  const countResult = await dbGet(db.select({ count: count() }).from(downloads).where(whereClause))
 
   const total = countResult?.count ?? 0
 
-  const results: DownloadRow[] = db
-    .select()
-    .from(downloads)
-    .where(whereClause)
-    .orderBy(desc(downloads.createdAt))
-    .limit(limit)
-    .offset(offset)
-    .all()
+  const results: DownloadRow[] = await dbAll(
+    db.select().from(downloads).where(whereClause).orderBy(desc(downloads.createdAt)).limit(limit).offset(offset)
+  )
 
   if (isAdmin) {
-    const allUsers = db.select().from(users).all()
+    const allUsers = await dbAll(db.select().from(users))
     const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
     userMap.set(session.user.id, session.user.username)
 

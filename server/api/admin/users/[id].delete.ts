@@ -1,6 +1,7 @@
 import { users, sessions } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { syncUserDelete } from '#server/utils/sync'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
@@ -10,8 +11,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'User ID is required' })
   }
 
-  const db = useDb()
-  const user = db.select().from(users).where(eq(users.id, id)).get()
+  const db = await useDbAsync()
+  const user = await dbGet(db.select().from(users).where(eq(users.id, id)))
   if (!user) {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
@@ -31,13 +32,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  db.delete(users).where(eq(users.id, id)).run()
+  await dbRun(db.delete(users).where(eq(users.id, id)))
 
   // SECURITY: delete all active sessions for the user so a deleted user
   // cannot keep using an existing session to access the app
-  db.delete(sessions).where(eq(sessions.userId, id)).run()
+  await dbRun(db.delete(sessions).where(eq(sessions.userId, id)))
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'user_delete',
     userId: admin.id,
     username: admin.username,

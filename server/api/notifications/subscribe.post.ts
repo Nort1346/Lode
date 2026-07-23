@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { pushSubscriptions } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import type { SubscribeBody } from '#server/types/notifications'
 
 export default defineEventHandler(async (event) => {
@@ -14,23 +15,25 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid subscription' })
   }
 
-  const db = useDb()
+  const db = await useDbAsync()
   const ua = getRequestHeader(event, 'user-agent') ?? null
   const now = new Date().toISOString()
 
-  const existing = db.select().from(pushSubscriptions).where(eq(pushSubscriptions.endpoint, body.endpoint)).get()
+  const existing = await dbGet(db.select().from(pushSubscriptions).where(eq(pushSubscriptions.endpoint, body.endpoint)))
 
   if (existing !== undefined) {
-    db.update(pushSubscriptions)
-      .set({ userId: session.user.id, lastUsedAt: now })
-      .where(eq(pushSubscriptions.id, existing.id))
-      .run()
+    await dbRun(
+      db
+        .update(pushSubscriptions)
+        .set({ userId: session.user.id, lastUsedAt: now })
+        .where(eq(pushSubscriptions.id, existing.id))
+    )
     return { success: true, id: existing.id }
   }
 
   const id = randomUUID()
-  db.insert(pushSubscriptions)
-    .values({
+  await dbRun(
+    db.insert(pushSubscriptions).values({
       id,
       userId: session.user.id,
       endpoint: body.endpoint,
@@ -40,7 +43,7 @@ export default defineEventHandler(async (event) => {
       createdAt: now,
       lastUsedAt: now
     })
-    .run()
+  )
 
   return { success: true, id }
 })

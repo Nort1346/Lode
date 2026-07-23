@@ -1,6 +1,7 @@
 import { downloads } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
+import { useDbAsync, dbAll, dbRun } from '#server/utils/db'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { getFreshUser } from '#server/utils/user'
 import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
@@ -16,7 +17,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
 
-  const freshUser = getFreshUser(session.user.id)
+  const freshUser = await getFreshUser(session.user.id)
   if (freshUser === undefined) {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
@@ -82,7 +83,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig()
-  const db = useDb()
+  const db = await useDbAsync()
 
   const savePathMap: Record<SavePathKey, string> = {
     movies: config.savePathMovies,
@@ -105,12 +106,13 @@ export default defineEventHandler(async (event) => {
 
   return await withTorrentAddLock(async () => {
     if (userRole !== 'admin') {
-      db.transaction(() => {
-        const userDownloads = db
-          .select()
-          .from(downloads)
-          .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
-          .all()
+      await db.transaction(async () => {
+        const userDownloads = await dbAll(
+          db
+            .select()
+            .from(downloads)
+            .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
+        )
 
         if (userDownloads.length >= freshUser.activeTorrentLimit) {
           throw createError({
@@ -122,12 +124,9 @@ export default defineEventHandler(async (event) => {
         const todayStart = new Date()
         todayStart.setHours(0, 0, 0, 0)
 
-        const todayAll = db
-          .select()
-          .from(downloads)
-          .where(eq(downloads.userId, userId))
-          .all()
-          .filter((d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed')
+        const todayAll = (await dbAll(db.select().from(downloads).where(eq(downloads.userId, userId)))).filter(
+          (d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed'
+        )
 
         if (todayAll.length >= freshUser.dailyDownloadLimit) {
           throw createError({
@@ -196,10 +195,10 @@ export default defineEventHandler(async (event) => {
         })
       }
 
-      if (torrent.size > 0 && isDiskCheckEnabled()) {
+      if (torrent.size > 0 && (await isDiskCheckEnabled())) {
         const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
         if (disks.length > 0) {
-          const allStatuses = checkAllDisks(disks, getDiskMinFreeGb())
+          const allStatuses = checkAllDisks(disks, await getDiskMinFreeGb())
           const lowDisk = allStatuses.find((d) => {
             if (!d.available) return true
             return torrent.size > d.freeBytes
@@ -235,8 +234,8 @@ export default defineEventHandler(async (event) => {
     }
 
     const id = randomUUID()
-    db.insert(downloads)
-      .values({
+    await dbRun(
+      db.insert(downloads).values({
         id,
         userId,
         label: label ?? '',
@@ -256,9 +255,9 @@ export default defineEventHandler(async (event) => {
         mediaType,
         posterUrl
       })
-      .run()
+    )
 
-    logActivity(event, {
+    await logActivity(event, {
       action: 'torrent_add',
       userId,
       username,

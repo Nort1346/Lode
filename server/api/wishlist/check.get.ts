@@ -1,5 +1,6 @@
 import { wishlist } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
+import { useDbAsync, dbGet } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -15,19 +16,20 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing mediaType or mediaId' })
   }
 
-  const db = useDb()
+  const db = await useDbAsync()
 
-  const existing = db
-    .select()
-    .from(wishlist)
-    .where(
-      and(
-        eq(wishlist.userId, session.user.id),
-        eq(wishlist.mediaType, mediaType as 'movie' | 'tv'),
-        eq(wishlist.mediaId, mediaId)
+  const existing = await dbGet(
+    db
+      .select()
+      .from(wishlist)
+      .where(
+        and(
+          eq(wishlist.userId, session.user.id),
+          eq(wishlist.mediaType, mediaType as 'movie' | 'tv'),
+          eq(wishlist.mediaId, mediaId)
+        )
       )
-    )
-    .get()
+  )
 
   return { wishlisted: !!existing, id: existing?.id ?? null }
 })

@@ -4,8 +4,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const notifications = getUserNotifications(session.user.id)
-  const unreadCount = getUnreadCount(session.user.id)
+  const notifications = await getUserNotifications(session.user.id)
+  const unreadCount = await getUnreadCount(session.user.id)
 
   return { notifications, unreadCount }
 })

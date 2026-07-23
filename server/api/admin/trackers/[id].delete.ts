@@ -1,5 +1,6 @@
 import { customTrackers } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const user = await requireAdmin(event)
@@ -8,15 +9,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Tracker ID is required' })
   }
 
-  const db = useDb()
-  const existing = db.select().from(customTrackers).where(eq(customTrackers.id, id)).get()
+  const db = await useDbAsync()
+  const existing = await dbGet(db.select().from(customTrackers).where(eq(customTrackers.id, id)))
   if (existing === undefined) {
     throw createError({ statusCode: 404, statusMessage: 'Tracker not found' })
   }
 
-  db.delete(customTrackers).where(eq(customTrackers.id, id)).run()
+  await dbRun(db.delete(customTrackers).where(eq(customTrackers.id, id)))
 
-  logActivity(event, {
+  await logActivity(event, {
     action: 'tracker_delete',
     userId: user.id,
     username: user.username,

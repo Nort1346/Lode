@@ -173,8 +173,8 @@ describe('brute-force', () => {
   describe('blockIp', () => {
     it('adds ip to cache and inserts record', async () => {
       vi.mocked(getSetting).mockResolvedValue(undefined)
-      const mockRun = vi.fn()
-      mockInsert.mockReturnValue({ values: vi.fn(() => ({ run: mockRun })) })
+      const mockRun = vi.fn(() => ({ changes: 1 }))
+      mockInsert.mockReturnValue({ values: vi.fn(() => ({ get: vi.fn(), run: mockRun })) })
 
       const { blockIp } = await loadBruteForce()
       await blockIp('10.0.0.5', 'test reason')
@@ -184,8 +184,8 @@ describe('brute-force', () => {
 
     it('uses custom duration when provided', async () => {
       vi.mocked(getSetting).mockResolvedValue(undefined)
-      const mockRun = vi.fn()
-      mockInsert.mockReturnValue({ values: vi.fn(() => ({ run: mockRun })) })
+      const mockRun = vi.fn(() => ({ changes: 1 }))
+      mockInsert.mockReturnValue({ values: vi.fn(() => ({ get: vi.fn(), run: mockRun })) })
 
       const { blockIp } = await loadBruteForce()
       await blockIp('10.0.0.6', 'test', 30)
@@ -195,8 +195,8 @@ describe('brute-force', () => {
 
   describe('unblockIp', () => {
     it('removes ip from cache and deletes records', async () => {
-      const mockRun = vi.fn()
-      mockDelete.mockReturnValue({ where: vi.fn(() => ({ run: mockRun })) })
+      const mockRun = vi.fn(() => ({ changes: 1 }))
+      mockDelete.mockReturnValue({ where: vi.fn(() => ({ get: vi.fn(), run: mockRun })) })
 
       const { unblockIp } = await loadBruteForce()
       await unblockIp('10.0.0.7')
@@ -233,8 +233,8 @@ describe('brute-force', () => {
 
   describe('cleanupOldAttempts', () => {
     it('deletes old records from loginAttempts', async () => {
-      const mockRun = vi.fn()
-      mockDelete.mockReturnValue({ where: vi.fn(() => ({ run: mockRun })) })
+      const mockRun = vi.fn(() => ({ changes: 1 }))
+      mockDelete.mockReturnValue({ where: vi.fn(() => ({ get: vi.fn(), run: mockRun })) })
 
       const { cleanupOldAttempts } = await loadBruteForce()
       await cleanupOldAttempts()

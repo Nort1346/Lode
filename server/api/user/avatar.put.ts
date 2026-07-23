@@ -18,6 +18,7 @@ import { resolve } from 'node:path'
 import sharp from 'sharp'
 import { syncAvatar } from '#server/utils/sync'
 import type { StyleDefinition } from '@dicebear/core'
+import { useDbAsync, dbRun } from '#server/utils/db'
 
 const STYLE_MAP: Record<string, StyleDefinition> = {
   adventurer: adventurer as unknown as StyleDefinition,
@@ -82,11 +83,13 @@ export default defineEventHandler(async (event) => {
   const avatarPath = resolve(avatarsDir, `${session.user.id}.jpg`)
   writeFileSync(avatarPath, jpgBuffer)
 
-  const db = useDb()
-  db.update(users)
-    .set({ avatarUrl: `/avatars/${session.user.id}.jpg` })
-    .where(eq(users.id, session.user.id))
-    .run()
+  const db = await useDbAsync()
+  await dbRun(
+    db
+      .update(users)
+      .set({ avatarUrl: `/avatars/${session.user.id}.jpg` })
+      .where(eq(users.id, session.user.id))
+  )
 
   await syncAvatar(session.user.id, jpgBuffer)
 

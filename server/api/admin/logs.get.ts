@@ -1,5 +1,6 @@
 import { activityLogs } from '#server/database/schema'
 import { desc, eq, and, count } from 'drizzle-orm'
+import { useDbAsync, dbGet, dbAll } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -16,7 +17,7 @@ export default defineEventHandler(async (event) => {
   const action = typeof rawAction === 'string' && rawAction.length > 0 ? rawAction : undefined
   const userId = typeof rawUserId === 'string' && rawUserId.length > 0 ? rawUserId : undefined
 
-  const db = useDb()
+  const db = await useDbAsync()
 
   const conditions = []
   if (action !== undefined) {
@@ -28,19 +29,14 @@ export default defineEventHandler(async (event) => {
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
-  const countResult = db.select({ count: count() }).from(activityLogs).where(where).get()
+  const countResult = await dbGet(db.select({ count: count() }).from(activityLogs).where(where))
 
   const total = countResult?.count ?? 0
   const totalPages = Math.ceil(total / limit)
 
-  const logs = db
-    .select()
-    .from(activityLogs)
-    .where(where)
-    .orderBy(desc(activityLogs.createdAt))
-    .limit(limit)
-    .offset(offset)
-    .all()
+  const logs = await dbAll(
+    db.select().from(activityLogs).where(where).orderBy(desc(activityLogs.createdAt)).limit(limit).offset(offset)
+  )
 
   return { logs, page, totalPages, total }
 })

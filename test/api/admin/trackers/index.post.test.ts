@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { stubAdminAuth } from '../../helpers'
 
 const mockGetUserSession = vi.fn()
-const mockRun = vi.fn()
+const mockRun = vi.fn(() => ({ changes: 1 }))
 const mockGetExisting = vi.fn()
 const mockReadBody = vi.fn()
 const mockLogActivity = vi.fn()
@@ -56,7 +56,8 @@ describe('admin/trackers/index.post', () => {
         })),
         insert: vi.fn(() => ({
           values: vi.fn(() => ({
-            run: mockRun
+            run: mockRun,
+            get: vi.fn()
           }))
         }))
       }))

@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockGetUserSession = vi.fn()
 const mockGet = vi.fn()
-const mockRun = vi.fn()
-const mockSet = vi.fn(() => ({ where: vi.fn(() => ({ run: mockRun })) }))
+const mockRun = vi.fn(() => ({ changes: 1 }))
+const mockSet = vi.fn(() => ({ where: vi.fn(() => ({ get: vi.fn(), run: mockRun })) }))
 const mockUpdate = vi.fn(() => ({ set: mockSet }))
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
@@ -12,8 +12,9 @@ vi.stubGlobal(
   vi.fn((_event: unknown, key: string) => (key === 'id' ? 'req-1' : undefined))
 )
 
-vi.mock('#server/utils/db', () => ({
-  useDb: vi.fn(() => ({
+vi.stubGlobal(
+  'useDb',
+  vi.fn(() => ({
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: vi.fn(() => ({ get: mockGet }))
@@ -21,7 +22,7 @@ vi.mock('#server/utils/db', () => ({
     })),
     update: mockUpdate
   }))
-}))
+)
 
 vi.mock('#server/database/schema', () => ({
   requests: {

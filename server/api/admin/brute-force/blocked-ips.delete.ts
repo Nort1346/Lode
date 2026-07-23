@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'IP is required' })
   }
   await unblockIp(body.ip)
-  logActivity(event, {
+  await logActivity(event, {
     action: 'brute_force_unblock_ip',
     userId: admin.id,
     username: admin.username,

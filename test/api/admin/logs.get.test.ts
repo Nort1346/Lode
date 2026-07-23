@@ -56,10 +56,12 @@ describe('admin/logs.get', () => {
                 orderBy: vi.fn(() => ({
                   limit: vi.fn(() => ({
                     offset: vi.fn(() => ({
-                      all: mockAll
+                      all: mockAll,
+                      get: vi.fn()
                     }))
                   }))
-                }))
+                })),
+                get: vi.fn()
               }))
             }))
           }

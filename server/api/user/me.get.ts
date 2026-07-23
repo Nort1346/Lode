@@ -1,5 +1,6 @@
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
+import { useDbAsync, dbGet } from '#server/utils/db'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -7,8 +8,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
 
-  const db = useDb()
-  const user = db.select().from(users).where(eq(users.id, session.user.id)).get()
+  const db = await useDbAsync()
+  const user = await dbGet(db.select().from(users).where(eq(users.id, session.user.id)))
 
   if (!user) {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })

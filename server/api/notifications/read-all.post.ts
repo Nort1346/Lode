@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const count = markAllAsRead(session.user.id)
+  const count = await markAllAsRead(session.user.id)
 
   return { success: true, count }
 })
