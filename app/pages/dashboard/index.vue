@@ -136,7 +136,7 @@ const savePathLabels: Record<string, string> = {
 
 <template>
   <div>
-    <div class="mb-6 flex items-center justify-between">
+    <div v-reveal class="mb-6 flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-1">Dashboard</h1>
         <p class="text-zinc-500 dark:text-zinc-400">

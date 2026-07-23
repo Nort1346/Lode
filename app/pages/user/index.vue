@@ -164,7 +164,7 @@ async function changePassword() {
             <UIcon name="i-lucide-user" class="w-12 h-12 text-zinc-400" />
           </div>
         </div>
-      <div v-reveal="3">
+        <div v-reveal="3">
           <p class="text-2xl font-bold text-zinc-900 dark:text-white">{{ user?.username }}</p>
           <p class="text-sm text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">{{ user?.role }}</p>
         </div>
@@ -194,14 +194,14 @@ async function changePassword() {
         </form>
       </div>
 
-      <div>
+      <div v-reveal>
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
           {{ t('profile.dicebearTitle') }}
         </h2>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">{{ t('profile.dicebearDesc') }}</p>
 
         <div class="space-y-8">
-          <div v-for="section in styleSections" :key="section.name">
+          <div v-for="section in styleSections" :key="section.name" v-reveal>
             <h3 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">
               {{ section.label }}
             </h3>
@@ -265,17 +265,37 @@ async function changePassword() {
             <div class="h-4 w-16 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
           </div>
         </div>
-        <div class="space-y-3">
+        <div class="border-y border-zinc-200 dark:border-white/10 py-6 space-y-4">
           <div class="h-5 w-48 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
           <div class="h-4 w-64 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-          <div class="flex gap-3">
-            <div v-for="i in 6" :key="i" class="size-20 rounded-full bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+          <div class="space-y-3 max-w-sm">
+            <div class="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div class="h-10 w-full rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div class="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div class="h-10 w-full rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div class="h-4 w-36 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div class="h-10 w-full rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div class="h-9 w-36 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
           </div>
         </div>
-        <div class="space-y-3">
+        <div class="space-y-4">
           <div class="h-5 w-48 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+          <div class="h-4 w-64 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+          <div class="space-y-4">
+            <div v-for="r in 3" :key="r" class="space-y-2">
+              <div class="h-4 w-24 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              <div class="flex gap-3">
+                <div v-for="i in 8" :key="i" class="size-20 rounded-full bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="border-t border-zinc-200 dark:border-white/10 pt-6 space-y-3">
+          <div class="h-5 w-40 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
           <div class="h-4 w-56 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-          <div class="h-10 w-40 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+          <div class="flex gap-3">
+            <div class="h-10 w-36 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+          </div>
         </div>
       </div>
     </div>
