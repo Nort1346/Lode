@@ -6,9 +6,9 @@ The Browse section is the main content discovery interface, powered by TMDB with
 
 ## Pages
 
-- **`/browse`** — Main browse page with carousels, spotlights, and search
-- **`/browse/movie/[id]`** — Movie detail with torrent list and download
-- **`/browse/tv/[id]`** — TV show detail with season/episode navigation
+- **`/browse`** - Main browse page with carousels, spotlights, and search
+- **`/browse/movie/[id]`** - Movie detail with torrent list and download
+- **`/browse/tv/[id]`** - TV show detail with season/episode navigation
 
 ## Carousels
 
@@ -19,7 +19,7 @@ The Browse section is the main content discovery interface, powered by TMDB with
 - Arrow buttons appear when content overflows
 
 ### Trending
-- TMDB `/trending/all/week` — movies and TV shows mixed
+- TMDB `/trending/all/week` - movies and TV shows mixed
 - 20 items with logo overlay (TMDB image API)
 - Backdrop images with gradient overlay
 
@@ -61,8 +61,8 @@ async function markInLibrary<T extends { id: number }>(
 ): Promise<(T & { inLibrary: boolean })[]>
 ```
 
-- `BrowseItem` does NOT have `inLibrary` — it's added via intersection type
-- `SpotlightItem` has `inLibrary: boolean` (always `false` — not used)
+- `BrowseItem` does NOT have `inLibrary` - it's added via intersection type
+- `SpotlightItem` has `inLibrary: boolean` (always `false` - not used)
 - Provider lookup uses a cached in-flight promise to prevent race conditions
 - If Jellyfin is not configured, all items show `inLibrary: false`
 

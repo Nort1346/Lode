@@ -301,12 +301,12 @@
   opacity: 1;
 }
 
-/* pierwsze uruchomienie — bez fade-in na starcie */
+/* pierwsze uruchomienie - bez fade-in na starcie */
 .marquee-text.is-marquee-active {
   animation: marquee-scroll-first 5s ease-in-out 1 forwards;
 }
 
-/* każda kolejna pętla — z fade-in */
+/* każda kolejna pętla - z fade-in */
 .marquee-text.is-marquee-looping {
   animation: marquee-scroll 5s ease-in-out infinite;
 }

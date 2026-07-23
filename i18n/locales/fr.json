@@ -226,7 +226,7 @@
     "jellyfinAudioTranscoding": "Transcodage audio",
     "jellyfinAudioTranscodingDesc": "Permet aux clients de transcoder l'audio",
     "jellyfinRemuxing": "Remuxage",
-    "jellyfinRemuxingDesc": "Changer le conteneur sans réencodage — rapide et léger",
+    "jellyfinRemuxingDesc": "Changer le conteneur sans réencodage - rapide et léger",
     "jellyfinLiveTvAccess": "Télévision en direct",
     "jellyfinLiveTvAccessDesc": "Permet à l'utilisateur d'accéder à la télévision en direct",
     "jellyfinLiveTvManagement": "Gestion des enregistrements TV",

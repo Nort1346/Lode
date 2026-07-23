@@ -102,8 +102,8 @@ PATCH /api/requests/[id]
 ```
 
 ### Status Values
-- `accepted` — Request approved
-- `rejected` — Request denied
+- `accepted` - Request approved
+- `rejected` - Request denied
 
 ### Response
 ```json

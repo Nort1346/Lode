@@ -54,7 +54,7 @@ const { default: Database } = await import(u('better-sqlite3/lib/index.js'))
 const { default: postgres } = await import(u('postgres'))
 
 // ── PostgreSQL schema DDL ──────────────────────────────────
-// Matches server/database/schema.ts — generated for PostgreSQL dialect
+// Matches server/database/schema.ts - generated for PostgreSQL dialect
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS "users" (
   "id" text PRIMARY KEY NOT NULL,
@@ -275,7 +275,7 @@ async function main() {
   console.log()
 
   if (dryRun) {
-    console.log('[migrate-pg] Dry run — no changes made.')
+    console.log('[migrate-pg] Dry run - no changes made.')
     sqlite.close()
     return
   }
@@ -283,7 +283,7 @@ async function main() {
   // Connect to PostgreSQL
   const client = postgres(connectionString)
 
-  // Create schema (idempotent — uses IF NOT EXISTS)
+  // Create schema (idempotent - uses IF NOT EXISTS)
   console.log('[migrate-pg] Creating PostgreSQL schema...')
   const statements = SCHEMA_SQL.split(';')
     .map((s) => s.trim())

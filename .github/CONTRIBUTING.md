@@ -26,7 +26,7 @@ For the full Docker stack (qBittorrent, Prowlarr, Jellyfin, etc.) see
 1. Create a feature branch from `main`: `git checkout -b feat/my-change`.
 2. Make your change. Follow the conventions in [AGENTS.md](./AGENTS.md):
    - No semicolons, single quotes, 2-space indent (Prettier).
-   - All types in dedicated `types.ts` files — never inline.
+   - All types in dedicated `types.ts` files - never inline.
    - No `any`; use `unknown` and narrow with type guards.
    - Server code uses `#server`, `#db`, `#utils` path aliases.
 3. Keep the test suite green and add tests for new behavior:
@@ -44,7 +44,7 @@ For the full Docker stack (qBittorrent, Prowlarr, Jellyfin, etc.) see
 ## Tests
 
 - Tests live under `test/`, mirroring the `server/` layout.
-- External services (TMDB, Prowlarr, qBittorrent, Jellyfin, Discord) are mocked — no network calls.
+- External services (TMDB, Prowlarr, qBittorrent, Jellyfin, Discord) are mocked - no network calls.
 - Run a focused file with `pnpm test path/to/file.test.ts`.
 
 ## Reporting issues

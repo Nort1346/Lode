@@ -21,24 +21,24 @@ For private trackers that require authentication:
 
 ## Download Flow
 
-1. **Authentication check** — Session must be valid
-2. **Fresh user data** — Re-fetches user limits from DB
-3. **Cooldown check** — 5-second per-user cooldown between adds
-4. **Input validation** — Magnet URL prefix, save path validation
+1. **Authentication check** - Session must be valid
+2. **Fresh user data** - Re-fetches user limits from DB
+3. **Cooldown check** - 5-second per-user cooldown between adds
+4. **Input validation** - Magnet URL prefix, save path validation
 5. **Limit checks** (non-admin only):
    - Active torrent limit
    - Daily download limit
    - Private tracker daily limit
-6. **Mutex lock** — Serializes torrent additions globally
-7. **qBittorrent add** — Via qui proxy (magnet or torrent file)
-8. **Dangerous file check** — Scans file list for executables/scripts
-9. **Size check** — Compared against user's `maxTorrentSizeGb`
-10. **Disk check** — Verifies sufficient free space
-11. **Admin queue priority** — Admin torrents moved to top
-12. **DB insert** — Records download with metadata
-13. **Library sync** — Syncs with Jellyfin if configured
-14. **Discord notification** — Sends webhook if configured
-15. **In-app notification** — SSE push to user
+6. **Mutex lock** - Serializes torrent additions globally
+7. **qBittorrent add** - Via qui proxy (magnet or torrent file)
+8. **Dangerous file check** - Scans file list for executables/scripts
+9. **Size check** - Compared against user's `maxTorrentSizeGb`
+10. **Disk check** - Verifies sufficient free space
+11. **Admin queue priority** - Admin torrents moved to top
+12. **DB insert** - Records download with metadata
+13. **Library sync** - Syncs with Jellyfin if configured
+14. **Discord notification** - Sends webhook if configured
+15. **In-app notification** - SSE push to user
 
 ## Safety Features
 

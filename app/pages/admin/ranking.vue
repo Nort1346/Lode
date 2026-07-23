@@ -529,7 +529,7 @@ onMounted(fetchConfig)
                 class="w-24"
                 :placeholder="t('ranking.sizeThresholds.min')"
               />
-              <span class="text-zinc-400">—</span>
+              <span class="text-zinc-400">-</span>
               <template v-if="threshold.max === Infinity">
                 <span class="w-24 text-center text-sm font-medium text-amber-600 dark:text-amber-400">
                   {{ t('ranking.sizeThresholds.unlimited') }}

@@ -74,7 +74,7 @@ export function getRepos(db: AppDb): Repos {
 }
 
 /**
- * Async convenience — gets or creates repos using the configured DB driver.
+ * Async convenience - gets or creates repos using the configured DB driver.
  * Handlers can simply: const repos = await getReposAsync()
  */
 export async function getReposAsync(): Promise<Repos> {

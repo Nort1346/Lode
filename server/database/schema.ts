@@ -6,7 +6,7 @@ const driver = process.env.DB_DRIVER ?? 'sqlite'
 const schema = driver === 'postgres' ? pgSchema : sqliteSchemaRuntime
 
 /**
- * Runtime schema resolver — exports the correct schema (PG or SQLite) based on DB_DRIVER.
+ * Runtime schema resolver - exports the correct schema (PG or SQLite) based on DB_DRIVER.
  * Type-level: cast to SQLite schema for TypeScript compatibility. Both schemas define
  * identical table names and column names. The actual PG/SQLite type mapping is handled
  * by the db instance at runtime (created with the correct schema via drivers/).

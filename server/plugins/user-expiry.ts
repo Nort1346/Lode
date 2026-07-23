@@ -37,7 +37,7 @@ export default defineNitroPlugin((nitroApp) => {
           try {
             await dbRun(db.update(users).set({ isActive: false }).where(eq(users.id, user.id)))
             await syncUserDisable(user.id)
-            log.info(`user "${user.username}" (${user.id}) deactivated — expired`)
+            log.info(`user "${user.username}" (${user.id}) deactivated - expired`)
           } catch (err) {
             log.error(err, `failed to deactivate expired user "${user.username}" (${user.id})`)
           }

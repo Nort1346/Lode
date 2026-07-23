@@ -6,11 +6,11 @@
 |-------|-----------|
 | Framework | Nuxt 4 (Vue 3 + Nitro) |
 | UI | Nuxt UI 4 + Tailwind CSS v4 |
-| Database | Drizzle ORM — SQLite (default) or PostgreSQL |
+| Database | Drizzle ORM - SQLite (default) or PostgreSQL |
 | Auth | `nuxt-auth-utils` (cookie sessions) |
 | Icons | Lucide + Simple Icons (via `@iconify-json/*`) |
-| i18n | `@nuxtjs/i18n` v10 — English (default) + pl, de, fr, es (5 locales) |
-| PWA | `@vite-pwa/nuxt` — auto-update, service worker |
+| i18n | `@nuxtjs/i18n` v10 - English (default) + pl, de, fr, es (5 locales) |
+| PWA | `@vite-pwa/nuxt` - auto-update, service worker |
 | Logging | Pino with ring buffer for SSE live logs |
 
 ## Project Structure

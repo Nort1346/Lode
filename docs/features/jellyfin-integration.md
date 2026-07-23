@@ -109,5 +109,5 @@ Configured per-user via Jellyfin policy:
 ## Libraries API
 
 Admin can view available Jellyfin libraries:
-- GET `/api/admin/sync/libraries` — Lists all libraries with IDs
+- GET `/api/admin/sync/libraries` - Lists all libraries with IDs
 - Used for library access configuration per user

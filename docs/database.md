@@ -3,8 +3,8 @@
 ## Overview
 
 StreamHub uses **Drizzle ORM** with dual database support:
-- **SQLite** (default) — file-based, zero config, stored at `.data/app.db`
-- **PostgreSQL** — for production scale, configured via `DATABASE_URL`
+- **SQLite** (default) - file-based, zero config, stored at `.data/app.db`
+- **PostgreSQL** - for production scale, configured via `DATABASE_URL`
 
 The schema is defined in `server/database/schema.ts`. Migrations live in `server/database/migrations/`.
 
@@ -73,7 +73,7 @@ Media requests from users.
 |--------|------|-------------|
 | `id` | text PK | UUID |
 | `userId` / `username` | text | Requester |
-| `mediaType` / `mediaId` / `mediaTitle` | — | Media identification |
+| `mediaType` / `mediaId` / `mediaTitle` | - | Media identification |
 | `status` | text enum | `pending`, `accepted`, `rejected` |
 | `userNote` / `adminNote` | text | Notes |
 | `createdAt` / `updatedAt` | text | Timestamps |
@@ -188,7 +188,7 @@ const user = await repos.users.findById(userId)
 await repos.users.update(userId, { role: 'admin' })
 ```
 
-Factory functions (`getRepos`, `getReposAsync`) create and cache repo instances. Both SQLite and PostgreSQL share the same repo interface — the `dbGet`/`dbAll`/`dbRun` helpers handle dialect differences at runtime.
+Factory functions (`getRepos`, `getReposAsync`) create and cache repo instances. Both SQLite and PostgreSQL share the same repo interface - the `dbGet`/`dbAll`/`dbRun` helpers handle dialect differences at runtime.
 
 ### Why repos over raw drizzle queries?
 
@@ -199,7 +199,7 @@ Factory functions (`getRepos`, `getReposAsync`) create and cache repo instances.
 
 ## Entity Types
 
-All entity types are in `server/types/entities.ts` — the single source of truth for app-level types:
+All entity types are in `server/types/entities.ts` - the single source of truth for app-level types:
 
 | Type | Description |
 |------|-------------|

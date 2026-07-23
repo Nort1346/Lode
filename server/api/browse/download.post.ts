@@ -444,7 +444,7 @@ export default defineEventHandler(async (event) => {
             await qbit.deleteTorrent(torrent.hash, true).catch(() => {})
             throw createError({
               statusCode: 403,
-              statusMessage: `Torrent contains dangerous files: ${dangerousFiles.map((f) => f.split('/').pop() ?? f).join(', ')} — rejected`
+              statusMessage: `Torrent contains dangerous files: ${dangerousFiles.map((f) => f.split('/').pop() ?? f).join(', ')} - rejected`
             })
           }
           log.info(`[Download:8c:FILE_CHECK] ✓ all ${files.length} files safe`)

@@ -205,7 +205,7 @@ function getPosterUrl(n: (typeof notifications.value)[number]): string | null {
 
           <!-- Notification list -->
           <div class="flex-1 overflow-y-auto">
-            <!-- Enable button — always visible when permission not granted -->
+            <!-- Enable button - always visible when permission not granted -->
             <div
               v-if="!permissionGranted"
               class="px-5 py-4 border-b border-zinc-100 dark:border-white/5 bg-amber-50 dark:bg-amber-500/5"

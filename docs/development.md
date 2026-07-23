@@ -28,18 +28,18 @@ The project uses strict TypeScript ESLint with `projectService: true` for full t
 
 ### Server files (`server/**/*.ts`)
 
-- `no-console: off` — server logging is allowed
-- `eqeqeq: always` — strict equality required
+- `no-console: off` - server logging is allowed
+- `eqeqeq: always` - strict equality required
 - All `@typescript-eslint/no-unsafe-*` rules set to `error`
 - `strict-boolean-expressions: warn`
-- `no-floating-promises: error` — all promises must be handled
-- `no-misused-promises: error` — no async in non-async contexts
-- `await-thenable: error` — only await thenables
+- `no-floating-promises: error` - all promises must be handled
+- `no-misused-promises: error` - no async in non-async contexts
+- `await-thenable: error` - only await thenables
 - `no-non-null-assertion: error`
 
 ### App files (`app/**/*.ts`)
 
-- `no-console: warn` — console usage triggers a warning
+- `no-console: warn` - console usage triggers a warning
 - `eqeqeq: always`
 - Same `no-unsafe-*` rules as server
 - `no-non-null-assertion: error`
@@ -70,7 +70,7 @@ import { SETTINGS } from '#server/types/settings'
 // ✅ Correct
 putSetting(SETTINGS.PREP_SPEED_MB, '15')
 
-// ❌ Wrong — compile error
+// ❌ Wrong - compile error
 putSetting('prep_speed_mb', '15')
 ```
 
@@ -87,8 +87,8 @@ putSetting('prep_speed_mb', '15')
 - Default locale: `en` (English)
 - All UI strings MUST use `t('key')` from `useI18n()`
 - When changing locale: `setLocale($event)` (not `locale = $event`)
-- Polish translations MUST be in Polish — no English fallbacks for Polish locale
-- No Google Translate — all translations are manually written
+- Polish translations MUST be in Polish - no English fallbacks for Polish locale
+- No Google Translate - all translations are manually written
 
 ### Authentication
 
@@ -115,7 +115,7 @@ The project uses **Vitest** (`vitest` 4.x) with `@nuxt/test-utils` and `@vitest/
 Defined in `vitest.config.ts`:
 
 - **Include**: `test/**/*.test.ts`
-- **Setup**: `test/setup.ts` — stubs `h3` globals (`defineEventHandler`, `createError`, `readBody`, `getQuery`) so API handlers can be unit-tested without a running server.
+- **Setup**: `test/setup.ts` - stubs `h3` globals (`defineEventHandler`, `createError`, `readBody`, `getQuery`) so API handlers can be unit-tested without a running server.
 - **Environment**: `node`
 - **Path aliases**: `#server`, `#db`, `#utils`, `#server/types` are mapped to the `server/` tree.
 - **Coverage**: V8 provider, `text` + `lcov` reporters, scoped to `server/utils`, `server/api`, and `server/middleware`.
@@ -143,8 +143,8 @@ pnpm typecheck:test  # type-check tests only
 
 ### Conventions
 
-- External services (TMDB, Prowlarr, qBittorrent, Jellyfin, Discord) are mocked in tests — no network calls.
+- External services (TMDB, Prowlarr, qBittorrent, Jellyfin, Discord) are mocked in tests - no network calls.
 - API route tests invoke handlers directly with a mocked `event` object.
 - Add a `.test.ts` file next to the code it covers, following the same directory layout as `server/`.
-- Mock the repository layer (`#server/repositories`) instead of direct drizzle queries — simpler, faster, and tests the handler logic not the query builder.
+- Mock the repository layer (`#server/repositories`) instead of direct drizzle queries - simpler, faster, and tests the handler logic not the query builder.
 

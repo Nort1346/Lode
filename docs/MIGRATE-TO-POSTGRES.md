@@ -77,7 +77,7 @@ docker compose -f docker-compose.postgres.yml run --rm \
 The script will:
 
 1. Read all data from `.data/app.db` (SQLite)
-2. Create the PostgreSQL schema (tables, indexes) — idempotent, safe to re-run
+2. Create the PostgreSQL schema (tables, indexes) - idempotent, safe to re-run
 3. Check if PostgreSQL already has data (aborts unless `--force` is used)
 4. Transform boolean columns (`0`/`1` to `false`/`true`)
 5. Batch insert data (500 rows per batch)
@@ -115,12 +115,12 @@ The entrypoint will run PostgreSQL migrations (schema is already created by the 
 |---|---|
 | `users` | `is_active`, `can_submit` |
 | `downloads` | `is_private` |
-| `settings` | — |
-| `activity_logs` | — |
-| `requests` | — |
+| `settings` | - |
+| `activity_logs` | - |
+| `requests` | - |
 | `custom_trackers` | `enabled` |
 | `login_attempts` | `success` |
-| `wishlist` | — |
+| `wishlist` | - |
 
 ## Troubleshooting
 

@@ -190,7 +190,7 @@ export async function syncUserCreate(userId: string, data: SyncUserData, setting
       if (providerUserId === null) {
         if (!data.password) {
           console.warn(
-            `[Sync] ${provider.name}: cannot create user "${data.username}" — no password provided, skipping`
+            `[Sync] ${provider.name}: cannot create user "${data.username}" - no password provided, skipping`
           )
           continue
         }

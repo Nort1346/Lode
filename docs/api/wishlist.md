@@ -66,12 +66,12 @@ Remove an item from the wishlist.
 DELETE /api/wishlist
 ```
 
-### Body (option 1 — by ID)
+### Body (option 1 - by ID)
 ```json
 { "id": "uuid" }
 ```
 
-### Body (option 2 — by media)
+### Body (option 2 - by media)
 ```json
 { "mediaType": "movie", "mediaId": 550 }
 ```

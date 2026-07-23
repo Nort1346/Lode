@@ -45,7 +45,7 @@ POST /api/admin/users
 PUT /api/admin/users/[id]
 ```
 
-Partial update — only send fields to change.
+Partial update - only send fields to change.
 
 ### Delete User
 ```

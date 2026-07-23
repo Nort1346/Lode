@@ -62,13 +62,13 @@ docker compose -f docker-compose.sqlite.yml logs -f            # view logs
 ## Verify Installation
 
 1. Login with `admin` / `admin`
-2. Navigate to Browse — TMDB carousels should load
-3. Check admin settings — service health checks should show green for qBittorrent and Prowlarr
+2. Navigate to Browse - TMDB carousels should load
+3. Check admin settings - service health checks should show green for qBittorrent and Prowlarr
 4. Create a test user in Admin > Users
 5. Add a test torrent from the Browse page
 
 ## Next Steps
 
-- [Configuration](./configuration.md) — All available environment variables
-- [Architecture](./architecture.md) — How the project is structured
-- [Deployment](./deployment.md) — Production Docker setup
+- [Configuration](./configuration.md) - All available environment variables
+- [Architecture](./architecture.md) - How the project is structured
+- [Deployment](./deployment.md) - Production Docker setup

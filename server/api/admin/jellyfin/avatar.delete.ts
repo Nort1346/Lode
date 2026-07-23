@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
   try {
     unlinkSync(avatarPath)
   } catch {
-    // file may not exist — ignore
+    // file may not exist - ignore
   }
 
   await dbRun(db.update(users).set({ avatarUrl: null }).where(eq(users.id, body.userId)))

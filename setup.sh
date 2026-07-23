@@ -368,8 +368,8 @@ fi
 
 echo ""
 echo "Choose your database driver:"
-echo "  SQLite    — Zero config, file-based, recommended for most users"
-echo "  PostgreSQL — Full-featured, requires more resources"
+echo "  SQLite    - Zero config, file-based, recommended for most users"
+echo "  PostgreSQL - Full-featured, requires more resources"
 echo ""
 
 DB_DRIVER_CHOICE=$(gum_menu "Select database driver:" "SQLite (recommended)" "PostgreSQL")

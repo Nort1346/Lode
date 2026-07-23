@@ -8,7 +8,7 @@ export function useDb(): SqliteDb {
     const driver = process.env.DB_DRIVER ?? 'sqlite'
 
     if (driver === 'postgres') {
-      throw new Error('PostgreSQL is async — use useDbAsync() in async contexts or ensure DB_DRIVER=sqlite.')
+      throw new Error('PostgreSQL is async - use useDbAsync() in async contexts or ensure DB_DRIVER=sqlite.')
     }
 
     _db = createSqliteDb()
@@ -20,7 +20,7 @@ let _pgDb: AppDb | null = null
 
 /**
  * Returns a database instance for the configured driver.
- * Returns SqliteDb (sync) or PgDb (async) at runtime — the helpers
+ * Returns SqliteDb (sync) or PgDb (async) at runtime - the helpers
  * dbGet/dbAll/dbRun detect the driver via duck-typing and handle both.
  * This cast to SqliteDb is intentional: the repo layer (Phase 3) will
  * replace direct db access with properly typed repo methods.

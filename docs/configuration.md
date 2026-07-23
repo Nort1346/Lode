@@ -14,7 +14,7 @@
 | `NUXT_PROWLARR_API_KEY` | Prowlarr API key |
 | `NUXT_TRACKER_ENCRYPTION_KEY` | AES-256-GCM key for tracker passwords (64 hex chars) |
 
-### Optional — Paths
+### Optional - Paths
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -24,7 +24,7 @@
 | `NUXT_SAVE_PATH_BOOKS` | `/media/Books` | qBittorrent save path for books |
 | `NUXT_SAVE_PATH_MUSIC` | `/media/Music` | qBittorrent save path for music |
 
-### Optional — Integrations
+### Optional - Integrations
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -37,7 +37,7 @@
 | `NUXT_VAPID_PRIVATE_KEY` | - | VAPID private key |
 | `NUXT_VAPID_SUBJECT` | - | Contact email/URL for push service |
 
-### Optional — Disk Space
+### Optional - Disk Space
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -45,7 +45,7 @@
 | `NUXT_MIN_FREE_SPACE_GB` | `7` | Minimum free GB required per disk |
 | `NUXT_DISK_SPACE_CHECK_ENABLED` | `true` | Enable/disable disk space checks |
 
-### Optional — Other
+### Optional - Other
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -80,7 +80,7 @@ export const SETTINGS = {
 export type SettingKey = (typeof SETTINGS)[keyof typeof SETTINGS]
 ```
 
-The `getSetting()`, `putSetting()`, and `deleteSetting()` functions in `server/utils/settings.ts` accept `SettingKey` type — using an invalid key is a TypeScript compile error.
+The `getSetting()`, `putSetting()`, and `deleteSetting()` functions in `server/utils/settings.ts` accept `SettingKey` type - using an invalid key is a TypeScript compile error.
 
 ## Runtime Settings (Admin Panel)
 
