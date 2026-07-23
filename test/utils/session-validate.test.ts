@@ -6,6 +6,9 @@ const mockRepos = vi.hoisted(() => ({
     findUserSessions: vi.fn(),
     touch: vi.fn(),
     delete: vi.fn()
+  },
+  users: {
+    findById: vi.fn()
   }
 }))
 
@@ -20,16 +23,31 @@ describe('validateSession', () => {
     vi.clearAllMocks()
   })
 
-  it('returns true when session exists', async () => {
-    mockRepos.sessions.findById.mockResolvedValue({ id: 'session-1' })
+  it('returns valid + userActive when session and user exist', async () => {
+    mockRepos.sessions.findById.mockResolvedValue({ id: 'session-1', userId: 'u1' })
+    mockRepos.users.findById.mockResolvedValue({ id: 'u1', isActive: true })
     const result = await validateSession('session-1')
-    expect(result).toBe(true)
+    expect(result).toEqual({ valid: true, userActive: true })
   })
 
-  it('returns false when session does not exist', async () => {
+  it('returns valid:false when session does not exist', async () => {
     mockRepos.sessions.findById.mockResolvedValue(undefined)
     const result = await validateSession('session-1')
-    expect(result).toBe(false)
+    expect(result).toEqual({ valid: false })
+  })
+
+  it('returns userActive:false when user is disabled', async () => {
+    mockRepos.sessions.findById.mockResolvedValue({ id: 'session-1', userId: 'u1' })
+    mockRepos.users.findById.mockResolvedValue({ id: 'u1', isActive: false })
+    const result = await validateSession('session-1')
+    expect(result).toEqual({ valid: true, userActive: false })
+  })
+
+  it('returns valid:false when user does not exist', async () => {
+    mockRepos.sessions.findById.mockResolvedValue({ id: 'session-1', userId: 'u1' })
+    mockRepos.users.findById.mockResolvedValue(undefined)
+    const result = await validateSession('session-1')
+    expect(result).toEqual({ valid: false })
   })
 })
 

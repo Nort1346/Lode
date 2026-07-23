@@ -55,16 +55,25 @@ describe('middleware/session-validate', () => {
 
   it('clears session and throws 401 when session invalid', async () => {
     mockGetUserSession.mockResolvedValue({ sessionId: 's1' })
-    mockValidateSession.mockResolvedValue(false)
+    mockValidateSession.mockResolvedValue({ valid: false })
     const event = { path: '/api/test' } as never
 
     await expect(callHandler(event)).rejects.toThrow('401: Session expired')
     expect(mockClearUserSession).toHaveBeenCalled()
   })
 
+  it('clears session and throws 401 when user is disabled', async () => {
+    mockGetUserSession.mockResolvedValue({ sessionId: 's1' })
+    mockValidateSession.mockResolvedValue({ valid: true, userActive: false })
+    const event = { path: '/api/test' } as never
+
+    await expect(callHandler(event)).rejects.toThrow('401: Account disabled')
+    expect(mockClearUserSession).toHaveBeenCalled()
+  })
+
   it('touches session when interval passed', async () => {
     mockGetUserSession.mockResolvedValue({ sessionId: 's1' })
-    mockValidateSession.mockResolvedValue(true)
+    mockValidateSession.mockResolvedValue({ valid: true, userActive: true })
     const event = { path: '/api/test' } as never
 
     const result = await callHandler(event)
@@ -74,7 +83,7 @@ describe('middleware/session-validate', () => {
 
   it('skips touch when recently touched', async () => {
     mockGetUserSession.mockResolvedValue({ sessionId: 's-new' })
-    mockValidateSession.mockResolvedValue(true)
+    mockValidateSession.mockResolvedValue({ valid: true, userActive: true })
 
     const event = { path: '/api/test' } as never
     await callHandler(event)

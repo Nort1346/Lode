@@ -9,11 +9,16 @@ export default defineEventHandler(async (event) => {
 
   if (session?.sessionId === null || session?.sessionId === undefined) return
 
-  const valid = await validateSession(session.sessionId)
+  const result = await validateSession(session.sessionId)
 
-  if (!valid) {
+  if (!result.valid) {
     await clearUserSession(event)
     throw createError({ statusCode: 401, statusMessage: 'Session expired' })
+  }
+
+  if (result.userActive === false) {
+    await clearUserSession(event)
+    throw createError({ statusCode: 401, statusMessage: 'Account disabled' })
   }
 
   const now = Date.now()

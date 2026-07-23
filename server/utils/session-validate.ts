@@ -1,9 +1,12 @@
 import { getReposAsync } from '#server/repositories'
 
-export async function validateSession(sessionId: string): Promise<boolean> {
+export async function validateSession(sessionId: string): Promise<{ valid: boolean; userActive?: boolean }> {
   const repos = await getReposAsync()
   const session = await repos.sessions.findById(sessionId)
-  return session !== undefined
+  if (!session) return { valid: false }
+  const user = await repos.users.findById(session.userId)
+  if (!user) return { valid: false }
+  return { valid: true, userActive: user.isActive }
 }
 
 export async function touchSession(sessionId: string): Promise<void> {
