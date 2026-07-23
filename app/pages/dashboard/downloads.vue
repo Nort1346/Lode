@@ -133,7 +133,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
 
 <template>
   <div>
-    <div class="mb-8">
+    <div v-reveal class="mb-8">
       <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('dashboard.myDownloads') }}</h1>
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('dashboard.trackManage') }}</p>
     </div>
@@ -152,6 +152,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
       <div
         v-for="dl in downloads"
         :key="dl.id"
+        v-reveal
         class="flex gap-3 p-3 rounded-xl border transition-all bg-zinc-50 dark:bg-white/2 sm:gap-4 sm:p-5"
         :class="
           dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok'

@@ -149,10 +149,10 @@ async function changePassword() {
 
 <template>
   <div class="max-w-3xl mx-auto space-y-8">
-    <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">{{ t('profile.title') }}</h1>
+    <h1 v-reveal class="text-3xl font-bold text-zinc-900 dark:text-white">{{ t('profile.title') }}</h1>
 
     <div v-if="profile" class="space-y-8">
-      <div class="flex items-center gap-5 py-4">
+      <div v-reveal="1" class="flex items-center gap-5 py-4">
         <div class="rounded-full ring-4 ring-amber-400/30 dark:ring-amber-500/20 p-1.5">
           <img
             v-if="currentAvatarSrc"
@@ -164,13 +164,13 @@ async function changePassword() {
             <UIcon name="i-lucide-user" class="w-12 h-12 text-zinc-400" />
           </div>
         </div>
-        <div>
+      <div v-reveal="3">
           <p class="text-2xl font-bold text-zinc-900 dark:text-white">{{ user?.username }}</p>
           <p class="text-sm text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">{{ user?.role }}</p>
         </div>
       </div>
 
-      <div class="border-y border-zinc-200 dark:border-white/10 py-6">
+      <div v-reveal="2" class="border-y border-zinc-200 dark:border-white/10 py-6">
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-1">{{ t('profile.passwordTitle') }}</h2>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">{{ t('profile.passwordDesc') }}</p>
         <form class="space-y-4 max-w-sm" @submit.prevent="changePassword">

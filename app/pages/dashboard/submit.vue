@@ -135,12 +135,12 @@ async function handleSubmit() {
 
 <template>
   <div class="max-w-2xl">
-    <div class="mb-8">
+    <div v-reveal class="mb-8">
       <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('submit.title') }}</h1>
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('submit.subtitle') }}</p>
     </div>
 
-    <div class="card p-6">
+    <div v-reveal="1" class="card p-6">
       <form @submit.prevent="handleSubmit">
         <div class="space-y-4">
           <UFormField :label="t('submit.labelLabel')" :description="t('submit.labelDesc')">

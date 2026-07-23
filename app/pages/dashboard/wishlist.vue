@@ -33,7 +33,7 @@ function goToItem(item: WishlistItem) {
 
 <template>
   <div>
-    <div class="mb-8">
+    <div v-reveal class="mb-8">
       <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('wishlist.title') }}</h1>
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('wishlist.subtitle') }}</p>
     </div>
@@ -55,7 +55,7 @@ function goToItem(item: WishlistItem) {
       </UButton>
     </div>
 
-    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    <div v-else v-reveal="1" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       <div v-for="item in items" :key="item.id" class="group relative cursor-pointer" @click="goToItem(item)">
         <div class="relative overflow-hidden rounded-xl">
           <img
