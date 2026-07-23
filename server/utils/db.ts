@@ -1,5 +1,5 @@
 import { createSqliteDb } from '#server/database/drivers/sqlite'
-import type { SqliteDb } from '#server/types/database'
+import type { SqliteDb, AppDb } from '#server/types/database'
 
 let _db: SqliteDb | null = null
 
@@ -16,8 +16,15 @@ export function useDb(): SqliteDb {
   return _db
 }
 
-let _pgDb: unknown = null
+let _pgDb: AppDb | null = null
 
+/**
+ * Returns a database instance for the configured driver.
+ * Returns SqliteDb (sync) or PgDb (async) at runtime — the helpers
+ * dbGet/dbAll/dbRun detect the driver via duck-typing and handle both.
+ * This cast to SqliteDb is intentional: the repo layer (Phase 3) will
+ * replace direct db access with properly typed repo methods.
+ */
 export async function useDbAsync(): Promise<SqliteDb> {
   const driver = process.env.DB_DRIVER ?? 'sqlite'
 
@@ -29,7 +36,7 @@ export async function useDbAsync(): Promise<SqliteDb> {
 
   const { createPostgresDb } = await import('#server/database/drivers/postgres')
   _pgDb = await createPostgresDb()
-  return _pgDb as SqliteDb
+  return _pgDb as unknown as SqliteDb
 }
 
 function hasMethod(obj: unknown, method: string): boolean {
