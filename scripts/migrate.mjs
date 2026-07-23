@@ -5,6 +5,12 @@ import { pathToFileURL } from 'node:url'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 
+try {
+  process.loadEnvFile()
+} catch {
+  /* no-op */
+}
+
 const cwd = process.cwd()
 const driver = process.env.DB_DRIVER ?? 'sqlite'
 
@@ -33,21 +39,19 @@ if (driver === 'postgres') {
     process.exit(1)
   }
 
-  const { default: postgres } = await import(u('postgres'))
-  const { drizzle } = await import(u('drizzle-orm/postgres-js/index.js'))
-  const { migrate } = await import(u('drizzle-orm/postgres-js/migrator.js'))
+  console.log('[migrate] Using drizzle-kit push for PostgreSQL...')
 
-  const client = postgres(connectionString)
-  const db = drizzle(client)
-
+  const { execSync } = await import('node:child_process')
   try {
-    await migrate(db, { migrationsFolder })
-    console.log('[migrate] Done.')
+    execSync('npx drizzle-kit push', {
+      cwd,
+      stdio: 'inherit',
+      env: { ...process.env, DB_DRIVER: 'postgres', DATABASE_URL: connectionString }
+    })
+    console.log('[migrate] PostgreSQL schema pushed successfully.')
   } catch (err) {
-    console.error('[migrate] Migration failed:', err)
+    console.error('[migrate] drizzle-kit push failed:', err.message)
     process.exit(1)
-  } finally {
-    await client.end?.()
   }
 } else {
   const { default: Database } = await import(u('better-sqlite3/lib/index.js'))

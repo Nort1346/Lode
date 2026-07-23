@@ -1,12 +1,13 @@
 import { defineConfig } from 'drizzle-kit'
 
-const dialect = process.env.DB_DRIVER === 'postgres' ? 'postgresql' : 'sqlite'
+const isPostgres = process.env.DB_DRIVER === 'postgres'
+const dialect = isPostgres ? 'postgresql' : 'sqlite'
 
 export default defineConfig({
   dialect,
-  schema: './server/database/schema.ts',
+  schema: isPostgres ? './server/database/schema.pg.ts' : './server/database/schema.sqlite.ts',
   out: './server/database/migrations',
-  ...(dialect === 'postgresql'
+  ...(isPostgres
     ? {
         dbCredentials: {
           url: process.env.DATABASE_URL ?? 'postgresql://localhost:5432/streamhub'

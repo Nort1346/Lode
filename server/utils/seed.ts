@@ -31,5 +31,8 @@ export async function ensureAdminExists() {
     )
 
     log.info('Admin user created (username: admin, password: admin)')
+  } else if (!admin.isActive) {
+    await dbRun(db.update(users).set({ isActive: true }).where(eq(users.id, admin.id)))
+    log.info('Admin user re-activated')
   }
 }
