@@ -26,7 +26,7 @@ describe('notifications/unsubscribe.post', () => {
   const mockEvent = {} as never
 
   function stubDb(options: { allResult?: unknown[] } = {}) {
-    const runMock = vi.fn()
+    const runMock = vi.fn(() => ({ changes: 1 }))
     vi.stubGlobal(
       'useDb',
       vi.fn(() => ({

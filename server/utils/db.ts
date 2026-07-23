@@ -32,12 +32,12 @@ export async function useDbAsync(): Promise<SqliteDb> {
   return _pgDb as SqliteDb
 }
 
-function hasGetMethod(obj: unknown): obj is { get(): unknown } {
-  return typeof obj === 'object' && obj !== null && 'get' in obj && typeof (obj as { get?: unknown }).get === 'function'
+function hasMethod(obj: unknown, method: string): boolean {
+  return typeof obj === 'object' && obj !== null && method in obj && typeof (obj as Record<string, unknown>)[method] === 'function'
 }
 
 export async function dbGet<T>(chain: { get(): T | undefined } | PromiseLike<T[]>): Promise<T | undefined> {
-  if (hasGetMethod(chain)) {
+  if (hasMethod(chain, 'get')) {
     return (chain as { get(): T | undefined }).get()
   }
   const rows = await (chain as PromiseLike<T[]>)
@@ -45,7 +45,7 @@ export async function dbGet<T>(chain: { get(): T | undefined } | PromiseLike<T[]
 }
 
 export async function dbAll<T>(chain: { all(): T[] } | PromiseLike<T[]>): Promise<T[]> {
-  if (hasGetMethod(chain)) {
+  if (hasMethod(chain, 'all')) {
     return (chain as { all(): T[] }).all()
   }
   return await (chain as PromiseLike<T[]>)
@@ -54,7 +54,7 @@ export async function dbAll<T>(chain: { all(): T[] } | PromiseLike<T[]>): Promis
 export async function dbRun(
   chain: { run(): { changes?: number } } | PromiseLike<unknown>
 ): Promise<{ changes: number }> {
-  if (hasGetMethod(chain)) {
+  if (hasMethod(chain, 'run')) {
     const result = (chain as { run(): { changes?: number } }).run()
     return { changes: result.changes ?? 0 }
   }

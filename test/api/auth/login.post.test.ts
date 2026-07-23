@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockGet = vi.fn()
-const mockRun = vi.fn()
+const mockRun = vi.fn(() => ({ changes: 1 }))
 const mockRecordLoginAttempt = vi.fn(() => Promise.resolve())
 const mockSetUserSession = vi.fn(() => Promise.resolve())
 const mockLogActivity = vi.fn()

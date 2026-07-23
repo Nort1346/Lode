@@ -40,6 +40,7 @@ describe('admin/users.post', () => {
     vi.stubGlobal('readBody', mockReadBody)
     mockReadBody.mockReset()
     mockRun.mockReset()
+    mockRun.mockReturnValue({ changes: 1 })
     mockGetExisting.mockReset()
     mockHash.mockReset()
     mockRandomUUID.mockReset()
@@ -72,7 +73,7 @@ describe('admin/users.post', () => {
         update: vi.fn(() => ({
           set: vi.fn(() => ({
             where: vi.fn(() => ({
-              run: vi.fn()
+              run: vi.fn(() => ({ changes: 1 }))
             }))
           }))
         }))

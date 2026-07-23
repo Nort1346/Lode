@@ -49,13 +49,13 @@ describe('notifications/subscribe.post', () => {
         })),
         insert: vi.fn(() => ({
           values: vi.fn(() => ({
-            run: vi.fn()
+            run: vi.fn(() => ({ changes: 1 }))
           }))
         })),
         update: vi.fn(() => ({
           set: vi.fn(() => ({
             where: vi.fn(() => ({
-              run: vi.fn()
+              run: vi.fn(() => ({ changes: 1 }))
             }))
           }))
         }))

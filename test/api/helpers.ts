@@ -16,7 +16,7 @@ export function createMockDb(options: MockDbOptions = {}) {
   const runMock = vi.fn(() => ({ changes: 1 }))
   const getMock = vi.fn(() => options.selectResult)
   const allMock = vi.fn(() => options.selectAllResult ?? [])
-  const setMock = vi.fn(() => ({ where: vi.fn(() => ({ run: runMock, get: vi.fn() })) }))
+  const setMock = vi.fn(() => ({ where: vi.fn(() => ({ run: runMock })) }))
 
   const mockDb = {
     select: vi.fn(() => ({
@@ -42,13 +42,13 @@ export function createMockDb(options: MockDbOptions = {}) {
       }))
     })),
     insert: vi.fn(() => ({
-      values: vi.fn(() => ({ run: runMock, get: vi.fn() }))
+      values: vi.fn(() => ({ run: runMock }))
     })),
     update: vi.fn(() => ({
       set: setMock
     })),
     delete: vi.fn(() => ({
-      where: vi.fn(() => ({ run: runMock, get: vi.fn() }))
+      where: vi.fn(() => ({ run: runMock }))
     })),
     _mocks: { getMock, allMock, runMock, setMock }
   }

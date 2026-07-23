@@ -102,7 +102,7 @@ const mockDb = {
   })),
   insert: vi.fn(() => ({
     values: vi.fn(() => ({
-      run: vi.fn()
+      run: vi.fn(() => ({ changes: 1 }))
     }))
   })),
   transaction: vi.fn((fn: () => void) => fn())

@@ -3,7 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const mockUseDbAsync = vi.hoisted(() => vi.fn())
 const mockDbGet = vi.hoisted(() => vi.fn())
 const mockDbRun = vi.hoisted(() => vi.fn())
-const mockInsert = vi.fn(() => ({ values: vi.fn(() => ({ run: vi.fn() })) }))
+const mockInsert = vi.fn(() => ({ values: vi.fn(() => ({ run: vi.fn(() => ({ changes: 1 })) })) }))
+const mockUpdate = vi.fn(() => ({
+  set: vi.fn(() => ({
+    where: vi.fn(() => ({
+      run: mockDbRun
+    }))
+  }))
+}))
 const mockGet = vi.fn()
 const mockWhere = vi.fn(() => ({ get: mockGet }))
 const mockFrom = vi.fn(() => ({ where: mockWhere }))
@@ -47,7 +54,7 @@ import { ensureAdminExists } from '#server/utils/seed'
 describe('ensureAdminExists', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseDbAsync.mockResolvedValue({ select: mockSelect, insert: mockInsert })
+    mockUseDbAsync.mockResolvedValue({ select: mockSelect, insert: mockInsert, update: mockUpdate })
     mockDbRun.mockResolvedValue({ changes: 1 })
   })
 
