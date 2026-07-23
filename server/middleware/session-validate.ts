@@ -1,5 +1,18 @@
 const lastTouchMap = new Map<string, number>()
 const TOUCH_INTERVAL_MS = 60_000
+const CLEANUP_INTERVAL_MS = 300_000
+const STALE_THRESHOLD_MS = 600_000
+let lastCleanup = 0
+
+function cleanupStaleEntries(now: number): void {
+  if (now - lastCleanup < CLEANUP_INTERVAL_MS) return
+  lastCleanup = now
+  for (const [key, ts] of lastTouchMap) {
+    if (now - ts > STALE_THRESHOLD_MS) {
+      lastTouchMap.delete(key)
+    }
+  }
+}
 
 export default defineEventHandler(async (event) => {
   const path = event.path ?? ''
@@ -22,6 +35,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const now = Date.now()
+  cleanupStaleEntries(now)
   const lastTouch = lastTouchMap.get(session.sessionId) ?? 0
   if (now - lastTouch >= TOUCH_INTERVAL_MS) {
     lastTouchMap.set(session.sessionId, now)

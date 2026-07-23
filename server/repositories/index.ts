@@ -73,10 +73,6 @@ export function getRepos(db: AppDb): Repos {
   return _repos
 }
 
-export function resetRepos(): void {
-  _repos = null
-}
-
 /**
  * Async convenience — gets or creates repos using the configured DB driver.
  * Handlers can simply: const repos = await getReposAsync()
