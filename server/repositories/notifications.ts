@@ -27,13 +27,21 @@ export function createNotificationRepo(db: SqliteDb): NotificationRepo {
 
     async findByUser(userId, limit) {
       return dbAll(
-        db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(limit)
+        db
+          .select()
+          .from(notifications)
+          .where(eq(notifications.userId, userId))
+          .orderBy(desc(notifications.createdAt))
+          .limit(limit)
       )
     },
 
     async countUnread(userId) {
       const [row] = await dbAll(
-        db.select({ count: count() }).from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.read, false)))
+        db
+          .select({ count: count() })
+          .from(notifications)
+          .where(and(eq(notifications.userId, userId), eq(notifications.read, false)))
       )
       return row?.count ?? 0
     },
@@ -47,11 +55,21 @@ export function createNotificationRepo(db: SqliteDb): NotificationRepo {
     },
 
     async markRead(id, userId) {
-      return dbRun(db.update(notifications).set({ read: true }).where(and(eq(notifications.id, id), eq(notifications.userId, userId))))
+      return dbRun(
+        db
+          .update(notifications)
+          .set({ read: true })
+          .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+      )
     },
 
     async markAllRead(userId) {
-      return dbRun(db.update(notifications).set({ read: true }).where(and(eq(notifications.userId, userId), eq(notifications.read, false))))
+      return dbRun(
+        db
+          .update(notifications)
+          .set({ read: true })
+          .where(and(eq(notifications.userId, userId), eq(notifications.read, false)))
+      )
     }
   }
 }

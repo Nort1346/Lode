@@ -38,7 +38,9 @@ export function createUserRepo(db: SqliteDb): UserRepo {
         db
           .select({ id: users.id, username: users.username })
           .from(users)
-          .where(and(isNotNull(users.expiresAt), lte(users.expiresAt, now), eq(users.isActive, true), eq(users.role, 'user')))
+          .where(
+            and(isNotNull(users.expiresAt), lte(users.expiresAt, now), eq(users.isActive, true), eq(users.role, 'user'))
+          )
       )
     },
 

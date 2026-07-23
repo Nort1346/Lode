@@ -8,7 +8,12 @@ export interface SyncProviderRepo {
   findUserProvider(userId: string, providerName: string): Promise<SyncProvider | undefined>
   findByUser(userId: string): Promise<SyncProvider[]>
   create(data: Omit<SyncProvider, 'lastSyncError'>): Promise<void>
-  updateStatus(userId: string, providerName: string, status: 'synced' | 'pending' | 'failed', error?: string): Promise<void>
+  updateStatus(
+    userId: string,
+    providerName: string,
+    status: 'synced' | 'pending' | 'failed',
+    error?: string
+  ): Promise<void>
   deleteByUser(userId: string): Promise<void>
 }
 
@@ -16,7 +21,10 @@ export function createSyncProviderRepo(db: SqliteDb): SyncProviderRepo {
   return {
     async findUserProvider(userId, providerName) {
       return dbGet(
-        db.select().from(syncProviders).where(and(eq(syncProviders.userId, userId), eq(syncProviders.providerName, providerName)))
+        db
+          .select()
+          .from(syncProviders)
+          .where(and(eq(syncProviders.userId, userId), eq(syncProviders.providerName, providerName)))
       )
     },
 

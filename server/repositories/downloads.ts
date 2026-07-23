@@ -10,7 +10,11 @@ export interface DownloadRepo {
   findActiveDownloads(): Promise<Download[]>
   findCompletedDownloads(): Promise<Download[]>
   findByUser(userId: string): Promise<Download[]>
-  findPaginated(filters: { userId?: string; status?: Download['status'] }, page: number, limit: number): Promise<Download[]>
+  findPaginated(
+    filters: { userId?: string; status?: Download['status'] },
+    page: number,
+    limit: number
+  ): Promise<Download[]>
   countFiltered(filters: { userId?: string; status?: Download['status'] }): Promise<number>
   create(data: CreateDownloadInput): Promise<void>
   update(id: string, data: UpdateDownloadInput): Promise<void>
@@ -24,7 +28,10 @@ export function createDownloadRepo(db: SqliteDb): DownloadRepo {
 
     async findActiveByUser(userId) {
       return dbAll(
-        db.select().from(downloads).where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
+        db
+          .select()
+          .from(downloads)
+          .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
       )
     },
 
@@ -46,7 +53,12 @@ export function createDownloadRepo(db: SqliteDb): DownloadRepo {
       if (filters.status !== undefined) conditions.push(eq(downloads.status, filters.status))
       const where = conditions.length > 0 ? and(...conditions) : undefined
 
-      let query = db.select().from(downloads).orderBy(desc(downloads.createdAt)).limit(limit).offset((page - 1) * limit)
+      let query = db
+        .select()
+        .from(downloads)
+        .orderBy(desc(downloads.createdAt))
+        .limit(limit)
+        .offset((page - 1) * limit)
       if (where !== undefined) query = query.where(where) as typeof query
       return dbAll(query)
     },

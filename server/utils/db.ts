@@ -40,7 +40,12 @@ export async function useDbAsync(): Promise<SqliteDb> {
 }
 
 function hasMethod(obj: unknown, method: string): boolean {
-  return typeof obj === 'object' && obj !== null && method in obj && typeof (obj as Record<string, unknown>)[method] === 'function'
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    method in obj &&
+    typeof (obj as Record<string, unknown>)[method] === 'function'
+  )
 }
 
 export async function dbGet<T>(chain: { get(): T | undefined } | PromiseLike<T[]>): Promise<T | undefined> {

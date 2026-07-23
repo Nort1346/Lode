@@ -35,7 +35,10 @@ export function createCustomTrackerRepo(db: SqliteDb): CustomTrackerRepo {
 
     async checkNameUnique(name, excludeId) {
       const existing = await dbGet(
-        db.select({ id: customTrackers.id }).from(customTrackers).where(and(eq(customTrackers.indexerName, name), ne(customTrackers.id, excludeId)))
+        db
+          .select({ id: customTrackers.id })
+          .from(customTrackers)
+          .where(and(eq(customTrackers.indexerName, name), ne(customTrackers.id, excludeId)))
       )
       return existing === undefined
     },

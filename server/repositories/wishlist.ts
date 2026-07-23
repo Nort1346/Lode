@@ -19,7 +19,10 @@ export function createWishlistRepo(db: SqliteDb): WishlistRepo {
 
     async findDuplicate(userId, mediaType, mediaId) {
       return dbGet(
-        db.select().from(wishlist).where(and(eq(wishlist.userId, userId), eq(wishlist.mediaType, mediaType), eq(wishlist.mediaId, mediaId)))
+        db
+          .select()
+          .from(wishlist)
+          .where(and(eq(wishlist.userId, userId), eq(wishlist.mediaType, mediaType), eq(wishlist.mediaId, mediaId)))
       )
     },
 

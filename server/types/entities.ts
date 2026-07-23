@@ -19,7 +19,8 @@ export interface User {
   syncStatus: 'synced' | 'pending' | 'failed'
 }
 
-export type CreateUserInput = Pick<User, 'id' | 'username' | 'password' | 'createdAt'> & Partial<Omit<User, 'id' | 'syncStatus'>>
+export type CreateUserInput = Pick<User, 'id' | 'username' | 'password' | 'createdAt'> &
+  Partial<Omit<User, 'id' | 'syncStatus'>>
 export type UpdateUserInput = Partial<Omit<User, 'id'>>
 
 export interface Download {
@@ -47,7 +48,18 @@ export interface Download {
   isPrivate: boolean
 }
 
-export type CreateDownloadInput = Omit<Download, 'status' | 'progress' | 'etaSeconds' | 'downloadSpeed' | 'uploadSpeed' | 'downloadedBytes' | 'numSeeds' | 'numLeechs' | 'completedAt'>
+export type CreateDownloadInput = Omit<
+  Download,
+  | 'status'
+  | 'progress'
+  | 'etaSeconds'
+  | 'downloadSpeed'
+  | 'uploadSpeed'
+  | 'downloadedBytes'
+  | 'numSeeds'
+  | 'numLeechs'
+  | 'completedAt'
+>
 export type UpdateDownloadInput = Partial<Omit<Download, 'id'>>
 
 export interface Setting {

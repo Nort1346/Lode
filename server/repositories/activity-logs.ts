@@ -31,7 +31,12 @@ export function createActivityLogRepo(db: SqliteDb): ActivityLogRepo {
       if (filters.action !== undefined) conditions.push(eq(activityLogs.action, filters.action))
       const where = conditions.length > 0 ? and(...conditions) : undefined
 
-      let query = db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt)).limit(limit).offset((page - 1) * limit)
+      let query = db
+        .select()
+        .from(activityLogs)
+        .orderBy(desc(activityLogs.createdAt))
+        .limit(limit)
+        .offset((page - 1) * limit)
       if (where !== undefined) query = query.where(where) as typeof query
       return dbAll(query)
     },

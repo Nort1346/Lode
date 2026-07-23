@@ -20,14 +20,19 @@ export function createLoginAttemptRepo(db: SqliteDb): LoginAttemptRepo {
         db
           .select({ cnt: count() })
           .from(loginAttempts)
-          .where(and(eq(loginAttempts.ip, ip), eq(loginAttempts.success, false), gt(loginAttempts.createdAt, windowStart)))
+          .where(
+            and(eq(loginAttempts.ip, ip), eq(loginAttempts.success, false), gt(loginAttempts.createdAt, windowStart))
+          )
       )
       return row?.cnt ?? 0
     },
 
     async countByStatus(success, since) {
       const row = await dbGet(
-        db.select({ cnt: count() }).from(loginAttempts).where(and(eq(loginAttempts.success, success), gt(loginAttempts.createdAt, since)))
+        db
+          .select({ cnt: count() })
+          .from(loginAttempts)
+          .where(and(eq(loginAttempts.success, success), gt(loginAttempts.createdAt, since)))
       )
       return row?.cnt ?? 0
     },
