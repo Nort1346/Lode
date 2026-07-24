@@ -1,14 +1,40 @@
 <template>
   <div>
     <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-      <UInput
-        v-model="searchParams.q"
-        :placeholder="t('browse.searchPlaceholder')"
-        icon="i-lucide-search"
-        size="xl"
-        class="flex-1"
-        autofocus
-      />
+      <div class="relative flex-1 overflow-visible" data-autocomplete>
+        <UInput
+          v-model="searchParams.q"
+          :placeholder="t('browse.searchPlaceholder')"
+          icon="i-lucide-search"
+          size="xl"
+          class="w-full"
+          autofocus
+          @focus="suggestions.length > 0 && (isOpen = true)"
+          @keydown.escape="isOpen = false"
+          @keydown.enter="close"
+        />
+        <div
+          v-if="isOpen && suggestions.length > 0 && isMobile"
+          class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+        >
+          <button
+            v-for="item in suggestions"
+            :key="`${item.type}-${item.id}`"
+            class="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700"
+            @click="selectSuggestion(item)"
+          >
+            <img v-if="item.posterUrl" :src="item.posterUrl" :alt="item.title" class="h-10 w-7 rounded object-cover" />
+            <div v-else class="h-10 w-7 rounded bg-zinc-200 dark:bg-zinc-700" />
+            <div class="min-w-0 flex-1">
+              <AutocompleteItemTitle :text="item.title" />
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                {{ item.type === 'movie' ? t('browse.searchMovies') : t('browse.searchTv') }}
+                <span v-if="item.year"> · {{ item.year }}</span>
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
       <USelect v-model="searchParams.type" :items="typeOptions" size="xl" class="w-full sm:w-40" />
     </div>
 
@@ -134,6 +160,34 @@ const searchParams = reactive({
   q: '',
   type: 'all',
   genres: [] as number[]
+})
+
+const localeRef = toRef(locale)
+const typeRef = toRef(() => searchParams.type)
+const { suggestions, isOpen, isMobile, close } = useAutocomplete(
+  toRef(() => searchParams.q),
+  typeRef,
+  localeRef
+)
+
+function selectSuggestion(item: { id: number; type: string }) {
+  close()
+  goToItem({ id: item.id, type: item.type })
+}
+
+function handleClickOutside(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (!target.closest('[data-autocomplete]')) {
+    close()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 
 const typeOptions = computed(() => [
