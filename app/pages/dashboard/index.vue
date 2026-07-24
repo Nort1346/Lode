@@ -158,7 +158,9 @@ const savePathLabels: Record<string, string> = {
             <p class="text-2xl font-bold text-zinc-900 dark:text-white">
               {{ stats.activeTorrents }}
             </p>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ t('dashboard.activeTorrents') }}</p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">
+              {{ user?.role === 'admin' ? t('dashboard.activeTorrentsAll') : t('dashboard.activeTorrents') }}
+            </p>
           </div>
         </div>
         <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
@@ -177,7 +179,9 @@ const savePathLabels: Record<string, string> = {
             <p class="text-2xl font-bold text-zinc-900 dark:text-white">
               {{ stats.downloadsToday }}
             </p>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ t('dashboard.downloadsToday') }}</p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">
+              {{ user?.role === 'admin' ? t('dashboard.downloadsTodayAll') : t('dashboard.downloadsToday') }}
+            </p>
           </div>
         </div>
         <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
@@ -196,7 +200,9 @@ const savePathLabels: Record<string, string> = {
             <p class="text-2xl font-bold text-zinc-900 dark:text-white">
               {{ stats.completedToday }}
             </p>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ t('dashboard.completed') }}</p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">
+              {{ user?.role === 'admin' ? t('dashboard.completedAll') : t('dashboard.completed') }}
+            </p>
           </div>
         </div>
         <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">Max size: {{ user?.maxTorrentSizeGb }}GB</div>

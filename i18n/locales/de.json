@@ -140,8 +140,11 @@
   "dashboard": {
     "welcome": "Willkommen zurück,",
     "activeTorrents": "Aktive Downloads",
+    "activeTorrentsAll": "Alle aktiven Downloads",
     "downloadsToday": "Downloads heute",
+    "downloadsTodayAll": "Alle Downloads heute",
     "completed": "Abgeschlossen",
+    "completedAll": "Alle abgeschlossen",
     "browse": "Durchsuchen",
     "noActive": "Keine aktiven Downloads. Fügen Sie einen Download hinzu, um zu beginnen!",
     "myDownloads": "Meine Downloads",
