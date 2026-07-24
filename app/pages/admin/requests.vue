@@ -8,6 +8,7 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+const { smallerThan } = useBreakpoints()
 const items = ref<Request[]>([])
 const loading = ref(true)
 const page = ref(1)
@@ -242,9 +243,15 @@ async function confirmAction() {
 
       <div
         v-if="total > PAGE_SIZE"
-        class="overflow-x-auto max-w-full flex justify-center px-4 py-3 border-t border-zinc-200 dark:border-white/5"
+        class="overflow-x-auto max-w-full flex justify-center px-2 sm:px-4 py-3 border-t border-zinc-200 dark:border-white/5"
       >
-        <UPagination v-model:page="page" :total="total" :items-per-page="PAGE_SIZE" :sibling-count="1" show-edges />
+        <UPagination
+          v-model:page="page"
+          :total="total"
+          :items-per-page="PAGE_SIZE"
+          :sibling-count="smallerThan('sm') ? 0 : 1"
+          :show-edges="!smallerThan('sm')"
+        />
       </div>
     </div>
 

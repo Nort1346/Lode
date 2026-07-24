@@ -3,18 +3,10 @@ import type { AutocompleteSuggestion } from '~/types/autocomplete'
 export function useAutocomplete(query: Ref<string>, type: Ref<string>, locale: Ref<string>) {
   const suggestions = ref<AutocompleteSuggestion[]>([])
   const isOpen = ref(false)
-  const isMobile = ref(false)
+  const { smallerThan } = useBreakpoints()
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
-  let resizeTimer: ReturnType<typeof setTimeout> | null = null
 
-  function checkMobile() {
-    isMobile.value = window.innerWidth < 768
-  }
-
-  function onResize() {
-    if (resizeTimer !== null) clearTimeout(resizeTimer)
-    resizeTimer = setTimeout(checkMobile, 100)
-  }
+  const isMobile = computed(() => smallerThan('md'))
 
   function fetchSuggestions() {
     if (debounceTimer !== null) clearTimeout(debounceTimer)
@@ -45,15 +37,8 @@ export function useAutocomplete(query: Ref<string>, type: Ref<string>, locale: R
     fetchSuggestions()
   })
 
-  onMounted(() => {
-    checkMobile()
-    window.addEventListener('resize', onResize)
-  })
-
   onUnmounted(() => {
     if (debounceTimer !== null) clearTimeout(debounceTimer)
-    if (resizeTimer !== null) clearTimeout(resizeTimer)
-    window.removeEventListener('resize', onResize)
   })
 
   return { suggestions, isOpen, isMobile, close }

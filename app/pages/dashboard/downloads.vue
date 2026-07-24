@@ -16,6 +16,7 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+const { smallerThan } = useBreakpoints()
 const { user } = useUserSession()
 const { data: me } = useFetch('/api/user/me')
 const overlay = useOverlay()
@@ -269,8 +270,14 @@ const savePathLabels = computed<Record<string, string>>(() => ({
       </div>
     </div>
 
-    <div v-if="total > PAGE_SIZE" class="overflow-x-auto max-w-full flex justify-center mt-6">
-      <UPagination v-model:page="page" :total="total" :items-per-page="PAGE_SIZE" :sibling-count="1" show-edges />
+    <div v-if="total > PAGE_SIZE" class="overflow-x-auto max-w-full flex justify-center mt-6 px-2 sm:px-4">
+      <UPagination
+        v-model:page="page"
+        :total="total"
+        :items-per-page="PAGE_SIZE"
+        :sibling-count="smallerThan('sm') ? 0 : 1"
+        :show-edges="!smallerThan('sm')"
+      />
     </div>
   </div>
 </template>
