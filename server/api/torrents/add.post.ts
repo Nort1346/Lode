@@ -106,35 +106,33 @@ export default defineEventHandler(async (event) => {
 
   return await withTorrentAddLock(async () => {
     if (userRole !== 'admin') {
-      await db.transaction(async () => {
-        const userDownloads = await dbAll(
-          db
-            .select()
-            .from(downloads)
-            .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
-        )
+      const userDownloads = await dbAll(
+        db
+          .select()
+          .from(downloads)
+          .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
+      )
 
-        if (userDownloads.length >= freshUser.activeTorrentLimit) {
-          throw createError({
-            statusCode: 429,
-            statusMessage: `Active torrent limit reached (${freshUser.activeTorrentLimit})`
-          })
-        }
+      if (userDownloads.length >= freshUser.activeTorrentLimit) {
+        throw createError({
+          statusCode: 429,
+          statusMessage: `Active torrent limit reached (${freshUser.activeTorrentLimit})`
+        })
+      }
 
-        const todayStart = new Date()
-        todayStart.setHours(0, 0, 0, 0)
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
 
-        const todayAll = (await dbAll(db.select().from(downloads).where(eq(downloads.userId, userId)))).filter(
-          (d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed'
-        )
+      const todayAll = (await dbAll(db.select().from(downloads).where(eq(downloads.userId, userId)))).filter(
+        (d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed'
+      )
 
-        if (todayAll.length >= freshUser.dailyDownloadLimit) {
-          throw createError({
-            statusCode: 429,
-            statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`
-          })
-        }
-      })
+      if (todayAll.length >= freshUser.dailyDownloadLimit) {
+        throw createError({
+          statusCode: 429,
+          statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`
+        })
+      }
     }
 
     const qbit = useQBittorrent()
