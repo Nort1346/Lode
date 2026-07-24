@@ -7,6 +7,9 @@ const { user, clear } = useUserSession()
 const route = useRoute()
 const colorMode = useColorMode()
 const { t, locale, locales, setLocale } = useI18n()
+const {
+  public: { appVersion }
+} = useRuntimeConfig()
 
 const { connect, disconnect, checkPermission, permissionGranted, subscribeToPush } = useNotifications()
 
@@ -265,6 +268,15 @@ watch(
     </main>
 
     <!-- Footer -->
-    <footer class="footer py-4 text-center text-xs text-zinc-400 dark:text-zinc-600">&copy; Nort</footer>
+    <footer class="footer py-4 text-center text-xs text-zinc-400 dark:text-zinc-600">
+      StreamHub v{{ appVersion }} · &copy;
+      <NuxtLink
+        to="https://github.com/Nort1346/StreamHub"
+        target="_blank"
+        rel="noopener"
+        class="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
+        >Nort1346</NuxtLink
+      >
+    </footer>
   </div>
 </template>
