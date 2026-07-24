@@ -16,12 +16,12 @@
 
     <div v-else class="group/carousel relative">
       <button
-        v-if="hasOverflow"
+        v-if="hasOverflow && !isAtStart"
         aria-label="Scroll left"
-        class="absolute top-1/2 left-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-1.5 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800"
+        class="absolute top-1/2 left-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-2 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800 cursor-pointer"
         @click="scroll(-1)"
       >
-        <UIcon name="i-lucide-chevron-left" class="size-5 text-zinc-700 dark:text-zinc-300" />
+        <UIcon name="i-lucide-chevron-left" class="size-6 text-zinc-700 dark:text-zinc-300" />
       </button>
 
       <div ref="scrollRef" class="-mx-1 flex gap-4 overflow-x-auto overflow-y-hidden px-1 py-4 pb-2 scrollbar-hide">
@@ -41,12 +41,12 @@
       </div>
 
       <button
-        v-if="hasOverflow"
+        v-if="hasOverflow && !isAtEnd"
         aria-label="Scroll right"
-        class="absolute top-1/2 right-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-1.5 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800"
+        class="absolute top-1/2 right-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-2 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800 cursor-pointer"
         @click="scroll(1)"
       >
-        <UIcon name="i-lucide-chevron-right" class="size-5 text-zinc-700 dark:text-zinc-300" />
+        <UIcon name="i-lucide-chevron-right" class="size-6 text-zinc-700 dark:text-zinc-300" />
       </button>
     </div>
   </section>
@@ -66,7 +66,7 @@ defineEmits<{
 }>()
 
 const scrollRef = ref<HTMLElement | null>(null)
-const { hasOverflow, scroll } = useCarouselOverflow(scrollRef, {
+const { hasOverflow, isAtStart, isAtEnd, scroll } = useCarouselOverflow(scrollRef, {
   watchSource: () => props.items
 })
 </script>
