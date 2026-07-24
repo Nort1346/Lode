@@ -156,7 +156,9 @@
     "dead": "⚠ Keine Seeder – Löschung empfohlen",
     "poor": "Wenig Seeder",
     "slow": "Langsame Verbindung",
-    "good": "OK"
+    "good": "OK",
+    "browseCTA": "Filme & Serien entdecken",
+    "browseCTADesc": "Entdecke aktuelle, beliebte und top-bewertete Inhalte"
   },
   "downloads": {
     "prepReady": "Bereit",

@@ -156,7 +156,9 @@
     "dead": "⚠ Aucun seed - envisagez de supprimer",
     "poor": "Peu de seeds",
     "slow": "Connexion lente",
-    "good": "OK"
+    "good": "OK",
+    "browseCTA": "Films & Séries",
+    "browseCTADesc": "Découvrez les tendances, populaires et les mieux notés"
   },
   "downloads": {
     "prepReady": "Prêt",

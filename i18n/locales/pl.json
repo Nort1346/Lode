@@ -156,7 +156,9 @@
     "dead": "⚠ Brak seederów - rozważ usunięcie",
     "poor": "Mało seederów",
     "slow": "Wolne połączenie",
-    "good": "OK"
+    "good": "OK",
+    "browseCTA": "Przeglądaj filmy i seriale",
+    "browseCTADesc": "Odkrywaj popularne i najlepiej oceniane"
   },
   "downloads": {
     "prepReady": "Gotowe",

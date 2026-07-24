@@ -156,7 +156,9 @@
     "dead": "⚠ Sin semillas - considera eliminar",
     "poor": "Pocas semillas",
     "slow": "Conexión lenta",
-    "good": "OK"
+    "good": "OK",
+    "browseCTA": "Películas y Series",
+    "browseCTADesc": "Descubre tendencias, populares y mejor valorados"
   },
   "downloads": {
     "prepReady": "Listo",

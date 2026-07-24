@@ -339,5 +339,9 @@ const savePathLabels: Record<string, string> = {
     <div v-reveal="3">
       <MediaCarousel :title="t('browse.popularTv')" :items="popularTvShows" @item-click="goToItem" />
     </div>
+
+    <div v-reveal="4">
+      <DashboardBrowseCTA />
+    </div>
   </div>
 </template>
