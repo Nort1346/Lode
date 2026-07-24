@@ -26,7 +26,6 @@
     "test:coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:migrate-pg": "node scripts/migrate-sqlite-to-pg.mjs",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
