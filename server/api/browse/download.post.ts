@@ -119,52 +119,50 @@ export default defineEventHandler(async (event) => {
       const db = await useDbAsync()
 
       if (userRole !== 'admin') {
-        await db.transaction(async () => {
-          const userDownloads = await dbAll(
-            db
-              .select()
-              .from(downloads)
-              .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
-          )
+        const userDownloads = await dbAll(
+          db
+            .select()
+            .from(downloads)
+            .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
+        )
 
-          log.info(`[Download:3:LIMITS] active=${userDownloads.length}/${freshUser.activeTorrentLimit}`)
+        log.info(`[Download:3:LIMITS] active=${userDownloads.length}/${freshUser.activeTorrentLimit}`)
 
-          if (userDownloads.length >= freshUser.activeTorrentLimit) {
+        if (userDownloads.length >= freshUser.activeTorrentLimit) {
+          throw createError({
+            statusCode: 429,
+            statusMessage: `Active torrent limit reached (${freshUser.activeTorrentLimit})`
+          })
+        }
+
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+
+        const todayAll = (await dbAll(db.select().from(downloads).where(eq(downloads.userId, userId)))).filter(
+          (d) => new Date(d.createdAt) >= todayStart
+        )
+
+        const todayActive = todayAll.filter((d) => d.status !== 'failed' && d.status !== 'removed')
+
+        log.info(`[Download:3:LIMITS] today=${todayActive.length}/${freshUser.dailyDownloadLimit}`)
+
+        if (todayActive.length >= freshUser.dailyDownloadLimit) {
+          throw createError({
+            statusCode: 429,
+            statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`
+          })
+        }
+
+        if (isPrivateTrackerEnabled) {
+          const todayPrivate = todayAll.filter((d) => d.isPrivate)
+          log.info(`[Download:3:LIMITS] todayPrivate=${todayPrivate.length}/${freshUser.privateTrackerLimit}`)
+          if (todayPrivate.length >= freshUser.privateTrackerLimit) {
             throw createError({
               statusCode: 429,
-              statusMessage: `Active torrent limit reached (${freshUser.activeTorrentLimit})`
+              statusMessage: `Private tracker daily limit reached (${freshUser.privateTrackerLimit})`
             })
           }
-
-          const todayStart = new Date()
-          todayStart.setHours(0, 0, 0, 0)
-
-          const todayAll = (await dbAll(db.select().from(downloads).where(eq(downloads.userId, userId)))).filter(
-            (d) => new Date(d.createdAt) >= todayStart
-          )
-
-          const todayActive = todayAll.filter((d) => d.status !== 'failed' && d.status !== 'removed')
-
-          log.info(`[Download:3:LIMITS] today=${todayActive.length}/${freshUser.dailyDownloadLimit}`)
-
-          if (todayActive.length >= freshUser.dailyDownloadLimit) {
-            throw createError({
-              statusCode: 429,
-              statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`
-            })
-          }
-
-          if (isPrivateTrackerEnabled) {
-            const todayPrivate = todayAll.filter((d) => d.isPrivate)
-            log.info(`[Download:3:LIMITS] todayPrivate=${todayPrivate.length}/${freshUser.privateTrackerLimit}`)
-            if (todayPrivate.length >= freshUser.privateTrackerLimit) {
-              throw createError({
-                statusCode: 429,
-                statusMessage: `Private tracker daily limit reached (${freshUser.privateTrackerLimit})`
-              })
-            }
-          }
-        })
+        }
       } else {
         log.info(`[Download:3:LIMITS] admin - skipping all limits`)
       }
