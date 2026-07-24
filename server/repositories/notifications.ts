@@ -2,17 +2,7 @@ import { notifications } from '#server/database/schema'
 import { eq, and, desc, count } from 'drizzle-orm'
 import { dbGet, dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { Notification } from '#server/types/entities'
-
-export interface NotificationRepo {
-  findExistingUnread(userId: string, type: string): Promise<{ id: string } | undefined>
-  findByUser(userId: string, limit: number): Promise<Notification[]>
-  countUnread(userId: string): Promise<number>
-  create(data: Omit<Notification, 'read'>): Promise<void>
-  updateExisting(id: string, title: string, message: string, createdAt: string): Promise<void>
-  markRead(id: string, userId: string): Promise<{ changes: number }>
-  markAllRead(userId: string): Promise<{ changes: number }>
-}
+import type { NotificationRepo } from '#server/types/repos'
 
 export function createNotificationRepo(db: SqliteDb): NotificationRepo {
   return {

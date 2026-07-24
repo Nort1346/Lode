@@ -2,18 +2,7 @@ import { customTrackers } from '#server/database/schema'
 import { eq, and, ne } from 'drizzle-orm'
 import { dbGet, dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { CustomTracker } from '#server/types/entities'
-
-export interface CustomTrackerRepo {
-  findById(id: string): Promise<CustomTracker | undefined>
-  findByIndexerName(name: string): Promise<CustomTracker | undefined>
-  findAll(): Promise<CustomTracker[]>
-  findEnabled(): Promise<CustomTracker[]>
-  checkNameUnique(name: string, excludeId: string): Promise<boolean>
-  create(data: Omit<CustomTracker, 'enabled'> & { enabled?: boolean }): Promise<void>
-  update(id: string, data: Partial<Omit<CustomTracker, 'id'>>): Promise<void>
-  delete(id: string): Promise<void>
-}
+import type { CustomTrackerRepo } from '#server/types/repos'
 
 export function createCustomTrackerRepo(db: SqliteDb): CustomTrackerRepo {
   return {

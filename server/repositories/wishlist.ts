@@ -2,14 +2,7 @@ import { wishlist } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { dbGet, dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { WishlistItem } from '#server/types/entities'
-
-export interface WishlistRepo {
-  findByUser(userId: string): Promise<WishlistItem[]>
-  findDuplicate(userId: string, mediaType: 'movie' | 'tv', mediaId: number): Promise<WishlistItem | undefined>
-  create(data: WishlistItem): Promise<void>
-  delete(id: string): Promise<void>
-}
+import type { WishlistRepo } from '#server/types/repos'
 
 export function createWishlistRepo(db: SqliteDb): WishlistRepo {
   return {

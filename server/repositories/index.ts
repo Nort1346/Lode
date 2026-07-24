@@ -13,35 +13,7 @@ import { createPushSubscriptionRepo } from './push-subscriptions'
 import { createWishlistRepo } from './wishlist'
 import { createSyncProviderRepo } from './sync-providers'
 import { createSyncUserSettingsRepo } from './sync-user-settings'
-import type { UserRepo } from './users'
-import type { DownloadRepo } from './downloads'
-import type { SettingRepo } from './settings'
-import type { SessionRepo } from './sessions'
-import type { RequestRepo } from './requests'
-import type { NotificationRepo } from './notifications'
-import type { CustomTrackerRepo } from './custom-trackers'
-import type { ActivityLogRepo } from './activity-logs'
-import type { LoginAttemptRepo } from './login-attempts'
-import type { PushSubscriptionRepo } from './push-subscriptions'
-import type { WishlistRepo } from './wishlist'
-import type { SyncProviderRepo } from './sync-providers'
-import type { SyncUserSettingsRepo } from './sync-user-settings'
-
-export interface Repos {
-  users: UserRepo
-  downloads: DownloadRepo
-  settings: SettingRepo
-  sessions: SessionRepo
-  requests: RequestRepo
-  notifications: NotificationRepo
-  customTrackers: CustomTrackerRepo
-  activityLogs: ActivityLogRepo
-  loginAttempts: LoginAttemptRepo
-  pushSubscriptions: PushSubscriptionRepo
-  wishlist: WishlistRepo
-  syncProviders: SyncProviderRepo
-  syncUserSettings: SyncUserSettingsRepo
-}
+import type { Repos } from '#server/types/repos'
 
 let _repos: Repos | null = null
 

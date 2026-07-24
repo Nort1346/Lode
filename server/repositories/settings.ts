@@ -2,12 +2,7 @@ import { settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { dbGet, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-
-export interface SettingRepo {
-  get(key: string): Promise<string | undefined>
-  set(key: string, value: string): Promise<void>
-  delete(key: string): Promise<void>
-}
+import type { SettingRepo } from '#server/types/repos'
 
 export function createSettingRepo(db: SqliteDb): SettingRepo {
   return {

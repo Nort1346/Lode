@@ -2,16 +2,7 @@ import { sessions } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { dbGet, dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { Session } from '#server/types/entities'
-
-export interface SessionRepo {
-  findById(id: string): Promise<Session | undefined>
-  findUserSessions(userId: string): Promise<Pick<Session, 'id' | 'createdAt'>[]>
-  create(data: Session): Promise<void>
-  touch(id: string, now: string): Promise<void>
-  delete(id: string): Promise<void>
-  deleteByUser(userId: string): Promise<void>
-}
+import type { SessionRepo } from '#server/types/repos'
 
 export function createSessionRepo(db: SqliteDb): SessionRepo {
   return {

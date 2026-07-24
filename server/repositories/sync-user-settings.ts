@@ -2,17 +2,7 @@ import { syncUserSettings } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { dbGet, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { SyncUserSettings } from '#server/types/entities'
-
-export interface SyncUserSettingsRepo {
-  find(userId: string, providerName: string): Promise<SyncUserSettings | undefined>
-  upsert(
-    userId: string,
-    providerName: string,
-    settings: Omit<SyncUserSettings, 'id' | 'userId' | 'providerName' | 'createdAt' | 'updatedAt'>
-  ): Promise<void>
-  deleteByUser(userId: string): Promise<void>
-}
+import type { SyncUserSettingsRepo } from '#server/types/repos'
 
 export function createSyncUserSettingsRepo(db: SqliteDb): SyncUserSettingsRepo {
   return {

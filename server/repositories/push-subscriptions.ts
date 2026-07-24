@@ -2,14 +2,7 @@ import { pushSubscriptions } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { dbGet, dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { PushSubscription } from '#server/types/entities'
-
-export interface PushSubscriptionRepo {
-  findByUser(userId: string): Promise<PushSubscription[]>
-  findByEndpoint(endpoint: string): Promise<PushSubscription | undefined>
-  create(data: Omit<PushSubscription, 'lastUsedAt'>): Promise<void>
-  delete(id: string): Promise<void>
-}
+import type { PushSubscriptionRepo } from '#server/types/repos'
 
 export function createPushSubscriptionRepo(db: SqliteDb): PushSubscriptionRepo {
   return {

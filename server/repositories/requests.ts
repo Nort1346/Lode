@@ -2,16 +2,7 @@ import { requests } from '#server/database/schema'
 import { eq, and, desc } from 'drizzle-orm'
 import { dbGet, dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { Request as DbRequest } from '#server/types/entities'
-
-export interface RequestRepo {
-  findById(id: string): Promise<DbRequest | undefined>
-  findByUser(userId: string): Promise<DbRequest[]>
-  findDuplicate(userId: string, mediaType: 'movie' | 'tv', mediaId: number): Promise<DbRequest | undefined>
-  findPaginated(status?: 'pending' | 'accepted' | 'rejected'): Promise<DbRequest[]>
-  create(data: Omit<DbRequest, 'status' | 'adminNote' | 'updatedAt'>): Promise<void>
-  updateStatus(id: string, status: 'accepted' | 'rejected', adminNote: string | null, updatedAt: string): Promise<void>
-}
+import type { RequestRepo } from '#server/types/repos'
 
 export function createRequestRepo(db: SqliteDb): RequestRepo {
   return {

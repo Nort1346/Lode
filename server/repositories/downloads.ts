@@ -2,23 +2,7 @@ import { downloads } from '#server/database/schema'
 import { eq, and, desc, count } from 'drizzle-orm'
 import { dbGet, dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { Download, CreateDownloadInput, UpdateDownloadInput } from '#server/types/entities'
-
-export interface DownloadRepo {
-  findById(id: string): Promise<Download | undefined>
-  findActiveByUser(userId: string): Promise<Download[]>
-  findActiveDownloads(): Promise<Download[]>
-  findCompletedDownloads(): Promise<Download[]>
-  findByUser(userId: string): Promise<Download[]>
-  findPaginated(
-    filters: { userId?: string; status?: Download['status'] },
-    page: number,
-    limit: number
-  ): Promise<Download[]>
-  countFiltered(filters: { userId?: string; status?: Download['status'] }): Promise<number>
-  create(data: CreateDownloadInput): Promise<void>
-  update(id: string, data: UpdateDownloadInput): Promise<void>
-}
+import type { DownloadRepo } from '#server/types/repos'
 
 export function createDownloadRepo(db: SqliteDb): DownloadRepo {
   return {

@@ -2,16 +2,7 @@ import { loginAttempts } from '#server/database/schema'
 import { eq, and, gt, count } from 'drizzle-orm'
 import { dbGet, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { LoginAttempt } from '#server/types/entities'
-
-export interface LoginAttemptRepo {
-  countFailedInWindow(ip: string, windowStart: string): Promise<number>
-  countByStatus(success: boolean, since: string): Promise<number>
-  countTotal(since: string): Promise<number>
-  create(data: Omit<LoginAttempt, 'id'> & { id?: string }): Promise<void>
-  deleteFailedByIp(ip: string): Promise<void>
-  deleteOlderThan(cutoff: string): Promise<void>
-}
+import type { LoginAttemptRepo } from '#server/types/repos'
 
 export function createLoginAttemptRepo(db: SqliteDb): LoginAttemptRepo {
   return {

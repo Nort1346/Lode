@@ -2,14 +2,7 @@ import { activityLogs } from '#server/database/schema'
 import { eq, lt, desc, count, and } from 'drizzle-orm'
 import { dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { ActivityLog } from '#server/types/entities'
-
-export interface ActivityLogRepo {
-  countFiltered(filters: { userId?: string; action?: string }): Promise<number>
-  findPaginated(filters: { userId?: string; action?: string }, page: number, limit: number): Promise<ActivityLog[]>
-  create(data: Omit<ActivityLog, 'id'> & { id?: string }): Promise<void>
-  deleteOlderThan(cutoff: string): Promise<void>
-}
+import type { ActivityLogRepo } from '#server/types/repos'
 
 export function createActivityLogRepo(db: SqliteDb): ActivityLogRepo {
   return {

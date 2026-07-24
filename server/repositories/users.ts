@@ -2,18 +2,7 @@ import { users } from '#server/database/schema'
 import { eq, and, lte, isNotNull } from 'drizzle-orm'
 import { dbGet, dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
-import type { User, CreateUserInput, UpdateUserInput } from '#server/types/entities'
-
-export interface UserRepo {
-  findById(id: string): Promise<User | undefined>
-  findByUsername(username: string): Promise<User | undefined>
-  findByRole(role: 'admin' | 'user'): Promise<User[]>
-  findAll(): Promise<User[]>
-  findExpiredUsers(now: string): Promise<{ id: string; username: string }[]>
-  create(data: CreateUserInput): Promise<void>
-  update(id: string, data: UpdateUserInput): Promise<void>
-  delete(id: string): Promise<void>
-}
+import type { UserRepo } from '#server/types/repos'
 
 export function createUserRepo(db: SqliteDb): UserRepo {
   return {
