@@ -47,7 +47,7 @@ RUN addgroup --system --gid 1001 nodejs \
 
 WORKDIR /app
 
-# .output 
+# .output
 COPY --from=build  --chown=appuser:nodejs /app/.output                          ./.output
 
 # node_modules (prebuilt binaries for better-sqlite3, sharp, @node-rs/bcrypt)
@@ -56,7 +56,6 @@ COPY --from=deps   --chown=appuser:nodejs /app/node_modules                     
 # migrations and scripts
 COPY --from=build  --chown=appuser:nodejs /app/server/database/migrations       ./server/database/migrations
 COPY --from=build  --chown=appuser:nodejs /app/scripts/migrate.mjs              ./scripts/migrate.mjs
-COPY --from=build  --chown=appuser:nodejs /app/scripts/migrate-sqlite-to-pg.mjs ./scripts/migrate-sqlite-to-pg.mjs
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
