@@ -29,13 +29,13 @@ vi.mock('drizzle-orm', () => ({
   and: vi.fn(() => ({}))
 }))
 
-vi.mock('#server/utils/discord', () => ({
+vi.mock('#server/utils/notifications/discord', () => ({
   notifyRequestPending: vi.fn(() => Promise.resolve())
 }))
 
 import handler from '#server/api/requests/post.post'
 import { readBody } from 'h3'
-import { notifyRequestPending } from '#server/utils/discord'
+import { notifyRequestPending } from '#server/utils/notifications/discord'
 
 describe('requests/post.post', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rankTorrents, parseTorrentTitle, formatScore } from '#server/utils/torrent-ranker'
+import { rankTorrents, parseTorrentTitle, formatScore } from '#server/utils/torrents/torrent-ranker'
 import { DEFAULT_RANKING_CONFIG } from '#server/types/ranking'
 import type { ProwlarrResult } from '#server/types/prowlarr'
 

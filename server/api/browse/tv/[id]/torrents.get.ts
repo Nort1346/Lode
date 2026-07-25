@@ -1,8 +1,8 @@
 import { getTvShowDetails } from '#server/utils/tmdb'
 import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
-import { rankTorrents } from '#server/utils/torrent-ranker'
+import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { checkDailyLimit } from '#server/utils/limits'
-import { getRankingConfig } from '#server/utils/ranking-config'
+import { getRankingConfig } from '#server/utils/torrents/ranking-config'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

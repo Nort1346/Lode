@@ -1,7 +1,7 @@
 import { eq, and } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { requests } from '#server/database/schema'
-import { notifyRequestPending } from '#server/utils/discord'
+import { notifyRequestPending } from '#server/utils/notifications/discord'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

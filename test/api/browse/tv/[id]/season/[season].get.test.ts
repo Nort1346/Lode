@@ -30,7 +30,7 @@ vi.mock('#server/utils/prowlarr', () => ({
   PROWLARR_CATEGORIES: { MOVIES: 2000, TV: 5000, MUSIC: 3000, BOOKS: 7000 }
 }))
 
-vi.mock('#server/utils/torrent-ranker', () => ({
+vi.mock('#server/utils/torrents/torrent-ranker', () => ({
   rankTorrents: mockRankTorrents
 }))
 
@@ -38,7 +38,7 @@ vi.mock('#server/utils/limits', () => ({
   checkDailyLimit: mockCheckDailyLimit
 }))
 
-vi.mock('#server/utils/ranking-config', () => ({
+vi.mock('#server/utils/torrents/ranking-config', () => ({
   getRankingConfig: mockGetRankingConfig
 }))
 

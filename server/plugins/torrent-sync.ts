@@ -1,4 +1,4 @@
-import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrent-sync'
+import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrents/torrent-sync'
 import { createLogger } from '#server/utils/logger'
 
 const log = createLogger('TorrentSync')

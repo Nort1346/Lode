@@ -62,7 +62,7 @@ describe('push', () => {
   })
 
   async function loadPush() {
-    return await import('#server/utils/push')
+    return await import('#server/utils/notifications/push')
   }
 
   describe('sendPushNotification', () => {

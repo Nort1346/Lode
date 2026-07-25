@@ -1,4 +1,4 @@
-import { isDiscordMentionsEnabled } from '#server/utils/discord'
+import { isDiscordMentionsEnabled } from '#server/utils/notifications/discord'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)

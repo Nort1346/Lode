@@ -62,7 +62,7 @@ vi.stubGlobal(
 const mockSyncTorrentStatus = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 const mockNotifyJellyfinIfNeeded = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 
-vi.mock('#server/utils/torrent-sync', () => ({
+vi.mock('#server/utils/torrents/torrent-sync', () => ({
   syncTorrentStatus: mockSyncTorrentStatus,
   notifyJellyfinIfNeeded: mockNotifyJellyfinIfNeeded
 }))

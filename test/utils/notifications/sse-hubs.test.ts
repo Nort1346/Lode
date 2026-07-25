@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { subscribeToNotifications, notifySseClients } from '#server/utils/sse-hubs'
+import { subscribeToNotifications, notifySseClients } from '#server/utils/notifications/sse-hubs'
 
 describe('sse-hubs', () => {
   it('subscribeToNotifications adds callback and returns unsubscribe', () => {

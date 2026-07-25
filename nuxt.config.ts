@@ -6,6 +6,12 @@ const rootDir = fileURLToPath(new URL('.', import.meta.url))
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@nuxtjs/i18n', '@vite-pwa/nuxt'],
 
+  nitro: {
+    imports: {
+      dirs: ['server/utils', 'server/utils/**']
+    }
+  },
+
   i18n: {
     locales: [
       { code: 'pl', name: 'Polski', file: 'pl.json' },

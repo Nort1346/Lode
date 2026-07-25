@@ -10,7 +10,7 @@ vi.mock('#server/utils/settings', () => ({
   deleteSetting: mockDeleteSetting
 }))
 
-import { getRankingConfig, saveRankingConfig, resetRankingConfig } from '#server/utils/ranking-config'
+import { getRankingConfig, saveRankingConfig, resetRankingConfig } from '#server/utils/torrents/ranking-config'
 
 describe('ranking-config', () => {
   beforeEach(() => {

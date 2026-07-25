@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { requests } from '#server/database/schema'
-import { notifyRequestStatus } from '#server/utils/notifications'
+import { notifyRequestStatus } from '#server/utils/notifications/notifications'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

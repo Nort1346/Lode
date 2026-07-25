@@ -83,7 +83,7 @@ import { helper } from '#utils'       // → ./server/utils
 - Use `#server/`, `#db/`, `#utils/` path aliases (NOT relative paths for server code)
 - Vue components imported automatically via Nuxt auto-import
 - Composables auto-imported from `app/composables/`
-- Server utils auto-imported from `server/utils/`
+- Server utils auto-imported from `server/utils/` (including subdirectories: `clients/`, `torrents/`, `notifications/`, `sync/`)
 
 ### Types
 - **All types MUST be in separate `types.ts` files** - never inline in implementation files
@@ -105,6 +105,16 @@ import { helper } from '#utils'       // → ./server/utils
 - Server utils: `kebab-case` (e.g., `browse-utils.ts`)
 - Types/interfaces: `PascalCase` (e.g., `BrowseItem`, `SpotlightItem`)
 - DB columns: `snake_case` (e.g., `daily_download_limit`)
+
+### Server Utils Structure
+```
+server/utils/
+├── *.ts              # Small utilities (auth, db, cache, format, logger, etc.)
+├── clients/          # External service clients (jellyfin, qbittorrent, flaresolverr)
+├── torrents/         # Torrent handling (ranking, sync, safe-download)
+├── notifications/    # Notifications (notifications, discord, push, sse-hubs)
+└── sync/             # User sync subsystem (with providers/)
+```
 
 ### Error Handling
 - API errors: `createError({ statusCode, statusMessage })`

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { checkForDangerousFiles } from '#server/utils/safe-download'
+import { checkForDangerousFiles } from '#server/utils/torrents/safe-download'
 import type { TorrentFile } from '#server/types/torrent'
 
 function makeFile(name: string): TorrentFile {
