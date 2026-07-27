@@ -148,7 +148,9 @@ Unlike request-only tools (Overseerr, Seerr) that stop at "request and forget", 
 
 ## StreamHub vs Seerr
 
-Both manage media requests across Jellyfin, Emby, and Plex libraries. The difference is *who controls the download*:
+[Seerr](https://github.com/seerr-team/seerr) (formerly Overseerr / Jellyseerr) is a request management layer that sits on top of the *arr stack (Radarr, Sonarr, Prowlarr) and Jellyfin/Emby/Plex. Users request media, and *arr apps fetch it automatically. StreamHub replaces Radarr, Sonarr, and the request layer with a single app that gives you direct control over torrent selection.
+
+The key difference is *who controls the download*:
 
 | | StreamHub | [Seerr](https://github.com/seerr-team/seerr) |
 |---|---|---|
@@ -165,12 +167,13 @@ Both manage media requests across Jellyfin, Emby, and Plex libraries. The differ
 | **Translations** | EN, PL, DE, FR, ES (community) | Crowdsourced via Weblate |
 | **Best for** | Owning the full download loop + custom user tiers | *arr users wanting request management on top |
 
-Seerr is excellent if you already run the *arr stack and want request management layered on top. StreamHub is for self-hosters who want to own the entire download loop and run their own user tiers without a separate media-server login.
+StreamHub gives your users the ability to browse and download content themselves -- no admin intervention needed. Each user gets their own limits, session control, and a torrent ranking engine that picks the best source automatically.
 
 ## Roadmap
 
 - [ ] Emby support (additional media server)
 - [ ] Prowlarr indexer management (add/configure indexers from StreamHub admin)
+- [ ] Home Assistant integration (webhook, sensors, automations)
 
 Got an idea? [Open a feature request](.github/ISSUE_TEMPLATE/feature_request.yml).
 
