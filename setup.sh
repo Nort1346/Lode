@@ -410,6 +410,12 @@ else
   COMPOSE_FILE="docker-compose.sqlite.yml"
 fi
 
+if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
+  POSTGRES_PASSWORD=$(generate_password 32)
+  update_env "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
+  ok "PostgreSQL password generated"
+fi
+
 # -- 5. Download docker-compose if needed -------------------------------
 
 step "[6/14] Downloading $COMPOSE_FILE"
@@ -720,10 +726,7 @@ update_env "NUXT_PROWLARR_URL" "http://prowlarr:9696"
 update_env "DB_DRIVER" "$DB_DRIVER_CHOICE"
 
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
-  POSTGRES_PASSWORD=$(generate_password 32)
-  update_env "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
   update_env "DATABASE_URL" "postgresql://streamhub:${POSTGRES_PASSWORD}@postgres:5432/streamhub"
-  ok "PostgreSQL password generated"
 fi
 
 if [ "$HAS_GUM" = true ]; then

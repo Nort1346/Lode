@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 
+import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
+
+const require = createRequire(import.meta.url)
 
 try {
   process.loadEnvFile()
@@ -39,7 +42,7 @@ if (driver === 'postgres') {
     process.exit(1)
   }
 
-  const { default: postgres } = await import(u('postgres'))
+  const { default: postgres } = await import(pathToFileURL(require.resolve('postgres')).href)
 
   const pgMigrationsFolder = resolve(cwd, 'server/database/migrations/postgres')
   const journalPath = resolve(pgMigrationsFolder, 'meta', '_journal.json')
