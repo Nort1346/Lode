@@ -73,7 +73,7 @@ Run the one-line command from [Get started](#get-started), then the guided scrip
 11. Pull StreamHub Docker image
 12. Start StreamHub with health check
 
-After setup, open **http://localhost:5757** and login with `admin / admin`. Create users in Admin > Users.
+After setup, open **http://localhost:5757** and login with `admin`. The auto-generated password is shown in `docker compose -f <compose_file> logs streamhub`. Create users in Admin > Users.
 
 ### Option 2: Manual Setup
 
@@ -91,7 +91,7 @@ cp .env.example .env    # then edit with your settings
 pnpm dev                # opens at http://localhost:5757
 ```
 
-Default admin: `admin` / `admin` - login and create users in Admin > Users.
+Default admin: `admin` - the password is auto-generated on first start. Check `docker compose -f <compose_file> logs streamhub` for the password. Create users in Admin > Users.
 
 ## Docker
 

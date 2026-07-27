@@ -832,6 +832,9 @@ $services = @(
     (Get-SummaryRow "FlareSolverr" "http://localhost:8191"),
     (Get-SummaryRow "Database" $DB_DRIVER_CHOICE)
 )
+if ($DB_DRIVER_CHOICE -eq "postgres") {
+    $services += (Get-SummaryRow "PostgreSQL" "localhost:5432 / streamhub")
+}
 if ($hasDozzle) {
     $services += (Get-SummaryRow "Dozzle" "http://localhost:8082")
 }
@@ -841,16 +844,17 @@ Write-SummarySection $servicesMsg
 Write-Host ""
 
 # -- Credentials
-$credsLabel = "  Default StreamHub credentials: "
-$credsValue = if ($script:HAS_GUM) { gum style --bold --foreground 11 'admin / admin' } else { 'admin / admin' }
-Write-SummarySection "$credsLabel$credsValue (change after first login!)"
+$credsUser = if ($script:HAS_GUM) { gum style --bold --foreground 11 'admin' } else { 'admin' }
+Write-SummarySection "  Username: $credsUser"
+Write-SummarySection "  Password: check 'docker compose -f $COMPOSE_FILE logs streamhub' for the auto-generated password"
+Write-SummarySection "  Change this password after first login!"
 
 Write-Host ""
 
 # -- Next steps
 $steps = @(
     $(if ($script:HAS_GUM) { gum style --foreground 14 '  Next steps:' } else { '  Next steps:' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   1. Login with admin / admin -> Admin > Users' } else { '   1. Login with admin / admin -> Admin > Users' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   1. Login with admin (password in Docker logs) -> Admin > Users' } else { '   1. Login with admin (password in Docker logs) -> Admin > Users' }),
     $(if ($script:HAS_GUM) { gum style --foreground 14 '   2. Jellyfin -> Add libraries: Movies (/media/Movies) and Series (/media/Series)' } else { '   2. Jellyfin -> Add libraries: Movies (/media/Movies) and Series (/media/Series)' }),
     $(if ($script:HAS_GUM) { gum style --foreground 14 '   3. Prowlarr -> Add indexers + FlareSolverr proxy' } else { '   3. Prowlarr -> Add indexers + FlareSolverr proxy' })
 )

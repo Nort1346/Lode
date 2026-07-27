@@ -44,7 +44,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 pnpm dev
 ```
 
-Open `http://localhost:5757`. Default admin credentials: `admin` / `admin`.
+Open `http://localhost:5757`. Login with `admin` - the password is auto-generated on first start. Check `docker compose logs streamhub` for the password.
 
 > There is no public registration. Login as admin and create users in Admin > Users.
 
@@ -61,7 +61,7 @@ docker compose -f docker-compose.sqlite.yml logs -f            # view logs
 
 ## Verify Installation
 
-1. Login with `admin` / `admin`
+1. Login with `admin` (password in Docker logs)
 2. Navigate to Browse - TMDB carousels should load
 3. Check admin settings - service health checks should show green for qBittorrent and Prowlarr
 4. Create a test user in Admin > Users

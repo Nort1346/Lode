@@ -835,6 +835,11 @@ $(summary_row "Database" "$DB_DRIVER_CHOICE")
 TABLE
 )
 
+if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
+  SERVICES_TABLE="$SERVICES_TABLE
+$(summary_row "PostgreSQL" "localhost:5432 / streamhub)"
+fi
+
 if [ "$HAS_DOZZLE" = true ]; then
   SERVICES_TABLE="$SERVICES_TABLE
 $(summary_row "Dozzle" "http://localhost:8082")"
@@ -845,17 +850,19 @@ summary_section "$SERVICES_TABLE"
 echo ""
 
 # -- Credentials
-CREDS=$(gum style --bold --foreground 11 'admin / admin')
-summary_section "  Default StreamHub credentials: $CREDS (change after first login!)"
+CREDS=$(gum style --bold --foreground 11 'admin')
+summary_section "  Username: $CREDS"
+summary_section "  Password: check 'docker compose -f $COMPOSE_FILE logs streamhub' for the auto-generated password"
+summary_section "  Change this password after first login!"
 
 echo ""
 
 # -- Next steps
 STEPS=$(cat <<STEPS
 $(gum style --foreground 14 '  Next steps:')
-$(gum style --foreground 14 '   1. Login with admin / admin → Admin > Users')
-$(gum style --foreground 14 '   2. Jellyfin → Add libraries: Movies (/media/Movies) and Series (/media/Series)')
-$(gum style --foreground 14 '   3. Prowlarr → Add indexers + FlareSolverr proxy')
+$(gum style --foreground 14 '   1. Login with admin (password in Docker logs) -> Admin > Users')
+$(gum style --foreground 14 '   2. Jellyfin -> Add libraries: Movies (/media/Movies) and Series (/media/Series)')
+$(gum style --foreground 14 '   3. Prowlarr -> Add indexers + FlareSolverr proxy')
 STEPS
 )
 
