@@ -815,7 +815,8 @@ ok "StreamHub is running at http://localhost:5757"
 # -- Extract admin password from logs ---------------------------------
 
 ADMIN_PASS=$(docker compose -f "$COMPOSE_FILE" logs streamhub 2>&1 \
-  | grep -oP 'Admin password: \K[^"]*' | head -1) || true
+  | grep 'Admin password:' \
+  | sed 's/.*Admin password: //' | sed 's/".*//' | head -1) || true
 
 # -- Summary -----------------------------------------------------------
 

@@ -13,7 +13,7 @@ if (!JELLYFIN_URL || !API_KEY) {
 }
 
 const HEADERS = {
-  'X-Emby-Token': API_KEY,
+  Authorization: `MediaBrowser Token="${API_KEY}"`,
   'Content-Type': 'application/json'
 }
 
@@ -39,6 +39,7 @@ async function getLibraries() {
   const res = await fetch(`${JELLYFIN_URL}/Library/VirtualFolders`, { headers: HEADERS })
   if (!res.ok) throw new Error(`Failed to fetch libraries: ${res.status}`)
   const data = await res.json()
+  console.log(`[jellyfin-setup] Found ${data.Items?.length ?? 0} existing libraries`)
   return data.Items || []
 }
 
@@ -76,14 +77,12 @@ async function main() {
     return
   }
 
-  const existingNames = libraries.map((l) => l.Name)
+  if (libraries.length > 0) {
+    console.log(`[jellyfin-setup] Found ${libraries.length} existing library(ies) — skipping creation.`)
+    return
+  }
 
   for (const { name, type, path } of LIBRARIES) {
-    if (existingNames.includes(name)) {
-      console.log(`[jellyfin-setup] ${name} library already exists, skipping.`)
-      continue
-    }
-
     const ok = await createLibrary(name, type, path)
     if (ok) {
       console.log(`[jellyfin-setup] Created ${name} library (${path})`)
