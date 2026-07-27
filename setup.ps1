@@ -816,7 +816,7 @@ Write-Ok "StreamHub is running at http://localhost:5757"
 
 $adminPass = docker compose -f $COMPOSE_FILE logs streamhub 2>&1 |
     Select-String 'Admin password:' |
-    ForEach-Object { ($_ -replace '.*Admin password:\s*', '').Trim() } |
+    ForEach-Object { ($_ -replace '.*Admin password: "', '' -replace '".*', '').Trim() } |
     Select-Object -First 1
 
 # -- Summary ----------------------------------------------------------
