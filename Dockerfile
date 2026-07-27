@@ -60,6 +60,7 @@ COPY --from=deps   --chown=appuser:nodejs /app/node_modules                     
 # migrations and scripts
 COPY --from=build  --chown=appuser:nodejs /app/server/database/migrations       ./server/database/migrations
 COPY --from=build  --chown=appuser:nodejs /app/scripts/migrate.mjs              ./scripts/migrate.mjs
+COPY --from=build  --chown=appuser:nodejs /app/scripts/setup-jellyfin.mjs       ./scripts/setup-jellyfin.mjs
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

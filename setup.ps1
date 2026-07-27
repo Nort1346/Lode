@@ -855,7 +855,7 @@ Write-Host ""
 $steps = @(
     $(if ($script:HAS_GUM) { gum style --foreground 14 '  Next steps:' } else { '  Next steps:' }),
     $(if ($script:HAS_GUM) { gum style --foreground 14 '   1. Login with admin (password in Docker logs) -> Admin > Users' } else { '   1. Login with admin (password in Docker logs) -> Admin > Users' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   2. Jellyfin -> Add libraries: Movies (/media/Movies) and Series (/media/Series)' } else { '   2. Jellyfin -> Add libraries: Movies (/media/Movies) and Series (/media/Series)' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   2. Jellyfin libraries (Movies/Series) are created automatically on startup' } else { '   2. Jellyfin libraries (Movies/Series) are created automatically on startup' }),
     $(if ($script:HAS_GUM) { gum style --foreground 14 '   3. Prowlarr -> Add indexers + FlareSolverr proxy' } else { '   3. Prowlarr -> Add indexers + FlareSolverr proxy' })
 )
 $stepsMsg = $steps -join "`n"

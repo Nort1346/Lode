@@ -861,7 +861,7 @@ echo ""
 STEPS=$(cat <<STEPS
 $(gum style --foreground 14 '  Next steps:')
 $(gum style --foreground 14 '   1. Login with admin (password in Docker logs) -> Admin > Users')
-$(gum style --foreground 14 '   2. Jellyfin -> Add libraries: Movies (/media/Movies) and Series (/media/Series)')
+$(gum style --foreground 14 '   2. Jellyfin libraries (Movies/Series) are created automatically on startup')
 $(gum style --foreground 14 '   3. Prowlarr -> Add indexers + FlareSolverr proxy')
 STEPS
 )
