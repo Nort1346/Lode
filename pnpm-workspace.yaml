@@ -11,3 +11,4 @@ allowBuilds:
 
 overrides:
   drizzle-orm: ^0.45.2
+  sharp: ^0.35.3
