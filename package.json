@@ -2,6 +2,29 @@
   "name": "streamhub",
   "version": "1.0.0",
   "private": false,
+  "description": "Self-hosted streaming hub for managing torrent downloads. Browse movies and TV shows via TMDB, rank torrents, and download with one click.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nort1346/StreamHub.git"
+  },
+  "homepage": "https://github.com/Nort1346/StreamHub#readme",
+  "bugs": {
+    "url": "https://github.com/Nort1346/StreamHub/issues"
+  },
+  "keywords": [
+    "streaming",
+    "self-hosted",
+    "jellyfin",
+    "torrent",
+    "prowlarr",
+    "qbittorrent",
+    "media-server",
+    "tmdb",
+    "nuxt",
+    "docker",
+    "private-trackers",
+    "open-source"
+  ],
   "type": "module",
   "author": {
     "name": "Nort1346",
