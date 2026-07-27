@@ -282,7 +282,26 @@ fi
 step "[1/14] Checking prerequisites"
 
 if ! command -v docker &> /dev/null; then
-  err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
+  err "Docker is not installed."
+  case "$(uname -s)" in
+    Darwin)
+      echo "  Install Docker Desktop for macOS:"
+      echo "    https://docs.docker.com/desktop/install/mac-install/"
+      ;;
+    Linux)
+      if grep -qi microsoft /proc/version 2>/dev/null; then
+        echo "  Install Docker Desktop for Windows (WSL2):"
+        echo "    https://docs.docker.com/desktop/wsl/"
+      else
+        echo "  Install Docker Engine for Linux:"
+        echo "    https://docs.docker.com/engine/install/"
+      fi
+      ;;
+    *)
+      echo "  Install Docker:"
+      echo "    https://docs.docker.com/get-docker/"
+      ;;
+  esac
   exit 1
 fi
 ok "Docker $(docker --version | sed -n 's/.*version \([^ ,]*\).*/\1/p')"

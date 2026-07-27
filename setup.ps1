@@ -306,7 +306,9 @@ if ($script:HAS_GUM) {
 Write-Step "[1/14] Checking prerequisites"
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    Write-Err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
+    Write-Err "Docker is not installed."
+    Write-Host "  Install Docker Desktop for Windows:" -ForegroundColor Yellow
+    Write-Host "    https://docs.docker.com/desktop/windows-install/" -ForegroundColor Cyan
     exit 1
 }
 Write-Ok "Docker $(docker --version)"
