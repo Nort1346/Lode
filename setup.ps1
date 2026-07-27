@@ -20,6 +20,11 @@ function Install-Gum {
         return
     }
 
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue) -and
+        -not (Get-Command scoop -ErrorAction SilentlyContinue)) {
+        return
+    }
+
     Write-Host "Installing gum (charm) for beautiful output..."
 
     if (Get-Command winget -ErrorAction SilentlyContinue) {
@@ -224,14 +229,21 @@ function Select-GumMenu {
         for ($i = 0; $i -lt $Options.Count; $i++) {
             Write-Host "  $($i + 1)) $($Options[$i])"
         }
-        $choice = Read-Host "Enter choice [1-$($Options.Count)]"
-        return $Options[[int]$choice - 1]
+        while ($true) {
+            $choice = Read-Host "Enter choice [1-$($Options.Count)]"
+            $num = [int]$choice - 1
+            if ($choice -match '^\d+$' -and $num -ge 0 -and $num -lt $Options.Count) {
+                return $Options[$num]
+            }
+            Write-Host "  Invalid choice. Please enter a number between 1 and $($Options.Count)." -ForegroundColor Yellow
+        }
     }
 }
 
 # -- Self-update check --------------------------------------------------
 
-$SETUP_URL = "https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.ps1"
+$REPO_RAW = "https://raw.githubusercontent.com/Nort1346/StreamHub/main"
+$SETUP_URL = "$REPO_RAW/setup.ps1"
 $SETUP_NEW = Join-Path $env:TEMP "setup.ps1.new"
 $SETUP_SELF = $MyInvocation.MyCommand.Path
 
@@ -281,10 +293,8 @@ try {
 Write-Header "StreamHub Auto-Setup v1.0"
 
 Write-Host ""
-Write-Host "This will start the following services:" -ForegroundColor White
-Write-Host "  Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle" -ForegroundColor Gray
-Write-Host ""
-Write-Host "Data will be stored in Docker volumes." -ForegroundColor Gray
+Write-Host "This will set up StreamHub and all required services." -ForegroundColor White
+Write-Host "All data will be stored in Docker volumes." -ForegroundColor Gray
 Write-Host ""
 
 if ($script:HAS_GUM) {
@@ -327,12 +337,16 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Docker Compose not found" }
 } catch {
     Write-Err "Docker Compose plugin is not installed."
+    Write-Host "  Install or update Docker Desktop (includes Compose):" -ForegroundColor Yellow
+    Write-Host "    https://docs.docker.com/get-docker/" -ForegroundColor Cyan
     exit 1
 }
 Write-Ok "Docker Compose available"
 
 if (-not (Get-Command curl -ErrorAction SilentlyContinue)) {
-    Write-Err "curl is required for API calls."
+    Write-Err "curl is not installed."
+    Write-Host "  On Windows 10+ curl is built-in." -ForegroundColor Yellow
+    Write-Host "  If missing, download from: https://curl.se/windows/" -ForegroundColor Yellow
     exit 1
 }
 Write-Ok "curl available"
@@ -342,13 +356,17 @@ Write-Ok "curl available"
 Write-Step "[2/14] Setting up .env file"
 
 if (-not (Test-Path .env)) {
-    if (Test-Path .env.example) {
-        Copy-Item .env.example .env
-        Write-Ok "Created .env from .env.example"
-    } else {
-        Write-Err ".env.example not found."
-        exit 1
+    if (-not (Test-Path .env.example)) {
+        Write-Info "Downloading .env.example from GitHub..."
+        try {
+            Invoke-WebRequest -Uri "$REPO_RAW/.env.example" -OutFile .env.example -UseBasicParsing 2>$null
+        } catch {
+            Write-Err "Failed to download .env.example"
+            exit 1
+        }
     }
+    Copy-Item .env.example .env
+    Write-Ok "Created .env from .env.example"
 } else {
     Write-Warn ".env exists - keeping existing config"
 }
@@ -452,7 +470,6 @@ if ($DB_DRIVER_CHOICE -eq "postgres") {
 
 Write-Step "[6/14] Downloading $COMPOSE_FILE"
 
-$COMPOSE_URL_BASE = "https://raw.githubusercontent.com/Nort1346/StreamHub/main"
 $COMPOSE_TMP = Join-Path $env:TEMP "docker-compose.new.yml"
 
 if (Test-Path $COMPOSE_FILE) {
@@ -461,7 +478,7 @@ if (Test-Path $COMPOSE_FILE) {
         if ($LASTEXITCODE -eq 0) {
             Write-Info "Downloading $COMPOSE_FILE..."
             try {
-                Invoke-WebRequest -Uri "$COMPOSE_URL_BASE/$COMPOSE_FILE" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
+                Invoke-WebRequest -Uri "$REPO_RAW/$COMPOSE_FILE" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
                 $currentHash = (Get-FileHash $COMPOSE_FILE -Algorithm SHA256).Hash
                 $newHash = (Get-FileHash $COMPOSE_TMP -Algorithm SHA256).Hash
                 if ($currentHash -ne $newHash) {
@@ -491,7 +508,7 @@ if (Test-Path $COMPOSE_FILE) {
         if ($answer -match '^[Yy]$') {
             Write-Info "Downloading $COMPOSE_FILE..."
             try {
-                Invoke-WebRequest -Uri "$COMPOSE_URL_BASE/$COMPOSE_FILE" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
+                Invoke-WebRequest -Uri "$REPO_RAW/$COMPOSE_FILE" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
                 $currentHash = (Get-FileHash $COMPOSE_FILE -Algorithm SHA256).Hash
                 $newHash = (Get-FileHash $COMPOSE_TMP -Algorithm SHA256).Hash
                 if ($currentHash -ne $newHash) {
@@ -520,7 +537,13 @@ if (Test-Path $COMPOSE_FILE) {
     Write-Ok "Using $COMPOSE_FILE"
 } else {
     Write-Info "Downloading $COMPOSE_FILE..."
-    Invoke-WebRequest -Uri "$COMPOSE_URL_BASE/$COMPOSE_FILE" -OutFile $COMPOSE_FILE
+    try {
+        Invoke-WebRequest -Uri "$REPO_RAW/$COMPOSE_FILE" -OutFile $COMPOSE_FILE -UseBasicParsing
+    } catch {
+        Write-Err "Failed to download $COMPOSE_FILE from GitHub."
+        Write-Host "  Check your internet connection and try again." -ForegroundColor Yellow
+        exit 1
+    }
     Write-Ok "$COMPOSE_FILE downloaded"
 }
 
@@ -564,14 +587,17 @@ if ($psOutput) {
 
 if ($failedServices -contains 'redis') {
     Write-Err "Redis failed to start. Cannot continue."
+    Write-Host "  Check logs: docker compose -f $COMPOSE_FILE logs redis" -ForegroundColor Yellow
     exit 1
 }
 if ($failedServices -contains 'qbittorrent') {
     Write-Err "qBittorrent failed to start. Cannot continue."
+    Write-Host "  Check logs: docker compose -f $COMPOSE_FILE logs qbittorrent" -ForegroundColor Yellow
     exit 1
 }
 if ($failedServices -contains 'postgres') {
     Write-Err "PostgreSQL failed to start. Cannot continue."
+    Write-Host "  Check logs: docker compose -f $COMPOSE_FILE logs postgres" -ForegroundColor Yellow
     exit 1
 }
 
@@ -592,14 +618,14 @@ if ($failedServices -notcontains 'prowlarr') {
     Write-Info "Waiting for Prowlarr..."
     Test-Port -Host_ "localhost" -Port 9900 -Timeout 60 | Out-Null
 } else {
-    Write-Warn "Prowlarr not running -- you can configure it later (step 8)"
+    Write-Warn "Prowlarr not running -- you can configure it later (step 10)"
 }
 
 if ($failedServices -notcontains 'jellyfin') {
     Write-Info "Waiting for Jellyfin..."
     Test-Port -Host_ "localhost" -Port 8096 -Timeout 90 | Out-Null
 } else {
-    Write-Warn "Jellyfin not running -- you can configure it later (step 6)"
+    Write-Warn "Jellyfin not running -- you can configure it later (step 8)"
 }
 
 Write-Ok "All infrastructure services are running"

@@ -18,6 +18,10 @@ install_gum() {
     return 0
   fi
 
+  if ! command -v curl &> /dev/null; then
+    return 0
+  fi
+
   echo "Installing gum (charm) for beautiful output..."
 
   if command -v brew &> /dev/null; then
@@ -167,7 +171,13 @@ else
       i=$((i + 1))
     done
     local choice
-    read -rp "Enter choice [1-${#options[@]}]: " choice
+    while true; do
+      read -rp "Enter choice [1-${#options[@]}]: " choice
+      if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#options[@]}" ]; then
+        break
+      fi
+      echo "  Invalid choice. Please enter a number between 1 and ${#options[@]}."
+    done
     echo "${options[$((choice - 1))]}"
   }
 fi
@@ -217,7 +227,8 @@ update_env() {
 
 # -- Self-update check --------------------------------------------------
 
-SETUP_URL="https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.sh"
+REPO_RAW="https://raw.githubusercontent.com/Nort1346/StreamHub/main"
+SETUP_URL="${REPO_RAW}/setup.sh"
 SETUP_NEW=$(mktemp)
 SETUP_SELF="$0"
 COMPOSE_TMP=$(mktemp)
@@ -264,10 +275,8 @@ fi
 header "StreamHub Auto-Setup v1.0"
 
 echo ""
-echo "This will start the following services:"
-echo "  Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle"
-echo ""
-echo "Data will be stored in Docker volumes."
+echo "This will set up StreamHub and all required services."
+echo "All data will be stored in Docker volumes."
 echo ""
 
 if [ "$HAS_GUM" = true ]; then
@@ -314,12 +323,41 @@ ok "Docker daemon running"
 
 if ! docker compose version &> /dev/null 2>&1; then
   err "Docker Compose plugin is not installed."
+  echo "  Install Docker Compose:"
+  echo "    macOS/Windows: Install or update Docker Desktop"
+  echo "      https://docs.docker.com/get-docker/"
+  echo "    Linux: Install the Docker Compose plugin"
+  echo "      https://docs.docker.com/compose/install/linux/"
   exit 1
 fi
 ok "Docker Compose $(docker compose version --short 2>/dev/null || echo 'available')"
 
 if ! command -v curl &> /dev/null; then
-  err "curl is required for API calls."
+  err "curl is not installed."
+  case "$(uname -s)" in
+    Darwin)
+      echo "  Install curl on macOS:"
+      echo "    brew install curl"
+      echo "  Or install Xcode Command Line Tools:"
+      echo "    xcode-select --install"
+      ;;
+    Linux)
+      if command -v apt-get &> /dev/null; then
+        echo "  Install curl: sudo apt-get install -y curl"
+      elif command -v yum &> /dev/null; then
+        echo "  Install curl: sudo yum install -y curl"
+      elif command -v dnf &> /dev/null; then
+        echo "  Install curl: sudo dnf install -y curl"
+      elif command -v apk &> /dev/null; then
+        echo "  Install curl: apk add --no-cache curl"
+      else
+        echo "  Install curl using your package manager."
+      fi
+      ;;
+    *)
+      echo "  Download from: https://curl.se/download.html"
+      ;;
+  esac
   exit 1
 fi
 ok "curl available"
@@ -329,13 +367,16 @@ ok "curl available"
 step "[2/14] Setting up .env file"
 
 if [ ! -f .env ]; then
-  if [ -f .env.example ]; then
-    cp .env.example .env
-    ok "Created .env from .env.example"
-  else
-    err ".env.example not found."
-    exit 1
+  if [ ! -f .env.example ]; then
+    info "Downloading .env.example from GitHub..."
+    curl -fsSL "${REPO_RAW}/.env.example" -o .env.example || {
+      err "Failed to download .env.example from GitHub."
+      echo "  Check your internet connection and try again."
+      exit 1
+    }
   fi
+  cp .env.example .env
+  ok "Created .env from .env.example"
 else
   warn ".env exists -- keeping existing config"
 fi
@@ -439,13 +480,11 @@ fi
 
 step "[6/14] Downloading $COMPOSE_FILE"
 
-COMPOSE_URL_BASE="https://raw.githubusercontent.com/Nort1346/StreamHub/main"
-
 if [ -f "$COMPOSE_FILE" ]; then
   if [ "$HAS_GUM" = true ]; then
     gum confirm --default=false "$COMPOSE_FILE already exists. Download latest version from GitHub?" && {
       info "Downloading $COMPOSE_FILE..."
-      if curl -fsSL "${COMPOSE_URL_BASE}/${COMPOSE_FILE}" -o "$COMPOSE_TMP" 2>/dev/null; then
+      if curl -fsSL "${REPO_RAW}/${COMPOSE_FILE}" -o "$COMPOSE_TMP" 2>/dev/null; then
         if ! diff -q "$COMPOSE_FILE" "$COMPOSE_TMP" &>/dev/null; then
           warn "$COMPOSE_FILE has changed"
           diff --color=auto "$COMPOSE_FILE" "$COMPOSE_TMP" || true
@@ -468,7 +507,7 @@ if [ -f "$COMPOSE_FILE" ]; then
     read -rp "$COMPOSE_FILE already exists. Download latest version? [y/N] " answer
     if [[ "$answer" =~ ^[Yy]$ ]]; then
       info "Downloading $COMPOSE_FILE..."
-      if curl -fsSL "${COMPOSE_URL_BASE}/${COMPOSE_FILE}" -o "$COMPOSE_TMP" 2>/dev/null; then
+      if curl -fsSL "${REPO_RAW}/${COMPOSE_FILE}" -o "$COMPOSE_TMP" 2>/dev/null; then
         if ! diff -q "$COMPOSE_FILE" "$COMPOSE_TMP" &>/dev/null; then
           warn "$COMPOSE_FILE has changed"
           diff "$COMPOSE_FILE" "$COMPOSE_TMP" || true
@@ -492,7 +531,11 @@ if [ -f "$COMPOSE_FILE" ]; then
   ok "Using $COMPOSE_FILE"
 else
   info "Downloading $COMPOSE_FILE..."
-  curl -fsSL "${COMPOSE_URL_BASE}/${COMPOSE_FILE}" -o "$COMPOSE_FILE"
+  curl -fsSL "${REPO_RAW}/${COMPOSE_FILE}" -o "$COMPOSE_FILE" || {
+    err "Failed to download $COMPOSE_FILE from GitHub."
+    echo "  Check your internet connection and try again."
+    exit 1
+  }
   ok "$COMPOSE_FILE downloaded"
 fi
 
@@ -533,14 +576,17 @@ done < <(docker compose -f "$COMPOSE_FILE" ps --format json 2>/dev/null)
 
 if [[ " $failed_services " =~ " redis " ]]; then
   err "Redis failed to start. Cannot continue."
+  echo "  Check logs: docker compose -f $COMPOSE_FILE logs redis"
   exit 1
 fi
 if [[ " $failed_services " =~ " qbittorrent " ]]; then
   err "qBittorrent failed to start. Cannot continue."
+  echo "  Check logs: docker compose -f $COMPOSE_FILE logs qbittorrent"
   exit 1
 fi
 if [[ " $failed_services " =~ " postgres " ]]; then
   err "PostgreSQL failed to start. Cannot continue."
+  echo "  Check logs: docker compose -f $COMPOSE_FILE logs postgres"
   exit 1
 fi
 
@@ -555,14 +601,14 @@ sleep 3
 QBIT_TEMP_PASS=$(docker logs streamhub-qbittorrent 2>&1 | sed -n 's/.*A temporary password is provided for this session: *//p' | tail -1) || true
 
 if [[ " $failed_services " =~ " prowlarr " ]]; then
-  warn "Prowlarr not running -- you can configure it later (step 8)"
+  warn "Prowlarr not running -- you can configure it later (step 10)"
 else
   info "Waiting for Prowlarr..."
   wait_for_port "localhost" "9900" 60 || true
 fi
 
 if [[ " $failed_services " =~ " jellyfin " ]]; then
-  warn "Jellyfin not running -- you can configure it later (step 6)"
+  warn "Jellyfin not running -- you can configure it later (step 8)"
 else
   info "Waiting for Jellyfin..."
   wait_for_port "localhost" "8096" 90 || true
@@ -758,6 +804,7 @@ fi
 if ! docker compose -f "$COMPOSE_FILE" ps streamhub 2>/dev/null | grep -q "Up"; then
   err "StreamHub container failed to start. Check logs:"
   err "  docker compose -f $COMPOSE_FILE logs streamhub"
+  exit 1
 fi
 
 info "Waiting for StreamHub to start (first start may take 1-2 minutes)..."
