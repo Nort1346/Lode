@@ -279,7 +279,7 @@ fi
 
 # -- 1. Prerequisites --------------------------------------------------
 
-step "[1/13] Checking prerequisites"
+step "[1/14] Checking prerequisites"
 
 if ! command -v docker &> /dev/null; then
   err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
@@ -307,7 +307,7 @@ ok "curl available"
 
 # -- 2. Create .env ----------------------------------------------------
 
-step "[2/13] Setting up .env file"
+step "[2/14] Setting up .env file"
 
 if [ ! -f .env ]; then
   if [ -f .env.example ]; then
@@ -326,7 +326,7 @@ ok "Created media directories (media/Movies, media/Series)"
 
 # -- 3. Generate secrets -----------------------------------------------
 
-step "[3/13] Generating secrets"
+step "[3/14] Generating secrets"
 
 SESSION_PASSWORD=$(generate_password 32)
 TRACKER_KEY=$(generate_hex 32)
@@ -349,9 +349,31 @@ fi
 ok "Session password generated"
 ok "Tracker encryption key generated"
 
-# -- 4. Database driver choice ----------------------------------------
+# -- 4. StreamHub version choice --------------------------------------
 
-step "[4/13] Database driver"
+step "[4/14] StreamHub version"
+
+STREAMHUB_TAG="latest"
+
+echo ""
+echo "Which StreamHub image do you want to use?"
+echo "  latest  - Stable release (recommended)"
+echo "  nightly - Latest dev build from main (may be unstable)"
+echo ""
+
+STREAMHUB_TAG_CHOICE=$(gum_menu "Select version:" "latest (recommended)" "nightly")
+
+if [[ "$STREAMHUB_TAG_CHOICE" == *"nightly"* ]]; then
+  STREAMHUB_TAG="nightly"
+else
+  STREAMHUB_TAG="latest"
+fi
+
+ok "StreamHub version: $STREAMHUB_TAG"
+
+# -- 5. Database driver choice ----------------------------------------
+
+step "[5/14] Database driver"
 
 DB_DRIVER_CHOICE="sqlite"
 
@@ -390,7 +412,7 @@ fi
 
 # -- 5. Download docker-compose if needed -------------------------------
 
-step "[5/13] Downloading $COMPOSE_FILE"
+step "[6/14] Downloading $COMPOSE_FILE"
 
 COMPOSE_URL_BASE="https://raw.githubusercontent.com/Nort1346/StreamHub/main"
 
@@ -449,9 +471,14 @@ else
   ok "$COMPOSE_FILE downloaded"
 fi
 
+if [ "$STREAMHUB_TAG" = "nightly" ]; then
+  sed -i.bak "s|ghcr.io/nort1346/streamhub:latest|ghcr.io/nort1346/streamhub:nightly|" "$COMPOSE_FILE" && rm -f "${COMPOSE_FILE}.bak"
+  ok "Configured for nightly builds"
+fi
+
 # -- 6. Start infrastructure services ---------------------------------
 
-step "[6/13] Starting infrastructure services"
+step "[7/14] Starting infrastructure services"
 
 INFRA_SERVICES="redis qbittorrent prowlarr flaresolverr jellyfin dozzle"
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
@@ -528,7 +555,7 @@ sleep 10
 
 # -- 5. Jellyfin API Key -----------------------------------------------
 
-step "[7/13] Jellyfin API Key"
+step "[8/14] Jellyfin API Key"
 
 echo ""
 echo "Follow these steps to get your Jellyfin API key:"
@@ -550,7 +577,7 @@ fi
 
 # -- 6. qBittorrent WebUI + API Key -----------------------------------
 
-step "[8/13] qBittorrent WebUI + API Key"
+step "[9/14] qBittorrent WebUI + API Key"
 
 if [ -n "${QBIT_TEMP_PASS:-}" ]; then
   echo ""
@@ -592,7 +619,7 @@ fi
 
 # -- 7. Prowlarr API Key -----------------------------------------------
 
-step "[9/13] Prowlarr API Key"
+step "[10/14] Prowlarr API Key"
 
 echo ""
 echo "Follow these steps to get your Prowlarr API key:"
@@ -618,7 +645,7 @@ fi
 
 # -- 8. TMDB API Key ---------------------------------------------------
 
-step "[10/13] TMDB API Key"
+step "[11/14] TMDB API Key"
 
 echo ""
 echo "Follow these steps to get your TMDB API key:"
@@ -644,7 +671,7 @@ fi
 
 # -- 9. Discord Webhook (optional) ------------------------------------
 
-step "[11/13] Discord Webhook (optional)"
+step "[12/14] Discord Webhook (optional)"
 
 echo ""
 echo "Get notified when downloads complete."
@@ -666,7 +693,7 @@ fi
 
 # -- 10. Pull StreamHub ------------------------------------------------
 
-step "[12/13] Pulling StreamHub"
+step "[13/14] Pulling StreamHub"
 
 if [ "$HAS_GUM" = true ]; then
   gum spin --spinner dot --title "Pulling StreamHub image..." -- docker compose -f "$COMPOSE_FILE" pull streamhub || true
@@ -675,7 +702,7 @@ else
   docker compose -f "$COMPOSE_FILE" pull streamhub || true
 fi
 
-if ! docker image inspect ghcr.io/nort1346/streamhub:latest &> /dev/null; then
+if ! docker image inspect ghcr.io/nort1346/streamhub:$STREAMHUB_TAG &> /dev/null; then
   err "Failed to pull StreamHub image. Check your network and try again."
   err "You can also try manually: docker compose -f $COMPOSE_FILE pull streamhub"
   exit 1
@@ -685,7 +712,7 @@ ok "StreamHub image pulled"
 
 # -- 10. Start StreamHub -----------------------------------------------
 
-step "[13/13] Starting StreamHub"
+step "[14/14] Starting StreamHub"
 
 update_env "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 update_env "NUXT_REDIS_URL" "redis://redis:6379"

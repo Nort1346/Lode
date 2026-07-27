@@ -303,7 +303,7 @@ if ($script:HAS_GUM) {
 
 # -- 1. Prerequisites -------------------------------------------------
 
-Write-Step "[1/13] Checking prerequisites"
+Write-Step "[1/14] Checking prerequisites"
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Err "Docker is not installed. Install: https://docs.docker.com/get-docker/"
@@ -337,7 +337,7 @@ Write-Ok "curl available"
 
 # -- 2. Create .env ---------------------------------------------------
 
-Write-Step "[2/13] Setting up .env file"
+Write-Step "[2/14] Setting up .env file"
 
 if (-not (Test-Path .env)) {
     if (Test-Path .env.example) {
@@ -357,7 +357,7 @@ Write-Ok "Created media directories (media/Movies, media/Series)"
 
 # -- 3. Generate secrets ----------------------------------------------
 
-Write-Step "[3/13] Generating secrets"
+Write-Step "[3/14] Generating secrets"
 
 $SESSION_PASSWORD = New-SecretPassword -Length 32
 $TRACKER_KEY = New-SecretHex -Bytes 32
@@ -380,9 +380,31 @@ if (-not (Test-EnvMinLength -Key "NUXT_TRACKER_ENCRYPTION_KEY" -MinLength 32)) {
 Write-Ok "Session password generated"
 Write-Ok "Tracker encryption key generated"
 
-# -- 4. Database driver choice ----------------------------------------
+# -- 4. StreamHub version choice --------------------------------------
 
-Write-Step "[4/13] Database driver"
+Write-Step "[4/14] StreamHub version"
+
+$STREAMHUB_TAG = "latest"
+
+Write-Host ""
+Write-Host "Which StreamHub image do you want to use?" -ForegroundColor White
+Write-Host "  latest  - Stable release (recommended)" -ForegroundColor Gray
+Write-Host "  nightly - Latest dev build from main (may be unstable)" -ForegroundColor Gray
+Write-Host ""
+
+$versionChoice = Select-GumMenu -Prompt "Select version:" -Options @("latest (recommended)", "nightly")
+
+if ($versionChoice -match "nightly") {
+    $STREAMHUB_TAG = "nightly"
+} else {
+    $STREAMHUB_TAG = "latest"
+}
+
+Write-Ok "StreamHub version: $STREAMHUB_TAG"
+
+# -- 5. Database driver choice ----------------------------------------
+
+Write-Step "[5/14] Database driver"
 
 $DB_DRIVER_CHOICE = "sqlite"
 
@@ -418,9 +440,9 @@ if ($DB_DRIVER_CHOICE -eq "postgres") {
     $COMPOSE_FILE = "docker-compose.sqlite.yml"
 }
 
-# -- 5. Download docker-compose if needed ------------------------------
+# -- 6. Download docker-compose if needed ------------------------------
 
-Write-Step "[5/13] Downloading $COMPOSE_FILE"
+Write-Step "[6/14] Downloading $COMPOSE_FILE"
 
 $COMPOSE_URL_BASE = "https://raw.githubusercontent.com/Nort1346/StreamHub/main"
 $COMPOSE_TMP = Join-Path $env:TEMP "docker-compose.new.yml"
@@ -496,9 +518,16 @@ if (Test-Path $COMPOSE_FILE) {
 
 if (Test-Path $COMPOSE_TMP) { Remove-Item $COMPOSE_TMP -Force -ErrorAction SilentlyContinue }
 
-# -- 6. Start infrastructure services --------------------------------
+if ($STREAMHUB_TAG -eq "nightly") {
+    $content = Get-Content $COMPOSE_FILE -Raw
+    $content = $content -replace 'ghcr\.io/nort1346/streamhub:latest', 'ghcr.io/nort1346/streamhub:nightly'
+    Set-Content -Path $COMPOSE_FILE -Value $content -NoNewline
+    Write-Ok "Configured for nightly builds"
+}
 
-Write-Step "[6/13] Starting infrastructure services"
+# -- 7. Start infrastructure services --------------------------------
+
+Write-Step "[7/14] Starting infrastructure services"
 
 $INFRA_SERVICES = @("redis", "qbittorrent", "prowlarr", "flaresolverr", "jellyfin", "dozzle")
 if ($DB_DRIVER_CHOICE -eq "postgres") {
@@ -577,7 +606,7 @@ Start-Sleep -Seconds 10
 
 # -- 5. Jellyfin API Key ----------------------------------------------
 
-Write-Step "[7/13] Jellyfin API Key"
+Write-Step "[8/14] Jellyfin API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Jellyfin API key:" -ForegroundColor White
@@ -599,7 +628,7 @@ if ($jellyfinKey) {
 
 # -- 6. qBittorrent WebUI + API Key ------------------------------------
 
-Write-Step "[8/13] qBittorrent WebUI + API Key"
+Write-Step "[9/14] qBittorrent WebUI + API Key"
 
 if ($QBIT_TEMP_PASS) {
     Write-Host ""
@@ -635,7 +664,7 @@ if ($qbitKey) {
 
 # -- 7. Prowlarr API Key ----------------------------------------------
 
-Write-Step "[9/13] Prowlarr API Key"
+Write-Step "[10/14] Prowlarr API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Prowlarr API key:" -ForegroundColor White
@@ -661,7 +690,7 @@ if ($prowlarrKey) {
 
 # -- 8. TMDB API Key --------------------------------------------------
 
-Write-Step "[10/13] TMDB API Key"
+Write-Step "[11/14] TMDB API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your TMDB API key:" -ForegroundColor White
@@ -687,7 +716,7 @@ if ($tmdbKey) {
 
 # -- 9. Discord Webhook (optional) ------------------------------------
 
-Write-Step "[11/13] Discord Webhook (optional)"
+Write-Step "[12/14] Discord Webhook (optional)"
 
 Write-Host ""
 Write-Host "Get notified when downloads complete." -ForegroundColor White
@@ -709,11 +738,11 @@ if ($discordKey) {
 
 # -- 10. Pull StreamHub -----------------------------------------------
 
-Write-Step "[12/13] Pulling StreamHub"
+Write-Step "[13/14] Pulling StreamHub"
 
 Invoke-Spinner "Pulling StreamHub image..." { docker compose -f $COMPOSE_FILE pull streamhub 2>$null }
 
-if (-not (docker image inspect ghcr.io/nort1346/streamhub:latest 2>$null)) {
+if (-not (docker image inspect ghcr.io/nort1346/streamhub:$STREAMHUB_TAG 2>$null)) {
     Write-Err "Failed to pull StreamHub image. Check your network."
     Write-Err "You can also try manually: docker compose -f $COMPOSE_FILE pull streamhub"
     exit 1
@@ -723,7 +752,7 @@ Write-Ok "StreamHub image pulled"
 
 # -- 10. Start StreamHub ----------------------------------------------
 
-Write-Step "[13/13] Starting StreamHub"
+Write-Step "[14/14] Starting StreamHub"
 
 Update-EnvFile "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 Update-EnvFile "NUXT_REDIS_URL" "redis://redis:6379"
