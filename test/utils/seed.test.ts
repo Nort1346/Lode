@@ -19,7 +19,12 @@ vi.mock('@node-rs/bcrypt', () => ({
 }))
 
 vi.mock('node:crypto', () => ({
-  randomUUID: vi.fn(() => 'mock-uuid')
+  randomUUID: vi.fn(() => 'mock-uuid'),
+  randomBytes: vi.fn((len: number) => {
+    const buf = Buffer.alloc(len)
+    for (let i = 0; i < len; i++) buf[i] = 65
+    return buf
+  })
 }))
 
 vi.mock('#server/utils/logger', () => ({
@@ -48,7 +53,7 @@ describe('ensureAdminExists', () => {
   it('uses bcrypt hash for password', async () => {
     mockRepos.users.findByRole.mockResolvedValue([])
     await ensureAdminExists()
-    expect(mockHash).toHaveBeenCalledWith('admin', 12)
+    expect(mockHash).toHaveBeenCalledWith(expect.any(String), 12)
   })
 
   it('re-activates inactive admin', async () => {

@@ -70,7 +70,7 @@ export default defineEventHandler(async (event) => {
     if (fileName.length === 0 || !fileName.endsWith('.torrent')) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid .torrent file' })
     }
-    if (torrentFileBase64.length > 7 * 1024 * 1024) {
+    if (torrentFileBase64.length > 5 * 1024 * 1024) {
       throw createError({ statusCode: 413, statusMessage: 'File too large (max 5MB)' })
     }
   }
@@ -196,7 +196,7 @@ export default defineEventHandler(async (event) => {
       if (torrent.size > 0 && (await isDiskCheckEnabled())) {
         const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
         if (disks.length > 0) {
-          const allStatuses = checkAllDisks(disks, await getDiskMinFreeGb())
+          const allStatuses = await checkAllDisks(disks, await getDiskMinFreeGb())
           const lowDisk = allStatuses.find((d) => {
             if (!d.available) return true
             return torrent.size > d.freeBytes

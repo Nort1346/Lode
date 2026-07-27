@@ -4,8 +4,13 @@ import { eq } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { syncUserCreate, syncUserUpdate, getSyncUserSettings, getProviderUserId } from '#server/utils/sync'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { createLogger } from '#server/utils/logger'
+import { AVATARS_DIR } from '#server/utils/paths'
+
+const log = createLogger('SyncAdmin')
 
 function generateTempPassword(length = 16): string {
   const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -35,7 +40,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const syncSettings = await getSyncUserSettings(id, 'jellyfin')
-  const existingMapping = getProviderUserId(id, 'jellyfin')
+  const existingMapping = await getProviderUserId(id, 'jellyfin')
 
   let action: 'synced' | 'created'
   let tempPassword: string | undefined
@@ -46,7 +51,7 @@ export default defineEventHandler(async (event) => {
       await syncUserUpdate(id, { username: user.username, password: '' }, syncSettings)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      console.error(`[Sync] Force sync failed for user ${user.username}:`, message)
+      log.error(`[Sync] Force sync failed for user ${user.username}:`, message)
       throw createError({ statusCode: 500, statusMessage: `Sync failed: ${message}` })
     }
   } else {
@@ -59,19 +64,19 @@ export default defineEventHandler(async (event) => {
       await syncUserCreate(id, { username: user.username, password: tempPassword }, syncSettings)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      console.error(`[Sync] Force sync failed for user ${user.username}:`, message)
+      log.error(`[Sync] Force sync failed for user ${user.username}:`, message)
       throw createError({ statusCode: 500, statusMessage: `Sync failed: ${message}` })
     }
   }
 
-  const avatarPath = resolve(process.cwd(), '.output', 'public', 'avatars', `${id}.jpg`)
+  const avatarPath = resolve(AVATARS_DIR, `${id}.jpg`)
   if (user.avatarUrl !== null && existsSync(avatarPath)) {
     try {
       const { syncAvatar } = await import('#server/utils/sync')
-      const buffer = readFileSync(avatarPath)
+      const buffer = await readFile(avatarPath)
       await syncAvatar(id, buffer)
     } catch (error) {
-      console.error(`[Sync] Avatar sync failed for user ${user.username}:`, error)
+      log.error(`[Sync] Avatar sync failed for user ${user.username}:`, error)
     }
   }
 

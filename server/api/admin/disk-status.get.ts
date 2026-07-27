@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   const minFreeGb = await getDiskMinFreeGb()
   const enabled = await isDiskCheckEnabled()
 
-  const diskStatuses = checkAllDisks(disks, minFreeGb)
+  const diskStatuses = await checkAllDisks(disks, minFreeGb)
 
   return {
     disks: diskStatuses,

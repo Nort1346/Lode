@@ -4,6 +4,7 @@ import { syncAvatarDelete } from '#server/utils/sync'
 import { unlinkSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { useDbAsync, dbRun } from '#server/utils/db'
+import { AVATARS_DIR } from '#server/utils/paths'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -14,7 +15,7 @@ export default defineEventHandler(async (event) => {
   const db = await useDbAsync()
   await dbRun(db.update(users).set({ avatarUrl: null }).where(eq(users.id, session.user.id)))
 
-  const avatarPath = resolve(process.cwd(), '.output', 'public', 'avatars', `${session.user.id}.jpg`)
+  const avatarPath = resolve(AVATARS_DIR, `${session.user.id}.jpg`)
   try {
     unlinkSync(avatarPath)
   } catch {

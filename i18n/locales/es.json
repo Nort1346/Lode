@@ -158,7 +158,9 @@
     "slow": "Conexión lenta",
     "good": "OK",
     "browseCTA": "Películas y Series",
-    "browseCTADesc": "Descubre tendencias, populares y mejor valorados"
+    "browseCTADesc": "Descubre tendencias, populares y mejor valorados",
+    "title": "Panel principal",
+    "maxSize": "Tamaño máx"
   },
   "downloads": {
     "prepReady": "Listo",
@@ -447,7 +449,9 @@
     "cancel": "Cancelar",
     "saveChanges": "Guardar cambios",
     "create": "Crear",
-    "edit": "Editar"
+    "edit": "Editar",
+    "scrollLeft": "Desplazar a la izquierda",
+    "scrollRight": "Desplazar a la derecha"
   },
   "bruteForce": {
     "title": "Seguridad de login",

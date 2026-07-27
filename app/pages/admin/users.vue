@@ -233,7 +233,7 @@ async function deleteUser(id: string) {
     await $fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
     await fetchUsers()
   } catch {
-    // silently fail
+    toast.add({ title: t('admin.saveFailed'), color: 'error' })
   }
 }
 
@@ -249,7 +249,7 @@ async function toggleActive(user: { id: string; isActive: boolean }) {
     })
     await fetchUsers()
   } catch {
-    // silently fail
+    toast.add({ title: t('admin.saveFailed'), color: 'error' })
   }
 }
 

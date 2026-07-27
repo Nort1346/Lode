@@ -10,6 +10,9 @@ import {
 } from '#server/utils/sync'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import type { UpdateUserBody } from '#server/types/admin'
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('UserAdmin')
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
@@ -114,14 +117,14 @@ export default defineEventHandler(async (event) => {
       try {
         await syncUserDisable(id)
       } catch (e) {
-        console.error('[User] Jellyfin disable failed:', e)
+        log.error('[User] Jellyfin disable failed:', e)
       }
     } else {
       await dbRun(db.update(users).set({ expiresAt: null }).where(eq(users.id, id)))
       try {
         await syncUserEnable(id)
       } catch (e) {
-        console.error('[User] Jellyfin enable failed:', e)
+        log.error('[User] Jellyfin enable failed:', e)
       }
     }
   }
@@ -134,7 +137,7 @@ export default defineEventHandler(async (event) => {
     try {
       await syncUserUpdate(id, jellyfinData, syncSettings)
     } catch (e) {
-      console.error('[User] Jellyfin sync failed:', e)
+      log.error('[User] Jellyfin sync failed:', e)
     }
   }
 

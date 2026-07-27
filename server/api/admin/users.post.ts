@@ -27,6 +27,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })
   }
 
+  if (password.length < 8) {
+    throw createError({ statusCode: 400, statusMessage: 'Password must be at least 8 characters' })
+  }
+
   const db = await useDbAsync()
   const existing = await dbGet(db.select().from(users).where(eq(users.username, username)))
   if (existing) {

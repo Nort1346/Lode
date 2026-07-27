@@ -12,6 +12,7 @@ import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/uti
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { checkForDangerousFiles } from '#server/utils/torrents/safe-download'
 import { createLogger } from '#server/utils/logger'
+import { assertExternalUrl } from '#server/utils/url-validate'
 import type { DownloadBody } from '#server/types/browse'
 import { SAVE_PATH_KEYS, type SavePathKey } from '#server/types/torrent'
 
@@ -79,6 +80,14 @@ export default defineEventHandler(async (event) => {
     if (!torrentUrl.startsWith('magnet:') && !torrentUrl.startsWith('http://') && !torrentUrl.startsWith('https://')) {
       log.error(`[Download:2:VALIDATE] ✗ invalid torrentUrl prefix: ${torrentUrl.substring(0, 40)}`)
       throw createError({ statusCode: 400, statusMessage: 'Invalid magnet link or torrent URL' })
+    }
+
+    if (torrentUrl.startsWith('http://') || torrentUrl.startsWith('https://')) {
+      assertExternalUrl(torrentUrl)
+    }
+
+    if (guidUrl && (guidUrl.startsWith('http://') || guidUrl.startsWith('https://'))) {
+      assertExternalUrl(guidUrl)
     }
 
     if (!savePath || !SAVE_PATH_KEYS.includes(savePath as SavePathKey)) {
@@ -470,7 +479,7 @@ export default defineEventHandler(async (event) => {
       if (torrent !== null && torrent.size > 0 && (await isDiskCheckEnabled())) {
         const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
         if (disks.length > 0) {
-          const allStatuses = checkAllDisks(disks, await getDiskMinFreeGb())
+          const allStatuses = await checkAllDisks(disks, await getDiskMinFreeGb())
           const lowDisk = allStatuses.find((d) => {
             if (!d.available) return true
             return torrent.size > d.freeBytes

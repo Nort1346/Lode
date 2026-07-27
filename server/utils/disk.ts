@@ -1,12 +1,15 @@
-import { execSync } from 'node:child_process'
+import { exec } from 'node:child_process'
+import { promisify } from 'node:util'
 import { getReposAsync } from '#server/repositories'
 import type { DiskStatus } from '#server/types/disk'
 import { formatSize } from '#server/utils/format'
 
-function getDiskInfo(path: string): { totalBytes: number; freeBytes: number } | null {
+const execAsync = promisify(exec)
+
+async function getDiskInfo(path: string): Promise<{ totalBytes: number; freeBytes: number } | null> {
   try {
-    const output = execSync(`df -k "${path}"`, { encoding: 'utf-8' })
-    const lines = output.trim().split('\n')
+    const { stdout } = await execAsync(`df -k "${path}"`)
+    const lines = stdout.trim().split('\n')
     if (lines.length < 2) return null
     const parts = lines[1]?.trim().split(/\s+/) ?? []
     const totalKb = parseInt(parts[1] ?? '', 10)
@@ -21,9 +24,9 @@ function getDiskInfo(path: string): { totalBytes: number; freeBytes: number } | 
   }
 }
 
-export function checkDiskSpace(path: string, minFreeGb: number): DiskStatus {
+export async function checkDiskSpace(path: string, minFreeGb: number): Promise<DiskStatus> {
   try {
-    const info = getDiskInfo(path)
+    const info = await getDiskInfo(path)
     if (!info) throw new Error('Failed to get disk info')
 
     const { totalBytes, freeBytes } = info
@@ -59,18 +62,25 @@ export function checkDiskSpace(path: string, minFreeGb: number): DiskStatus {
   }
 }
 
-export function checkAllDisks(disks: string[], minFreeGb: number): DiskStatus[] {
-  return disks
-    .map((d) => d.trim())
-    .filter((d) => d.length > 0)
-    .map((d) => checkDiskSpace(d, minFreeGb))
+export async function checkAllDisks(disks: string[], minFreeGb: number): Promise<DiskStatus[]> {
+  const results = await Promise.all(
+    disks
+      .map((d) => d.trim())
+      .filter((d) => d.length > 0)
+      .map((d) => checkDiskSpace(d, minFreeGb))
+  )
+  return results
 }
 
-export function findTargetDisk(disks: string[], targetPath: string, minFreeGb: number): DiskStatus | null {
+export async function findTargetDisk(
+  disks: string[],
+  targetPath: string,
+  minFreeGb: number
+): Promise<DiskStatus | null> {
   const trimmed = disks.map((d) => d.trim()).filter((d) => d.length > 0)
   for (const disk of trimmed) {
     if (targetPath.startsWith(disk)) {
-      return checkDiskSpace(disk, minFreeGb)
+      return await checkDiskSpace(disk, minFreeGb)
     }
   }
   return null

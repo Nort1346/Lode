@@ -1,10 +1,7 @@
 import { getLogBuffer, subscribeToLogs } from '#server/utils/logger'
 
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  if (!session.user || session.user.role !== 'admin') {
-    throw createError({ statusCode: 403, statusMessage: 'Admin access required' })
-  }
+  await requireAdmin(event)
 
   setResponseHeaders(event, {
     'Content-Type': 'text/event-stream',

@@ -83,18 +83,18 @@ describe('admin/users.post', () => {
 
   it('creates user and syncs to jellyfin', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
-    mockReadBody.mockResolvedValue({ username: 'newuser', password: 'pass123' })
+    mockReadBody.mockResolvedValue({ username: 'newuser', password: 'pass1234' })
     stubDb(undefined)
 
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true, id: 'new-id-1' })
-    expect(mockHash).toHaveBeenCalledWith('pass123', 12)
+    expect(mockHash).toHaveBeenCalledWith('pass1234', 12)
     expect(mockSyncNewUser).toHaveBeenCalled()
   })
 
   it('throws 400 when username missing', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
-    mockReadBody.mockResolvedValue({ password: 'pass123' })
+    mockReadBody.mockResolvedValue({ password: 'pass1234' })
     stubDb()
 
     await expect(handler(mockEvent)).rejects.toThrow('400: Username and password are required')
@@ -110,7 +110,7 @@ describe('admin/users.post', () => {
 
   it('throws 409 when username exists', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
-    mockReadBody.mockResolvedValue({ username: 'existing', password: 'pass123' })
+    mockReadBody.mockResolvedValue({ username: 'existing', password: 'pass1234' })
     stubDb({ id: 'u1', username: 'existing' })
 
     await expect(handler(mockEvent)).rejects.toThrow('409: Username already exists')
@@ -118,7 +118,7 @@ describe('admin/users.post', () => {
 
   it('sets syncStatus to failed on sync failure', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
-    mockReadBody.mockResolvedValue({ username: 'newuser', password: 'pass123' })
+    mockReadBody.mockResolvedValue({ username: 'newuser', password: 'pass1234' })
     mockSyncNewUser.mockResolvedValue('failed')
     stubDb(undefined)
 

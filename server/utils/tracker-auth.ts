@@ -120,12 +120,7 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
 
   log.info(`[TrackerAuth] POSTing to ${form.action} with fields: ${Object.keys(formBody).join(', ')}`)
 
-  let referer: string
-  try {
-    referer = loginUrl
-  } catch {
-    referer = loginUrl
-  }
+  const referer = loginUrl
 
   const loginResponse = await gotScraping({
     url: form.action,

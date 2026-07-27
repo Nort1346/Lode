@@ -21,6 +21,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })
   }
 
+  if (password.length < 8) {
+    throw createError({ statusCode: 400, statusMessage: 'Password must be at least 8 characters' })
+  }
+
   if (session.user.role !== 'admin') {
     throw createError({ statusCode: 403, statusMessage: 'Only admins can create users' })
   }

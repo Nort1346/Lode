@@ -1,5 +1,6 @@
 import { createReadStream, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { AVATARS_DIR, AVATARS_DEV_DIR } from '#server/utils/paths'
 
 export default defineEventHandler((event) => {
   const id = getRouterParam(event, 'id')
@@ -7,10 +8,7 @@ export default defineEventHandler((event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing avatar id' })
   }
 
-  const candidates = [
-    resolve(process.cwd(), '.output', 'public', 'avatars', id),
-    resolve(process.cwd(), 'public', 'avatars', id)
-  ]
+  const candidates = [resolve(AVATARS_DIR, id), resolve(AVATARS_DEV_DIR, id)]
 
   const filePath = candidates.find((p) => existsSync(p))
   if (filePath === undefined) {

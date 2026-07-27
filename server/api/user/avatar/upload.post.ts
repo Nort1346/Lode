@@ -2,9 +2,11 @@ import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { validateAndProcessAvatar } from '#server/utils/avatar'
 import { syncAvatar } from '#server/utils/sync'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { useDbAsync, dbRun } from '#server/utils/db'
+import { AVATARS_DIR } from '#server/utils/paths'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -25,13 +27,13 @@ export default defineEventHandler(async (event) => {
 
   const processedImage = await validateAndProcessAvatar(imageField.data, imageField.type)
 
-  const avatarsDir = resolve(process.cwd(), '.output', 'public', 'avatars')
+  const avatarsDir = AVATARS_DIR
   if (!existsSync(avatarsDir)) {
-    mkdirSync(avatarsDir, { recursive: true })
+    await mkdir(avatarsDir, { recursive: true })
   }
 
   const avatarPath = resolve(avatarsDir, `${session.user.id}.jpg`)
-  writeFileSync(avatarPath, processedImage)
+  await writeFile(avatarPath, processedImage)
 
   const db = await useDbAsync()
   await dbRun(

@@ -62,18 +62,18 @@ describe('auth/register.post', () => {
 
   it('creates user successfully as admin', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'admin1', username: 'admin', role: 'admin' } } as never)
-    vi.mocked(readBody).mockResolvedValue({ username: 'newuser', password: 'pass123' })
+    vi.mocked(readBody).mockResolvedValue({ username: 'newuser', password: 'pass1234' })
     mockGet.mockReturnValue(undefined)
 
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true, id: 'user-uuid' })
-    expect(vi.mocked(hash)).toHaveBeenCalledWith('pass123', 12)
+    expect(vi.mocked(hash)).toHaveBeenCalledWith('pass1234', 12)
     expect(mockRun).toHaveBeenCalled()
   })
 
   it('throws 400 when missing username', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'admin1', role: 'admin' } } as never)
-    vi.mocked(readBody).mockResolvedValue({ username: '', password: 'pass123' })
+    vi.mocked(readBody).mockResolvedValue({ username: '', password: 'pass1234' })
 
     await expect(handler(mockEvent)).rejects.toThrow('400: Username and password are required')
   })
@@ -93,14 +93,14 @@ describe('auth/register.post', () => {
 
   it('throws 403 when non-admin tries to create user', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } } as never)
-    vi.mocked(readBody).mockResolvedValue({ username: 'newuser', password: 'pass123' })
+    vi.mocked(readBody).mockResolvedValue({ username: 'newuser', password: 'pass1234' })
 
     await expect(handler(mockEvent)).rejects.toThrow('403: Only admins can create users')
   })
 
   it('throws 409 when username already exists', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'admin1', role: 'admin' } } as never)
-    vi.mocked(readBody).mockResolvedValue({ username: 'existing', password: 'pass123' })
+    vi.mocked(readBody).mockResolvedValue({ username: 'existing', password: 'pass1234' })
     mockGet.mockReturnValue({ id: 'existing-user', username: 'existing' })
 
     await expect(handler(mockEvent)).rejects.toThrow('409: Username already exists')
@@ -108,7 +108,7 @@ describe('auth/register.post', () => {
 
   it('sets syncStatus to failed when sync fails', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'admin1', role: 'admin' } } as never)
-    vi.mocked(readBody).mockResolvedValue({ username: 'newuser', password: 'pass123' })
+    vi.mocked(readBody).mockResolvedValue({ username: 'newuser', password: 'pass1234' })
     mockGet.mockReturnValue(undefined)
     vi.mocked(syncNewUser).mockResolvedValue('failed')
 
@@ -119,13 +119,13 @@ describe('auth/register.post', () => {
 
   it('calls syncNewUser after insert', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'admin1', role: 'admin' } } as never)
-    vi.mocked(readBody).mockResolvedValue({ username: 'newuser', password: 'pass123' })
+    vi.mocked(readBody).mockResolvedValue({ username: 'newuser', password: 'pass1234' })
     mockGet.mockReturnValue(undefined)
 
     await handler(mockEvent)
     expect(vi.mocked(syncNewUser)).toHaveBeenCalledWith(
       'user-uuid',
-      { username: 'newuser', password: 'pass123' },
+      { username: 'newuser', password: 'pass1234' },
       expect.any(Object)
     )
   })

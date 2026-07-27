@@ -11,6 +11,7 @@ definePageMeta({
 const { user } = useUserSession()
 const { t, locale } = useI18n()
 const overlay = useOverlay()
+const toast = useToast()
 
 const stats = ref({
   activeTorrents: 0,
@@ -37,7 +38,7 @@ async function fetchData() {
     ).length
     stats.value.downloadsToday = stats.value.completedToday
   } catch {
-    // silently fail
+    toast.add({ title: t('download.error'), color: 'error' })
   } finally {
     loading.value = false
   }
@@ -103,7 +104,7 @@ async function cancelTorrent(dl: Download) {
     await $fetch(`/api/torrents/${dl.id}`, { method: 'DELETE' })
     await fetchData()
   } catch {
-    // silently fail
+    toast.add({ title: t('download.error'), color: 'error' })
   } finally {
     cancelling.value = null
   }
@@ -126,11 +127,11 @@ const statusColors: Record<string, string> = {
 }
 
 const savePathLabels: Record<string, string> = {
-  movies: '🎬 Movies',
-  series: '📺 Series',
-  games: '🎮 Games',
-  music: '🎵 Music',
-  books: '📚 Books'
+  movies: t('common.savePath_movies'),
+  series: t('common.savePath_series'),
+  games: t('common.savePath_games'),
+  music: t('common.savePath_music'),
+  books: t('common.savePath_books')
 }
 </script>
 
@@ -138,7 +139,7 @@ const savePathLabels: Record<string, string> = {
   <div>
     <div v-reveal class="mb-6 flex items-center justify-between">
       <div>
-        <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-1">Dashboard</h1>
+        <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-1">{{ t('dashboard.title') }}</h1>
         <p class="text-zinc-500 dark:text-zinc-400">
           {{ t('dashboard.welcome') }}
           <span class="text-amber-600 dark:text-amber-400 font-medium">{{ user?.username }}</span>
@@ -205,7 +206,9 @@ const savePathLabels: Record<string, string> = {
             </p>
           </div>
         </div>
-        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">Max size: {{ user?.maxTorrentSizeGb }}GB</div>
+        <div class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
+          {{ t('dashboard.maxSize') }}: {{ user?.maxTorrentSizeGb }}GB
+        </div>
       </div>
     </div>
 
@@ -265,7 +268,7 @@ const savePathLabels: Record<string, string> = {
                     {{ savePathLabels[dl.savePath] || dl.savePath }}
                   </span>
                   <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
-                    {{ capitalize(dl.status) }}
+                    {{ t(`common.status_${dl.status}`) }}
                   </span>
                   <span
                     v-if="getTorrentQuality(dl) !== 'ok'"
@@ -305,7 +308,8 @@ const savePathLabels: Record<string, string> = {
                     <UIcon name="i-lucide-arrow-up" class="inline size-3" />{{ dl.numSeeds }}
                   </span>
                   <span
-                    >ETA: <span class="text-zinc-900 dark:text-white">{{ formatEta(dl.etaSeconds) }}</span></span
+                    >{{ t('common.eta') }}:
+                    <span class="text-zinc-900 dark:text-white">{{ formatEta(dl.etaSeconds) }}</span></span
                   >
                 </div>
               </div>

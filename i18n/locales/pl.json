@@ -158,7 +158,9 @@
     "slow": "Wolne połączenie",
     "good": "OK",
     "browseCTA": "Przeglądaj filmy i seriale",
-    "browseCTADesc": "Odkrywaj popularne i najlepiej oceniane"
+    "browseCTADesc": "Odkrywaj popularne i najlepiej oceniane",
+    "title": "Panel główny",
+    "maxSize": "Maks. rozmiar"
   },
   "downloads": {
     "prepReady": "Gotowe",
@@ -447,7 +449,9 @@
     "cancel": "Anuluj",
     "saveChanges": "Zapisz zmiany",
     "create": "Utwórz",
-    "edit": "Edytuj"
+    "edit": "Edytuj",
+    "scrollLeft": "Przewiń w lewo",
+    "scrollRight": "Przewiń w prawo"
   },
   "bruteForce": {
     "title": "Ochrona logowania",

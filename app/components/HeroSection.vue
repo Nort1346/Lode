@@ -21,7 +21,7 @@ const textVisible = ref(true)
 // Set DEV_HERO_ID to a TMDB movie/show ID and restart dev server.
 // The hero will show only this item with no rotation.
 // Set back to null to restore normal hero behavior.
-const DEV_HERO_ID = 1003596 as number | null
+const DEV_HERO_ID = null as number | null
 const DEV_HERO_TYPE = 'movie' as 'movie' | 'tv'
 
 function startHeroRotation() {

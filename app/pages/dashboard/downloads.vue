@@ -20,6 +20,7 @@ const { smallerThan } = useBreakpoints()
 const { user } = useUserSession()
 const { data: me } = useFetch('/api/user/me')
 const overlay = useOverlay()
+const toast = useToast()
 
 const canSubmit = computed(() => me.value?.canSubmit === true || user.value?.role === 'admin')
 
@@ -49,7 +50,7 @@ async function fetchDownloads() {
     downloads.value = res.downloads || []
     total.value = res.total
   } catch {
-    // silently fail
+    toast.add({ title: t('download.error'), color: 'error' })
   } finally {
     loading.value = false
   }
@@ -90,7 +91,7 @@ async function cancelTorrent(dl: Download) {
       page.value--
     }
   } catch {
-    // silently fail
+    toast.add({ title: t('download.error'), color: 'error' })
   } finally {
     cancelling.value = null
   }

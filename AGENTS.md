@@ -120,6 +120,7 @@ server/utils/
 - API errors: `createError({ statusCode, statusMessage })`
 - Try/catch external calls (TMDB, Prowlarr, Jellyfin, qBittorrent)
 - Log errors with `createLogger('ModuleName')` - never `console.log` in app code
+- **Server code must NEVER use `console.log/warn/error`** - always use `createLogger()` which sends logs to the SSE ring buffer. Import: `import { createLogger } from '#server/utils/logger'`
 - Admin bypass does NOT apply to disk space checks
 - User creation: local DB insert FIRST, then external sync (prevents orphans)
 

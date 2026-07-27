@@ -1,9 +1,22 @@
 import { getReposAsync } from '#server/repositories'
 import { hash } from '@node-rs/bcrypt'
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { createLogger } from '#server/utils/logger'
 
 const log = createLogger('DB')
+
+function generateAdminPassword(length = 20): string {
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
+  const bytes = randomBytes(length)
+  let password = ''
+  for (let i = 0; i < length; i++) {
+    const byte = bytes[i]
+    if (byte !== undefined) {
+      password += charset[byte % charset.length]
+    }
+  }
+  return password
+}
 
 export async function ensureAdminExists() {
   const repos = await getReposAsync()
@@ -11,7 +24,8 @@ export async function ensureAdminExists() {
 
   if (admins.length === 0) {
     const id = randomUUID()
-    const password = await hash('admin', 12)
+    const adminPassword = generateAdminPassword()
+    const password = await hash(adminPassword, 12)
 
     await repos.users.create({
       id,
@@ -26,7 +40,9 @@ export async function ensureAdminExists() {
       createdAt: new Date().toISOString()
     })
 
-    log.info('Admin user created (username: admin, password: admin)')
+    log.info('Admin user created — username: admin')
+    log.info(`Admin password: ${adminPassword}`)
+    log.info('Change this password after first login!')
   } else {
     const admin = admins[0]
     if (admin !== undefined && !admin.isActive) {

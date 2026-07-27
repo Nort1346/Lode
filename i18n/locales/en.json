@@ -158,7 +158,9 @@
     "slow": "Slow connection",
     "good": "OK",
     "browseCTA": "Explore Movies & TV",
-    "browseCTADesc": "Discover trending, popular, and top-rated content"
+    "browseCTADesc": "Discover trending, popular, and top-rated content",
+    "title": "Dashboard",
+    "maxSize": "Max size"
   },
   "downloads": {
     "prepReady": "Ready",
@@ -447,7 +449,9 @@
     "cancel": "Cancel",
     "saveChanges": "Save Changes",
     "create": "Create",
-    "edit": "Edit"
+    "edit": "Edit",
+    "scrollLeft": "Scroll left",
+    "scrollRight": "Scroll right"
   },
   "bruteForce": {
     "title": "Login Protection",

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { ContainerBuilder, TextDisplayBuilder } from '@discordjs/builders'
 import type { SeparatorBuilder } from '@discordjs/builders'
@@ -156,7 +156,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
     const url = tmdb.posterUrl
     container.addMediaGalleryComponents((media) => media.addItems((item) => item.setURL(url)))
   } else {
-    posterFile = readFileSync(FALLBACK_POSTER_PATH)
+    posterFile = await readFile(FALLBACK_POSTER_PATH)
     container.addMediaGalleryComponents((media) => media.addItems((item) => item.setURL(FALLBACK_POSTER_REF)))
   }
 

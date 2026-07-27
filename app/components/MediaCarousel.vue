@@ -17,7 +17,7 @@
     <div v-else class="group/carousel relative">
       <button
         v-if="hasOverflow && !isAtStart"
-        aria-label="Scroll left"
+        :aria-label="t('common.scrollLeft')"
         class="absolute top-1/2 left-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-2 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800 cursor-pointer"
         @click="scroll(-1)"
       >
@@ -42,7 +42,7 @@
 
       <button
         v-if="hasOverflow && !isAtEnd"
-        aria-label="Scroll right"
+        :aria-label="t('common.scrollRight')"
         class="absolute top-1/2 right-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-2 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800 cursor-pointer"
         @click="scroll(1)"
       >
@@ -54,6 +54,8 @@
 
 <script setup lang="ts">
 import type { MediaCarouselItem } from '~/types/media'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   title: string

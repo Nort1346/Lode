@@ -3,6 +3,9 @@ import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { syncUserUpdate, getSyncUserSettings, getProviderUserId } from '#server/utils/sync'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('Password')
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -45,7 +48,7 @@ export default defineEventHandler(async (event) => {
     try {
       await syncUserUpdate(session.user.id, { username: user.username, password: body.newPassword }, syncSettings)
     } catch (error) {
-      console.error(`[Sync] Password sync to Jellyfin failed for user ${user.username}:`, error)
+      log.error(`[Sync] Password sync to Jellyfin failed for user ${user.username}:`, error)
     }
   }
 

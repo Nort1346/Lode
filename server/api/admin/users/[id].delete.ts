@@ -2,6 +2,9 @@ import { users, sessions } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { syncUserDelete } from '#server/utils/sync'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('UserAdmin')
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
@@ -25,7 +28,7 @@ export default defineEventHandler(async (event) => {
   try {
     await syncUserDelete(id)
   } catch (error) {
-    console.error('[User] Jellyfin delete failed:', error)
+    log.error('[User] Jellyfin delete failed:', error)
     throw createError({
       statusCode: 502,
       statusMessage: 'Failed to delete user from Jellyfin. User not deleted.'

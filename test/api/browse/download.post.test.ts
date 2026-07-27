@@ -67,6 +67,9 @@ vi.mock('#server/utils/tracker-auth', () => ({
   clearSessionCache: mockClearSessionCache,
   performTrackerLogin: mockPerformTrackerLogin
 }))
+vi.mock('#server/utils/url-validate', () => ({
+  assertExternalUrl: vi.fn()
+}))
 vi.mock('#server/utils/crypto', () => ({
   decryptAES: mockDecryptAES
 }))

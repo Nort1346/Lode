@@ -13,11 +13,13 @@ import openPeeps from '@dicebear/styles/open-peeps.json'
 import personas from '@dicebear/styles/personas.json'
 import pixelArt from '@dicebear/styles/pixel-art.json'
 import toonHead from '@dicebear/styles/toon-head.json'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import sharp from 'sharp'
 import { syncAvatar } from '#server/utils/sync'
 import type { StyleDefinition } from '@dicebear/core'
+import { AVATARS_DIR } from '#server/utils/paths'
 import { useDbAsync, dbRun } from '#server/utils/db'
 
 const STYLE_MAP: Record<string, StyleDefinition> = {
@@ -75,13 +77,13 @@ export default defineEventHandler(async (event) => {
 
   const jpgBuffer = await sharp(Buffer.from(svg)).resize(512, 512).jpeg({ quality: 90 }).removeAlpha().toBuffer()
 
-  const avatarsDir = resolve(process.cwd(), '.output', 'public', 'avatars')
+  const avatarsDir = AVATARS_DIR
   if (!existsSync(avatarsDir)) {
-    mkdirSync(avatarsDir, { recursive: true })
+    await mkdir(avatarsDir, { recursive: true })
   }
 
   const avatarPath = resolve(avatarsDir, `${session.user.id}.jpg`)
-  writeFileSync(avatarPath, jpgBuffer)
+  await writeFile(avatarPath, jpgBuffer)
 
   const db = await useDbAsync()
   await dbRun(

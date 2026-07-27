@@ -158,7 +158,9 @@
     "slow": "Connexion lente",
     "good": "OK",
     "browseCTA": "Films & Séries",
-    "browseCTADesc": "Découvrez les tendances, populaires et les mieux notés"
+    "browseCTADesc": "Découvrez les tendances, populaires et les mieux notés",
+    "title": "Tableau de bord",
+    "maxSize": "Taille max"
   },
   "downloads": {
     "prepReady": "Prêt",
@@ -447,7 +449,9 @@
     "cancel": "Annuler",
     "saveChanges": "Enregistrer",
     "create": "Créer",
-    "edit": "Modifier"
+    "edit": "Modifier",
+    "scrollLeft": "Défiler à gauche",
+    "scrollRight": "Défiler à droite"
   },
   "bruteForce": {
     "title": "Sécurité de connexion",

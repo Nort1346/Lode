@@ -53,7 +53,7 @@ export default defineNuxtConfig({
     session: {
       maxAge: 60 * 60 * 24 * 30,
       cookie: {
-        secure: false
+        secure: !import.meta.dev
       }
     },
     redisUrl: '',

@@ -158,7 +158,9 @@
     "slow": "Langsame Verbindung",
     "good": "OK",
     "browseCTA": "Filme & Serien entdecken",
-    "browseCTADesc": "Entdecke aktuelle, beliebte und top-bewertete Inhalte"
+    "browseCTADesc": "Entdecke aktuelle, beliebte und top-bewertete Inhalte",
+    "title": "Dashboard",
+    "maxSize": "Max. Größe"
   },
   "downloads": {
     "prepReady": "Bereit",
@@ -447,7 +449,9 @@
     "cancel": "Abbrechen",
     "saveChanges": "Änderungen speichern",
     "create": "Erstellen",
-    "edit": "Bearbeiten"
+    "edit": "Bearbeiten",
+    "scrollLeft": "Nach links scrollen",
+    "scrollRight": "Nach rechts scrollen"
   },
   "bruteForce": {
     "title": "Anmelde-Schutz",
