@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - main
   schedule:
     - cron: '0 2 * * *'
 
