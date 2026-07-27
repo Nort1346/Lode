@@ -21,6 +21,27 @@ pnpm test:coverage    # Run tests with V8 coverage reporting
 pnpm typecheck:test   # Type-check the test suite (test/tsconfig.json)
 ```
 
+## Commit Messages
+
+Use **Conventional Commits** format:
+
+```
+<type>(<scope>): <short description>
+```
+
+- Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `ci`, `test`, `style`
+- Scope is optional but encouraged (e.g. `setup`, `docker`, `ui`, `api`)
+- Keep description concise and in English
+- No "Priority" labels or unnecessary prefixes
+
+Examples:
+```
+feat(setup): add dev hero screenshot mode with TMDB ID override
+fix(setup): download .env.example from GitHub when running standalone
+refactor: organize server/utils into subdirectories
+chore: disable nuxt devtools and add migrations to preview script
+```
+
 The project uses **Vitest** (`vitest` 4.x) with `@nuxt/test-utils` and `@vitest/coverage-v8`:
 
 - Config: `vitest.config.ts` (node environment, `test/**/*.test.ts`, setup via `test/setup.ts`). Path aliases `#server`, `#db`, `#utils`, `#server/types` are mapped to `server/`.
