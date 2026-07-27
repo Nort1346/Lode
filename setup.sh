@@ -812,6 +812,11 @@ wait_for_port "localhost" "5757" 120 || true
 
 ok "StreamHub is running at http://localhost:5757"
 
+# -- Extract admin password from logs ---------------------------------
+
+ADMIN_PASS=$(docker compose -f "$COMPOSE_FILE" logs streamhub 2>&1 \
+  | grep -oP 'Admin password: \K.*' | head -1) || true
+
 # -- Summary -----------------------------------------------------------
 
 HAS_DOZZLE=false
@@ -852,7 +857,11 @@ echo ""
 # -- Credentials
 CREDS=$(gum style --bold --foreground 11 'admin')
 summary_section "  Username: $CREDS"
-summary_section "  Password: check 'docker compose -f $COMPOSE_FILE logs streamhub' for the auto-generated password"
+if [ -n "$ADMIN_PASS" ]; then
+  summary_section "  Password: $(gum style --bold --foreground 11 "$ADMIN_PASS")"
+else
+  summary_section "  Password: check 'docker compose -f $COMPOSE_FILE logs streamhub'"
+fi
 summary_section "  Change this password after first login!"
 
 echo ""
@@ -860,7 +869,7 @@ echo ""
 # -- Next steps
 STEPS=$(cat <<STEPS
 $(gum style --foreground 14 '  Next steps:')
-$(gum style --foreground 14 '   1. Login with admin (password in Docker logs) -> Admin > Users')
+$(gum style --foreground 14 '   1. Login with admin -> Admin > Users to change the password')
 $(gum style --foreground 14 '   2. Jellyfin libraries (Movies/Series) are created automatically on startup')
 $(gum style --foreground 14 '   3. Prowlarr -> Add indexers + FlareSolverr proxy')
 STEPS

@@ -812,6 +812,13 @@ Test-Port -Host_ "localhost" -Port 5757 -Timeout 120 | Out-Null
 
 Write-Ok "StreamHub is running at http://localhost:5757"
 
+# -- Extract admin password from logs ---------------------------------
+
+$adminPass = docker compose -f $COMPOSE_FILE logs streamhub 2>&1 |
+    Select-String 'Admin password:' |
+    ForEach-Object { ($_ -replace '.*Admin password:\s*', '').Trim() } |
+    Select-Object -First 1
+
 # -- Summary ----------------------------------------------------------
 
 $dozzleUp = docker compose -f $COMPOSE_FILE ps dozzle 2>$null | Select-String "Up"
@@ -846,7 +853,12 @@ Write-Host ""
 # -- Credentials
 $credsUser = if ($script:HAS_GUM) { gum style --bold --foreground 11 'admin' } else { 'admin' }
 Write-SummarySection "  Username: $credsUser"
-Write-SummarySection "  Password: check 'docker compose -f $COMPOSE_FILE logs streamhub' for the auto-generated password"
+if ($adminPass) {
+    $credsPass = if ($script:HAS_GUM) { gum style --bold --foreground 11 $adminPass } else { $adminPass }
+    Write-SummarySection "  Password: $credsPass"
+} else {
+    Write-SummarySection "  Password: check 'docker compose -f $COMPOSE_FILE logs streamhub'"
+}
 Write-SummarySection "  Change this password after first login!"
 
 Write-Host ""
@@ -854,7 +866,7 @@ Write-Host ""
 # -- Next steps
 $steps = @(
     $(if ($script:HAS_GUM) { gum style --foreground 14 '  Next steps:' } else { '  Next steps:' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   1. Login with admin (password in Docker logs) -> Admin > Users' } else { '   1. Login with admin (password in Docker logs) -> Admin > Users' }),
+    $(if ($script:HAS_GUM) { gum style --foreground 14 '   1. Login with admin -> Admin > Users to change the password' } else { '   1. Login with admin -> Admin > Users to change the password' }),
     $(if ($script:HAS_GUM) { gum style --foreground 14 '   2. Jellyfin libraries (Movies/Series) are created automatically on startup' } else { '   2. Jellyfin libraries (Movies/Series) are created automatically on startup' }),
     $(if ($script:HAS_GUM) { gum style --foreground 14 '   3. Prowlarr -> Add indexers + FlareSolverr proxy' } else { '   3. Prowlarr -> Add indexers + FlareSolverr proxy' })
 )
