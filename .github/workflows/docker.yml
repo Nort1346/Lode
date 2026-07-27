@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+  schedule:
+    - cron: '0 2 * * *'
 
 env:
   REGISTRY: ghcr.io
@@ -34,8 +38,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
+      - name: Extract metadata (release)
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: meta-release
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -45,13 +50,36 @@ jobs:
             type=semver,pattern={{major}}
             type=raw,value=latest
 
-      - name: Build and push
+      - name: Extract metadata (nightly)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        id: meta-nightly
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=nightly
+            type=sha,prefix=
+
+      - name: Build and push (release)
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-release.outputs.tags }}
+          labels: ${{ steps.meta-release.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push (nightly)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-nightly.outputs.tags }}
+          labels: ${{ steps.meta-nightly.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
