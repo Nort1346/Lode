@@ -15,9 +15,12 @@ vi.mock('#server/utils/avatar', () => ({
 }))
 
 vi.mock('node:fs', () => ({
-  existsSync: vi.fn(() => true),
-  mkdirSync: vi.fn(),
-  writeFileSync: vi.fn()
+  existsSync: vi.fn(() => true)
+}))
+
+vi.mock('node:fs/promises', () => ({
+  mkdir: vi.fn(),
+  writeFile: vi.fn()
 }))
 
 vi.mock('drizzle-orm', () => ({
