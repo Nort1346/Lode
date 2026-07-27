@@ -60,7 +60,7 @@ vi.mock('#server/utils/disk', () => ({
   isDiskCheckEnabled: mockIsDiskCheckEnabled,
   getDiskMinFreeGb: mockGetDiskMinFreeGb
 }))
-vi.mock('#server/utils/safe-download', () => ({
+vi.mock('#server/utils/torrents/safe-download', () => ({
   checkForDangerousFiles: mockCheckForDangerousFiles
 }))
 vi.mock('#server/utils/tracker-auth', () => ({

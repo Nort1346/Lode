@@ -43,7 +43,7 @@ vi.mock('drizzle-orm', () => ({
 }))
 
 const mockNotifyRequestStatus = vi.hoisted(() => vi.fn(() => Promise.resolve()))
-vi.mock('#server/utils/notifications', () => ({
+vi.mock('#server/utils/notifications/notifications', () => ({
   notifyRequestStatus: mockNotifyRequestStatus
 }))
 

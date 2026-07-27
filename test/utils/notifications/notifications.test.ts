@@ -31,11 +31,11 @@ vi.mock('#server/utils/db', () => ({
   })
 }))
 
-vi.mock('#server/utils/sse-hubs', () => ({
+vi.mock('#server/utils/notifications/sse-hubs', () => ({
   notifySseClients: vi.fn()
 }))
 
-vi.mock('#server/utils/push', () => ({
+vi.mock('#server/utils/notifications/push', () => ({
   sendPushToUser: vi.fn().mockResolvedValue(undefined)
 }))
 
@@ -95,9 +95,9 @@ import {
   getUnreadCount,
   markAsRead,
   markAllAsRead
-} from '#server/utils/notifications'
-import { notifySseClients } from '#server/utils/sse-hubs'
-import { sendPushToUser } from '#server/utils/push'
+} from '#server/utils/notifications/notifications'
+import { notifySseClients } from '#server/utils/notifications/sse-hubs'
+import { sendPushToUser } from '#server/utils/notifications/push'
 import { NotificationType } from '#server/types/notifications'
 
 describe('notifications', () => {

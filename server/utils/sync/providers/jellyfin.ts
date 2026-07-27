@@ -1,6 +1,6 @@
 import type { SyncProvider, SyncUserData, SyncUserSettings, SyncLibrary } from '../types'
-import type { JellyfinClient } from '#server/utils/jellyfin'
-import { useJellyfin } from '#server/utils/jellyfin'
+import type { JellyfinClient } from '#server/utils/clients/jellyfin'
+import { useJellyfin } from '#server/utils/clients/jellyfin'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
 

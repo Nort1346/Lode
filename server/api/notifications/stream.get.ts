@@ -1,5 +1,5 @@
-import { subscribeToNotifications } from '#server/utils/sse-hubs'
-import { getUnreadCount } from '#server/utils/notifications'
+import { subscribeToNotifications } from '#server/utils/notifications/sse-hubs'
+import { getUnreadCount } from '#server/utils/notifications/notifications'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

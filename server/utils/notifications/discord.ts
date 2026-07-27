@@ -9,7 +9,7 @@ import type { APIContainerComponent, APITextDisplayComponent } from 'discord-api
 import { settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet } from '#server/utils/db'
-import { getMovieDetails, getTvShowDetails, getImageUrl } from './tmdb'
+import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { createLogger } from '#server/utils/logger'
 import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
 import type { DiscordLocale } from '#server/types/i18n'

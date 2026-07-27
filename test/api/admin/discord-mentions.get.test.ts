@@ -4,7 +4,7 @@ import { stubAdminAuth } from '../helpers'
 const mockGetUserSession = vi.fn()
 const mockIsDiscordMentionsEnabled = vi.hoisted(() => vi.fn())
 
-vi.mock('#server/utils/discord', () => ({
+vi.mock('#server/utils/notifications/discord', () => ({
   isDiscordMentionsEnabled: mockIsDiscordMentionsEnabled
 }))
 

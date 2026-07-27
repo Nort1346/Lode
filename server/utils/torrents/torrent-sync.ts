@@ -1,8 +1,8 @@
 import { downloads, users, settings } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
-import { sendDownloadCompleteWebhook } from './discord'
-import { notifyDownloadComplete } from './notifications'
+import { sendDownloadCompleteWebhook } from '#server/utils/notifications/discord'
+import { notifyDownloadComplete } from '#server/utils/notifications/notifications'
 import { createLogger } from '#server/utils/logger'
 import type { SyncResult } from '#server/types/torrent'
 

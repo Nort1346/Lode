@@ -17,6 +17,13 @@ const currentZoomKey = ref(0)
 const nextZoomKey = ref(0)
 const textVisible = ref(true)
 
+// ──── DEV SCREENSHOT MODE ────
+// Set DEV_HERO_ID to a TMDB movie/show ID and restart dev server.
+// The hero will show only this item with no rotation.
+// Set back to null to restore normal hero behavior.
+const DEV_HERO_ID = 1003596 as number | null
+const DEV_HERO_TYPE = 'movie' as 'movie' | 'tv'
+
 function startHeroRotation() {
   heroIntervalId.value = setInterval(() => {
     if (props.trendingItems.length === 0) return
@@ -38,8 +45,39 @@ function startHeroRotation() {
   }, 8000)
 }
 
-function initHero() {
-  if (heroCurrent.value !== null || props.trendingItems.length === 0) return
+async function initHero() {
+  if (heroCurrent.value !== null) return
+
+  // DEV: fetch a specific TMDB item for screenshots
+  if (import.meta.dev && DEV_HERO_ID) {
+    try {
+      const endpoint = DEV_HERO_TYPE === 'movie' ? `/api/browse/movie/${DEV_HERO_ID}` : `/api/browse/tv/${DEV_HERO_ID}`
+      const data = await $fetch<{ movie?: Record<string, unknown>; show?: Record<string, unknown> }>(endpoint, {
+        query: { locale: locale.value }
+      })
+      const item = data.movie ?? data.show
+      if (item) {
+        heroCurrent.value = {
+          id: item.id as number,
+          type: DEV_HERO_TYPE,
+          title: (item.title ?? item.name ?? '') as string,
+          overview: (item.overview ?? '') as string,
+          posterUrl: (item.posterUrl ?? null) as string | null,
+          backdropUrl: (item.backdropUrl ?? null) as string | null,
+          logoUrl: null,
+          year: ((item.releaseDate ?? item.firstAirDate ?? '') as string).slice(0, 4),
+          rating: (item.rating ?? 0) as number,
+          inLibrary: false
+        }
+        heroOverview.value = (item.overview as string) ?? ''
+        return // no rotation in dev mode
+      }
+    } catch {
+      // fall through to normal mode
+    }
+  }
+
+  if (props.trendingItems.length === 0) return
   heroCurrent.value = props.trendingItems[Math.floor(Math.random() * props.trendingItems.length)] ?? null
   startHeroRotation()
 }
@@ -62,6 +100,7 @@ watch(
   [heroCurrent, locale],
   async ([item]) => {
     if (!item) return
+    if (import.meta.dev && DEV_HERO_ID) return
     try {
       const endpoint = item.type === 'movie' ? `/api/browse/movie/${item.id}` : `/api/browse/tv/${item.id}`
       const data = await $fetch<{ movie?: { overview: string }; show?: { overview: string } }>(endpoint, {
