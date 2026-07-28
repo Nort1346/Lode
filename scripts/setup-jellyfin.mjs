@@ -39,21 +39,25 @@ async function getLibraries() {
   const res = await fetch(`${JELLYFIN_URL}/Library/VirtualFolders`, { headers: HEADERS })
   if (!res.ok) throw new Error(`Failed to fetch libraries: ${res.status}`)
   const data = await res.json()
-  console.log(`[jellyfin-setup] Found ${data.Items?.length ?? 0} existing libraries`)
-  return data.Items || []
+  const libraries = Array.isArray(data) ? data : data.Items || []
+  console.log(`[jellyfin-setup] Found ${libraries.length} existing libraries`)
+  return libraries
 }
 
 async function createLibrary(name, collectionType, path) {
-  // Jellyfin API quirk: parameters must be query params, NOT JSON body
   const params = new URLSearchParams()
   params.set('name', name)
   params.set('collectionType', collectionType)
-  params.set('paths[0]', path)
   params.set('refreshLibrary', 'false')
 
   const res = await fetch(`${JELLYFIN_URL}/Library/VirtualFolders?${params}`, {
     method: 'POST',
-    headers: HEADERS
+    headers: HEADERS,
+    body: JSON.stringify({
+      LibraryOptions: {
+        PathInfos: [{ Path: path }]
+      }
+    })
   })
   return res.ok
 }

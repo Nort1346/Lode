@@ -1,7 +1,7 @@
 ARG NODE_VERSION=24
 ARG PNPM_VERSION=11.17.0
 # ── Base ─────────────────────────────────────────────────────
-FROM node:${NODE_VERSION}-bookworm-slim AS base
+FROM node:${NODE_VERSION}-trixie-slim AS base
 ARG PNPM_VERSION
 ENV PNPM_HOME="/pnpm" \
     PATH="/pnpm:$PATH"
@@ -40,7 +40,7 @@ RUN NODE_OPTIONS=--max-old-space-size=4000 NODE_ENV=production pnpm run build \
     && find .output -name '*.map' -delete
 
 # ── Runtime ───────────────────────────────────────────────────
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM node:${NODE_VERSION}-trixie-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 ca-certificates gosu \
@@ -54,7 +54,7 @@ WORKDIR /app
 # .output
 COPY --from=build  --chown=appuser:nodejs /app/.output                          ./.output
 
-# node_modules (prebuilt binaries for better-sqlite3, sharp, @node-rs/bcrypt)
+# node_modules (prebuilt binaries — trixie-slim has GLIBC 2.40+)
 COPY --from=deps   --chown=appuser:nodejs /app/node_modules                     ./node_modules
 
 # migrations and scripts

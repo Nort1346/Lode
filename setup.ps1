@@ -814,10 +814,15 @@ Write-Ok "StreamHub is running at http://localhost:5757"
 
 # -- Extract admin password from logs ---------------------------------
 
-$adminPass = docker compose -f $COMPOSE_FILE logs streamhub 2>&1 |
-    Select-String 'Admin password:' |
-    ForEach-Object { if ($_ -match 'Admin password: ([^"]+)') { $matches[1].Trim() } } |
-    Select-Object -First 1
+$adminPass = $null
+for ($retry = 1; $retry -le 5; $retry++) {
+    $adminPass = docker compose -f $COMPOSE_FILE logs --no-color --tail 200 streamhub 2>&1 |
+        Select-String 'Admin password:' |
+        ForEach-Object { if ($_ -match 'Admin password: ([^"]+)') { $matches[1].Trim() } } |
+        Select-Object -First 1
+    if ($adminPass) { break }
+    Start-Sleep -Seconds 2
+}
 
 # -- Summary ----------------------------------------------------------
 

@@ -1,8 +1,3 @@
-export function capitalize(str: string): string {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
-}
-
 export function generatePassword(length = 20): string {
   const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
   const array = new Uint8Array(length)

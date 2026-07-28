@@ -34,6 +34,6 @@ export function assertExternalUrl(urlString: string): void {
   }
 
   if (isPrivateOrReservedHost(parsed.hostname)) {
-    throw createError({ statusCode: 400, statusMessage: ' URLs to private/internal networks are not allowed' })
+    throw createError({ statusCode: 400, statusMessage: 'URLs to private/internal networks are not allowed' })
   }
 }

@@ -814,9 +814,14 @@ ok "StreamHub is running at http://localhost:5757"
 
 # -- Extract admin password from logs ---------------------------------
 
-ADMIN_PASS=$(docker compose -f "$COMPOSE_FILE" logs streamhub 2>&1 \
-  | grep 'Admin password:' \
-  | sed 's/.*Admin password: //' | sed 's/".*//' | head -1) || true
+ADMIN_PASS=""
+for _retry in 1 2 3 4 5; do
+  ADMIN_PASS=$(docker compose -f "$COMPOSE_FILE" logs --no-color --tail 200 streamhub 2>&1 \
+    | grep 'Admin password:' \
+    | sed 's/.*Admin password: //' | sed 's/".*//' | head -1) || true
+  if [ -n "$ADMIN_PASS" ]; then break; fi
+  sleep 2
+done
 
 # -- Summary -----------------------------------------------------------
 
@@ -843,7 +848,7 @@ TABLE
 
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
   SERVICES_TABLE="$SERVICES_TABLE
-$(summary_row "PostgreSQL" "localhost:5432 / streamhub)"
+$(summary_row "PostgreSQL" "localhost:5432 / streamhub")"
 fi
 
 if [ "$HAS_DOZZLE" = true ]; then
