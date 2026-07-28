@@ -1,6 +1,7 @@
 ARG NODE_VERSION=24
 ARG PNPM_VERSION=11.17.0
-# ── Base ─────────────────────────────────────────────────────
+
+# ── Base: Node + pnpm via corepack ─────────────────────────────
 FROM node:${NODE_VERSION}-trixie-slim AS base
 ARG PNPM_VERSION
 ENV PNPM_HOME="/pnpm" \
@@ -8,62 +9,56 @@ ENV PNPM_HOME="/pnpm" \
 
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
-# ── Deps (prod) ───────────────────────────────────────────────
+# ── Deps: production dependencies only (used later at runtime) ─
 FROM base AS deps
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential python3 \
-    && rm -rf /var/lib/apt/lists/*
+# apt cache mount speeds up rebuilds; build tools needed for native modules
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends build-essential python3
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY --link package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     NODE_ENV=production pnpm install --frozen-lockfile --prod
 
-# ── Build ─────────────────────────────────────────────────────
-FROM base AS build
+# ── Build: inherits deps, adds devDependencies and builds the app ─
+FROM deps AS build
 WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential python3 \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile
 
-COPY . .
+COPY --link . .
 
-# NODE_ENV=production
-# Requires Docker Desktop with ≥4GB memory allocated (Settings > Resources)
+# Requires Docker Desktop with >=4GB memory allocated (Settings > Resources)
 RUN NODE_OPTIONS=--max-old-space-size=4000 NODE_ENV=production pnpm run build \
     && find .output -name '*.map' -delete
 
-# ── Runtime ───────────────────────────────────────────────────
+# ── Runtime: minimal image, only what's needed to run the server ─
 FROM node:${NODE_VERSION}-trixie-slim AS runtime
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 ca-certificates gosu \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN addgroup --system --gid 1001 nodejs \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+        libssl3 ca-certificates gosu \
+    && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 --ingroup nodejs appuser
 
 WORKDIR /app
 
-# .output
-COPY --from=build  --chown=appuser:nodejs /app/.output                          ./.output
+# Built server output
+COPY --link --from=build --chown=appuser:nodejs /app/.output ./.output
 
-# node_modules (prebuilt binaries — trixie-slim has GLIBC 2.40+)
-COPY --from=deps   --chown=appuser:nodejs /app/node_modules                     ./node_modules
+# Production node_modules (prebuilt native binaries — trixie-slim ships GLIBC 2.40+)
+COPY --link --from=deps --chown=appuser:nodejs /app/node_modules ./node_modules
 
-# migrations and scripts
-COPY --from=build  --chown=appuser:nodejs /app/server/database/migrations       ./server/database/migrations
-COPY --from=build  --chown=appuser:nodejs /app/scripts/migrate.mjs              ./scripts/migrate.mjs
-COPY --from=build  --chown=appuser:nodejs /app/scripts/setup-jellyfin.mjs       ./scripts/setup-jellyfin.mjs
+# Migrations and helper scripts needed at runtime
+COPY --link --from=build --chown=appuser:nodejs /app/server/database/migrations ./server/database/migrations
+COPY --link --from=build --chown=appuser:nodejs /app/scripts ./scripts
 
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+COPY --chmod=755 docker-entrypoint.sh /docker-entrypoint.sh
 
 ENV NODE_ENV=production
 EXPOSE 5757
