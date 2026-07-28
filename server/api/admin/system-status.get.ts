@@ -1,10 +1,7 @@
 import type { H3Event } from 'h3'
 import Redis from 'ioredis'
 import type { ServiceStatus } from '#server/types/admin'
-
-function normalizeUrl(url: string): string {
-  return url.replace(/\/+$/, '')
-}
+import { normalizeUrl } from '#server/utils/url'
 
 async function checkQbittorrent(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
   const url = config.qbittorrentUrl as string

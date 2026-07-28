@@ -1,4 +1,5 @@
 import type { JellyfinItemDto } from '#server/types/jellyfin'
+import { normalizeUrl } from '#server/utils/url'
 
 const JELLYFIN_AUTH_HEADER_PREFIX = 'MediaBrowser Token'
 const LIBRARY_CACHE_TTL = 5 * 60 * 1000
@@ -11,7 +12,7 @@ export class JellyfinClient {
   private tmdbIdPromise: Promise<Set<number>> | null = null
 
   constructor(baseUrl: string, apiKey: string) {
-    this.baseUrl = baseUrl.replace(/\/+$/, '')
+    this.baseUrl = normalizeUrl(baseUrl)
     this.apiKey = apiKey
   }
 

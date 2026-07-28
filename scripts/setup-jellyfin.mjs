@@ -4,7 +4,7 @@
 // Called from docker-entrypoint.sh on every container start.
 // Idempotent - safe to run repeatedly.
 
-const JELLYFIN_URL = process.env.NUXT_JELLYFIN_URL
+const JELLYFIN_URL = (process.env.NUXT_JELLYFIN_URL || '').replace(/\/+$/, '')
 const API_KEY = process.env.NUXT_JELLYFIN_API_KEY
 
 if (!JELLYFIN_URL || !API_KEY) {
