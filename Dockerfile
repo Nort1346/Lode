@@ -51,7 +51,7 @@ WORKDIR /app
 # Built server output
 COPY --link --from=build --chown=appuser:nodejs /app/.output ./.output
 
-# Production node_modules (prebuilt native binaries — trixie-slim ships GLIBC 2.40+)
+# Production node_modules (prebuilt native binaries  trixie-slim ships GLIBC 2.40+)
 COPY --link --from=deps --chown=appuser:nodejs /app/node_modules ./node_modules
 
 # Migrations and helper scripts needed at runtime

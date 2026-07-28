@@ -33,7 +33,7 @@ Use **Conventional Commits** format:
 - Scope is optional but encouraged (e.g. `setup`, `docker`, `ui`, `api`)
 - Keep description concise and in English
 - No "Priority" labels or unnecessary prefixes
-- **Do NOT commit yourself** — only provide the commit message for the user to run
+- **Do NOT commit yourself** - only provide the commit message for the user to run
 
 Examples:
 ```

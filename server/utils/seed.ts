@@ -40,7 +40,7 @@ export async function ensureAdminExists() {
       createdAt: new Date().toISOString()
     })
 
-    log.info('Admin user created — username: admin')
+    log.info('Admin user created  username: admin')
     log.info(`Admin password: ${adminPassword}`)
     log.info('Change this password after first login!')
   } else {

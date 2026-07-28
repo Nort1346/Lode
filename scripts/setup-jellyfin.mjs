@@ -82,7 +82,7 @@ async function main() {
   }
 
   if (libraries.length > 0) {
-    console.log(`[jellyfin-setup] Found ${libraries.length} existing library(ies) — skipping creation.`)
+    console.log(`[jellyfin-setup] Found ${libraries.length} existing library(ies)  skipping creation.`)
     return
   }
 
