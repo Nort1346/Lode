@@ -117,14 +117,14 @@ export default defineEventHandler(async (event) => {
       try {
         await syncUserDisable(id)
       } catch (e) {
-        log.error('[User] Jellyfin disable failed:', e)
+        log.error('Jellyfin disable failed:', e)
       }
     } else {
       await dbRun(db.update(users).set({ expiresAt: null }).where(eq(users.id, id)))
       try {
         await syncUserEnable(id)
       } catch (e) {
-        log.error('[User] Jellyfin enable failed:', e)
+        log.error('Jellyfin enable failed:', e)
       }
     }
   }
@@ -137,7 +137,7 @@ export default defineEventHandler(async (event) => {
     try {
       await syncUserUpdate(id, jellyfinData, syncSettings)
     } catch (e) {
-      log.error('[User] Jellyfin sync failed:', e)
+      log.error('Jellyfin sync failed:', e)
     }
   }
 

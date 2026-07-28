@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
       await syncUserUpdate(id, { username: user.username, password: '' }, syncSettings)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      log.error(`[Sync] Force sync failed for user ${user.username}:`, message)
+      log.error(`Force sync failed for user ${user.username}:`, message)
       throw createError({ statusCode: 500, statusMessage: `Sync failed: ${message}` })
     }
   } else {
@@ -64,7 +64,7 @@ export default defineEventHandler(async (event) => {
       await syncUserCreate(id, { username: user.username, password: tempPassword }, syncSettings)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      log.error(`[Sync] Force sync failed for user ${user.username}:`, message)
+      log.error(`Force sync failed for user ${user.username}:`, message)
       throw createError({ statusCode: 500, statusMessage: `Sync failed: ${message}` })
     }
   }
@@ -76,7 +76,7 @@ export default defineEventHandler(async (event) => {
       const buffer = await readFile(avatarPath)
       await syncAvatar(id, buffer)
     } catch (error) {
-      log.error(`[Sync] Avatar sync failed for user ${user.username}:`, error)
+      log.error(`Avatar sync failed for user ${user.username}:`, error)
     }
   }
 

@@ -152,9 +152,9 @@ export default defineEventHandler(async (event) => {
         const location = res.headers.get('location') ?? ''
         if (res.status >= 300 && res.status < 400) {
           if (location.startsWith('magnet:')) {
-            log.info('[Add] URL redirects to magnet: - valid torrent URL')
+            log.info('URL redirects to magnet: - valid torrent URL')
           } else {
-            log.info(`[Add] URL redirects to ${location.substring(0, 80)} - passing to qBittorrent`)
+            log.info(`URL redirects to ${location.substring(0, 80)} - passing to qBittorrent`)
           }
         } else if (res.ok) {
           const contentType = res.headers.get('content-type') ?? ''
@@ -162,11 +162,11 @@ export default defineEventHandler(async (event) => {
             isHtml = true
           }
         } else {
-          log.warn(`[Add] URL returned ${res.status}, passing to qBittorrent anyway`)
+          log.warn(`URL returned ${res.status}, passing to qBittorrent anyway`)
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        log.warn(`[Add] URL fetch failed, passing to qBittorrent anyway: ${msg}`)
+        log.warn(`URL fetch failed, passing to qBittorrent anyway: ${msg}`)
       }
       if (isHtml) {
         throw createError({ statusCode: 400, statusMessage: 'URL returned HTML, not a torrent file' })

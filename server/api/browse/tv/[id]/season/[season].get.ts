@@ -108,24 +108,24 @@ export default defineEventHandler(async (event) => {
     try {
       const imdbId = show.external_ids?.imdb_id ?? null
       log.info(
-        `[Season] Searching: show="${show.name}" original="${show.original_name}" season=${seasonNumber} imdb=${imdbId ?? 'none'}`
+        `Searching: show="${show.name}" original="${show.original_name}" season=${seasonNumber} imdb=${imdbId ?? 'none'}`
       )
       rawTorrents = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, seasonNumber, [
         PROWLARR_CATEGORIES.TV
       ])
       if (rawTorrents.length === 0 && show.original_name !== show.name) {
-        log.info(`[Season] Retrying with original name: "${show.original_name}"`)
+        log.info(`Retrying with original name: "${show.original_name}"`)
         rawTorrents = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, seasonNumber, [
           PROWLARR_CATEGORIES.TV
         ])
       }
-      log.info(`[Season] Prowlarr returned ${rawTorrents.length} results`)
+      log.info(`Prowlarr returned ${rawTorrents.length} results`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      log.error(`[Season] Prowlarr search failed: ${msg}`)
+      log.error(`Prowlarr search failed: ${msg}`)
     }
   } else {
-    log.warn(`[Season] Prowlarr not configured`)
+    log.warn(`Prowlarr not configured`)
   }
 
   const rankingConfig = await getRankingConfig()
@@ -133,7 +133,7 @@ export default defineEventHandler(async (event) => {
   const episodes = (season.episodes ?? []).map((ep) => {
     const episodeTorrents = rawTorrents.filter((t) => episodeRangeMatches(t.title, seasonNumber, ep.episode_number))
     if (episodeTorrents.length > 0) {
-      log.info(`[Season] Episode ${ep.episode_number}: ${episodeTorrents.length} torrents matched`)
+      log.info(`Episode ${ep.episode_number}: ${episodeTorrents.length} torrents matched`)
     }
     const ranked = rankTorrents(episodeTorrents, 'series', show.name, year, rankingConfig)
 
@@ -169,7 +169,7 @@ export default defineEventHandler(async (event) => {
 
   const seasonPackTorrents = rawTorrents.filter((t) => isSeasonPack(t.title, seasonNumber))
   if (seasonPackTorrents.length > 0) {
-    log.info(`[Season] Season packs: ${seasonPackTorrents.length} found`)
+    log.info(`Season packs: ${seasonPackTorrents.length} found`)
   }
 
   const seasonPacks = rankTorrents(seasonPackTorrents, 'series', show.name, year, rankingConfig).map((t) => ({

@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
     try {
       await syncUserUpdate(session.user.id, { username: user.username, password: body.newPassword }, syncSettings)
     } catch (error) {
-      log.error(`[Sync] Password sync to Jellyfin failed for user ${user.username}:`, error)
+      log.error(`Password sync to Jellyfin failed for user ${user.username}:`, error)
     }
   }
 

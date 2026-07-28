@@ -51,7 +51,7 @@ export async function getTrackerCookieConfig(
         return { enabled: row.enabled, cookie }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        log.error(`[Prowlarr] Auto-login failed for ${indexer}: ${msg}`)
+        log.error(`Auto-login failed for ${indexer}: ${msg}`)
         return null
       }
     }
@@ -229,7 +229,7 @@ export class ProwlarrClient {
     const downloadable = rawItems.filter((item) => hasDownloadMethod(item, customNames))
     const filtered = rawItems.length - downloadable.length
     if (filtered > 0) {
-      log.info(`[Prowlarr] searchByQuery: ${filtered}/${rawItems.length} results filtered (no download method)`)
+      log.info(`searchByQuery: ${filtered}/${rawItems.length} results filtered (no download method)`)
     }
 
     const results = deduplicateResults(await Promise.all(downloadable.map(normalizeResult)))
@@ -256,9 +256,7 @@ export class ProwlarrClient {
     const cached = await cacheGet<ProwlarrResult[]>(cacheKey)
     if (cached !== null) return cached
 
-    log.info(
-      `[Prowlarr] searchTv: show="${showName}" season=${seasonPad ?? 'all'} year=${year} imdb=${imdbId ?? 'none'}`
-    )
+    log.info(`searchTv: show="${showName}" season=${seasonPad ?? 'all'} year=${year} imdb=${imdbId ?? 'none'}`)
 
     // Run IMDB and text search in parallel
     const promises: Promise<ProwlarrResult[]>[] = []
@@ -268,7 +266,7 @@ export class ProwlarrClient {
       promises.push(
         this.searchByImdb(imdbId, 'tv', categories).catch((err) => {
           const msg = err instanceof Error ? err.message : String(err)
-          log.warn(`[Prowlarr] searchTv: IMDB search failed: ${msg}`)
+          log.warn(`searchTv: IMDB search failed: ${msg}`)
           return [] as ProwlarrResult[]
         })
       )
@@ -282,15 +280,15 @@ export class ProwlarrClient {
     const imdbResults = hasImdb ? (settled[0] as ProwlarrResult[]) : ([] as ProwlarrResult[])
     const textResults = hasImdb ? (settled[1] as ProwlarrResult[]) : (settled[0] as ProwlarrResult[])
 
-    log.info(`[Prowlarr] searchTv: IMDB=${imdbResults.length} text=${textResults.length} (before dedup)`)
+    log.info(`searchTv: IMDB=${imdbResults.length} text=${textResults.length} (before dedup)`)
 
     // Merge text results first (private trackers priority), then IMDB (public trackers)
     const combined = deduplicateResults([...textResults, ...imdbResults])
 
-    log.info(`[Prowlarr] searchTv: combined=${combined.length} results`)
+    log.info(`searchTv: combined=${combined.length} results`)
 
     if (combined.length === 0) {
-      log.warn(`[Prowlarr] searchTv: ALL searches returned 0 results for "${showName}" season ${seasonPad ?? 'all'}`)
+      log.warn(`searchTv: ALL searches returned 0 results for "${showName}" season ${seasonPad ?? 'all'}`)
     }
 
     // Don't cache empty results
@@ -332,10 +330,10 @@ export class ProwlarrClient {
 
     // Try queries sequentially - stop at first non-empty
     for (const query of queries) {
-      log.info(`[Prowlarr] searchTv: text search "${query}"`)
+      log.info(`searchTv: text search "${query}"`)
       const results = await this.searchByQuery(query, categories)
       if (results.length > 0) {
-        log.info(`[Prowlarr] searchTv: "${query}" → ${results.length} results`)
+        log.info(`searchTv: "${query}" → ${results.length} results`)
         return results
       }
     }

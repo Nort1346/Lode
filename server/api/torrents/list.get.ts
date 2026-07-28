@@ -1,13 +1,9 @@
 import { downloads, users } from '#server/database/schema'
 import { eq, and, desc, count } from 'drizzle-orm'
-import type { InferSelectModel } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll } from '#server/utils/db'
 import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrents/torrent-sync'
-
-type DownloadRow = InferSelectModel<typeof downloads> & { username?: string }
-
-const DOWNLOAD_STATUS_VALUES = ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed'] as const
-type SupportedStatus = (typeof DOWNLOAD_STATUS_VALUES)[number]
+import type { DownloadRow, SupportedStatus } from '#server/types/torrent'
+import { DOWNLOAD_STATUS_VALUES } from '#server/types/torrent'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

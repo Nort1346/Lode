@@ -1,4 +1,11 @@
 import type { ProwlarrResult } from '#server/types/prowlarr'
+import type { InferSelectModel } from 'drizzle-orm'
+import type { downloads } from '#server/database/schema'
+
+export type DownloadRow = InferSelectModel<typeof downloads> & { username?: string }
+
+export const DOWNLOAD_STATUS_VALUES = ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed'] as const
+export type SupportedStatus = (typeof DOWNLOAD_STATUS_VALUES)[number]
 
 export interface TorrentFile {
   index: number

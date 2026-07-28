@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Prowlarr not configured' })
   }
 
-  log.info(`[Debug] Query: "${query}"`)
+  log.info(`Query: "${query}"`)
 
   const url = `${prowlarrUrl}/api/v1/search?apikey=${prowlarrApiKey}&type=search&query=${encodeURIComponent(query)}`
   const response = await fetch(url)
@@ -72,9 +72,7 @@ export default defineEventHandler(async (event) => {
     byIndexer[r.indexer] = entry
   }
 
-  log.info(
-    `[Debug] Results: ${raw.length} raw, ${downloadableResults.length} downloadable, ${filteredResults.length} filtered`
-  )
+  log.info(`Results: ${raw.length} raw, ${downloadableResults.length} downloadable, ${filteredResults.length} filtered`)
 
   return {
     query,

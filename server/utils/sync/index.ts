@@ -172,7 +172,7 @@ export async function syncNewUser(
     await syncUserCreate(userId, data, settings)
     return 'synced'
   } catch (error) {
-    log.error(`[Sync] create failed for user ${userId}:`, error)
+    log.error(`create failed for user ${userId}:`, error)
     return 'failed'
   }
 }
@@ -192,18 +192,18 @@ export async function syncUserCreate(userId: string, data: SyncUserData, setting
 
       if (providerUserId === null) {
         if (!data.password) {
-          log.warn(`[Sync] ${provider.name}: cannot create user "${data.username}" - no password provided, skipping`)
+          log.warn(`${provider.name}: cannot create user "${data.username}" - no password provided, skipping`)
           continue
         }
         providerUserId = await provider.createUser(data)
-        log.info(`[Sync] ${provider.name}: created user "${data.username}" (providerUserId: ${providerUserId})`)
+        log.info(`${provider.name}: created user "${data.username}" (providerUserId: ${providerUserId})`)
       } else {
-        log.info(`[Sync] ${provider.name}: found existing user "${data.username}" (providerUserId: ${providerUserId})`)
+        log.info(`${provider.name}: found existing user "${data.username}" (providerUserId: ${providerUserId})`)
         if (data.password) {
           try {
             await provider.updateUserPassword(providerUserId, data.password)
           } catch (err) {
-            log.error(`[Sync] ${provider.name}: failed to sync password for existing user "${data.username}":`, err)
+            log.error(`${provider.name}: failed to sync password for existing user "${data.username}":`, err)
           }
         }
       }
@@ -226,12 +226,12 @@ export async function syncUserCreate(userId: string, data: SyncUserData, setting
         await upsertSyncUserSettings(userId, provider.name, settings)
       } catch (settingsError) {
         const message = settingsError instanceof Error ? settingsError.message : String(settingsError)
-        log.error(`[Sync] ${provider.name}.updateUserSettings failed for user ${userId}:`, message)
+        log.error(`${provider.name}.updateUserSettings failed for user ${userId}:`, message)
         await updateSyncStatus(userId, provider.name, 'failed', message)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      log.error(`[Sync] ${provider.name}.syncUserCreate failed for user ${userId}:`, message)
+      log.error(`${provider.name}.syncUserCreate failed for user ${userId}:`, message)
       await updateSyncStatus(userId, provider.name, 'failed', message)
     }
   }
@@ -248,7 +248,7 @@ export async function syncUserUpdate(userId: string, data: SyncUserData, setting
         await syncUserCreate(userId, data, settings)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        log.error(`[Sync] ${provider.name}.retroactive create failed for user ${userId}:`, message)
+        log.error(`${provider.name}.retroactive create failed for user ${userId}:`, message)
       }
       providerUserId = await getProviderUserId(userId, provider.name)
       if (providerUserId === null) continue
@@ -263,7 +263,7 @@ export async function syncUserUpdate(userId: string, data: SyncUserData, setting
       await upsertSyncUserSettings(userId, provider.name, settings)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      log.error(`[Sync] ${provider.name}.updateUser failed for user ${userId}:`, message)
+      log.error(`${provider.name}.updateUser failed for user ${userId}:`, message)
       await updateSyncStatus(userId, provider.name, 'failed', message)
     }
   }
@@ -275,7 +275,7 @@ export async function syncUserDelete(userId: string): Promise<void> {
   for (const provider of providers) {
     const providerUserId = await getProviderUserId(userId, provider.name)
     if (providerUserId === null) {
-      log.warn(`[Sync] ${provider.name}: no provider mapping for user ${userId}, skipping delete`)
+      log.warn(`${provider.name}: no provider mapping for user ${userId}, skipping delete`)
       continue
     }
 
@@ -283,7 +283,7 @@ export async function syncUserDelete(userId: string): Promise<void> {
       await provider.deleteUser(providerUserId)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      log.error(`[Sync] ${provider.name}.deleteUser failed for user ${userId}:`, message)
+      log.error(`${provider.name}.deleteUser failed for user ${userId}:`, message)
     }
   }
 
@@ -298,7 +298,7 @@ export async function syncUserDisable(userId: string): Promise<void> {
   for (const provider of providers) {
     const providerUserId = await getProviderUserId(userId, provider.name)
     if (providerUserId === null) {
-      log.warn(`[Sync] ${provider.name}: no provider mapping for user ${userId}, skipping disable`)
+      log.warn(`${provider.name}: no provider mapping for user ${userId}, skipping disable`)
       continue
     }
 
@@ -307,7 +307,7 @@ export async function syncUserDisable(userId: string): Promise<void> {
       await updateSyncStatus(userId, provider.name, 'synced')
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      log.error(`[Sync] ${provider.name}.disableUser failed for user ${userId}:`, message)
+      log.error(`${provider.name}.disableUser failed for user ${userId}:`, message)
       await updateSyncStatus(userId, provider.name, 'failed', message)
     }
   }
@@ -319,7 +319,7 @@ export async function syncUserEnable(userId: string): Promise<void> {
   for (const provider of providers) {
     const providerUserId = await getProviderUserId(userId, provider.name)
     if (providerUserId === null) {
-      log.warn(`[Sync] ${provider.name}: no provider mapping for user ${userId}, skipping enable`)
+      log.warn(`${provider.name}: no provider mapping for user ${userId}, skipping enable`)
       continue
     }
 
@@ -328,7 +328,7 @@ export async function syncUserEnable(userId: string): Promise<void> {
       await updateSyncStatus(userId, provider.name, 'synced')
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      log.error(`[Sync] ${provider.name}.enableUser failed for user ${userId}:`, message)
+      log.error(`${provider.name}.enableUser failed for user ${userId}:`, message)
       await updateSyncStatus(userId, provider.name, 'failed', message)
     }
   }
@@ -340,7 +340,7 @@ export async function syncAvatar(userId: string, imageBuffer: Buffer): Promise<v
   for (const provider of providers) {
     const providerUserId = await getProviderUserId(userId, provider.name)
     if (providerUserId === null) {
-      log.warn(`[Sync] ${provider.name}: no provider mapping for user ${userId}, skipping avatar`)
+      log.warn(`${provider.name}: no provider mapping for user ${userId}, skipping avatar`)
       continue
     }
 
@@ -348,7 +348,7 @@ export async function syncAvatar(userId: string, imageBuffer: Buffer): Promise<v
       await provider.setAvatar(providerUserId, imageBuffer)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      log.error(`[Sync] ${provider.name}.setAvatar failed for user ${userId}:`, message)
+      log.error(`${provider.name}.setAvatar failed for user ${userId}:`, message)
     }
   }
 }
@@ -359,7 +359,7 @@ export async function syncAvatarDelete(userId: string): Promise<void> {
   for (const provider of providers) {
     const providerUserId = await getProviderUserId(userId, provider.name)
     if (providerUserId === null) {
-      log.warn(`[Sync] ${provider.name}: no provider mapping for user ${userId}, skipping avatar delete`)
+      log.warn(`${provider.name}: no provider mapping for user ${userId}, skipping avatar delete`)
       continue
     }
 
@@ -367,7 +367,7 @@ export async function syncAvatarDelete(userId: string): Promise<void> {
       await provider.deleteAvatar(providerUserId)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      log.error(`[Sync] ${provider.name}.deleteAvatar failed for user ${userId}:`, message)
+      log.error(`${provider.name}.deleteAvatar failed for user ${userId}:`, message)
     }
   }
 }

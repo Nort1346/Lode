@@ -10,7 +10,7 @@ const sessionCache = new Map<string, SessionCacheEntry>()
 export function clearSessionCache(loginUrl: string, username: string): void {
   const cacheKey = `${loginUrl}:${username}`
   sessionCache.delete(cacheKey)
-  log.info(`[TrackerAuth] Cache evicted for ${loginUrl}:${username}`)
+  log.info(`Cache evicted for ${loginUrl}:${username}`)
 }
 
 function parseCookies(setCookieHeaders: string[] | undefined): string {
@@ -84,7 +84,7 @@ function detectFormFields(html: string, baseUrl: string): DetectedForm | null {
   }
 
   log.info(
-    `[TrackerAuth] Detected form: action="${action}" username="${usernameField}" password="${passwordField}" hidden=${Object.keys(hiddenFields).join(',')}`
+    `Detected form: action="${action}" username="${usernameField}" password="${passwordField}" hidden=${Object.keys(hiddenFields).join(',')}`
   )
   return { action, usernameField, passwordField, hiddenFields }
 }
@@ -93,11 +93,11 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
   const cacheKey = `${loginUrl}:${username}`
   const cached = sessionCache.get(cacheKey)
   if (cached !== undefined && cached.expiresAt > Date.now()) {
-    log.info(`[TrackerAuth] Using cached session for ${loginUrl}`)
+    log.info(`Using cached session for ${loginUrl}`)
     return cached.cookie
   }
 
-  log.info(`[TrackerAuth] Fetching login page: ${loginUrl}`)
+  log.info(`Fetching login page: ${loginUrl}`)
   const initResponse = await gotScraping({
     url: loginUrl,
     timeout: { request: 15_000 },
@@ -105,9 +105,7 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
   })
 
   const initCookies = parseCookies(initResponse.headers['set-cookie'] as string[] | undefined)
-  log.info(
-    `[TrackerAuth] Login page returned HTTP ${initResponse.statusCode}, init cookies: ${initCookies.substring(0, 80)}...`
-  )
+  log.info(`Login page returned HTTP ${initResponse.statusCode}, init cookies: ${initCookies.substring(0, 80)}...`)
 
   const form = detectFormFields(initResponse.body, loginUrl)
   if (form === null) {
@@ -118,7 +116,7 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
   formBody[form.usernameField] = username
   formBody[form.passwordField] = password
 
-  log.info(`[TrackerAuth] POSTing to ${form.action} with fields: ${Object.keys(formBody).join(', ')}`)
+  log.info(`POSTing to ${form.action} with fields: ${Object.keys(formBody).join(', ')}`)
 
   const referer = loginUrl
 
@@ -147,7 +145,7 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
     followRedirect: false
   })
 
-  log.info(`[TrackerAuth] Login POST returned HTTP ${loginResponse.statusCode}`)
+  log.info(`Login POST returned HTTP ${loginResponse.statusCode}`)
 
   const loginCookies = parseCookies(loginResponse.headers['set-cookie'] as string[] | undefined)
 
@@ -162,7 +160,7 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
   })()
 
   if (loginResponse.statusCode === 302 && locationHeader !== undefined) {
-    log.info(`[TrackerAuth] Redirected to: ${locationHeader}`)
+    log.info(`Redirected to: ${locationHeader}`)
 
     let redirectUrl = locationHeader
     if (!locationHeader.startsWith('http')) {
@@ -190,7 +188,7 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
     })
     const redirectCookies = parseCookies(redirectResponse.headers['set-cookie'] as string[] | undefined)
     log.info(
-      `[TrackerAuth] Redirect fetch HTTP ${redirectResponse.statusCode}, redirect cookies: ${redirectCookies.substring(0, 80)}...`
+      `Redirect fetch HTTP ${redirectResponse.statusCode}, redirect cookies: ${redirectCookies.substring(0, 80)}...`
     )
     const allCookies =
       postCookies.length > 0 && redirectCookies.length > 0
@@ -201,11 +199,11 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
 
     if (allCookies.length === 0) {
       const preview = loginResponse.body.substring(0, 200)
-      log.error(`[TrackerAuth] No cookies received. Response preview: ${preview}`)
+      log.error(`No cookies received. Response preview: ${preview}`)
       throw new Error('Login failed - no session cookies received')
     }
 
-    log.info(`[TrackerAuth] Login OK - cookies: ${allCookies.substring(0, 80)}...`)
+    log.info(`Login OK - cookies: ${allCookies.substring(0, 80)}...`)
     sessionCache.set(cacheKey, { cookie: allCookies, expiresAt: Date.now() + SESSION_CACHE_TTL })
 
     return allCookies
@@ -215,16 +213,16 @@ export async function performTrackerLogin(loginUrl: string, username: string, pa
 
   if (allCookies.length === 0) {
     const preview = loginResponse.body.substring(0, 200)
-    log.error(`[TrackerAuth] No cookies received. Response preview: ${preview}`)
+    log.error(`No cookies received. Response preview: ${preview}`)
     throw new Error('Login failed - no session cookies received')
   }
 
   if (loginResponse.statusCode === 200 && loginResponse.body.includes('Logowanie')) {
-    log.error(`[TrackerAuth] Login page returned again - credentials may be wrong`)
+    log.error(`Login page returned again - credentials may be wrong`)
     throw new Error('Login failed - still on login page (wrong credentials?)')
   }
 
-  log.info(`[TrackerAuth] Login OK - cookies: ${allCookies.substring(0, 80)}...`)
+  log.info(`Login OK - cookies: ${allCookies.substring(0, 80)}...`)
   sessionCache.set(cacheKey, { cookie: allCookies, expiresAt: Date.now() + SESSION_CACHE_TTL })
 
   return allCookies

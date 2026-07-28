@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
   try {
     await syncUserDelete(id)
   } catch (error) {
-    log.error('[User] Jellyfin delete failed:', error)
+    log.error('Jellyfin delete failed:', error)
     throw createError({
       statusCode: 502,
       statusMessage: 'Failed to delete user from Jellyfin. User not deleted.'
