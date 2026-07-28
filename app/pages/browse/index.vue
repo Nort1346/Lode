@@ -8,7 +8,6 @@
           icon="i-lucide-search"
           size="xl"
           class="w-full"
-          autofocus
           @focus="suggestions.length > 0 && (isOpen = true)"
           @keydown.escape="isOpen = false"
           @keydown.enter="close"
