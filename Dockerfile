@@ -49,14 +49,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 WORKDIR /app
 
 # Built server output
-COPY --link --from=build --chown=appuser:nodejs /app/.output ./.output
+COPY --link --from=build --chown=1001:1001 /app/.output ./.output
 
 # Production node_modules (prebuilt native binaries  trixie-slim ships GLIBC 2.40+)
-COPY --link --from=deps --chown=appuser:nodejs /app/node_modules ./node_modules
+COPY --link --from=deps --chown=1001:1001 /app/node_modules ./node_modules
 
 # Migrations and helper scripts needed at runtime
-COPY --link --from=build --chown=appuser:nodejs /app/server/database/migrations ./server/database/migrations
-COPY --link --from=build --chown=appuser:nodejs /app/scripts ./scripts
+COPY --link --from=build --chown=1001:1001 /app/server/database/migrations ./server/database/migrations
+COPY --link --from=build --chown=1001:1001 /app/scripts ./scripts
 
 COPY --chmod=755 docker-entrypoint.sh /docker-entrypoint.sh
 
