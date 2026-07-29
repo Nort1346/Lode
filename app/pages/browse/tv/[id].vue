@@ -202,6 +202,7 @@
               :pack="pack"
               :loading="downloadingPackIdx === idx"
               :disabled="
+                downloadActive ||
                 (pack.magnetLink === null && pack.guid === null && pack.downloadUrl === null) ||
                 isPrivateLimitExceeded(pack.isPrivate)
               "
@@ -289,6 +290,7 @@ const route = useRoute()
 const selectedSeason = ref(1)
 const downloadingKey = ref<string | null>(null)
 const downloadingPackIdx = ref<number | null>(null)
+const { active: downloadActive, startDownload, finishDownload } = useDownloadOverlay()
 const requesting = ref(false)
 const requestStatus = ref<RequestStatus>(null)
 const rejectedAdminNote = ref<string | null>(null)
@@ -385,6 +387,7 @@ async function downloadTorrent(
   } else {
     downloadingKey.value = key
   }
+  startDownload(label || 'Adding torrent...')
 
   try {
     await $fetch('/api/browse/download', {
@@ -411,6 +414,7 @@ async function downloadTorrent(
   } finally {
     downloadingKey.value = null
     downloadingPackIdx.value = null
+    finishDownload()
   }
 }
 

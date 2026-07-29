@@ -32,5 +32,6 @@ useSeoMeta({
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
+    <DownloadOverlay />
   </UApp>
 </template>

@@ -268,6 +268,7 @@
               class="cursor-pointer"
               :loading="downloadingIdx === idx"
               :disabled="
+                downloadActive ||
                 (torrent.magnetLink === null && torrent.guid === null && torrent.downloadUrl === null) ||
                 isPrivateLimitExceeded(torrent)
               "
@@ -388,6 +389,7 @@ import { useCopyToClipboard } from '~/composables/useClipboard'
 
 const route = useRoute()
 const downloadingIdx = ref<number | null>(null)
+const { active: downloadActive, startDownload, finishDownload } = useDownloadOverlay()
 const requesting = ref(false)
 const requestStatus = ref<RequestStatus>(null)
 const rejectedAdminNote = ref<string | null>(null)
@@ -565,6 +567,7 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
   const hasDownloadUrl = torrent.downloadUrl !== null && torrent.downloadUrl.length > 0
   if (!hasMagnet && !hasGuid && !hasDownloadUrl) return
   downloadingIdx.value = idx
+  startDownload(movie.value?.title ?? 'Adding torrent...')
 
   try {
     await $fetch('/api/browse/download', {
@@ -594,6 +597,7 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
     toast.add({ title: t('download.error'), description: msg, color: 'error' })
   } finally {
     downloadingIdx.value = null
+    finishDownload()
   }
 }
 </script>

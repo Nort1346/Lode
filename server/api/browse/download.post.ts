@@ -82,14 +82,6 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Invalid magnet link or torrent URL' })
     }
 
-    if (torrentUrl.startsWith('http://') || torrentUrl.startsWith('https://')) {
-      assertExternalUrl(torrentUrl)
-    }
-
-    if (guidUrl && (guidUrl.startsWith('http://') || guidUrl.startsWith('https://'))) {
-      assertExternalUrl(guidUrl)
-    }
-
     if (!savePath || !SAVE_PATH_KEYS.includes(savePath as SavePathKey)) {
       log.error(`[Download:2:VALIDATE] ✗ invalid savePath: ${savePath}`)
       throw createError({
@@ -102,6 +94,19 @@ export default defineEventHandler(async (event) => {
 
     // ── 4: SAVE PATH ──────────────────────────────────────────
     const config = useRuntimeConfig()
+    const prowlarrUrl = ((config.prowlarrUrl as string) || '').replace(/\/+$/, '')
+
+    if (torrentUrl.startsWith('http://') || torrentUrl.startsWith('https://')) {
+      if (!prowlarrUrl || !torrentUrl.startsWith(prowlarrUrl)) {
+        assertExternalUrl(torrentUrl)
+      }
+    }
+
+    if (guidUrl && (guidUrl.startsWith('http://') || guidUrl.startsWith('https://'))) {
+      if (!prowlarrUrl || !guidUrl.startsWith(prowlarrUrl)) {
+        assertExternalUrl(guidUrl)
+      }
+    }
     const savePathMap: Record<SavePathKey, string> = {
       movies: config.savePathMovies,
       series: config.savePathSeries,

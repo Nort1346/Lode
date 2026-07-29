@@ -42,13 +42,23 @@ export class QBittorrentClient {
     formData.append('tags', tags)
     formData.append('paused', 'false')
 
-    await this.request('/api/v2/torrents/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString()
-    })
-
     const knownHash = extractMagnetHash(magnetLink)
+
+    try {
+      await this.request('/api/v2/torrents/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!msg.includes('409')) throw err
+      if (knownHash !== null) {
+        const existing = await this.findTorrentByHash(knownHash)
+        if (existing !== undefined) return existing
+      }
+      throw new Error('Torrent already exists in qBittorrent', { cause: err })
+    }
 
     for (let i = 0; i < 3; i++) {
       await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -96,10 +106,16 @@ export class QBittorrentClient {
     formData.append('tags', tags)
     formData.append('paused', 'false')
 
-    await this.request('/api/v2/torrents/add', {
-      method: 'POST',
-      body: formData
-    })
+    try {
+      await this.request('/api/v2/torrents/add', {
+        method: 'POST',
+        body: formData
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!msg.includes('409')) throw err
+      throw new Error('Torrent already exists in qBittorrent', { cause: err })
+    }
 
     for (let i = 0; i < 3; i++) {
       await new Promise((resolve) => setTimeout(resolve, 2000))

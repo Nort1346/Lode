@@ -24,7 +24,7 @@
             :key="tIdx"
             :torrent="tr"
             :loading="downloadingKey === `ep-${episode.episodeNumber}-${tIdx}`"
-            :disabled="tr.magnetLink === null && tr.guid === null && tr.downloadUrl === null"
+            :disabled="downloadActive || (tr.magnetLink === null && tr.guid === null && tr.downloadUrl === null)"
             :limit-exceeded="isPrivateLimitExceeded(tr.isPrivate)"
             :is-dev="isDev"
             :debug-open="debugKey === `ep-${episode.episodeNumber}-${tIdx}`"
@@ -62,6 +62,8 @@ defineProps<{
   debugKey: string | null
   isPrivateLimitExceeded: (isPrivate: boolean) => boolean
 }>()
+
+const { active: downloadActive } = useDownloadOverlay()
 
 defineEmits<{
   downloadTorrent: [

@@ -19,6 +19,7 @@ const form = reactive({
 })
 const selectedFile = ref<File | null>(null)
 const loading = ref(false)
+const { active: downloadActive, startDownload, finishDownload } = useDownloadOverlay()
 
 const CATEGORY_I18N: Record<string, string> = {
   movies: 'common.savePath_movies',
@@ -82,7 +83,9 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 async function handleSubmit() {
+  if (loading.value) return
   loading.value = true
+  startDownload(form.label || 'Adding torrent...')
 
   try {
     if (inputMode.value === 'magnet') {
@@ -107,6 +110,7 @@ async function handleSubmit() {
       if (!selectedFile.value) {
         toast.add({ title: t('submit.selectFile'), color: 'error' })
         loading.value = false
+        finishDownload()
         return
       }
       const torrentFile = await fileToBase64(selectedFile.value)
@@ -129,6 +133,7 @@ async function handleSubmit() {
     toast.add({ title: err.data?.statusMessage || t('submit.failed'), color: 'error' })
   } finally {
     loading.value = false
+    finishDownload()
   }
 }
 </script>
@@ -226,6 +231,7 @@ async function handleSubmit() {
             size="lg"
             class="w-full justify-center"
             :loading="loading"
+            :disabled="downloadActive"
             icon="i-lucide-download"
             :label="t('submit.addButton')"
           />
