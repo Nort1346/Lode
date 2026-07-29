@@ -14,7 +14,7 @@ function getKey(): Buffer {
 export function encryptAES(plaintext: string): string {
   const key = getKey()
   const iv = randomBytes(12)
-  const cipher = createCipheriv(ALGO, key, iv)
+  const cipher = createCipheriv(ALGO, key, iv, { authTagLength: 16 })
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
   const tag = cipher.getAuthTag()
   return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`
@@ -28,7 +28,13 @@ export function decryptAES(ciphertext: string): string {
   const iv = Buffer.from(ivHex, 'hex')
   const tag = Buffer.from(tagHex, 'hex')
   const data = Buffer.from(dataHex, 'hex')
-  const decipher = createDecipheriv(ALGO, key, iv)
+  const decipher = createDecipheriv(ALGO, key, iv, { authTagLength: 16 })
   decipher.setAuthTag(tag)
-  return decipher.update(data, undefined, 'utf8') + decipher.final('utf8')
+  try {
+    const decrypted = decipher.update(data, undefined, 'utf8')
+    decipher.final('utf8')
+    return decrypted
+  } catch {
+    throw new Error('Decryption failed - data may be corrupted or key is incorrect')
+  }
 }
