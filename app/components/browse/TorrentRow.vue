@@ -22,13 +22,21 @@
       <div ref="containerRef" class="min-w-0 flex-1 overflow-hidden">
         <span
           ref="textRef"
-          class="text-xs text-zinc-700 dark:text-zinc-300"
+          class="text-xs text-zinc-700 dark:text-zinc-300 transition-opacity duration-500"
           :class="
             isOverflowing
-              ? ['marquee-text', phase === 'first' ? 'is-marquee-active' : 'is-marquee-looping']
+              ? ['marquee-text', isScrolling ? (phase === 'first' ? 'is-marquee-active' : 'is-marquee-looping') : '']
               : 'line-clamp-2'
           "
-          :style="isOverflowing ? { '--marquee-distance': `${scrollDistance}px` } : undefined"
+          :style="
+            isOverflowing
+              ? {
+                  '--marquee-distance': `${scrollDistance}px`,
+                  '--marquee-duration': `${marqueeDuration}s`,
+                  opacity: textOpacity
+                }
+              : undefined
+          "
           >{{ torrent.title }}</span
         >
       </div>
@@ -148,7 +156,17 @@ defineEmits<{
 
 const { t } = useI18n()
 const { copyToClipboard } = useCopyToClipboard()
-const { containerRef, textRef, isOverflowing, scrollDistance, phase, recheck } = useMarquee()
+const {
+  containerRef,
+  textRef,
+  isOverflowing,
+  scrollDistance,
+  marqueeDuration,
+  textOpacity,
+  isScrolling,
+  phase,
+  recheck
+} = useMarquee()
 
 watch(isOverflowing, () => {
   nextTick(recheck)
