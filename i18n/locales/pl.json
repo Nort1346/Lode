@@ -135,7 +135,19 @@
     "errorDesc": "Nie udało się dodać pobrania.",
     "delete": "Usuń",
     "confirmDelete": "Czy na pewno chcesz usunąć to pobranie? Stracisz cały postęp pobierania.",
-    "confirmTitle": "Potwierdź usunięcie"
+    "confirmTitle": "Potwierdź usunięcie",
+    "overlay": {
+      "0": "Przygotowuję coś fajnego...",
+      "1": "Szukam najlepszej jakości...",
+      "2": "Prawie gotowe...",
+      "3": "Poleruję piksele...",
+      "4": "Wzywam bogów pobierania...",
+      "5": "Negocjuję z rojem...",
+      "6": "Rozgrzewam dyski...",
+      "7": "Dodaję zera i jedynki...",
+      "8": "Cierpliwość cnotą...",
+      "9": "Dobre rzeczy przychodzą do tych, co czekają..."
+    }
   },
   "dashboard": {
     "welcome": "Witaj ponownie,",

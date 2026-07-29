@@ -135,7 +135,19 @@
     "errorDesc": "Failed to add download.",
     "delete": "Delete",
     "confirmDelete": "Are you sure you want to delete this download? You will lose all download progress.",
-    "confirmTitle": "Confirm deletion"
+    "confirmTitle": "Confirm deletion",
+    "overlay": {
+      "0": "Preparing something cool...",
+      "1": "Searching for the best quality...",
+      "2": "Almost there...",
+      "3": "Polishing the pixels...",
+      "4": "Summoning the download gods...",
+      "5": "Negotiating with the swarm...",
+      "6": "Warming up the hard drives...",
+      "7": "Adding some extra zeros and ones...",
+      "8": "Patience is a virtue...",
+      "9": "Good things come to those who wait..."
+    }
   },
   "dashboard": {
     "welcome": "Welcome back,",

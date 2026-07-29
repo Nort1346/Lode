@@ -135,7 +135,19 @@
     "errorDesc": "Download konnte nicht hinzugefügt werden.",
     "delete": "Löschen",
     "confirmDelete": "Möchten Sie diesen Download wirklich löschen? Den gesamten Fortschritt verlieren.",
-    "confirmTitle": "Löschung bestätigen"
+    "confirmTitle": "Löschung bestätigen",
+    "overlay": {
+      "0": "Bereite etwas Cooles vor...",
+      "1": "Suche nach bester Qualität...",
+      "2": "Fast geschafft...",
+      "3": "Poliere die Pixel...",
+      "4": "Beschwöre die Download-Götter...",
+      "5": "Verhandle mit dem Schwarm...",
+      "6": "Heize die Festplatten auf...",
+      "7": "Füge ein paar Nullen und Einsen hinzu...",
+      "8": "Geduld ist eine Tugend...",
+      "9": "Gute Dinge kommen zu denen, die warten..."
+    }
   },
   "dashboard": {
     "welcome": "Willkommen zurück,",

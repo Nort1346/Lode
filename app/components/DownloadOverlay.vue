@@ -6,14 +6,17 @@
     leave-to-class="opacity-0"
   >
     <div v-if="active" class="fixed inset-0 z-60 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div class="flex flex-col items-center gap-6">
-        <div class="relative flex items-center justify-center size-20">
-          <span class="ripple absolute size-4 rounded-full bg-amber-500" />
-          <span class="ripple absolute size-4 rounded-full bg-amber-500 [animation-delay:0.6s]" />
-          <span class="ripple absolute size-4 rounded-full bg-amber-500 [animation-delay:1.2s]" />
+      <div class="flex flex-col items-center gap-8 w-80">
+        <div class="relative flex items-center justify-center size-32">
+          <span class="ripple absolute size-7 rounded-full bg-amber-500" />
+          <span class="ripple absolute size-7 rounded-full bg-amber-500 [animation-delay:0.6s]" />
+          <span class="ripple absolute size-7 rounded-full bg-amber-500 [animation-delay:1.2s]" />
         </div>
-        <p class="max-w-80 truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
-          {{ label }}
+        <p
+          class="max-w-72 text-center text-base font-semibold text-zinc-900 dark:text-zinc-100 transition-opacity duration-300"
+          :class="fading ? 'opacity-0' : 'opacity-100'"
+        >
+          {{ currentMessage }}
         </p>
       </div>
     </div>
@@ -21,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-const { active, label } = useDownloadOverlay()
+const { active, currentMessage, fading } = useDownloadOverlay()
 </script>
 
 <style scoped>

@@ -135,7 +135,19 @@
     "errorDesc": "No se pudo añadir la descarga.",
     "delete": "Eliminar",
     "confirmDelete": "¿Estás seguro de que quieres eliminar esta descarga? Perderás todo el progreso.",
-    "confirmTitle": "Confirmar eliminación"
+    "confirmTitle": "Confirmar eliminación",
+    "overlay": {
+      "0": "Preparando algo genial...",
+      "1": "Buscando la mejor calidad...",
+      "2": "Ya casi estamos...",
+      "3": "Puliendo los píxeles...",
+      "4": "Invocando a los dioses de la descarga...",
+      "5": "Negociando con el enjambre...",
+      "6": "Calentando los discos duros...",
+      "7": "Añadiendo unos ceros y unos...",
+      "8": "La paciencia es una virtud...",
+      "9": "Las buenas cosas llegan a quienes esperan..."
+    }
   },
   "dashboard": {
     "welcome": "Bienvenido de nuevo,",

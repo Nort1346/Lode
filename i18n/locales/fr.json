@@ -135,7 +135,19 @@
     "errorDesc": "Impossible d'ajouter le téléchargement.",
     "delete": "Supprimer",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer ce téléchargement ? Vous perdrez toute la progression.",
-    "confirmTitle": "Confirmer la suppression"
+    "confirmTitle": "Confirmer la suppression",
+    "overlay": {
+      "0": "Préparation de quelque chose de cool...",
+      "1": "Recherche de la meilleure qualité...",
+      "2": "Presque terminé...",
+      "3": "Polissage des pixels...",
+      "4": "Invocation des dieux du téléchargement...",
+      "5": "Négociation avec l'essaim...",
+      "6": "Réchauffage des disques durs...",
+      "7": "Ajout de quelques zéros et uns...",
+      "8": "La patience est une vertu...",
+      "9": "Les bonnes choses viennent à ceux qui attendent..."
+    }
   },
   "dashboard": {
     "welcome": "Bon retour,",
