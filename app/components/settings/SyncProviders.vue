@@ -109,8 +109,21 @@ onMounted(() => {
       <USwitch v-model="presets.syncEnabled" />
     </div>
 
-    <div v-if="loading" class="flex justify-center py-8">
-      <UIcon name="i-lucide-loader-2" class="w-6 h-6 text-amber-500 animate-spin" />
+    <div v-if="loading" class="space-y-4">
+      <div class="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div
+          v-for="i in 6"
+          :key="i"
+          class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-2"
+        >
+          <div class="flex items-center justify-between">
+            <div class="h-4 w-28 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div class="h-5 w-9 rounded-full bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+          </div>
+          <div class="h-3 w-40 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+        </div>
+      </div>
     </div>
 
     <div v-else-if="presets.syncEnabled" class="space-y-4">
@@ -118,9 +131,14 @@ onMounted(() => {
         <h4 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
           {{ t('admin.jellyfinLibraries') }}
         </h4>
-        <div v-if="librariesLoading" class="flex items-center gap-2 text-sm text-zinc-400 py-2">
-          <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
-          {{ t('admin.loading') }}...
+        <div v-if="librariesLoading" class="space-y-1.5">
+          <div v-for="i in 3" :key="i" class="flex items-center gap-2 px-2 py-1.5">
+            <div class="size-4 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            <div
+              class="h-4 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse"
+              :class="i === 1 ? 'w-20' : i === 2 ? 'w-28' : 'w-24'"
+            />
+          </div>
         </div>
         <div v-else-if="libraries.length === 0" class="text-sm text-zinc-400 py-2">
           {{ t('admin.jellyfinNoLibraries') }}
