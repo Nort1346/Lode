@@ -103,7 +103,7 @@ async function testLogin() {
     const err = e as { data?: { statusMessage?: string }; statusMessage?: string }
     testResult.value = {
       success: false,
-      message: err.data?.statusMessage ?? err.statusMessage ?? 'Unknown error'
+      message: err.data?.statusMessage ?? err.statusMessage ?? t('admin.unknownError')
     }
   } finally {
     testingLogin.value = false

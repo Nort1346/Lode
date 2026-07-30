@@ -102,7 +102,6 @@ function handleMouseLeave() {
 <style scoped>
 .media-card {
   transform-style: preserve-3d;
-  will-change: transform;
   z-index: 0;
   transition:
     transform 0.2s ease-out,

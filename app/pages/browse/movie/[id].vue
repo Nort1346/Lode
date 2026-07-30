@@ -567,7 +567,7 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
   const hasDownloadUrl = torrent.downloadUrl !== null && torrent.downloadUrl.length > 0
   if (!hasMagnet && !hasGuid && !hasDownloadUrl) return
   downloadingIdx.value = idx
-  startDownload(movie.value?.title ?? 'Adding torrent...')
+  startDownload(movie.value?.title ?? t('download.adding'))
 
   try {
     await $fetch('/api/browse/download', {
@@ -577,7 +577,7 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
         downloadUrl: torrent.downloadUrl ?? '',
         guid: torrent.guid ?? '',
         indexer: torrent.indexer,
-        label: movie.value?.title ?? 'Film',
+        label: movie.value?.title ?? t('download.film'),
         savePath: 'movies',
         tmdbId: movie.value?.id ?? null,
         mediaType: 'movie',
@@ -587,14 +587,25 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
     const toast = useToast()
     toast.add({
       title: t('download.added'),
-      description: t('download.addedDesc', { label: movie.value?.title ?? 'Film' }),
+      description: t('download.addedDesc', { label: movie.value?.title ?? t('download.film') }),
       color: 'success'
     })
     navigateTo('/dashboard/downloads')
   } catch (err) {
     const toast = useToast()
-    const msg = err instanceof Error ? err.message : t('download.errorDesc')
-    toast.add({ title: t('download.error'), description: msg, color: 'error' })
+    const status =
+      (err as { data?: { statusCode?: number }; statusCode?: number })?.data?.statusCode ??
+      (err as { statusCode?: number })?.statusCode
+    if (status === 507) {
+      toast.add({
+        title: t('download.diskFull'),
+        description: err instanceof Error ? err.message : undefined,
+        color: 'warning'
+      })
+    } else {
+      const msg = err instanceof Error ? err.message : t('download.errorDesc')
+      toast.add({ title: t('download.error'), description: msg, color: 'error' })
+    }
   } finally {
     downloadingIdx.value = null
     finishDownload()

@@ -231,10 +231,4 @@ DATABASE_URL=postgresql://streamhub:changeme@localhost:5432/streamhub
 
 ### Migration Script
 
-For existing SQLite data, use the migration script:
-
-```bash
-pnpm db:migrate-pg
-```
-
-See [Migrating to PostgreSQL](./MIGRATE-TO-POSTGRES.md) for full instructions.
+For existing SQLite data, export from SQLite and import into PostgreSQL manually.

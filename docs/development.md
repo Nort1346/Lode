@@ -19,7 +19,6 @@
 | `pnpm typecheck:test` | Type-check the test suite (`test/tsconfig.json`) |
 | `pnpm db:generate` | Generate Drizzle migrations |
 | `pnpm db:migrate` | Run migrations |
-| `pnpm db:migrate-pg` | SQLite → PostgreSQL migration |
 | `pnpm db:studio` | Open Drizzle Studio |
 
 ## ESLint Configuration

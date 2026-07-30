@@ -35,7 +35,7 @@ docker compose -f docker-compose.sqlite.yml logs -f            # view logs
 ## Dockerfile Stages
 
 ### 1. `base`
-- Node.js 22 bookworm-slim
+- Node.js 24 trixie-slim
 - pnpm 11.5.2 via corepack
 - `NODE_ENV=production`
 

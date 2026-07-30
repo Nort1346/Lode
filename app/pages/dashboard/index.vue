@@ -245,7 +245,15 @@ const savePathLabels: Record<string, string> = {
           <div
             class="shrink-0 w-12 h-18 rounded-lg overflow-hidden bg-zinc-200 dark:bg-white/5 shadow-sm dark:shadow-black/20 sm:w-20 sm:h-30"
           >
-            <img v-if="dl.posterUrl" :src="dl.posterUrl" class="w-full h-full object-cover" loading="lazy" />
+            <img
+              v-if="dl.posterUrl"
+              :src="dl.posterUrl"
+              :alt="dl.label"
+              width="48"
+              height="72"
+              class="w-full h-full object-cover"
+              loading="lazy"
+            />
             <div v-else class="flex items-center justify-center w-full h-full">
               <UIcon name="i-lucide-film" class="w-5 h-5 text-zinc-300 dark:text-zinc-600 sm:w-8 sm:h-8" />
             </div>

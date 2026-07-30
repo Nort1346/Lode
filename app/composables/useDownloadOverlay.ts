@@ -1,5 +1,5 @@
 const INITIAL_DELAY = 100
-const SWAP_INTERVAL = 2500
+const SWAP_INTERVAL = 2300
 const FADE_DURATION = 300
 const OVERLAY_KEYS = 10
 
@@ -58,7 +58,7 @@ export function useDownloadOverlay() {
     fadeTimer = null
   }
 
-  function startDownload(downloadLabel = 'Adding torrent...') {
+  function startDownload(downloadLabel: string) {
     active.value = true
     label.value = downloadLabel
     currentMessage.value = downloadLabel

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t } = useI18n()
+
 useHead({
   meta: [{ name: 'google', content: 'notranslate' }],
   link: [
@@ -19,10 +21,10 @@ useHead({
 })
 
 useSeoMeta({
-  title: 'StreamHub',
-  description: 'Browse, request, and download movies & TV shows',
-  ogTitle: 'StreamHub',
-  ogDescription: 'Browse, request, and download movies & TV shows'
+  title: () => t('seo.title'),
+  description: () => t('seo.description'),
+  ogTitle: () => t('seo.title'),
+  ogDescription: () => t('seo.description')
 })
 </script>
 

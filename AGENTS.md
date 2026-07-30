@@ -13,7 +13,6 @@ pnpm format:check     # Prettier check (CI-friendly)
 pnpm typecheck        # Nuxt type checking (vue-tsc)
 pnpm db:generate      # Generate Drizzle migration files
 pnpm db:migrate       # Run SQLite migrations
-pnpm db:migrate-pg    # Migrate SQLite data to PostgreSQL
 pnpm db:studio        # Open Drizzle Studio (visual DB inspector)
 pnpm test             # Run Vitest test suite (API routes, middleware, server utils)
 pnpm test:watch       # Run Vitest in watch mode
@@ -123,7 +122,7 @@ import { helper } from '#utils'       // → ./server/utils
 ### Naming Conventions
 - API route files: `kebab-case` (e.g., `browse/download.post.ts`)
 - Vue components: `PascalCase` (e.g., `MediaCard.vue`)
-- Composables: `use` prefix + PascalCase file (e.g., `useReveal.ts`)
+- Composables: `use` prefix + PascalCase file (e.g., `useDownloadOverlay.ts`)
 - Server utils: `kebab-case` (e.g., `browse-utils.ts`)
 - Types/interfaces: `PascalCase` (e.g., `BrowseItem`, `SpotlightItem`)
 - DB columns: `snake_case` (e.g., `daily_download_limit`)
@@ -180,6 +179,6 @@ server/utils/
 - `<script setup lang="ts">` - always use script setup with TypeScript
 - `useFetch` / `$fetch` for API calls from Vue components
 - Server API route handlers do NOT call other routes over HTTP - they import and call server utils (e.g. `useDb()`, `getUserSession()`) directly. There is no `eventFetch` helper.
-- `useReveal()` composable for scroll-triggered animations
+- `v-reveal` directive for scroll-triggered animations (registered in `plugins/directives.ts`)
 - Use Nuxt UI 4 components (`UButton`, `UModal`, `USelect`, etc.)
 - Overlay system: `useOverlay()` + `ConfirmDialog.vue`

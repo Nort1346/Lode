@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 22+
+- Node.js 24+
 - pnpm 11+
 - Docker Desktop with **≥4GB memory** allocated (Settings > Resources > Memory)
 

@@ -68,7 +68,9 @@
     "limitActive": "Active: {active}/{limit}",
     "limitToday": "Downloaded today: {today}/{limit}",
     "limitResetInfo": "The limit resets daily at midnight.",
-    "inLibrary": "In Library"
+    "inLibrary": "In Library",
+    "copied": "Copied to clipboard",
+    "copyFailed": "Failed to copy"
   },
   "mediaCard": {
     "movie": "Movie",
@@ -136,6 +138,9 @@
     "delete": "Delete",
     "confirmDelete": "Are you sure you want to delete this download? You will lose all download progress.",
     "confirmTitle": "Confirm deletion",
+    "adding": "Adding torrent...",
+    "diskFull": "Not enough disk space",
+    "film": "Film",
     "overlay": {
       "0": "Preparing something cool...",
       "1": "Searching for the best quality...",
@@ -270,7 +275,8 @@
     "forceSyncPassword": "New password (share with user)",
     "forceSyncPasswordDesc": "A new password has been set for this user in both StreamHub and Jellyfin. Share it with the user.",
     "forceSyncError": "Sync failed",
-    "loading": "Loading"
+    "loading": "Loading",
+    "unknownError": "Unknown error"
   },
   "logs": {
     "title": "Activity Logs",
@@ -666,5 +672,9 @@
     "passwordMismatch": "Passwords do not match",
     "passwordTooShort": "Password must be at least 8 characters",
     "passwordSame": "New password must differ from current"
+  },
+  "seo": {
+    "title": "StreamHub",
+    "description": "Browse, request, and download movies & TV shows"
   }
 }

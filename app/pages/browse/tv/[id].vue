@@ -387,7 +387,7 @@ async function downloadTorrent(
   } else {
     downloadingKey.value = key
   }
-  startDownload(label || 'Adding torrent...')
+  startDownload(label || t('download.adding'))
 
   try {
     await $fetch('/api/browse/download', {
@@ -409,8 +409,19 @@ async function downloadTorrent(
     navigateTo('/dashboard/downloads')
   } catch (err) {
     const toast = useToast()
-    const msg = err instanceof Error ? err.message : t('download.errorDesc')
-    toast.add({ title: t('download.error'), description: msg, color: 'error' })
+    const status =
+      (err as { data?: { statusCode?: number }; statusCode?: number })?.data?.statusCode ??
+      (err as { statusCode?: number })?.statusCode
+    if (status === 507) {
+      toast.add({
+        title: t('download.diskFull'),
+        description: err instanceof Error ? err.message : undefined,
+        color: 'warning'
+      })
+    } else {
+      const msg = err instanceof Error ? err.message : t('download.errorDesc')
+      toast.add({ title: t('download.error'), description: msg, color: 'error' })
+    }
   } finally {
     downloadingKey.value = null
     downloadingPackIdx.value = null

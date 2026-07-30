@@ -85,7 +85,7 @@ function fileToBase64(file: File): Promise<string> {
 async function handleSubmit() {
   if (loading.value) return
   loading.value = true
-  startDownload(form.label || 'Adding torrent...')
+  startDownload(form.label || t('download.adding'))
 
   try {
     if (inputMode.value === 'magnet') {
@@ -130,7 +130,14 @@ async function handleSubmit() {
     navigateTo('/dashboard/downloads')
   } catch (e: unknown) {
     const err = mapApiError(e)
-    toast.add({ title: err.data?.statusMessage || t('submit.failed'), color: 'error' })
+    const statusCode =
+      (e as { data?: { statusCode?: number }; statusCode?: number })?.data?.statusCode ??
+      (e as { statusCode?: number })?.statusCode
+    if (statusCode === 507) {
+      toast.add({ title: t('download.diskFull'), description: err.data?.statusMessage, color: 'warning' })
+    } else {
+      toast.add({ title: err.data?.statusMessage || t('submit.failed'), color: 'error' })
+    }
   } finally {
     loading.value = false
     finishDownload()

@@ -68,7 +68,9 @@
     "limitActive": "Aktywne: {active}/{limit}",
     "limitToday": "Pobrania dziś: {today}/{limit}",
     "limitResetInfo": "Limit odnawia się codziennie o północy.",
-    "inLibrary": "W bibliotece"
+    "inLibrary": "W bibliotece",
+    "copied": "Skopiowano do schowka",
+    "copyFailed": "Nie udało się skopiować"
   },
   "mediaCard": {
     "movie": "Film",
@@ -136,6 +138,9 @@
     "delete": "Usuń",
     "confirmDelete": "Czy na pewno chcesz usunąć to pobranie? Stracisz cały postęp pobierania.",
     "confirmTitle": "Potwierdź usunięcie",
+    "adding": "Dodawanie torrenta...",
+    "diskFull": "Za mało miejsca na dysku",
+    "film": "Film",
     "overlay": {
       "0": "Przygotowuję coś fajnego...",
       "1": "Szukam najlepszej jakości...",
@@ -270,7 +275,8 @@
     "forceSyncPassword": "Nowe hasło (przekaż użytkownikowi)",
     "forceSyncPasswordDesc": "Nowe hasło zostało ustawione dla tego użytkownika w StreamHub i Jellyfin. Przekaż je użytkownikowi.",
     "forceSyncError": "Błąd synchronizacji",
-    "loading": "Ładowanie"
+    "loading": "Ładowanie",
+    "unknownError": "Nieznany błąd"
   },
   "logs": {
     "title": "Logi aktywności",
@@ -666,5 +672,9 @@
     "passwordMismatch": "Hasła nie są takie same",
     "passwordTooShort": "Hasło musi mieć min. 8 znaków",
     "passwordSame": "Nowe hasło musi się różnić od aktualnego"
+  },
+  "seo": {
+    "title": "StreamHub",
+    "description": "Przeglądaj, requestuj i pobieraj filmy oraz seriale"
   }
 }
