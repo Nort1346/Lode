@@ -103,16 +103,23 @@ watch(
   <div class="bg-main min-h-screen flex flex-col">
     <!-- Mobile header -->
     <div
-      class="lg:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-white/8 bg-white dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-30"
+      class="relative lg:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-white/8 bg-white dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-30 min-w-0"
     >
       <button
-        class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
+        class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400 z-10"
         @click="mobileOpen = true"
       >
         <UIcon name="i-lucide-menu" class="w-5 h-5" />
       </button>
-      <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">StreamHub</NuxtLink>
-      <div class="flex items-center gap-1">
+
+      <NuxtLink
+        to="/dashboard"
+        class="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-gradient truncate max-w-[calc(100%-140px)]"
+      >
+        StreamHub
+      </NuxtLink>
+
+      <div class="flex items-center gap-1 z-10">
         <NotificationDropdown />
         <button
           class="flex items-center justify-center p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400"
