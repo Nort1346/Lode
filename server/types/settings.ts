@@ -14,7 +14,13 @@ export const SETTINGS = {
   DISK_CHECK_ENABLED: 'disk_check_enabled',
   DISK_MIN_FREE_GB: 'disk_min_free_gb',
   DISCORD_MENTIONS_ENABLED: 'discord_mentions_enabled',
-  DISCORD_LOCALE: 'discord_locale'
+  DISCORD_LOCALE: 'discord_locale',
+  USER_DEFAULT_DAILY_DOWNLOAD_LIMIT: 'user_default_daily_download_limit',
+  USER_DEFAULT_ACTIVE_TORRENT_LIMIT: 'user_default_active_torrent_limit',
+  USER_DEFAULT_MAX_TORRENT_SIZE_GB: 'user_default_max_torrent_size_gb',
+  USER_DEFAULT_PRIVATE_TRACKER_LIMIT: 'user_default_private_tracker_limit',
+  USER_DEFAULT_MAX_SESSIONS: 'user_default_max_sessions',
+  USER_DEFAULT_CAN_SUBMIT: 'user_default_can_submit'
 } as const
 
 export type SettingKey = (typeof SETTINGS)[keyof typeof SETTINGS]

@@ -42,6 +42,15 @@ export interface UpdateUserBody {
   expiresAt?: string | null
 }
 
+export interface DefaultsBody {
+  dailyDownloadLimit?: number
+  activeTorrentLimit?: number
+  maxTorrentSizeGb?: number
+  privateTrackerLimit?: number
+  maxSessions?: number
+  canSubmit?: boolean
+}
+
 export interface ServiceStatus {
   name: string
   configured: boolean

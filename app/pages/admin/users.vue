@@ -116,6 +116,28 @@ async function fetchPresets() {
   }
 }
 
+async function fetchDefaults() {
+  try {
+    const res = await $fetch('/api/admin/defaults')
+    const data = res as {
+      dailyDownloadLimit: number
+      activeTorrentLimit: number
+      maxTorrentSizeGb: number
+      privateTrackerLimit: number
+      maxSessions: number
+      canSubmit: boolean
+    }
+    form.dailyDownloadLimit = data.dailyDownloadLimit
+    form.activeTorrentLimit = data.activeTorrentLimit
+    form.maxTorrentSizeGb = data.maxTorrentSizeGb
+    form.privateTrackerLimit = data.privateTrackerLimit
+    form.maxSessions = data.maxSessions
+    form.canSubmit = data.canSubmit
+  } catch {
+    // keep resetForm() defaults
+  }
+}
+
 function openCreate() {
   editingUser.value = null
   resetForm()
@@ -124,6 +146,7 @@ function openCreate() {
   error.value = ''
   showModal.value = true
   fetchPresets()
+  fetchDefaults()
 }
 
 function openEdit(user: AdminUser) {

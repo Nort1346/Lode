@@ -4,6 +4,8 @@ import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { syncNewUser, getDefaultSyncSettings } from '#server/utils/sync'
+import { getSetting } from '#server/utils/settings'
+import { SETTINGS } from '#server/types/settings'
 import type { RegisterBody } from '#server/types/auth'
 
 export default defineEventHandler(async (event) => {
@@ -16,6 +18,10 @@ export default defineEventHandler(async (event) => {
   const username = body.username?.trim() ?? ''
   const password = body.password?.trim() ?? ''
   const { role, dailyDownloadLimit, activeTorrentLimit, maxTorrentSizeGb } = body
+
+  const defaultDaily = Number((await getSetting(SETTINGS.USER_DEFAULT_DAILY_DOWNLOAD_LIMIT)) ?? '5') || 5
+  const defaultActive = Number((await getSetting(SETTINGS.USER_DEFAULT_ACTIVE_TORRENT_LIMIT)) ?? '3') || 3
+  const defaultMaxSize = Number((await getSetting(SETTINGS.USER_DEFAULT_MAX_TORRENT_SIZE_GB)) ?? '20') || 20
 
   if (!username || !password) {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })
@@ -54,9 +60,9 @@ export default defineEventHandler(async (event) => {
       username,
       password: hashedPassword,
       role: role === 'user' || role === 'admin' ? role : 'user',
-      dailyDownloadLimit: dailyDownloadLimit ?? 5,
-      activeTorrentLimit: activeTorrentLimit ?? 3,
-      maxTorrentSizeGb: maxTorrentSizeGb ?? 20,
+      dailyDownloadLimit: dailyDownloadLimit ?? defaultDaily,
+      activeTorrentLimit: activeTorrentLimit ?? defaultActive,
+      maxTorrentSizeGb: maxTorrentSizeGb ?? defaultMaxSize,
       isActive: true,
       downloadsToday: 0,
       createdAt: new Date().toISOString(),

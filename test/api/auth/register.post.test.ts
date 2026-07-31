@@ -43,9 +43,14 @@ vi.mock('@node-rs/bcrypt', () => ({
 }))
 
 const mockSyncNewUser = vi.hoisted(() => vi.fn(() => Promise.resolve('synced' as const)))
+const mockGetSetting = vi.hoisted(() => vi.fn(() => Promise.resolve(null)))
 vi.mock('#server/utils/sync', () => ({
   syncNewUser: mockSyncNewUser,
   getDefaultSyncSettings: vi.fn(() => ({}))
+}))
+
+vi.mock('#server/utils/settings', () => ({
+  getSetting: mockGetSetting
 }))
 
 import handler from '#server/api/auth/register.post'

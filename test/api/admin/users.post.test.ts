@@ -8,6 +8,7 @@ const mockHash = vi.hoisted(() => vi.fn())
 const mockRandomUUID = vi.hoisted(() => vi.fn())
 const mockSyncNewUser = vi.hoisted(() => vi.fn())
 const mockGetDefaultSyncSettings = vi.hoisted(() => vi.fn())
+const mockGetSetting = vi.hoisted(() => vi.fn())
 const mockReadBody = vi.fn()
 
 vi.mock('@node-rs/bcrypt', () => ({
@@ -21,6 +22,10 @@ vi.mock('node:crypto', () => ({
 vi.mock('#server/utils/sync', () => ({
   syncNewUser: mockSyncNewUser,
   getDefaultSyncSettings: mockGetDefaultSyncSettings
+}))
+
+vi.mock('#server/utils/settings', () => ({
+  getSetting: mockGetSetting
 }))
 
 vi.mock('drizzle-orm', () => ({
@@ -46,6 +51,8 @@ describe('admin/users.post', () => {
     mockRandomUUID.mockReset()
     mockSyncNewUser.mockReset()
     mockGetDefaultSyncSettings.mockReset()
+    mockGetSetting.mockReset()
+    mockGetSetting.mockResolvedValue(null)
     mockHash.mockResolvedValue('$2b$12$hashed')
     mockRandomUUID.mockReturnValue('new-id-1')
     mockGetDefaultSyncSettings.mockReturnValue({})

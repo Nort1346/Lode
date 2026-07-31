@@ -6,6 +6,9 @@ import { syncNewUser, getDefaultSyncSettings } from '#server/utils/sync'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import type { CreateUserBody } from '#server/types/admin'
 
+import { getSetting } from '#server/utils/settings'
+import { SETTINGS } from '#server/types/settings'
+
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
 
@@ -22,6 +25,13 @@ export default defineEventHandler(async (event) => {
     canSubmit,
     maxSessions
   } = body
+
+  const defaultDaily = Number((await getSetting(SETTINGS.USER_DEFAULT_DAILY_DOWNLOAD_LIMIT)) ?? '5') || 5
+  const defaultActive = Number((await getSetting(SETTINGS.USER_DEFAULT_ACTIVE_TORRENT_LIMIT)) ?? '3') || 3
+  const defaultMaxSize = Number((await getSetting(SETTINGS.USER_DEFAULT_MAX_TORRENT_SIZE_GB)) ?? '20') || 20
+  const defaultPrivate = Number((await getSetting(SETTINGS.USER_DEFAULT_PRIVATE_TRACKER_LIMIT)) ?? '5') || 5
+  const defaultMaxSessions = Number((await getSetting(SETTINGS.USER_DEFAULT_MAX_SESSIONS)) ?? '0') || 0
+  const defaultCanSubmit = (await getSetting(SETTINGS.USER_DEFAULT_CAN_SUBMIT)) === 'true'
 
   if (!username || !password) {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })
@@ -56,16 +66,16 @@ export default defineEventHandler(async (event) => {
       username,
       password: hashedPassword,
       role: role === 'user' || role === 'admin' ? role : 'user',
-      dailyDownloadLimit: dailyDownloadLimit ?? 5,
-      activeTorrentLimit: activeTorrentLimit ?? 3,
-      maxTorrentSizeGb: maxTorrentSizeGb ?? 20,
-      privateTrackerLimit: privateTrackerLimit ?? 5,
+      dailyDownloadLimit: dailyDownloadLimit ?? defaultDaily,
+      activeTorrentLimit: activeTorrentLimit ?? defaultActive,
+      maxTorrentSizeGb: maxTorrentSizeGb ?? defaultMaxSize,
+      privateTrackerLimit: privateTrackerLimit ?? defaultPrivate,
       isActive: true,
       downloadsToday: 0,
       createdAt: new Date().toISOString(),
       discordId: discordId ?? null,
-      canSubmit: canSubmit ?? false,
-      maxSessions: maxSessions ?? 0,
+      canSubmit: canSubmit ?? defaultCanSubmit,
+      maxSessions: maxSessions ?? defaultMaxSessions,
       expiresAt: body.expiresAt ?? null,
       syncStatus: 'pending'
     })
