@@ -140,6 +140,7 @@
     "confirmTitle": "Löschung bestätigen",
     "adding": "Torrent wird hinzugefügt...",
     "diskFull": "Nicht genügend Speicherplatz",
+    "sizeLimit": "Torrent-Größenlimit überschritten",
     "film": "Film",
     "overlay": {
       "0": "Bereite etwas Cooles vor...",

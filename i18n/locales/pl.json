@@ -140,6 +140,7 @@
     "confirmTitle": "Potwierdź usunięcie",
     "adding": "Dodawanie torrenta...",
     "diskFull": "Za mało miejsca na dysku",
+    "sizeLimit": "Przekroczono limit rozmiaru torrenta",
     "film": "Film",
     "overlay": {
       "0": "Przygotowuję coś fajnego...",

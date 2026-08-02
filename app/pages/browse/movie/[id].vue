@@ -602,6 +602,12 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
         description: err instanceof Error ? err.message : undefined,
         color: 'warning'
       })
+    } else if (status === 413) {
+      toast.add({
+        title: t('download.sizeLimit'),
+        description: err instanceof Error ? err.message : undefined,
+        color: 'warning'
+      })
     } else {
       const msg = err instanceof Error ? err.message : t('download.errorDesc')
       toast.add({ title: t('download.error'), description: msg, color: 'error' })

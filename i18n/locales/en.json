@@ -140,6 +140,7 @@
     "confirmTitle": "Confirm deletion",
     "adding": "Adding torrent...",
     "diskFull": "Not enough disk space",
+    "sizeLimit": "Torrent size limit exceeded",
     "film": "Film",
     "overlay": {
       "0": "Preparing something cool...",

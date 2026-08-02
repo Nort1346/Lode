@@ -135,6 +135,8 @@ async function handleSubmit() {
       (e as { statusCode?: number })?.statusCode
     if (statusCode === 507) {
       toast.add({ title: t('download.diskFull'), description: err.data?.statusMessage, color: 'warning' })
+    } else if (statusCode === 413) {
+      toast.add({ title: t('download.sizeLimit'), description: err.data?.statusMessage, color: 'warning' })
     } else {
       toast.add({ title: err.data?.statusMessage || t('submit.failed'), color: 'error' })
     }
