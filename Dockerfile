@@ -1,5 +1,5 @@
 ARG NODE_VERSION=24
-ARG PNPM_VERSION=11.17.0
+ARG PNPM_VERSION=11.18.0
 
 # ── Base: Node + pnpm via corepack ─────────────────────────────
 FROM node:${NODE_VERSION}-trixie-slim AS base
