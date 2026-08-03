@@ -324,7 +324,7 @@ function onExpiresAtInput(event: Event) {
 
 <template>
   <div>
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div v-reveal class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
       <div>
         <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('admin.userTitle') }}</h1>
         <p class="text-zinc-500 dark:text-zinc-400">{{ t('admin.userSubtitle') }}</p>
@@ -336,7 +336,7 @@ function onExpiresAtInput(event: Event) {
       <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
     </div>
 
-    <div v-else class="card overflow-hidden">
+    <div v-else v-reveal="'fade'" class="card overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>

@@ -198,12 +198,12 @@ function getMethodLabel(tracker: CustomTracker): string {
 
 <template>
   <div>
-    <div class="mb-8">
+    <div v-reveal class="mb-8">
       <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('trackers.title') }}</h1>
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('trackers.subtitle') }}</p>
     </div>
 
-    <div class="card p-5 mb-6">
+    <div v-reveal="'fade'" class="card p-5 mb-6">
       <div class="flex items-start gap-3">
         <UIcon name="i-lucide-info" class="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
         <div class="text-sm text-zinc-600 dark:text-zinc-400">
@@ -213,7 +213,7 @@ function getMethodLabel(tracker: CustomTracker): string {
       </div>
     </div>
 
-    <div class="card p-5 mb-6 flex items-center justify-between">
+    <div v-reveal="'fade'" class="card p-5 mb-6 flex items-center justify-between">
       <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('trackers.listTitle') }}</h2>
       <UButton icon="i-lucide-plus" :label="t('trackers.addTracker')" size="sm" @click="openCreate" />
     </div>
@@ -222,12 +222,12 @@ function getMethodLabel(tracker: CustomTracker): string {
       <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
     </div>
 
-    <div v-else-if="trackers.length === 0" class="card p-12 text-center">
+    <div v-else-if="trackers.length === 0" v-reveal="'fade'" class="card p-12 text-center">
       <UIcon name="i-lucide-satellite-dish" class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('trackers.noTrackers') }}</p>
     </div>
 
-    <div v-else class="card overflow-hidden">
+    <div v-else v-reveal="'fade'" class="card overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>

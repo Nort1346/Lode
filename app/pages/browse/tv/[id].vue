@@ -53,7 +53,7 @@
       />
     </div>
 
-    <div class="relative z-10 flex flex-col gap-8 lg:flex-row">
+    <div v-reveal="'fade'" class="relative z-10 flex flex-col gap-8 lg:flex-row">
       <div class="shrink-0">
         <img
           v-if="show.posterUrl"

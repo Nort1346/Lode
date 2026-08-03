@@ -72,7 +72,7 @@ onMounted(fetchAll)
 
 <template>
   <div>
-    <div class="mb-8">
+    <div v-reveal class="mb-8">
       <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('bruteForce.title') }}</h1>
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('bruteForce.subtitle') }}</p>
     </div>
@@ -82,7 +82,7 @@ onMounted(fetchAll)
     </div>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-      <div class="card p-4">
+      <div v-reveal="'fade'" class="card p-4">
         <div class="flex items-center gap-3 mb-2">
           <div class="flex justify-center items-center p-2 rounded-lg bg-red-100 dark:bg-red-900/20">
             <UIcon name="i-lucide-shield-off" class="w-5 h-5 text-red-600 dark:text-red-400" />
@@ -93,7 +93,7 @@ onMounted(fetchAll)
           </div>
         </div>
       </div>
-      <div class="card p-4">
+      <div v-reveal="'fade'" class="card p-4">
         <div class="flex items-center gap-3 mb-2">
           <div class="flex justify-center items-center p-2 rounded-lg bg-blue-100 dark:bg-blue-900/20">
             <UIcon name="i-lucide-clock" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -106,7 +106,7 @@ onMounted(fetchAll)
       </div>
     </div>
 
-    <div class="card p-6 mb-6">
+    <div v-reveal="'fade'" class="card p-6 mb-6">
       <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('bruteForce.blockedIps') }}</h2>
       <div v-if="blockedIps.length === 0" class="text-sm text-zinc-500 dark:text-zinc-400">
         {{ t('bruteForce.noBlockedIps') }}
@@ -149,7 +149,7 @@ onMounted(fetchAll)
       </div>
     </div>
 
-    <div class="card p-6">
+    <div v-reveal="'fade'" class="card p-6">
       <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('bruteForce.settings') }}</h2>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>

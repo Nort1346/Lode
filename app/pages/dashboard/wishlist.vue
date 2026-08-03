@@ -46,7 +46,7 @@ function goToItem(item: WishlistItem) {
       </div>
     </div>
 
-    <div v-else-if="items.length === 0" class="card p-12 text-center">
+    <div v-else-if="items.length === 0" v-reveal class="card p-12 text-center">
       <UIcon name="i-lucide-heart" class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
       <p class="text-zinc-500 dark:text-zinc-400 mb-4">{{ t('wishlist.noItems') }}</p>
       <p class="text-sm text-zinc-400 dark:text-zinc-500 mb-6">{{ t('wishlist.noItemsDesc') }}</p>
@@ -55,7 +55,7 @@ function goToItem(item: WishlistItem) {
       </UButton>
     </div>
 
-    <div v-else v-reveal="1" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    <div v-else v-reveal class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       <div v-for="item in items" :key="item.id" class="group relative cursor-pointer" @click="goToItem(item)">
         <div class="relative overflow-hidden rounded-xl">
           <img

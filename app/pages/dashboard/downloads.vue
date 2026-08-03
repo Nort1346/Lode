@@ -140,11 +140,22 @@ const savePathLabels = computed<Record<string, string>>(() => ({
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('dashboard.trackManage') }}</p>
     </div>
 
-    <div v-if="loading && downloads.length === 0" class="flex justify-center py-16">
-      <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
+    <div v-if="loading && downloads.length === 0" class="space-y-3">
+      <div
+        v-for="i in 4"
+        :key="i"
+        class="flex gap-3 p-3 rounded-xl border border-zinc-200 dark:border-white/5 bg-zinc-50 dark:bg-white/2 sm:gap-4 sm:p-5"
+      >
+        <USkeleton class="shrink-0 w-12 h-18 rounded-lg sm:w-20 sm:h-30" />
+        <div class="flex-1 space-y-2 py-1">
+          <USkeleton class="h-4 w-3/4 rounded" />
+          <USkeleton class="h-3 w-1/2 rounded" />
+          <USkeleton class="h-2 w-full rounded-full mt-3" />
+        </div>
+      </div>
     </div>
 
-    <div v-else-if="downloads.length === 0" class="card p-12 text-center">
+    <div v-else-if="downloads.length === 0" v-reveal class="card p-12 text-center">
       <UIcon name="i-lucide-inbox" class="w-16 h-16 mx-auto mb-4 text-zinc-300 dark:text-zinc-600" />
       <p class="text-zinc-500 dark:text-zinc-400 text-lg">{{ t('dashboard.noDownloads') }}</p>
       <UButton v-if="canSubmit" to="/dashboard/submit" :label="t('dashboard.noDownloadsDesc')" class="mt-4" />

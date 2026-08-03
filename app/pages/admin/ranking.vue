@@ -211,7 +211,7 @@ onMounted(fetchConfig)
 
 <template>
   <div>
-    <div class="mb-8">
+    <div v-reveal class="mb-8">
       <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('ranking.title') }}</h1>
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('ranking.subtitle') }}</p>
     </div>
@@ -234,7 +234,7 @@ onMounted(fetchConfig)
 
       <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
-        <div class="card p-4">
+        <div v-reveal class="card p-4">
           <div class="flex items-center gap-3">
             <div class="flex justify-center items-center p-2 rounded-lg bg-blue-100 dark:bg-blue-900/20">
               <UIcon name="i-lucide-sliders-horizontal" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -249,7 +249,7 @@ onMounted(fetchConfig)
             </div>
           </div>
         </div>
-        <div class="card p-4">
+        <div v-reveal class="card p-4">
           <div class="flex items-center gap-3">
             <div class="flex justify-center items-center p-2 rounded-lg bg-green-100 dark:bg-green-900/20">
               <UIcon name="i-lucide-globe" class="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -260,7 +260,7 @@ onMounted(fetchConfig)
             </div>
           </div>
         </div>
-        <div class="card p-4">
+        <div v-reveal class="card p-4">
           <div class="flex items-center gap-3">
             <div class="flex justify-center items-center p-2 rounded-lg bg-purple-100 dark:bg-purple-900/20">
               <UIcon name="i-lucide-tag" class="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -271,7 +271,7 @@ onMounted(fetchConfig)
             </div>
           </div>
         </div>
-        <div class="card p-4">
+        <div v-reveal class="card p-4">
           <div class="flex items-center gap-3">
             <div class="flex justify-center items-center p-2 rounded-lg bg-amber-100 dark:bg-amber-900/20">
               <UIcon name="i-lucide-trophy" class="w-5 h-5 text-amber-600 dark:text-amber-400" />
@@ -285,7 +285,7 @@ onMounted(fetchConfig)
       </div>
 
       <!-- Weights -->
-      <div class="card p-6 mb-6">
+      <div v-reveal class="card p-6 mb-6">
         <div class="flex items-center justify-between mb-1">
           <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('ranking.weights.title') }}</h2>
           <UButton
@@ -313,7 +313,7 @@ onMounted(fetchConfig)
       </div>
 
       <!-- Resolutions -->
-      <div class="card p-6 mb-6">
+      <div v-reveal class="card p-6 mb-6">
         <div class="flex items-center justify-between mb-1">
           <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('ranking.resolutions.title') }}</h2>
           <UButton
@@ -340,7 +340,7 @@ onMounted(fetchConfig)
       </div>
 
       <!-- Sources -->
-      <div class="card p-6 mb-6">
+      <div v-reveal class="card p-6 mb-6">
         <div class="flex items-center justify-between mb-1">
           <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('ranking.sources.title') }}</h2>
           <UButton
@@ -367,7 +367,7 @@ onMounted(fetchConfig)
       </div>
 
       <!-- Languages -->
-      <div class="card p-6 mb-6">
+      <div v-reveal class="card p-6 mb-6">
         <div class="flex items-center justify-between mb-1">
           <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('ranking.languages.title') }}</h2>
           <UButton
@@ -457,7 +457,7 @@ onMounted(fetchConfig)
       </div>
 
       <!-- Known Groups -->
-      <div class="card p-6 mb-6">
+      <div v-reveal class="card p-6 mb-6">
         <div class="flex items-center justify-between mb-1">
           <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('ranking.groups.title') }}</h2>
           <UButton
@@ -494,7 +494,7 @@ onMounted(fetchConfig)
       </div>
 
       <!-- Size Thresholds -->
-      <div class="card p-6 mb-6">
+      <div v-reveal class="card p-6 mb-6">
         <div class="flex items-center justify-between mb-1">
           <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">
             {{ t('ranking.sizeThresholds.title') }}
@@ -582,7 +582,7 @@ onMounted(fetchConfig)
       </div>
 
       <!-- Title Relevance -->
-      <div class="card p-6 mb-6">
+      <div v-reveal class="card p-6 mb-6">
         <div class="flex items-center justify-between mb-1">
           <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">
             {{ t('ranking.titleRelevance.title') }}
@@ -625,7 +625,7 @@ onMounted(fetchConfig)
       </div>
 
       <!-- Recommended Count -->
-      <div class="card p-6 mb-6">
+      <div v-reveal class="card p-6 mb-6">
         <div class="flex items-center justify-between mb-1">
           <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('ranking.recommendedCount') }}</h2>
           <UButton

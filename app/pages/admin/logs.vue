@@ -157,12 +157,12 @@ async function copyToClipboard(text: string) {
 
 <template>
   <div>
-    <div class="mb-8">
+    <div v-reveal class="mb-8">
       <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('logs.title') }}</h1>
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('logs.subtitle') }}</p>
     </div>
 
-    <div class="card p-5 mb-6">
+    <div v-reveal="'fade'" class="card p-5 mb-6">
       <div class="flex flex-col sm:flex-row gap-3">
         <USelect
           v-model="filterAction"
@@ -184,12 +184,12 @@ async function copyToClipboard(text: string) {
       <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
     </div>
 
-    <div v-else-if="logs.length === 0" class="card p-12 text-center">
+    <div v-else-if="logs.length === 0" v-reveal="'fade'" class="card p-12 text-center">
       <UIcon name="i-lucide-inbox" class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('logs.noLogs') }}</p>
     </div>
 
-    <div v-else class="card overflow-hidden">
+    <div v-else v-reveal="'fade'" class="card overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
@@ -200,7 +200,9 @@ async function copyToClipboard(text: string) {
               <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
                 {{ t('logs.tableUser') }}
               </th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase min-w-[180px]"
+              >
                 {{ t('logs.tableAction') }}
               </th>
               <th
@@ -230,7 +232,7 @@ async function copyToClipboard(text: string) {
                   {{ log.username ?? '-' }}
                 </span>
               </td>
-              <td class="px-4 py-3">
+              <td class="px-4 py-3 min-w-[180px]">
                 <span
                   class="text-xs font-medium px-2 py-1 rounded-full"
                   :class="`bg-${actionColor(log.action)}-500/15 text-${actionColor(log.action)}-700 dark:text-${actionColor(log.action)}-400`"

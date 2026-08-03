@@ -89,7 +89,7 @@ const groupedSessions = computed(() => {
 
 <template>
   <div>
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div v-reveal class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
       <div>
         <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('admin.sessionsTitle') }}</h1>
         <p class="text-zinc-500 dark:text-zinc-400">{{ t('admin.sessionsSubtitle') }}</p>
@@ -106,7 +106,7 @@ const groupedSessions = computed(() => {
     </div>
 
     <div v-else class="space-y-8">
-      <div v-for="group in groupedSessions" :key="group.username" class="card p-6">
+      <div v-for="group in groupedSessions" :key="group.username" v-reveal="'fade'" class="card p-6">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
             <UAvatar :src="group.avatarUrl ?? undefined" :alt="group.username" size="md" />

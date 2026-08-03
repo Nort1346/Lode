@@ -12,7 +12,8 @@ function getDelay(value: unknown): string {
 
 export const vReveal: Directive = {
   mounted(el: HTMLElement, binding: DirectiveBinding) {
-    el.classList.add('reveal')
+    const isFade = binding.value === 'fade'
+    el.classList.add(isFade ? 'fade-in' : 'reveal')
 
     const delayClass = getDelay(binding.value)
     if (delayClass) el.classList.add(delayClass)
