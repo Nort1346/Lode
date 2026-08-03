@@ -93,6 +93,8 @@ export function useMarquee() {
           isVisible.value = entry.isIntersecting
           if (!entry.isIntersecting && wasVisible) {
             resetPhase()
+          } else if (entry.isIntersecting && !wasVisible && isOverflowing.value) {
+            startSequence()
           }
         }
       },
