@@ -22,6 +22,7 @@
           <BrowseTorrentRow
             v-for="(tr, tIdx) in episode.torrents.slice(0, 3)"
             :key="tIdx"
+            v-reveal="Math.min(tIdx, 3)"
             :torrent="tr"
             :loading="downloadingKey === `ep-${episode.episodeNumber}-${tIdx}`"
             :disabled="downloadActive || (tr.magnetLink === null && tr.guid === null && tr.downloadUrl === null)"

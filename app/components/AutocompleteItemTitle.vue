@@ -1,27 +1,19 @@
 <template>
   <div ref="containerRef" class="min-w-0 overflow-hidden">
-    <span
-      ref="textRef"
-      class="text-sm font-medium whitespace-nowrap text-zinc-900 dark:text-white transition-opacity duration-500"
-      :class="
-        isOverflowing
-          ? [
-              'marquee-text text-sm',
-              isScrolling ? (phase === 'first' ? 'is-marquee-active' : 'is-marquee-looping') : ''
-            ]
-          : 'line-clamp-1'
-      "
-      :style="
-        isOverflowing
-          ? {
-              '--marquee-distance': `${scrollDistance}px`,
-              '--marquee-duration': `${marqueeDuration}s`,
-              opacity: textOpacity
-            }
-          : undefined
-      "
-      >{{ text }}</span
-    >
+    <span v-if="!isMeasured" ref="textRef" class="invisible absolute whitespace-nowrap text-sm font-medium">{{
+      text
+    }}</span>
+    <span v-else-if="!isOverflowing" class="text-sm font-medium text-zinc-900 dark:text-white line-clamp-1">{{
+      text
+    }}</span>
+    <div v-else class="marquee-wrap" :style="{ '--marquee-duration': `${marqueeDuration}s` }">
+      <span class="marquee-track">
+        <span class="text-sm font-medium text-zinc-900 dark:text-white">{{ text }}</span>
+        <span class="marquee-sep" aria-hidden="true">•</span>
+        <span class="text-sm font-medium text-zinc-900 dark:text-white">{{ text }}</span>
+        <span class="marquee-sep" aria-hidden="true">•</span>
+      </span>
+    </div>
   </div>
 </template>
 
@@ -30,19 +22,5 @@ defineProps<{
   text: string
 }>()
 
-const {
-  containerRef,
-  textRef,
-  isOverflowing,
-  scrollDistance,
-  marqueeDuration,
-  textOpacity,
-  isScrolling,
-  phase,
-  recheck
-} = useMarquee()
-
-watch(isOverflowing, () => {
-  nextTick(recheck)
-})
+const { containerRef, textRef, isOverflowing, isMeasured, marqueeDuration } = useMarquee()
 </script>

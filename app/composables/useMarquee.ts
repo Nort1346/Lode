@@ -1,129 +1,73 @@
-const MARQUEE_SPEED = 35
-const FADE_MS = 500
-const WAIT_BEFORE_SCROLL = 300
+const MARQUEE_SPEED = 60
+const OVERFLOW_THRESHOLD = 5
+const GAP_PX = 40
 
 export function useMarquee() {
   const containerRef = ref<HTMLElement | null>(null)
   const textRef = ref<HTMLElement | null>(null)
-  const isVisible = ref(false)
   const isOverflowing = ref(false)
-  const scrollDistance = ref(0)
-  const textOpacity = ref(1)
-  const isScrolling = ref(false)
-  const phase = ref<'first' | 'loop'>('first')
+  const isMeasured = ref(false)
+  const textWidth = ref(0)
 
-  const marqueeDuration = computed(() => scrollDistance.value / MARQUEE_SPEED)
-
-  let timers: ReturnType<typeof setTimeout>[] = []
-
-  function schedule(fn: () => void, ms: number) {
-    const id = setTimeout(fn, ms)
-    timers.push(id)
-    return id
-  }
-
-  function clearTimers() {
-    for (const id of timers) clearTimeout(id)
-    timers = []
-  }
-
-  function runIteration() {
-    textOpacity.value = 0
-    nextTick(() => {
-      textOpacity.value = 1
-    })
-
-    schedule(() => {
-      isScrolling.value = true
-
-      const fadeOutAt = marqueeDuration.value * 750
-      schedule(() => {
-        textOpacity.value = 0
-
-        schedule(() => {
-          isScrolling.value = false
-          phase.value = 'loop'
-          nextTick(runIteration)
-        }, FADE_MS)
-      }, fadeOutAt)
-    }, FADE_MS + WAIT_BEFORE_SCROLL)
-  }
-
-  function startSequence() {
-    clearTimers()
-    runIteration()
-  }
+  const marqueeDuration = computed(() => {
+    if (!isOverflowing.value || textWidth.value === 0) return 0
+    return (textWidth.value + GAP_PX) / MARQUEE_SPEED
+  })
 
   function checkOverflow() {
     const container = containerRef.value
+    if (!container || textWidth.value === 0) return
+    isOverflowing.value = textWidth.value - container.clientWidth > OVERFLOW_THRESHOLD
+  }
+
+  function measure() {
+    const container = containerRef.value
     const text = textRef.value
-    if (!container || !text) {
-      isOverflowing.value = false
-      return
-    }
-    const hOverflow = text.scrollWidth - container.clientWidth
-    const vOverflow = text.scrollHeight - container.clientHeight
-    isOverflowing.value = hOverflow > 0 || vOverflow > 0
-    scrollDistance.value = Math.max(hOverflow, 0)
+    if (!container || !text) return
+
+    const clone = text.cloneNode(true) as HTMLElement
+    clone.style.position = 'absolute'
+    clone.style.visibility = 'hidden'
+    clone.style.whiteSpace = 'nowrap'
+    clone.style.width = 'auto'
+    document.body.appendChild(clone)
+
+    const fullWidth = clone.scrollWidth
+    document.body.removeChild(clone)
+
+    textWidth.value = fullWidth
+    isMeasured.value = true
+    isOverflowing.value = fullWidth - container.clientWidth > OVERFLOW_THRESHOLD
   }
 
-  function resetPhase() {
-    phase.value = 'first'
-    textOpacity.value = 1
-    isScrolling.value = false
-    clearTimers()
-  }
-
-  watch(isOverflowing, (overflowing) => {
-    if (overflowing) {
-      startSequence()
-    } else {
-      clearTimers()
-      isScrolling.value = false
-    }
-  })
-
-  let observer: IntersectionObserver | null = null
+  let ro: ResizeObserver | null = null
+  let mounted = true
 
   onMounted(() => {
-    observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const wasVisible = isVisible.value
-          isVisible.value = entry.isIntersecting
-          if (!entry.isIntersecting && wasVisible) {
-            resetPhase()
-          } else if (entry.isIntersecting && !wasVisible && isOverflowing.value) {
-            startSequence()
-          }
+    nextTick(() => {
+      requestAnimationFrame(() => {
+        if (!mounted) return
+        measure()
+        const container = containerRef.value
+        if (container) {
+          ro = new ResizeObserver(checkOverflow)
+          ro.observe(container)
         }
-      },
-      { threshold: 0.1 }
-    )
-    if (containerRef.value) observer.observe(containerRef.value)
-
-    nextTick(checkOverflow)
-
-    const ro = new ResizeObserver(checkOverflow)
-    if (containerRef.value) ro.observe(containerRef.value)
+      })
+    })
 
     onUnmounted(() => {
-      observer?.disconnect()
-      ro.disconnect()
-      clearTimers()
+      mounted = false
+      ro?.disconnect()
+      ro = null
     })
   })
 
   return {
     containerRef,
     textRef,
-    isVisible,
     isOverflowing,
-    scrollDistance,
-    marqueeDuration,
-    textOpacity,
-    isScrolling,
-    phase,
-    recheck: checkOverflow
+    isMeasured,
+    marqueeDuration
   }
 }

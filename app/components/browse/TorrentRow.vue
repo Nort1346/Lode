@@ -20,25 +20,20 @@
         <UIcon name="i-lucide-star" class="size-3" />
       </span>
       <div ref="containerRef" class="min-w-0 flex-1 overflow-hidden">
-        <span
-          ref="textRef"
-          class="text-xs text-zinc-700 dark:text-zinc-300 transition-opacity duration-500"
-          :class="
-            isOverflowing
-              ? ['marquee-text', isScrolling ? (phase === 'first' ? 'is-marquee-active' : 'is-marquee-looping') : '']
-              : 'line-clamp-2'
-          "
-          :style="
-            isOverflowing
-              ? {
-                  '--marquee-distance': `${scrollDistance}px`,
-                  '--marquee-duration': `${marqueeDuration}s`,
-                  opacity: textOpacity
-                }
-              : undefined
-          "
-          >{{ torrent.title }}</span
-        >
+        <span v-if="!isMeasured" ref="textRef" class="invisible absolute whitespace-nowrap text-xs">{{
+          torrent.title
+        }}</span>
+        <span v-else-if="!isOverflowing" class="text-xs text-zinc-700 dark:text-zinc-300 line-clamp-2">{{
+          torrent.title
+        }}</span>
+        <div v-else class="marquee-wrap" :style="{ '--marquee-duration': `${marqueeDuration}s` }">
+          <span class="marquee-track">
+            <span class="text-xs text-zinc-700 dark:text-zinc-300">{{ torrent.title }}</span>
+            <span class="marquee-sep" aria-hidden="true">•</span>
+            <span class="text-xs text-zinc-700 dark:text-zinc-300">{{ torrent.title }}</span>
+            <span class="marquee-sep" aria-hidden="true">•</span>
+          </span>
+        </div>
       </div>
       <span class="hidden text-xs text-zinc-500 sm:inline">{{ torrent.sizeFormatted }}</span>
       <span class="flex items-center gap-1 text-xs text-emerald-500">
@@ -156,19 +151,5 @@ defineEmits<{
 
 const { t } = useI18n()
 const { copyToClipboard } = useCopyToClipboard()
-const {
-  containerRef,
-  textRef,
-  isOverflowing,
-  scrollDistance,
-  marqueeDuration,
-  textOpacity,
-  isScrolling,
-  phase,
-  recheck
-} = useMarquee()
-
-watch(isOverflowing, () => {
-  nextTick(recheck)
-})
+const { containerRef, textRef, isOverflowing, isMeasured, marqueeDuration } = useMarquee()
 </script>

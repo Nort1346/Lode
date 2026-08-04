@@ -199,6 +199,7 @@
         <div
           v-for="(torrent, idx) in torrents"
           :key="idx"
+          v-reveal="Math.min(idx, 3)"
           class="flex flex-col gap-3 rounded-xl border p-4 transition-all sm:flex-row sm:items-center sm:justify-between"
           :class="
             torrent.recommended

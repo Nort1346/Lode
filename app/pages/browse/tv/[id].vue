@@ -199,6 +199,7 @@
             <BrowseSeasonPackCard
               v-for="(pack, idx) in seasonData.seasonPacks"
               :key="'pack-' + idx"
+              v-reveal="Math.min(idx, 3)"
               :pack="pack"
               :loading="downloadingPackIdx === idx"
               :disabled="
@@ -228,8 +229,9 @@
 
         <div class="flex flex-col gap-4">
           <BrowseEpisodeCard
-            v-for="ep in seasonData.episodes"
+            v-for="(ep, epIdx) in seasonData.episodes"
             :key="ep.id"
+            v-reveal="Math.min(epIdx, 3)"
             :episode="ep"
             :show-name="show?.name ?? ''"
             :selected-season="selectedSeason"
