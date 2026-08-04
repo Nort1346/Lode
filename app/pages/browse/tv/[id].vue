@@ -195,11 +195,10 @@
       <div v-else-if="seasonData">
         <div v-if="seasonData.seasonPacks.length > 0" class="mb-6">
           <h3 class="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ t('tv.seasonPacks') }}</h3>
-          <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-4 torrent-list">
             <BrowseSeasonPackCard
               v-for="(pack, idx) in seasonData.seasonPacks"
               :key="'pack-' + idx"
-              v-reveal="Math.min(idx, 3)"
               :pack="pack"
               :loading="downloadingPackIdx === idx"
               :disabled="
@@ -227,11 +226,10 @@
           </div>
         </div>
 
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-4 torrent-list">
           <BrowseEpisodeCard
-            v-for="(ep, epIdx) in seasonData.episodes"
+            v-for="ep in seasonData.episodes"
             :key="ep.id"
-            v-reveal="Math.min(epIdx, 3)"
             :episode="ep"
             :show-name="show?.name ?? ''"
             :selected-season="selectedSeason"

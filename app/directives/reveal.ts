@@ -2,6 +2,26 @@ import type { Directive, DirectiveBinding } from 'vue'
 import type { RevealState } from '~/types/directives'
 
 const state = new WeakMap<HTMLElement, RevealState>()
+const callbacks = new WeakMap<HTMLElement, () => void>()
+
+let sharedObserver: IntersectionObserver | null = null
+
+function getObserver(): IntersectionObserver {
+  if (!sharedObserver) {
+    sharedObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const cb = callbacks.get(entry.target as HTMLElement)
+            if (cb) cb()
+          }
+        }
+      },
+      { rootMargin: '100px', threshold: 0 }
+    )
+  }
+  return sharedObserver
+}
 
 function getDelay(value: unknown): string {
   if (typeof value === 'number' && value >= 1 && value <= 3) {
@@ -18,29 +38,21 @@ export const vReveal: Directive = {
     const delayClass = getDelay(binding.value)
     if (delayClass) el.classList.add(delayClass)
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            el.classList.add('revealed')
-            observer.disconnect()
-            break
-          }
-        }
-      },
-      { rootMargin: '100px' }
-    )
+    function onReveal() {
+      el.classList.add('revealed')
+      getObserver().unobserve(el)
+      callbacks.delete(el)
+    }
 
-    observer.observe(el)
-    state.set(el, { observer })
+    callbacks.set(el, onReveal)
+    getObserver().observe(el)
+    state.set(el, { observer: getObserver() })
   },
 
   unmounted(el: HTMLElement) {
-    const s = state.get(el)
-    if (s) {
-      s.observer.disconnect()
-      state.delete(el)
-    }
+    getObserver().unobserve(el)
+    callbacks.delete(el)
+    state.delete(el)
   },
 
   getSSRProps() {

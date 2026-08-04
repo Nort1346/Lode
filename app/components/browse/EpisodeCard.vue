@@ -18,11 +18,10 @@
         <h3 class="mt-1 font-semibold text-zinc-900 dark:text-white">{{ episode.name }}</h3>
         <p class="mt-1 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">{{ episode.overview }}</p>
 
-        <div v-if="episode.torrents.length > 0" class="mt-3 space-y-2">
+        <div v-if="episode.torrents.length > 0" class="mt-3 space-y-2 torrent-list">
           <BrowseTorrentRow
             v-for="(tr, tIdx) in episode.torrents.slice(0, 3)"
             :key="tIdx"
-            v-reveal="Math.min(tIdx, 3)"
             :torrent="tr"
             :loading="downloadingKey === `ep-${episode.episodeNumber}-${tIdx}`"
             :disabled="downloadActive || (tr.magnetLink === null && tr.guid === null && tr.downloadUrl === null)"
