@@ -450,7 +450,7 @@ export default defineEventHandler(async (event) => {
         log.info(`[Download:8c:FILE_CHECK] hash=${torrent.hash} files=${files.length} (in ${Date.now() - t4}ms)`)
 
         if (files.length > 0) {
-          const { safe, dangerousFiles } = checkForDangerousFiles(files)
+          const { safe, dangerousFiles } = checkForDangerousFiles(files, freshUser.maxTorrentSizeGb * 1024 * 1024 * 1024)
           if (!safe) {
             log.warn(`[Download:8c:FILE_CHECK] ✗ BLOCKED - dangerous files: ${dangerousFiles.join(', ')}`)
             await qbit.deleteTorrent(torrent.hash, true).catch(() => {})

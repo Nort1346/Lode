@@ -61,18 +61,21 @@ function getExtension(filename: string): string {
   return name.substring(lastDot + 1).toLowerCase()
 }
 
-export function checkForDangerousFiles(files: TorrentFile[]): { safe: boolean; dangerousFiles: string[] } {
-  const dangerousFiles: string[] = []
+export function checkForDangerousFiles(files: TorrentFile[], minSizeBytes: number = 0): { safe: boolean; dangerousFiles: string[] } {
+   const dangerousFiles: string[] = []
 
-  for (const file of files) {
-    const ext = getExtension(file.name)
-    if (ext.length > 0 && DANGEROUS_EXTENSIONS.has(ext)) {
-      dangerousFiles.push(file.name)
-    }
-  }
+   for (const file of files) {
+     const ext = getExtension(file.name)
+     if (ext.length > 0 && DANGEROUS_EXTENSIONS.has(ext)) {
+       dangerousFiles.push(file.name)
+     }
+     if (file.size > 0 && file.size < minSizeBytes) {
+       dangerousFiles.push(`${file.name} (${file.size} bytes — below minimum ${minSizeBytes} bytes)`)
+     }
+   }
 
-  return {
-    safe: dangerousFiles.length === 0,
-    dangerousFiles
-  }
+   return {
+     safe: dangerousFiles.length === 0,
+     dangerousFiles
+   }
 }
