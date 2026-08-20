@@ -16,29 +16,16 @@ export function createSyncUserSettingsRepo(db: SqliteDb): SyncUserSettingsRepo {
     },
 
     async upsert(userId, providerName, settings) {
-      const existing = await dbGet(
-        db
-          .select()
-          .from(syncUserSettings)
-          .where(and(eq(syncUserSettings.userId, userId), eq(syncUserSettings.providerName, providerName)))
-      )
-
       const now = new Date().toISOString()
-
-      if (existing) {
-        await dbRun(
-          db
-            .update(syncUserSettings)
-            .set({ ...settings, updatedAt: now })
-            .where(eq(syncUserSettings.id, existing.id))
-        )
-      } else {
-        await dbRun(
-          db
-            .insert(syncUserSettings)
-            .values({ id: crypto.randomUUID(), userId, providerName, ...settings, createdAt: now, updatedAt: now })
-        )
-      }
+      await dbRun(
+        db
+          .insert(syncUserSettings)
+          .values({ id: crypto.randomUUID(), userId, providerName, ...settings, createdAt: now, updatedAt: now })
+          .onConflictDoUpdate({
+            target: [syncUserSettings.userId, syncUserSettings.providerName],
+            set: { ...settings, updatedAt: now }
+          })
+      )
     },
 
     async deleteByUser(userId) {

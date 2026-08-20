@@ -12,12 +12,9 @@ export function createSettingRepo(db: SqliteDb): SettingRepo {
     },
 
     async set(key, value) {
-      const existing = await dbGet(db.select({ key: settings.key }).from(settings).where(eq(settings.key, key)))
-      if (existing !== undefined) {
-        await dbRun(db.update(settings).set({ value }).where(eq(settings.key, key)))
-      } else {
-        await dbRun(db.insert(settings).values({ key, value }))
-      }
+      await dbRun(
+        db.insert(settings).values({ key, value }).onConflictDoUpdate({ target: settings.key, set: { value } })
+      )
     },
 
     async delete(key) {
