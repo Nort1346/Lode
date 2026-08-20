@@ -150,7 +150,7 @@ Audit trail for admin actions and login events.
 pnpm db:generate
 ```
 
-Creates migration SQL files in `server/database/migrations/`.
+Creates migration SQL files for the configured driver: `server/database/migrations/` (SQLite) or `server/database/migrations/postgres/` (PostgreSQL).
 
 ### Run
 
@@ -158,7 +158,7 @@ Creates migration SQL files in `server/database/migrations/`.
 pnpm db:migrate
 ```
 
-Runs pending migrations. Auto-runs on `pnpm dev` and Docker entrypoint.
+Runs pending migrations for the driver selected by `DB_DRIVER` (default `sqlite`). Auto-runs on `pnpm dev` and Docker entrypoint.
 
 ### Studio
 

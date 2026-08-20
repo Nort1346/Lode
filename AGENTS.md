@@ -12,7 +12,7 @@ pnpm format           # Prettier format
 pnpm format:check     # Prettier check (CI-friendly)
 pnpm typecheck        # Nuxt type checking (vue-tsc)
 pnpm db:generate      # Generate Drizzle migration files
-pnpm db:migrate       # Run SQLite migrations
+pnpm db:migrate       # Run DB migrations (SQLite or PostgreSQL via DB_DRIVER)
 pnpm db:studio        # Open Drizzle Studio (visual DB inspector)
 pnpm test             # Run Vitest test suite (API routes, middleware, server utils)
 pnpm test:watch       # Run Vitest in watch mode
@@ -157,7 +157,7 @@ server/utils/
 - Drizzle ORM with SQLite (default) or PostgreSQL
 - Driver is chosen by the `DB_DRIVER` env var (`sqlite` or `postgres`)
 - Schema in `server/database/schema.ts` - runtime resolver selects PG or SQLite based on `DB_DRIVER`
-- Migrations in `server/database/migrations/`
+- Migrations in `server/database/migrations/` (SQLite) and `server/database/migrations/postgres/` (PostgreSQL)
 - Run `pnpm dev` to auto-apply migrations (it runs `scripts/migrate.mjs` before `nuxt dev`)
 - All timestamps stored as ISO 8601 text strings
 - **Repository layer**: Use `getReposAsync()` to access typed repos (`server/repositories/`). Prefer repos over raw drizzle queries in new code. Tests should mock `#server/repositories` instead of direct db mocks.
