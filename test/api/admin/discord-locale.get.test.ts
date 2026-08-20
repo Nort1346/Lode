@@ -2,13 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { stubAdminAuth } from '../helpers'
 
 const mockGetUserSession = vi.fn()
+const mockGetSetting = vi.hoisted(() => vi.fn())
 
-vi.mock('drizzle-orm', () => ({
-  eq: vi.fn(() => ({}))
-}))
-
-vi.mock('#server/database/schema', () => ({
-  settings: { key: 'key', value: 'value' }
+vi.mock('#server/utils/settings', () => ({
+  getSetting: mockGetSetting
 }))
 
 import handler from '#server/api/admin/discord-locale.get'
@@ -23,18 +20,7 @@ describe('admin/discord-locale.get', () => {
 
   it('returns stored locale for admin', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
-    vi.stubGlobal(
-      'useDb',
-      vi.fn(() => ({
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              get: vi.fn(() => ({ value: 'pl' }))
-            }))
-          }))
-        }))
-      }))
-    )
+    mockGetSetting.mockResolvedValue('pl')
 
     const result = await handler(mockEvent)
     expect(result).toEqual({ locale: 'pl' })
@@ -42,18 +28,7 @@ describe('admin/discord-locale.get', () => {
 
   it('defaults to en when no setting found', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
-    vi.stubGlobal(
-      'useDb',
-      vi.fn(() => ({
-        select: vi.fn(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              get: vi.fn(() => undefined)
-            }))
-          }))
-        }))
-      }))
-    )
+    mockGetSetting.mockResolvedValue(undefined)
 
     const result = await handler(mockEvent)
     expect(result).toEqual({ locale: 'en' })

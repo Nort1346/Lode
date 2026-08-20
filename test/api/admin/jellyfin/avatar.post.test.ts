@@ -3,8 +3,31 @@ import { stubAdminAuth } from '../../helpers'
 
 const mockGetUserSession = vi.fn()
 const mockRun = vi.fn(() => ({ changes: 1 }))
+const mockSelectGet = vi.fn()
 const mockSyncAvatar = vi.hoisted(() => vi.fn())
 const mockValidateAndProcessAvatar = vi.hoisted(() => vi.fn())
+
+vi.mock('#server/utils/db', () => ({
+  useDbAsync: vi.fn(() =>
+    Promise.resolve({
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({ get: mockSelectGet }))
+        }))
+      })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({ run: mockRun }))
+        }))
+      }))
+    })
+  ),
+  dbGet: vi.fn(async (chain: { get(): unknown }) => chain.get()),
+  dbRun: vi.fn(async (chain: { run(): { changes?: number } }) => {
+    const result = chain.run()
+    return { changes: result?.changes ?? 0 }
+  })
+}))
 
 vi.mock('#server/utils/sync', () => ({
   syncAvatar: mockSyncAvatar
@@ -33,6 +56,8 @@ vi.mock('#server/database/schema', () => ({
 
 import handler from '#server/api/admin/jellyfin/avatar.post'
 
+const UUID = '123e4567-e89b-12d3-a456-426614174000'
+
 describe('admin/jellyfin/avatar.post', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -43,25 +68,11 @@ describe('admin/jellyfin/avatar.post', () => {
     mockValidateAndProcessAvatar.mockReset()
     mockSyncAvatar.mockResolvedValue(undefined)
     mockValidateAndProcessAvatar.mockResolvedValue(Buffer.from('processed-image'))
+    mockSelectGet.mockReturnValue({ id: UUID })
+    mockRun.mockReturnValue({ changes: 1 })
   })
 
   const mockEvent = {} as never
-
-  function stubDb() {
-    vi.stubGlobal(
-      'useDb',
-      vi.fn(() => ({
-        update: vi.fn(() => ({
-          set: vi.fn(() => ({
-            where: vi.fn(() => ({
-              get: vi.fn(),
-              run: mockRun
-            }))
-          }))
-        }))
-      }))
-    )
-  }
 
   it('throws 400 when no form data', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
@@ -84,9 +95,37 @@ describe('admin/jellyfin/avatar.post', () => {
 
   it('throws 400 when avatar image missing', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
-    vi.stubGlobal('readMultipartFormData', vi.fn().mockResolvedValue([{ name: 'userId', data: Buffer.from('u1') }]))
+    vi.stubGlobal('readMultipartFormData', vi.fn().mockResolvedValue([{ name: 'userId', data: Buffer.from(UUID) }]))
 
     await expect(handler(mockEvent)).rejects.toThrow('400: userId and avatar image are required')
+  })
+
+  it('throws 400 for non-UUID userId', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.stubGlobal(
+      'readMultipartFormData',
+      vi.fn().mockResolvedValue([
+        { name: 'userId', data: Buffer.from('u1/../etc') },
+        { name: 'avatar', filename: 'photo.jpg', data: Buffer.from('img'), type: 'image/jpeg' }
+      ])
+    )
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Invalid userId format')
+  })
+
+  it('throws 404 when user does not exist', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    mockSelectGet.mockReturnValue(undefined)
+    vi.stubGlobal(
+      'readMultipartFormData',
+      vi.fn().mockResolvedValue([
+        { name: 'userId', data: Buffer.from(UUID) },
+        { name: 'avatar', filename: 'photo.jpg', data: Buffer.from('img'), type: 'image/jpeg' }
+      ])
+    )
+
+    await expect(handler(mockEvent)).rejects.toThrow('404: User not found')
+    expect(mockValidateAndProcessAvatar).not.toHaveBeenCalled()
   })
 
   it('uploads avatar and syncs to jellyfin', async () => {
@@ -94,14 +133,13 @@ describe('admin/jellyfin/avatar.post', () => {
     vi.stubGlobal(
       'readMultipartFormData',
       vi.fn().mockResolvedValue([
-        { name: 'userId', data: Buffer.from('u1') },
+        { name: 'userId', data: Buffer.from(UUID) },
         { name: 'avatar', filename: 'photo.jpg', data: Buffer.from('img'), type: 'image/jpeg' }
       ])
     )
-    stubDb()
 
     const result = await handler(mockEvent)
-    expect(result).toEqual({ success: true, avatarUrl: '/avatars/u1.jpg' })
+    expect(result).toEqual({ success: true, avatarUrl: `/avatars/${UUID}.jpg` })
     expect(mockValidateAndProcessAvatar).toHaveBeenCalled()
     expect(mockSyncAvatar).toHaveBeenCalled()
     expect(mockRun).toHaveBeenCalled()

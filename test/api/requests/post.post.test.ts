@@ -68,6 +68,30 @@ describe('requests/post.post', () => {
     await expect(handler(mockEvent)).rejects.toThrow('400: Missing required fields')
   })
 
+  it('throws 400 for non-integer mediaId', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', username: 'user1' } })
+    vi.mocked(readBody).mockResolvedValue({
+      mediaType: 'movie',
+      mediaId: 12.5,
+      mediaTitle: 'Test Movie'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Missing required fields')
+    expect(mockRun).not.toHaveBeenCalled()
+  })
+
+  it('throws 400 for zero mediaId', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', username: 'user1' } })
+    vi.mocked(readBody).mockResolvedValue({
+      mediaType: 'movie',
+      mediaId: 0,
+      mediaTitle: 'Test Movie'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Missing required fields')
+    expect(mockRun).not.toHaveBeenCalled()
+  })
+
   it('throws 400 for invalid media type', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', username: 'user1' } })
     vi.mocked(readBody).mockResolvedValue({

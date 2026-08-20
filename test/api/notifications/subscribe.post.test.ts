@@ -15,7 +15,8 @@ vi.mock('node:crypto', () => ({
 }))
 
 vi.mock('drizzle-orm', () => ({
-  eq: vi.fn(() => ({}))
+  eq: vi.fn(() => ({})),
+  and: vi.fn((...args) => args)
 }))
 
 vi.mock('#server/database/schema', () => ({

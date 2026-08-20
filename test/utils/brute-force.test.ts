@@ -49,10 +49,12 @@ vi.mock('drizzle-orm', () => ({
   eq: vi.fn((col: unknown, val: unknown) => ({ col, val })),
   and: vi.fn((...args: unknown[]) => args),
   gt: vi.fn((col: unknown, val: unknown) => ({ col, val })),
+  lt: vi.fn((col: unknown, val: unknown) => ({ col, val })),
   count: vi.fn(() => 'cnt')
 }))
 
 import { getSetting, putSetting } from '#server/utils/settings'
+import { lt } from 'drizzle-orm'
 
 describe('brute-force', () => {
   beforeEach(() => {
@@ -232,14 +234,23 @@ describe('brute-force', () => {
   })
 
   describe('cleanupOldAttempts', () => {
-    it('deletes old records from loginAttempts', async () => {
+    it('deletes records older than the 7-day cutoff', async () => {
       const mockRun = vi.fn(() => ({ changes: 1 }))
-      mockDelete.mockReturnValue({ where: vi.fn(() => ({ get: vi.fn(), run: mockRun })) })
+      let whereArg: unknown
+      mockDelete.mockReturnValue({
+        where: vi.fn((arg: unknown) => {
+          whereArg = arg
+          return { get: vi.fn(), run: mockRun }
+        })
+      })
 
       const { cleanupOldAttempts } = await loadBruteForce()
       await cleanupOldAttempts()
+
       expect(mockDelete).toHaveBeenCalled()
       expect(mockRun).toHaveBeenCalled()
+      expect(vi.mocked(lt)).toHaveBeenCalledTimes(1)
+      expect(whereArg).toEqual({ col: 'createdAt', val: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) })
     })
   })
 })

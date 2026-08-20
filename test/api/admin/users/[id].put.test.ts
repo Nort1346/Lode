@@ -62,14 +62,18 @@ describe('admin/users/[id].put', () => {
 
   const mockEvent = {} as never
 
-  function stubDb(existingUser: unknown) {
+  function stubDb(existingUser: unknown, usernameTaken: unknown = undefined) {
+    let callCount = 0
     vi.stubGlobal(
       'useDb',
       vi.fn(() => ({
         select: vi.fn(() => ({
           from: vi.fn(() => ({
             where: vi.fn(() => ({
-              get: vi.fn(() => existingUser)
+              get: vi.fn(() => {
+                callCount++
+                return callCount === 1 ? existingUser : usernameTaken
+              })
             }))
           }))
         })),
@@ -93,6 +97,39 @@ describe('admin/users/[id].put', () => {
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true })
     expect(mockLogActivity).toHaveBeenCalled()
+  })
+
+  it('throws 409 when the new username is taken', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockGetRouterParam.mockReturnValue('u1')
+    mockReadBody.mockResolvedValue({ username: 'other' })
+    stubDb({ id: 'u1', username: 'oldname', isActive: true }, { id: 'u2', username: 'other' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('409: Username already exists')
+    expect(mockRun).not.toHaveBeenCalled()
+  })
+
+  it('skips the uniqueness check when the username is unchanged', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockGetRouterParam.mockReturnValue('u1')
+    mockReadBody.mockResolvedValue({ username: 'oldname' })
+    stubDb({ id: 'u1', username: 'oldname', isActive: true }, { id: 'u2', username: 'oldname' })
+
+    const result = await handler(mockEvent)
+    expect(result).toEqual({ success: true })
+  })
+
+  it('throws 400 for empty or oversized username', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockGetRouterParam.mockReturnValue('u1')
+    mockReadBody.mockResolvedValue({ username: '   ' })
+    stubDb({ id: 'u1', username: 'oldname', isActive: true })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Username must be 1-64 characters')
+
+    stubDb({ id: 'u1', username: 'oldname', isActive: true })
+    mockReadBody.mockResolvedValue({ username: 'x'.repeat(65) })
+    await expect(handler(mockEvent)).rejects.toThrow('400: Username must be 1-64 characters')
   })
 
   it('throws 400 when id missing', async () => {

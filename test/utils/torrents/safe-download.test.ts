@@ -82,4 +82,32 @@ describe('checkForDangerousFiles', () => {
     expect(result.safe).toBe(true)
     expect(result.dangerousFiles).toEqual([])
   })
+
+  it('detects dangerous extension hidden behind a second extension', () => {
+    const files = [makeFile('movie.txt'), makeFile('malware.exe.txt'), makeFile('payload.js.jpg')]
+    const result = checkForDangerousFiles(files)
+    expect(result.safe).toBe(false)
+    expect(result.dangerousFiles).toEqual(['malware.exe.txt', 'payload.js.jpg'])
+  })
+
+  it('detects dangerous extension with surrounding whitespace', () => {
+    const files = [makeFile('  virus.exe  ')]
+    const result = checkForDangerousFiles(files)
+    expect(result.safe).toBe(false)
+    expect(result.dangerousFiles).toContain('  virus.exe  ')
+  })
+
+  it('detects dot-prefixed executable names', () => {
+    const files = [makeFile('.exe'), makeFile('.hidden')]
+    const result = checkForDangerousFiles(files)
+    expect(result.safe).toBe(false)
+    expect(result.dangerousFiles).toEqual(['.exe'])
+  })
+
+  it('allows multi-extension archives without dangerous parts', () => {
+    const files = [makeFile('archive.tar.gz'), makeFile('backup.torrent.zip')]
+    const result = checkForDangerousFiles(files)
+    expect(result.safe).toBe(true)
+    expect(result.dangerousFiles).toEqual([])
+  })
 })

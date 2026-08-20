@@ -181,6 +181,20 @@ describe('torrents/add.post', () => {
     await expect(handler(mockEvent)).rejects.toThrow('400')
   })
 
+  it('throws 400 for private network downloadUrl (SSRF guard)', async () => {
+    mockReadBody.mockResolvedValue({ downloadUrl: 'http://127.0.0.1:8080/file.torrent', savePath: 'movies' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: URLs to private/internal networks are not allowed')
+    expect(mockQbit.addTorrent).not.toHaveBeenCalled()
+  })
+
+  it('throws 400 for numerically encoded private downloadUrl', async () => {
+    mockReadBody.mockResolvedValue({ downloadUrl: 'http://2130706433/file.torrent', savePath: 'movies' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: URLs to private/internal networks are not allowed')
+    expect(mockQbit.addTorrent).not.toHaveBeenCalled()
+  })
+
   it('throws 400 for invalid torrent file extension', async () => {
     mockReadBody.mockResolvedValue({ torrentFile: 'dGVzdA==', fileName: 'file.txt', savePath: 'movies' })
     await expect(handler(mockEvent)).rejects.toThrow('400')

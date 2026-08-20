@@ -72,6 +72,20 @@ describe('requests/mine.get', () => {
     await expect(handler(mockEvent)).rejects.toThrow('400: Missing mediaType or mediaId')
   })
 
+  it('throws 400 for non-numeric mediaId', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    vi.mocked(getQuery).mockReturnValue({ mediaType: 'movie', mediaId: 'abc' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Missing mediaType or mediaId')
+  })
+
+  it('throws 400 for non-integer mediaId', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1' } })
+    vi.mocked(getQuery).mockReturnValue({ mediaType: 'movie', mediaId: '12.5' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Missing mediaType or mediaId')
+  })
+
   it('throws 401 when not authenticated', async () => {
     mockGetUserSession.mockResolvedValue({ user: undefined })
 
