@@ -1,5 +1,5 @@
 import { loginAttempts } from '#server/database/schema'
-import { eq, and, gt, lt, count } from 'drizzle-orm'
+import { eq, and, gt, count } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
 import type { BruteForceConfig, BlockedIpEntry, BruteForceStats } from '#server/types/brute-force'
@@ -7,6 +7,7 @@ import { SETTINGS } from '#server/types/settings'
 import { resolveIp } from '#server/utils/ip'
 import { getSetting, putSetting } from '#server/utils/settings'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
+import { getReposAsync } from '#server/repositories'
 
 const DEFAULT_CONFIG: BruteForceConfig = {
   maxAttemptsPerIp: 5,
@@ -201,7 +202,7 @@ export async function getBruteForceStats(): Promise<BruteForceStats> {
 }
 
 export async function cleanupOldAttempts(): Promise<void> {
-  const db = await useDbAsync()
+  const repos = await getReposAsync()
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString()
-  await dbRun(db.delete(loginAttempts).where(lt(loginAttempts.createdAt, cutoff)))
+  await repos.loginAttempts.deleteOlderThan(cutoff)
 }

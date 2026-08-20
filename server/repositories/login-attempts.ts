@@ -1,5 +1,5 @@
 import { loginAttempts } from '#server/database/schema'
-import { eq, and, gt, count } from 'drizzle-orm'
+import { eq, and, gt, lt, count } from 'drizzle-orm'
 import { dbGet, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
 import type { LoginAttemptRepo } from '#server/types/repos'
@@ -43,7 +43,7 @@ export function createLoginAttemptRepo(db: SqliteDb): LoginAttemptRepo {
     },
 
     async deleteOlderThan(cutoff) {
-      await dbRun(db.delete(loginAttempts).where(gt(loginAttempts.createdAt, cutoff)))
+      await dbRun(db.delete(loginAttempts).where(lt(loginAttempts.createdAt, cutoff)))
     }
   }
 }

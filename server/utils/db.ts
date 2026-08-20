@@ -70,6 +70,6 @@ export async function dbRun(
     const result = (chain as { run(): { changes?: number } }).run()
     return { changes: result.changes ?? 0 }
   }
-  const result = (await chain) as { rowCount?: number }
-  return { changes: result.rowCount ?? 0 }
+  const result = (await chain) as { count?: number }
+  return { changes: result.count ?? 0 }
 }

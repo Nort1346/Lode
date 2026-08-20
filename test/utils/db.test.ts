@@ -75,3 +75,29 @@ describe('db utils', () => {
     expect(db).toEqual({ type: 'sqlite' })
   })
 })
+
+describe('dbRun', () => {
+  it('uses the sync run() path for sqlite chains', async () => {
+    const { dbRun } = await import('#server/utils/db')
+    const result = await dbRun({ run: () => ({ changes: 2 }) })
+    expect(result).toEqual({ changes: 2 })
+  })
+
+  it('defaults to 0 when sync run() has no changes', async () => {
+    const { dbRun } = await import('#server/utils/db')
+    const result = await dbRun({ run: () => ({}) })
+    expect(result).toEqual({ changes: 0 })
+  })
+
+  it('reads postgres.js Result.count on the async path', async () => {
+    const { dbRun } = await import('#server/utils/db')
+    const result = await dbRun(Promise.resolve({ count: 3 }))
+    expect(result).toEqual({ changes: 3 })
+  })
+
+  it('defaults to 0 when the async result has no count', async () => {
+    const { dbRun } = await import('#server/utils/db')
+    const result = await dbRun(Promise.resolve({}))
+    expect(result).toEqual({ changes: 0 })
+  })
+})

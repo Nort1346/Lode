@@ -37,6 +37,10 @@ vi.mock('#server/utils/ip', () => ({
   resolveIp: vi.fn(() => '192.168.1.1')
 }))
 
+vi.mock('#server/repositories', () => ({
+  getReposAsync: vi.fn()
+}))
+
 vi.mock('#server/utils/logger', () => ({
   createLogger: () => ({ info: vi.fn(), error: vi.fn() })
 }))
@@ -54,7 +58,7 @@ vi.mock('drizzle-orm', () => ({
 }))
 
 import { getSetting, putSetting } from '#server/utils/settings'
-import { lt } from 'drizzle-orm'
+import { getReposAsync } from '#server/repositories'
 
 describe('brute-force', () => {
   beforeEach(() => {
@@ -234,23 +238,18 @@ describe('brute-force', () => {
   })
 
   describe('cleanupOldAttempts', () => {
-    it('deletes records older than the 7-day cutoff', async () => {
-      const mockRun = vi.fn(() => ({ changes: 1 }))
-      let whereArg: unknown
-      mockDelete.mockReturnValue({
-        where: vi.fn((arg: unknown) => {
-          whereArg = arg
-          return { get: vi.fn(), run: mockRun }
-        })
-      })
+    it('deletes records older than the 7-day cutoff via the loginAttempts repo', async () => {
+      vi.setSystemTime(new Date('2026-08-20T12:00:00.000Z'))
+      const mockDeleteOlderThan = vi.fn(async () => undefined)
+      vi.mocked(getReposAsync).mockResolvedValue({
+        loginAttempts: { deleteOlderThan: mockDeleteOlderThan }
+      } as never)
 
       const { cleanupOldAttempts } = await loadBruteForce()
       await cleanupOldAttempts()
 
-      expect(mockDelete).toHaveBeenCalled()
-      expect(mockRun).toHaveBeenCalled()
-      expect(vi.mocked(lt)).toHaveBeenCalledTimes(1)
-      expect(whereArg).toEqual({ col: 'createdAt', val: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) })
+      expect(mockDeleteOlderThan).toHaveBeenCalledTimes(1)
+      expect(mockDeleteOlderThan).toHaveBeenCalledWith('2026-08-13T12:00:00.000Z')
     })
   })
 })
