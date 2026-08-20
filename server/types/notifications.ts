@@ -66,6 +66,8 @@ export const ROUTE_DOWNLOADS = '/dashboard/downloads'
 export const SSE_RECONNECT_MS = 5000
 export const BADGE_MAX = 99
 
+export type PushResult = 'sent' | 'expired' | 'failed' | 'skipped'
+
 export interface SubscribeBody {
   endpoint: string
   keys: {

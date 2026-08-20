@@ -12,7 +12,13 @@ export default defineEventHandler(async (event) => {
   const mediaType = typeof query.mediaType === 'string' ? query.mediaType : undefined
   const mediaId = typeof query.mediaId === 'string' ? Number(query.mediaId) : undefined
 
-  if (mediaType === null || mediaType === undefined || mediaId === null || mediaId === undefined || mediaId === 0) {
+  if (
+    mediaType === null ||
+    mediaType === undefined ||
+    mediaId === undefined ||
+    !Number.isInteger(mediaId) ||
+    mediaId <= 0
+  ) {
     throw createError({ statusCode: 400, statusMessage: 'Missing mediaType or mediaId' })
   }
 

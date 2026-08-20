@@ -27,6 +27,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Username and password are required' })
   }
 
+  if (username.length > 64) {
+    throw createError({ statusCode: 400, statusMessage: 'Username must be at most 64 characters' })
+  }
+
   if (password.length < 8) {
     throw createError({ statusCode: 400, statusMessage: 'Password must be at least 8 characters' })
   }

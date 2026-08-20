@@ -40,6 +40,7 @@ export interface DownloadRepo {
     limit: number
   ): Promise<Download[]>
   countFiltered(filters: { userId?: string; status?: Download['status'] }): Promise<number>
+  countByUserSince(userId: string, sinceIso: string, excludeStatuses: Download['status'][]): Promise<number>
   create(data: CreateDownloadInput): Promise<void>
   update(id: string, data: UpdateDownloadInput): Promise<void>
 }

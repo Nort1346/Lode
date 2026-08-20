@@ -16,9 +16,10 @@ export default defineEventHandler(async (event) => {
     mediaPoster?: string | null
     userNote?: string | null
   }
-  const { mediaType, mediaId, mediaTitle, mediaPoster, userNote: rawUserNote } = body
+  const { mediaType, mediaTitle, mediaPoster, userNote: rawUserNote } = body
+  const mediaId = Number(body.mediaId)
 
-  if (!mediaType || !mediaId || !mediaTitle) {
+  if (!mediaType || !Number.isInteger(mediaId) || mediaId <= 0 || !mediaTitle) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
   }
 

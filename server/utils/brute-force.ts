@@ -1,5 +1,5 @@
 import { loginAttempts } from '#server/database/schema'
-import { eq, and, gt, count } from 'drizzle-orm'
+import { eq, and, gt, lt, count } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
 import type { BruteForceConfig, BlockedIpEntry, BruteForceStats } from '#server/types/brute-force'
@@ -203,5 +203,5 @@ export async function getBruteForceStats(): Promise<BruteForceStats> {
 export async function cleanupOldAttempts(): Promise<void> {
   const db = await useDbAsync()
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString()
-  await dbRun(db.delete(loginAttempts).where(gt(loginAttempts.createdAt, cutoff)))
+  await dbRun(db.delete(loginAttempts).where(lt(loginAttempts.createdAt, cutoff)))
 }

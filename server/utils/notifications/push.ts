@@ -1,6 +1,7 @@
 import webPush from 'web-push'
 import { getReposAsync } from '#server/repositories'
 import { createLogger } from '#server/utils/logger'
+import type { PushResult } from '#server/types/notifications'
 
 const log = createLogger('Push')
 
@@ -30,8 +31,8 @@ export function isPushEnabled(): boolean {
 export async function sendPushNotification(
   subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
   payload: Record<string, unknown>
-): Promise<boolean> {
-  if (!ensureVapid()) return false
+): Promise<PushResult> {
+  if (!ensureVapid()) return 'skipped'
 
   const service = subscription.endpoint.includes('fcm.googleapis')
     ? 'FCM'
@@ -46,15 +47,15 @@ export async function sendPushNotification(
       TTL: 60 * 60,
       urgency: 'high'
     })
-    return true
+    return 'sent'
   } catch (err: unknown) {
     const status = (err as { statusCode?: number }).statusCode
     if (status === 404 || status === 410) {
       log.info(`Push subscription expired (${service}), cleaning up`)
-      return false
+      return 'expired'
     }
     log.error(err instanceof Error ? err : new Error(String(err)), 'Push notification failed')
-    return false
+    return 'failed'
   }
 }
 
@@ -65,12 +66,12 @@ export async function sendPushToUser(userId: string, payload: Record<string, unk
   if (subs.length === 0) return
 
   for (const sub of subs) {
-    const alive = await sendPushNotification(
+    const result = await sendPushNotification(
       { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
       payload
     )
 
-    if (!alive) {
+    if (result === 'expired') {
       await repos.pushSubscriptions.delete(sub.id)
     }
   }

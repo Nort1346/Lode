@@ -34,7 +34,17 @@ export default defineEventHandler(async (event) => {
   const updates: Record<string, unknown> = {}
 
   if (body.username !== undefined) {
-    updates.username = body.username.trim()
+    const newUsername = body.username.trim()
+    if (newUsername.length === 0 || newUsername.length > 64) {
+      throw createError({ statusCode: 400, statusMessage: 'Username must be 1-64 characters' })
+    }
+    if (newUsername !== user.username) {
+      const taken = await dbGet(db.select({ id: users.id }).from(users).where(eq(users.username, newUsername)))
+      if (taken !== undefined) {
+        throw createError({ statusCode: 409, statusMessage: 'Username already exists' })
+      }
+    }
+    updates.username = newUsername
     changedFields.push('username')
   }
 

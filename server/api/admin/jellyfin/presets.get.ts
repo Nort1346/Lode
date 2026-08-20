@@ -21,8 +21,14 @@ export default defineEventHandler(async (event) => {
   }
 
   const libraryAccessValue = presets[SETTINGS.JELLYFIN_DEFAULT_LIBRARY_ACCESS] ?? ''
-  const parsedLibraryAccess: string[] | 'all' =
-    libraryAccessValue === '' || libraryAccessValue === 'all' ? 'all' : (JSON.parse(libraryAccessValue) as string[])
+  let parsedLibraryAccess: string[] | 'all' = 'all'
+  if (libraryAccessValue !== '' && libraryAccessValue !== 'all') {
+    try {
+      parsedLibraryAccess = JSON.parse(libraryAccessValue) as string[]
+    } catch {
+      parsedLibraryAccess = 'all'
+    }
+  }
 
   return {
     syncEnabled: presets[SETTINGS.JELLYFIN_SYNC_ENABLED] !== 'false',

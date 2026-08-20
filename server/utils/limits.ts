@@ -1,6 +1,9 @@
 import { getReposAsync } from '#server/repositories'
 import { getFreshUser } from '#server/utils/user'
 import type { DailyLimitResult } from '#server/types/limits'
+import type { Download } from '#server/types/entities'
+
+const EXCLUDED_DAILY_STATUSES: Download['status'][] = ['failed', 'removed']
 
 export async function checkDailyLimit(userId: string): Promise<DailyLimitResult> {
   const freshUser = await getFreshUser(userId)
@@ -15,19 +18,14 @@ export async function checkDailyLimit(userId: string): Promise<DailyLimitResult>
   const repos = await getReposAsync()
   const limit = freshUser.dailyDownloadLimit
 
-  const activeDownloads = await repos.downloads.findActiveByUser(userId)
-  const activeCount = activeDownloads.length
+  const activeCount = await repos.downloads.countFiltered({ userId, status: 'downloading' })
 
-  const allDownloads = await repos.downloads.findByUser(userId)
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
-
-  const todayCount = allDownloads.filter(
-    (d) => new Date(d.createdAt) >= todayStart && d.status !== 'failed' && d.status !== 'removed'
-  ).length
+  const todayCount = await repos.downloads.countByUserSince(userId, todayStart.toISOString(), EXCLUDED_DAILY_STATUSES)
 
   return {
-    reached: activeCount + todayCount >= limit,
+    reached: todayCount >= limit,
     activeCount,
     todayCount,
     limit

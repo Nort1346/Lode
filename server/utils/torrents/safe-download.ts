@@ -51,14 +51,24 @@ const DANGEROUS_EXTENSIONS = new Set([
   'cpl'
 ])
 
-function getExtension(filename: string): string {
-  const lastSlash = filename.lastIndexOf('/')
-  const lastBackslash = filename.lastIndexOf('\\')
+function getExtensions(filename: string): string[] {
+  const trimmed = filename.trim()
+  const lastSlash = trimmed.lastIndexOf('/')
+  const lastBackslash = trimmed.lastIndexOf('\\')
   const lastSeparator = Math.max(lastSlash, lastBackslash)
-  const name = lastSeparator >= 0 ? filename.substring(lastSeparator + 1) : filename
-  const lastDot = name.lastIndexOf('.')
-  if (lastDot < 0) return ''
-  return name.substring(lastDot + 1).toLowerCase()
+  const name = lastSeparator >= 0 ? trimmed.substring(lastSeparator + 1) : trimmed
+
+  const extensions: string[] = []
+  let start = name.length
+  while (start > 0) {
+    const dot = name.lastIndexOf('.', start - 1)
+    if (dot < 0) break
+    const segment = name.substring(dot + 1, start)
+    if (segment.length > 0) extensions.push(segment.toLowerCase())
+    if (dot === 0) break
+    start = dot
+  }
+  return extensions
 }
 
 export function checkForDangerousFiles(
@@ -68,8 +78,8 @@ export function checkForDangerousFiles(
   const dangerousFiles: string[] = []
 
   for (const file of files) {
-    const ext = getExtension(file.name)
-    if (ext.length > 0 && DANGEROUS_EXTENSIONS.has(ext)) {
+    const extensions = getExtensions(file.name)
+    if (extensions.some((ext) => DANGEROUS_EXTENSIONS.has(ext))) {
       dangerousFiles.push(file.name)
     }
     if (file.size > 0 && file.size < minSizeBytes) {

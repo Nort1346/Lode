@@ -252,7 +252,8 @@ export class ProwlarrClient {
     const seasonPad = seasonNumber !== null ? String(seasonNumber).padStart(2, '0') : null
     const seasonNum = seasonNumber !== null ? String(seasonNumber) : null
     const nameKey = imdbId !== null && imdbId.length > 0 ? imdbId : `${showName}:${seasonPad ?? 'all'}`
-    const cacheKey = `prowlarr:tv:${nameKey}:${year}`
+    const catsKey = categories?.join(',') ?? 'all'
+    const cacheKey = `prowlarr:tv:${nameKey}:${year}:${catsKey}`
     const cached = await cacheGet<ProwlarrResult[]>(cacheKey)
     if (cached !== null) return cached
 
