@@ -87,7 +87,7 @@ export default defineEventHandler(async (event) => {
     action: 'tracker_update',
     userId: user.id,
     username: user.username,
-    details: JSON.stringify({ id, ...updates })
+    details: JSON.stringify({ id, fields: Object.keys(updates) })
   })
 
   return { success: true }

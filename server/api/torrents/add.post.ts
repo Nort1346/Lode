@@ -7,6 +7,7 @@ import { getFreshUser } from '#server/utils/user'
 import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { createLogger } from '#server/utils/logger'
+import { assertExternalUrl } from '#server/utils/url-validate'
 import { SAVE_PATH_KEYS, type AddTorrentBody, type SavePathKey } from '#server/types/torrent'
 
 const log = createLogger('Add')
@@ -63,6 +64,7 @@ export default defineEventHandler(async (event) => {
     if (!rawDownloadUrl.startsWith('http://') && !rawDownloadUrl.startsWith('https://')) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid torrent URL' })
     }
+    assertExternalUrl(rawDownloadUrl)
     downloadUrl = rawDownloadUrl
   }
 

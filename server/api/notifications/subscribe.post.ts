@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { pushSubscriptions } from '#server/database/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import type { SubscribeBody } from '#server/types/notifications'
 
@@ -19,15 +19,15 @@ export default defineEventHandler(async (event) => {
   const ua = getRequestHeader(event, 'user-agent') ?? null
   const now = new Date().toISOString()
 
-  const existing = await dbGet(db.select().from(pushSubscriptions).where(eq(pushSubscriptions.endpoint, body.endpoint)))
+  const existing = await dbGet(
+    db
+      .select()
+      .from(pushSubscriptions)
+      .where(and(eq(pushSubscriptions.endpoint, body.endpoint), eq(pushSubscriptions.userId, session.user.id)))
+  )
 
   if (existing !== undefined) {
-    await dbRun(
-      db
-        .update(pushSubscriptions)
-        .set({ userId: session.user.id, lastUsedAt: now })
-        .where(eq(pushSubscriptions.id, existing.id))
-    )
+    await dbRun(db.update(pushSubscriptions).set({ lastUsedAt: now }).where(eq(pushSubscriptions.id, existing.id)))
     return { success: true, id: existing.id }
   }
 
