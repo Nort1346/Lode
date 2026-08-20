@@ -1,13 +1,20 @@
-import { activityLogs } from '#server/database/schema'
-import { lt } from 'drizzle-orm'
-import { useDbAsync, dbRun } from '#server/utils/db'
+import { getReposAsync } from '#server/repositories'
+import { createLogger } from '#server/utils/logger'
+import { cleanupOldAttempts } from '#server/utils/brute-force'
+
+const log = createLogger('LogsCleanup')
 
 export default defineNitroPlugin(() => {
   void (async () => {
-    const db = await useDbAsync()
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - 90)
-
-    await dbRun(db.delete(activityLogs).where(lt(activityLogs.createdAt, cutoff.toISOString())))
+    try {
+      const repos = await getReposAsync()
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - 90)
+      await repos.activityLogs.deleteOlderThan(cutoff.toISOString())
+      await cleanupOldAttempts()
+      log.info('cleanup complete')
+    } catch (error) {
+      log.error(`cleanup failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
   })()
 })
