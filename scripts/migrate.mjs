@@ -89,10 +89,11 @@ if (driver === 'postgres') {
       try {
         await client.unsafe(stmt)
       } catch (err) {
-        if (/already exists/i.test(err.message) || /already exists/i.test(err.message)) {
-          console.log(`[migrate]   Skipping (already exists): ${stmt.substring(0, 60)}...`)
-        } else if (/column .* already exists/i.test(err.message)) {
+        // Specific case first: PG's "column X already exists" also matches the generic "already exists"
+        if (/column .* already exists/i.test(err.message)) {
           console.log(`[migrate]   Skipping (duplicate column): ${stmt.substring(0, 60)}...`)
+        } else if (/already exists/i.test(err.message)) {
+          console.log(`[migrate]   Skipping (already exists): ${stmt.substring(0, 60)}...`)
         } else {
           console.error(`[migrate]   Failed: ${stmt.substring(0, 80)}`)
           console.error(`[migrate]   Error: ${err.message}`)
