@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// Driven by Nuxt UI's UOverlayProvider (rendered by UApp) via v-model:open + @close
+const open = defineModel<boolean>('open', { default: false })
+
 defineProps<{
   title: string
   description: string
@@ -16,10 +19,14 @@ function onConfirm() {
   emit('confirm')
   emit('close', true)
 }
+
+function onCancel() {
+  emit('close', false)
+}
 </script>
 
 <template>
-  <UModal>
+  <UModal v-model:open="open">
     <template #header>
       <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ title }}</h3>
     </template>
@@ -28,7 +35,7 @@ function onConfirm() {
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton variant="soft" :label="cancelLabel" @click="emit('close', false)" />
+        <UButton variant="soft" :label="cancelLabel" @click="onCancel" />
         <UButton color="error" :label="confirmLabel" :loading="loading" @click="onConfirm" />
       </div>
     </template>
