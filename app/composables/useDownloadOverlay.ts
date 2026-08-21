@@ -77,6 +77,12 @@ export function useDownloadOverlay() {
   }
 
   onUnmounted(() => {
+    // The overlay state is shared (layout-level): if this component unmounts mid-download
+    // (page navigation), finishDownload() must run or the overlay stays stuck open
+    if (active.value) {
+      finishDownload()
+      return
+    }
     clearAllTimers()
     document.body.style.overflow = ''
   })

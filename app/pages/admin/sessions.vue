@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Session } from '~/types/admin'
+import type { Session, SessionGroup } from '~/types/admin'
 
 definePageMeta({
   middleware: ['auth', 'admin'],
@@ -8,6 +8,7 @@ definePageMeta({
 
 const { t } = useI18n()
 const toast = useToast()
+const { confirm } = useConfirmDialog()
 
 const { user, clear } = useUserSession()
 
@@ -44,7 +45,13 @@ async function revokeSession(id: string, targetUserId: string) {
 }
 
 async function revokeAllForUser(userId: string, username: string) {
-  if (!confirm(t('admin.confirmRevokeAll', { username }))) return
+  const confirmed = await confirm({
+    title: t('common.confirm'),
+    description: t('admin.confirmRevokeAll', { username }),
+    confirmLabel: t('common.delete'),
+    cancelLabel: t('common.cancel')
+  })
+  if (!confirmed) return
   try {
     await $fetch('/api/admin/sessions/delete-all', { method: 'POST', body: { userId } })
     toast.add({ title: t('admin.sessionsRevoked'), color: 'success' })
@@ -72,19 +79,25 @@ function timeAgo(dateStr: string) {
   return t('time.daysAgo', { n: days })
 }
 
-const groupedSessions = computed(() => {
-  const map = new Map<
-    string,
-    { username: string; role: string | null; avatarUrl: string | null; sessions: Session[] }
-  >()
+const groupedSessions = computed<SessionGroup[]>(() => {
+  const map = new Map<string, SessionGroup>()
   for (const s of sessions.value) {
     const key = s.userId
-    if (!map.has(key))
-      map.set(key, { username: s.username ?? 'Unknown', role: s.role, avatarUrl: s.avatarUrl, sessions: [] })
-    map.get(key)!.sessions.push(s)
+    const group = map.get(key)
+    if (group) {
+      group.sessions.push(s)
+    } else {
+      map.set(key, { username: s.username ?? 'Unknown', role: s.role, avatarUrl: s.avatarUrl, sessions: [s] })
+    }
   }
   return Array.from(map.values())
 })
+
+function revokeAllGroup(group: SessionGroup) {
+  const first = group.sessions[0]
+  if (!first) return
+  void revokeAllForUser(first.userId, group.username)
+}
 </script>
 
 <template>
@@ -126,7 +139,7 @@ const groupedSessions = computed(() => {
             color="error"
             size="xs"
             :label="t('admin.revokeAll')"
-            @click="revokeAllForUser(group.sessions[0]!.userId, group.username)"
+            @click="revokeAllGroup(group)"
           />
         </div>
 

@@ -22,7 +22,7 @@ function handleDismiss() {
 </script>
 
 <template>
-  <UModal :model-value="isReady">
+  <UModal :open="isReady">
     <template #header>
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">

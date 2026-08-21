@@ -148,6 +148,7 @@
 
 <script setup lang="ts">
 import type { MediaCarouselItem } from '~/types/media'
+import type { AutocompleteSuggestion } from '~/types/autocomplete'
 import { useGoToItem } from '~/composables/useNavigate'
 
 const { t, locale } = useI18n()
@@ -169,7 +170,7 @@ const { suggestions, isOpen, isMobile, close } = useAutocomplete(
   localeRef
 )
 
-function selectSuggestion(item: { id: number; type: string }) {
+function selectSuggestion(item: AutocompleteSuggestion) {
   close()
   goToItem({ id: item.id, type: item.type })
 }
@@ -299,9 +300,9 @@ const results = computed(() => {
 watch([debouncedQ, () => searchParams.type, () => searchParams.genres, locale], () => {
   if (searchParams.genres.length === 0 && searchParams.q.length < 2) return
   if (isSearching.value) {
-    executeSearch()
+    void executeSearch()
   } else if (searchParams.genres.length > 0) {
-    executeDiscover()
+    void executeDiscover()
   }
 })
 
@@ -310,12 +311,13 @@ watch(
   (q) => {
     searchParams.q = (q.q as string) ?? ''
     searchParams.type = (q.type as string) ?? 'all'
-    searchParams.genres = q.genres
-      ? (q.genres as string)
-          .split(',')
-          .map(Number)
-          .filter((n) => !Number.isNaN(n) && n > 0)
-      : []
+    searchParams.genres =
+      typeof q.genres === 'string'
+        ? q.genres
+            .split(',')
+            .map(Number)
+            .filter((n) => !Number.isNaN(n) && n > 0)
+        : []
   },
   { immediate: true }
 )
@@ -340,7 +342,7 @@ watch(
     if (searchParams.q) q.q = searchParams.q
     if (searchParams.type !== 'all') q.type = searchParams.type
     if (searchParams.genres.length > 0) q.genres = searchParams.genres.join(',')
-    router.replace({ query: q })
+    void router.replace({ query: q })
   },
   { deep: true }
 )
@@ -443,7 +445,7 @@ for (const g of movieGenres) {
   watch(
     () => genreVisible[`movie-${g.id}`],
     (visible) => {
-      if (!visible) return
+      if (visible !== true) return
       const { data: d, pending: p } = useFetch('/api/browse/genre', {
         query: computed(() => ({ genreId: g.id, mediaType: 'movie', locale: locale.value })),
         watch: [locale]
@@ -463,7 +465,7 @@ for (const g of tvGenres) {
   watch(
     () => genreVisible[`tv-${g.id}`],
     (visible) => {
-      if (!visible) return
+      if (visible !== true) return
       const { data: d, pending: p } = useFetch('/api/browse/genre', {
         query: computed(() => ({ genreId: g.id, mediaType: 'tv', locale: locale.value })),
         watch: [locale]

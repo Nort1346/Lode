@@ -21,11 +21,20 @@ let eventSource: EventSource | null = null
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 let reconnectDelay = SSE_RECONNECT_MS
 let newNotificationCallback: ((n: NotificationItem) => void) | null = null
+// Shared pulse so every mounted instance can animate its own bell; the callback slot above
+// still fires global side-effects (sound/toast) exactly once
+const lastNotification = ref<NotificationItem | null>(null)
+
+// One shared context: browsers cap the number of live AudioContexts, and creating one per
+// notification would hit that cap during download bursts
+let audioCtx: AudioContext | null = null
 
 export function playNotificationSound() {
   if (import.meta.server) return
   try {
-    const ctx = new AudioContext()
+    if (audioCtx === null) audioCtx = new AudioContext()
+    if (audioCtx.state === 'suspended') void audioCtx.resume()
+    const ctx = audioCtx
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.connect(gain)
@@ -37,7 +46,7 @@ export function playNotificationSound() {
     osc.start()
     osc.stop(ctx.currentTime + 0.3)
   } catch {
-    /* AudioContext not available */
+    audioCtx = null
   }
 }
 
@@ -54,8 +63,13 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 }
 
 export function useNotifications() {
-  function onNewNotification(callback: (n: NotificationItem) => void) {
+  // Returns an unregister; only clears the slot if this callback is still the current one,
+  // so an unmounting instance never drops the callback of another live instance
+  function onNewNotification(callback: (n: NotificationItem) => void): () => void {
     newNotificationCallback = callback
+    return () => {
+      if (newNotificationCallback === callback) newNotificationCallback = null
+    }
   }
 
   function checkPermission() {
@@ -179,6 +193,7 @@ export function useNotifications() {
         } else if (data.type === SSE_EVENT_NOTIFICATION && data.notification !== undefined) {
           notifications.value.unshift(data.notification)
           unreadCount.value++
+          lastNotification.value = data.notification
           newNotificationCallback?.(data.notification)
         } else if (data.type === SSE_EVENT_READ_UPDATE && data.notificationId !== undefined) {
           const n = notifications.value.find((x) => x.id === data.notificationId)
@@ -277,6 +292,7 @@ export function useNotifications() {
     unreadCount,
     connected,
     permissionGranted,
+    lastNotification,
     connect,
     disconnect,
     fetchNotifications,

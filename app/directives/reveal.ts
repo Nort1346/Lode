@@ -1,7 +1,5 @@
 import type { Directive, DirectiveBinding } from 'vue'
-import type { RevealState } from '~/types/directives'
 
-const state = new WeakMap<HTMLElement, RevealState>()
 const callbacks = new WeakMap<HTMLElement, () => void>()
 
 let sharedObserver: IntersectionObserver | null = null
@@ -46,13 +44,11 @@ export const vReveal: Directive = {
 
     callbacks.set(el, onReveal)
     getObserver().observe(el)
-    state.set(el, { observer: getObserver() })
   },
 
   unmounted(el: HTMLElement) {
     getObserver().unobserve(el)
     callbacks.delete(el)
-    state.delete(el)
   },
 
   getSSRProps() {

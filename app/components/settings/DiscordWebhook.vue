@@ -35,16 +35,24 @@ async function fetchData() {
 async function changeDiscordLocale(newLocale: string) {
   const validLocales = ['pl', 'en', 'de', 'fr', 'es']
   const valid = validLocales.includes(newLocale) ? newLocale : 'en'
-  discordLocale.value = valid
-  await $fetch('/api/admin/discord-locale', { method: 'PUT', body: { locale: valid } })
-  toast.add({ title: t('settings.discordLocaleSaved'), color: 'success' })
+  try {
+    await $fetch('/api/admin/discord-locale', { method: 'PUT', body: { locale: valid } })
+    discordLocale.value = valid
+    toast.add({ title: t('settings.discordLocaleSaved'), color: 'success' })
+  } catch {
+    toast.add({ title: t('common.error'), color: 'error' })
+  }
 }
 
 async function toggleDiscordMentions() {
   const newValue = !discordMentionsEnabled.value
-  await $fetch('/api/admin/discord-mentions', { method: 'PUT', body: { enabled: newValue } })
-  discordMentionsEnabled.value = newValue
-  toast.add({ title: t('settings.discordMentionsSaved'), color: 'success' })
+  try {
+    await $fetch('/api/admin/discord-mentions', { method: 'PUT', body: { enabled: newValue } })
+    discordMentionsEnabled.value = newValue
+    toast.add({ title: t('settings.discordMentionsSaved'), color: 'success' })
+  } catch {
+    toast.add({ title: t('common.error'), color: 'error' })
+  }
 }
 
 onMounted(fetchData)

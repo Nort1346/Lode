@@ -27,9 +27,13 @@ async function fetchDisks() {
 
 async function toggleDiskCheck() {
   const newValue = !diskCheckEnabled.value
-  await $fetch('/api/admin/disk-status', { method: 'PUT', body: { checkEnabled: newValue } })
-  diskCheckEnabled.value = newValue
-  toast.add({ title: t('settings.diskCheckSaved'), color: 'success' })
+  try {
+    await $fetch('/api/admin/disk-status', { method: 'PUT', body: { checkEnabled: newValue } })
+    diskCheckEnabled.value = newValue
+    toast.add({ title: t('settings.diskCheckSaved'), color: 'success' })
+  } catch {
+    toast.add({ title: t('common.error'), color: 'error' })
+  }
 }
 
 async function changeMinFreeGb(event: Event) {
@@ -37,12 +41,18 @@ async function changeMinFreeGb(event: Event) {
   const val = Number(input.value)
   if (Number.isNaN(val) || val < 0) return
   diskMinFreeGb.value = val
-  await $fetch('/api/admin/disk-status', { method: 'PUT', body: { minFreeSpaceGb: val } })
-  const data = await $fetch<{ disks: DiskStatus[]; minFreeSpaceGb: number; checkEnabled: boolean }>(
-    '/api/admin/disk-status'
-  )
-  diskStatuses.value = data.disks
-  toast.add({ title: t('settings.diskMinFreeSaved'), color: 'success' })
+  try {
+    await $fetch('/api/admin/disk-status', { method: 'PUT', body: { minFreeSpaceGb: val } })
+    const data = await $fetch<{ disks: DiskStatus[]; minFreeSpaceGb: number; checkEnabled: boolean }>(
+      '/api/admin/disk-status'
+    )
+    diskStatuses.value = data.disks
+    diskMinFreeGb.value = data.minFreeSpaceGb
+    diskCheckEnabled.value = data.checkEnabled
+    toast.add({ title: t('settings.diskMinFreeSaved'), color: 'success' })
+  } catch {
+    toast.add({ title: t('common.error'), color: 'error' })
+  }
 }
 
 onMounted(fetchDisks)

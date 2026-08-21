@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ConfirmDialog from '~/components/ConfirmDialog.vue'
 import type { Download } from '~/types/downloads'
 import {
   formatEta,
@@ -15,11 +14,11 @@ definePageMeta({
   layout: 'default'
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { smallerThan } = useBreakpoints()
 const { user } = useUserSession()
 const { data: me } = useFetch('/api/user/me')
-const overlay = useOverlay()
+const { confirm } = useConfirmDialog()
 const toast = useToast()
 
 const canSubmit = computed(() => me.value?.canSubmit === true || user.value?.role === 'admin')
@@ -41,17 +40,31 @@ async function fetchPrepConfig() {
   }
 }
 
+let fetchInFlight = false
+let lastFetchOk = true
+
 async function fetchDownloads() {
-  loading.value = true
+  // Skip polls while one is in flight so a slow page-1 response cannot clobber page 2
+  if (fetchInFlight) return
+  fetchInFlight = true
   try {
     const res = await $fetch<{ downloads: Download[]; total: number }>('/api/torrents/list', {
       query: { page: page.value, limit: PAGE_SIZE }
     })
-    downloads.value = res.downloads || []
+    downloads.value = res.downloads
     total.value = res.total
+    // Clamp after deletes shrink the list, otherwise the page can point past the last page
+    const totalPages = Math.max(1, Math.ceil(res.total / PAGE_SIZE))
+    if (page.value > totalPages) page.value = totalPages
+    lastFetchOk = true
   } catch {
-    toast.add({ title: t('download.error'), color: 'error' })
+    // Toast only on the first failure so the 3s poll does not spam while the API is down
+    if (lastFetchOk) {
+      toast.add({ title: t('download.error'), color: 'error' })
+    }
+    lastFetchOk = false
   } finally {
+    fetchInFlight = false
     loading.value = false
   }
 }
@@ -59,37 +72,33 @@ async function fetchDownloads() {
 watch(page, () => fetchDownloads())
 
 onMounted(() => {
-  fetchPrepConfig()
-  fetchDownloads()
+  void fetchPrepConfig()
+  void fetchDownloads()
 })
 
 const intervalId = ref<ReturnType<typeof setInterval>>()
 onMounted(() => {
-  intervalId.value = setInterval(fetchDownloads, 3000)
+  intervalId.value = setInterval(() => {
+    void fetchDownloads()
+  }, 3000)
 })
 onUnmounted(() => {
   if (intervalId.value) clearInterval(intervalId.value)
 })
 
 async function cancelTorrent(dl: Download) {
-  const modal = overlay.create(ConfirmDialog, {
-    props: {
-      title: t('download.confirmTitle'),
-      description: t('download.confirmDelete'),
-      confirmLabel: t('download.delete'),
-      cancelLabel: t('common.cancel')
-    }
+  const confirmed = await confirm({
+    title: t('download.confirmTitle'),
+    description: t('download.confirmDelete'),
+    confirmLabel: t('download.delete'),
+    cancelLabel: t('common.cancel')
   })
-  const confirmed = await modal.open()
   if (!confirmed) return
 
   cancelling.value = dl.id
   try {
     await $fetch(`/api/torrents/${dl.id}`, { method: 'DELETE' })
     await fetchDownloads()
-    if (downloads.value.length === 0 && page.value > 1) {
-      page.value--
-    }
   } catch {
     toast.add({ title: t('download.error'), color: 'error' })
   } finally {
@@ -104,7 +113,7 @@ function getDisplayName(dl: Download): string {
 const { qualityConfig } = useQualityConfig()
 
 function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
-  if (!completedAt) return ''
+  if (completedAt === null || completedAt === '') return ''
   const prepSpeedBytes = prepSpeedMb.value * 1024 * 1024
   const elapsed = (Date.now() - new Date(completedAt).getTime()) / 1000
   const delay = sizeBytes / prepSpeedBytes
@@ -219,7 +228,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   {{ qualityConfig[getTorrentQuality(dl)].badgeText }}
                 </span>
                 <span class="text-xs text-zinc-400 dark:text-zinc-500">
-                  {{ formatDate(dl.createdAt) }}
+                  {{ formatDate(dl.createdAt, locale) }}
                 </span>
               </div>
             </div>

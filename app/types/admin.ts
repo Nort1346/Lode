@@ -95,6 +95,13 @@ export interface Session {
   avatarUrl: string | null
 }
 
+export interface SessionGroup {
+  username: string
+  role: string | null
+  avatarUrl: string | null
+  sessions: Session[]
+}
+
 export interface CustomTracker {
   id: string
   indexerName: string

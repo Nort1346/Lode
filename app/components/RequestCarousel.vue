@@ -19,8 +19,8 @@ const activeRequests = computed(() => {
       return false
     })
     .sort((a: Request, b: Request) => {
-      const order: Record<string, number> = { pending: 0, rejected: 1, accepted: 2 }
-      return (order[a.status] ?? 3) - (order[b.status] ?? 3)
+      const order: Record<Request['status'], number> = { pending: 0, rejected: 1, accepted: 2 }
+      return order[a.status] - order[b.status]
     })
 })
 const pendingCount = computed(() => activeRequests.value.filter((r: Request) => r.status === 'pending').length)
@@ -50,8 +50,8 @@ function handleMouseLeave(idx: number) {
   card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)'
 }
 
-function goToRequest(req: Request) {
-  navigateTo(req.mediaType === 'movie' ? `/browse/movie/${req.mediaId}` : `/browse/tv/${req.mediaId}`)
+async function goToRequest(req: Request) {
+  await navigateTo(req.mediaType === 'movie' ? `/browse/movie/${req.mediaId}` : `/browse/tv/${req.mediaId}`)
 }
 </script>
 

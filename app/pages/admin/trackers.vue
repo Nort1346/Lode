@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ConfirmDialog from '~/components/ConfirmDialog.vue'
 import type { CustomTracker } from '~/types/admin'
 import { formatDate } from '~/composables/useTorrentUtils'
 
@@ -8,8 +7,9 @@ definePageMeta({
   layout: 'default'
 })
 
-const { t } = useI18n()
-const overlay = useOverlay()
+const { t, locale } = useI18n()
+const { confirm } = useConfirmDialog()
+const toast = useToast()
 
 const trackers = ref<CustomTracker[]>([])
 const loading = ref(true)
@@ -59,11 +59,14 @@ function openEdit(tracker: CustomTracker) {
   editTracker.value = tracker
   formIndexerName.value = tracker.indexerName
   formTrackerType.value = tracker.trackerType
-  if (tracker.trackerType === 'guid' && tracker.loginUrl && tracker.loginUsername) {
+  const loginUrl = tracker.loginUrl
+  const loginUsername = tracker.loginUsername
+  const hasLogin = loginUrl !== null && loginUrl !== '' && loginUsername !== null && loginUsername !== ''
+  if (tracker.trackerType === 'guid' && hasLogin) {
     authMethod.value = 'login'
     formCookie.value = ''
-    formLoginUrl.value = tracker.loginUrl
-    formLoginUsername.value = tracker.loginUsername
+    formLoginUrl.value = loginUrl
+    formLoginUsername.value = loginUsername
     formLoginPassword.value = ''
   } else if (tracker.trackerType === 'guid') {
     authMethod.value = 'cookie'
@@ -100,7 +103,7 @@ async function testLogin() {
     )
     testResult.value = { success: res.success, message: res.message }
   } catch (e: unknown) {
-    const err = e as { data?: { statusMessage?: string }; statusMessage?: string }
+    const err = mapApiError(e)
     testResult.value = {
       success: false,
       message: err.data?.statusMessage ?? err.statusMessage ?? t('admin.unknownError')
@@ -118,6 +121,10 @@ async function saveTracker() {
     const body: Record<string, unknown> = {
       indexerName: formIndexerName.value,
       trackerType: formTrackerType.value
+    }
+
+    if (editTracker.value) {
+      body.enabled = editTracker.value.enabled
     }
 
     if (formTrackerType.value === 'guid') {
@@ -146,7 +153,7 @@ async function saveTracker() {
     showModal.value = false
     await fetchTrackers()
   } catch (e: unknown) {
-    const err = e as { data?: { statusMessage?: string }; statusMessage?: string }
+    const err = mapApiError(e)
     error.value = err.data?.statusMessage ?? err.statusMessage ?? t('trackers.saveFailed')
   } finally {
     saving.value = false
@@ -154,22 +161,19 @@ async function saveTracker() {
 }
 
 async function deleteTracker(tracker: CustomTracker) {
-  const modal = overlay.create(ConfirmDialog, {
-    props: {
-      title: t('trackers.confirmDeleteTitle'),
-      description: t('trackers.confirmDelete', { name: tracker.indexerName }),
-      confirmLabel: t('common.delete'),
-      cancelLabel: t('common.cancel')
-    }
+  const confirmed = await confirm({
+    title: t('trackers.confirmDeleteTitle'),
+    description: t('trackers.confirmDelete', { name: tracker.indexerName }),
+    confirmLabel: t('common.delete'),
+    cancelLabel: t('common.cancel')
   })
-  const confirmed = await modal.open()
   if (!confirmed) return
 
   try {
     await $fetch(`/api/admin/trackers/${tracker.id}`, { method: 'DELETE' })
     await fetchTrackers()
   } catch {
-    // silently fail
+    toast.add({ title: t('common.error'), color: 'error' })
   }
 }
 
@@ -181,7 +185,7 @@ async function toggleEnabled(tracker: CustomTracker) {
     })
     await fetchTrackers()
   } catch {
-    // silently fail
+    toast.add({ title: t('common.error'), color: 'error' })
   }
 }
 
@@ -192,7 +196,7 @@ function maskCookie(cookie: string): string {
 
 function getMethodLabel(tracker: CustomTracker): string {
   if (tracker.trackerType === 'counting') return t('trackers.typeCounting')
-  return tracker.loginUrl ? t('trackers.methodLogin') : t('trackers.methodCookie')
+  return tracker.loginUrl !== null && tracker.loginUrl !== '' ? t('trackers.methodLogin') : t('trackers.methodCookie')
 }
 </script>
 
@@ -301,7 +305,7 @@ function getMethodLabel(tracker: CustomTracker): string {
                 </button>
               </td>
               <td class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 hidden md:table-cell">
-                {{ formatDate(tracker.createdAt) }}
+                {{ formatDate(tracker.createdAt, locale) }}
               </td>
               <td class="px-4 py-3">
                 <div class="flex items-center gap-2">

@@ -44,15 +44,32 @@ async function fetchAll() {
 }
 
 async function unblockIp(ip: string) {
-  await $fetch('/api/admin/brute-force/blocked-ips', { method: 'DELETE', body: { ip } })
-  toast.add({ title: t('bruteForce.unblocked'), color: 'success' })
-  await fetchAll()
+  try {
+    await $fetch('/api/admin/brute-force/blocked-ips', { method: 'DELETE', body: { ip } })
+    toast.add({ title: t('bruteForce.unblocked'), color: 'success' })
+    await fetchAll()
+  } catch {
+    toast.add({ title: t('common.error'), color: 'error' })
+  }
+}
+
+// A cleared v-model.number input leaves '' behind; normalize to a number before sending
+function num(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 1
 }
 
 async function saveConfig() {
   savingConfig.value = true
   try {
-    await $fetch('/api/admin/brute-force/config', { method: 'PUT', body: config.value })
+    await $fetch('/api/admin/brute-force/config', {
+      method: 'PUT',
+      body: {
+        maxAttemptsPerIp: num(config.value.maxAttemptsPerIp),
+        ipBlockDurationMinutes: num(config.value.ipBlockDurationMinutes),
+        windowMinutes: num(config.value.windowMinutes)
+      }
+    })
     toast.add({ title: t('bruteForce.saved'), color: 'success' })
   } catch {
     toast.add({ title: t('bruteForce.saveError'), color: 'error' })
@@ -64,7 +81,7 @@ async function saveConfig() {
 function formatExpiry(timestamp: number): string {
   const remaining = Math.max(0, Math.ceil((timestamp - Date.now()) / 60_000))
   if (remaining <= 0) return t('bruteForce.expired')
-  return `${remaining} min`
+  return `${remaining} ${t('common.min')}`
 }
 
 onMounted(fetchAll)

@@ -11,6 +11,7 @@ const {
   markAsRead,
   markAllAsRead,
   onNewNotification,
+  lastNotification,
   permissionGranted,
   enableNotifications,
   checkPermission
@@ -19,23 +20,42 @@ const {
 const open = ref(false)
 const animateBell = ref(false)
 const animateBadge = ref(false)
+let bellTimeout: ReturnType<typeof setTimeout> | null = null
+let badgeTimeout: ReturnType<typeof setTimeout> | null = null
 
-onNewNotification((n) => {
+// The layout mounts both the mobile and the sidebar instance at all times, so the shared
+// callback slot can only ever hold one of them - sound and toast must still fire exactly
+// once, while the bell/badge animation is driven per instance from the shared signal so the
+// currently visible bell animates regardless of which instance holds the slot
+const stopNotificationCallback = onNewNotification((n) => {
   playNotificationSound()
-  animateBell.value = true
-  animateBadge.value = true
-  setTimeout(() => {
-    animateBell.value = false
-  }, 600)
-  setTimeout(() => {
-    animateBadge.value = false
-  }, 400)
-
   toast.add({
     title: n.title,
     description: n.message,
     color: n.type === NotificationType.REQUEST_REJECTED ? 'error' : 'success'
   })
+})
+
+watch(lastNotification, (n) => {
+  if (n === null) return
+  animateBell.value = true
+  animateBadge.value = true
+  if (bellTimeout !== null) clearTimeout(bellTimeout)
+  if (badgeTimeout !== null) clearTimeout(badgeTimeout)
+  bellTimeout = setTimeout(() => {
+    animateBell.value = false
+    bellTimeout = null
+  }, 600)
+  badgeTimeout = setTimeout(() => {
+    animateBadge.value = false
+    badgeTimeout = null
+  }, 400)
+})
+
+onUnmounted(() => {
+  stopNotificationCallback()
+  if (bellTimeout !== null) clearTimeout(bellTimeout)
+  if (badgeTimeout !== null) clearTimeout(badgeTimeout)
 })
 
 const unreadNotifications = computed(() => notifications.value.filter((n) => !n.read))
@@ -48,10 +68,10 @@ const notificationSections = computed(() => [
 
 function handleClick(notification: (typeof notifications.value)[number]) {
   if (!notification.read) {
-    markAsRead(notification.id)
+    void markAsRead(notification.id)
   }
   if (notification.link !== null) {
-    navigateTo(notification.link)
+    void navigateTo(notification.link)
   }
   open.value = false
 }

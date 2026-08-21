@@ -13,19 +13,25 @@ import pixelArt from '@dicebear/styles/pixel-art.json'
 import toonHead from '@dicebear/styles/toon-head.json'
 import type { StyleDefinition } from '@dicebear/core'
 
+// The dicebear style JSON modules ship no StyleDefinition typing; confine the single
+// unsafe boundary here instead of casting at every use site
+function asStyleDefinition(def: unknown): StyleDefinition {
+  return def as StyleDefinition
+}
+
 const STYLE_MAP: Record<string, StyleDefinition> = {
-  adventurer: adventurer as unknown as StyleDefinition,
-  avataaars: avataaars as unknown as StyleDefinition,
-  'big-ears': bigEars as unknown as StyleDefinition,
-  bottts: bottts as unknown as StyleDefinition,
-  'fun-emoji': funEmoji as unknown as StyleDefinition,
-  lorelei: lorelei as unknown as StyleDefinition,
-  micah: micah as unknown as StyleDefinition,
-  notionists: notionists as unknown as StyleDefinition,
-  'open-peeps': openPeeps as unknown as StyleDefinition,
-  personas: personas as unknown as StyleDefinition,
-  'pixel-art': pixelArt as unknown as StyleDefinition,
-  'toon-head': toonHead as unknown as StyleDefinition
+  adventurer: asStyleDefinition(adventurer),
+  avataaars: asStyleDefinition(avataaars),
+  'big-ears': asStyleDefinition(bigEars),
+  bottts: asStyleDefinition(bottts),
+  'fun-emoji': asStyleDefinition(funEmoji),
+  lorelei: asStyleDefinition(lorelei),
+  micah: asStyleDefinition(micah),
+  notionists: asStyleDefinition(notionists),
+  'open-peeps': asStyleDefinition(openPeeps),
+  personas: asStyleDefinition(personas),
+  'pixel-art': asStyleDefinition(pixelArt),
+  'toon-head': asStyleDefinition(toonHead)
 }
 
 const AVAILABLE_STYLES = Object.keys(STYLE_MAP)
@@ -96,7 +102,7 @@ export function useDicebear() {
 
   function generatePreviews(styleName: string): Array<{ seed: string; dataUri: string; bgColor: string }> {
     return PREVIEW_SEEDS.map((seed, i) => {
-      const bgColor = BG_COLORS[i % BG_COLORS.length] as string
+      const bgColor = BG_COLORS[i % BG_COLORS.length] ?? 'ffffff'
       return { seed, dataUri: generateDataUri(styleName, seed, bgColor), bgColor }
     })
   }
@@ -107,7 +113,7 @@ export function useDicebear() {
 
   function getRandomBgColor(): string {
     const idx = Math.floor(Math.random() * BG_COLORS.length)
-    return (BG_COLORS[idx] ?? BG_COLORS[0]) as string
+    return BG_COLORS[idx] ?? 'b6e3f4'
   }
 
   return { generateDataUri, generatePreviews, getAvailableStyles, getRandomBgColor, BG_COLORS }

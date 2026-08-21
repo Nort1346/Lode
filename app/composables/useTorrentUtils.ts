@@ -34,10 +34,11 @@ export function formatSize(bytes: number): string {
   return `${size.toFixed(idx >= 2 ? 2 : 1)} ${units[idx]}`
 }
 
-export function formatDate(dateStr: string): string {
+// locale is optional so callers can render dates in the active app locale; falls back to the browser default
+export function formatDate(dateStr: string, locale?: string): string {
   if (!dateStr) return '-'
   const d = new Date(dateStr)
-  return d.toLocaleDateString('pl-PL', { year: 'numeric', month: '2-digit', day: '2-digit' })
+  return d.toLocaleDateString(locale, { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 
 export function getTorrentQuality(dl: { numSeeds: number; downloadSpeed: number }): TorrentQuality {

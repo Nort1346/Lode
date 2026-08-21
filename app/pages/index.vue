@@ -2,9 +2,9 @@
 const { loggedIn } = useUserSession()
 
 if (loggedIn.value) {
-  navigateTo('/dashboard')
+  void navigateTo('/dashboard')
 } else {
-  navigateTo('/login')
+  void navigateTo('/login')
 }
 </script>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mapApiError } from '~/types/api'
+import { mapApiError } from '~/composables/useApiError'
 
 definePageMeta({
   layout: false
@@ -10,7 +10,7 @@ const colorMode = useColorMode()
 const { t } = useI18n()
 
 if (loggedIn.value) {
-  navigateTo('/dashboard')
+  void navigateTo('/dashboard')
 }
 
 const form = reactive({
@@ -37,10 +37,10 @@ async function handleLogin() {
       body: { username: form.username, password: form.password }
     })
     await fetchSession()
-    window.location.href = '/dashboard'
+    await navigateTo('/dashboard')
   } catch (e: unknown) {
     const err = mapApiError(e)
-    error.value = err.data?.statusMessage || t('login.failed')
+    error.value = err.data?.statusMessage ?? t('login.failed')
     loading.value = false
   }
 }

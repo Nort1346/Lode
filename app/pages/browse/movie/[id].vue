@@ -394,11 +394,12 @@ const requesting = ref(false)
 const requestStatus = ref<RequestStatus>(null)
 const rejectedAdminNote = ref<string | null>(null)
 const wishlisted = ref(false)
-const wishlistId = ref<string | null>(null)
+
 const debugOpenIdx = ref<number | null>(null)
 const requestModalOpen = ref(false)
 const requestNote = ref('')
 const { t } = useI18n()
+const toast = useToast()
 const { user } = useUserSession()
 
 const isDev = computed(() => import.meta.dev && user.value?.role === 'admin')
@@ -421,8 +422,11 @@ const languageDropdownItems = computed(() =>
   }))
 )
 
+// route.params.id is typed string | string[] | undefined, but on this dynamic route it is always a plain string
+const mediaId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
+
 const { data, pending, error } = await useFetch<{ movie: MovieData }>(
-  computed(() => `/api/browse/movie/${route.params.id}?locale=${mediaLanguage.value}`),
+  computed(() => `/api/browse/movie/${mediaId.value}?locale=${mediaLanguage.value}`),
   { watch: [mediaLanguage] }
 )
 
@@ -431,7 +435,7 @@ const {
   pending: torrentsPending,
   error: torrentError
 } = useLazyFetch<{ torrents: Torrent[] }>(
-  computed(() => `/api/browse/movie/${route.params.id}/torrents?locale=${mediaLanguage.value}`),
+  computed(() => `/api/browse/movie/${mediaId.value}/torrents?locale=${mediaLanguage.value}`),
   { watch: [mediaLanguage] }
 )
 
@@ -441,9 +445,8 @@ const torrents = computed(() => torrentData.value?.torrents ?? [])
 const { data: limits } = useFetch('/api/user/limits')
 const limitInfo = computed(() => {
   if (torrentError.value === null || torrentError.value === undefined) return null
+  if (getApiStatusCode(torrentError.value) !== 429) return null
   const err = torrentError.value as unknown as Record<string, unknown>
-  const status = err.status ?? err.statusCode
-  if (status !== 429) return null
   const body = err.data as Record<string, unknown> | undefined
   if (body !== null && body !== undefined && 'activeCount' in body) return body
   const nested = body?.data as Record<string, unknown> | undefined
@@ -459,25 +462,35 @@ function isPrivateLimitExceeded(torrent: Torrent): boolean {
 
 function formatLanguage(lang: string): string {
   const map: Record<string, string> = {
-    'pl-dub': 'PL Dubbing',
-    'pl-sub': 'PL Napisy',
-    'pl-lektor': 'PL Lektor',
+    'pl-dub': t('browse.plDubbing'),
+    'pl-sub': t('browse.plSubtitles'),
+    'pl-lektor': t('browse.plLektor'),
     en: 'English'
   }
   return map[lang] ?? lang
 }
 
-watchEffect(async () => {
-  if (!movie.value?.imdbId) return
+// When navigating movie -> movie the component is reused: a slow response for the previous
+// movie must not overwrite the new movie's request status
+let requestStatusSeq = 0
+
+async function loadRequestStatus(movieId: number, seq: number) {
   try {
     const res = await $fetch<{ status: string | null; adminNote: string | null }>(
-      `/api/requests/mine?mediaType=movie&mediaId=${movie.value.id}`
+      `/api/requests/mine?mediaType=movie&mediaId=${movieId}`
     )
+    if (seq !== requestStatusSeq) return
     requestStatus.value = res.status as 'pending' | 'accepted' | 'rejected' | null
     rejectedAdminNote.value = res.adminNote
   } catch {
     // not logged in or error
   }
+}
+
+watchEffect(() => {
+  const movieData = movie.value
+  if (movieData === null || movieData.imdbId === null || movieData.imdbId === '') return
+  void loadRequestStatus(movieData.id, ++requestStatusSeq)
 })
 
 function openRequestModal() {
@@ -501,14 +514,12 @@ async function submitRequest() {
     })
     requestStatus.value = 'pending'
     requestModalOpen.value = false
-    const toast = useToast()
     toast.add({
       title: t('requests.requestSuccess'),
       description: t('requests.requestSuccessDesc'),
       color: 'success'
     })
   } catch (err) {
-    const toast = useToast()
     const msg = err instanceof Error ? err.message : t('requests.alreadyRequested')
     toast.add({ title: t('requests.alreadyRequested'), description: msg, color: 'warning' })
   } finally {
@@ -516,43 +527,46 @@ async function submitRequest() {
   }
 }
 
-watchEffect(async () => {
-  if (!movie.value) return
+let wishlistSeq = 0
+
+async function loadWishlistState(movieId: number, seq: number) {
   try {
-    const res = await $fetch<{ wishlisted: boolean; id: string | null }>(
-      `/api/wishlist/check?mediaType=movie&mediaId=${movie.value.id}`
-    )
+    const res = await $fetch<{ wishlisted: boolean }>(`/api/wishlist/check?mediaType=movie&mediaId=${movieId}`)
+    if (seq !== wishlistSeq) return
     wishlisted.value = res.wishlisted
-    wishlistId.value = res.id
   } catch {
     // not logged in or error
   }
+}
+
+watchEffect(() => {
+  const movieData = movie.value
+  if (!movieData) return
+  void loadWishlistState(movieData.id, ++wishlistSeq)
 })
 
 async function toggleWishlist() {
-  if (!movie.value) return
-  const toast = useToast()
+  const movieData = movie.value
+  if (!movieData) return
   try {
     if (wishlisted.value) {
-      await $fetch('/api/wishlist', { method: 'DELETE', body: { mediaType: 'movie', mediaId: movie.value.id } })
+      await $fetch('/api/wishlist', { method: 'DELETE', body: { mediaType: 'movie', mediaId: movieData.id } })
       wishlisted.value = false
-      wishlistId.value = null
       toast.add({ title: t('wishlist.removedFromWishlist'), color: 'success' })
     } else {
-      const res = await $fetch<{ id: string }>('/api/wishlist', {
+      await $fetch('/api/wishlist', {
         method: 'POST',
         body: {
           mediaType: 'movie',
-          mediaId: movie.value.id,
-          mediaTitle: movie.value.title,
-          mediaPoster: movie.value.posterUrl
+          mediaId: movieData.id,
+          mediaTitle: movieData.title,
+          mediaPoster: movieData.posterUrl
         }
       })
       wishlisted.value = true
-      wishlistId.value = res.id
       toast.add({
         title: t('wishlist.addedToWishlist'),
-        description: t('wishlist.addedToWishlistDesc', { title: movie.value.title }),
+        description: t('wishlist.addedToWishlistDesc', { title: movieData.title }),
         color: 'success'
       })
     }
@@ -584,18 +598,14 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
         torrentSize: torrent.size
       }
     })
-    const toast = useToast()
     toast.add({
       title: t('download.added'),
       description: t('download.addedDesc', { label: movie.value?.title ?? t('download.film') }),
       color: 'success'
     })
-    navigateTo('/dashboard/downloads')
+    await navigateTo('/dashboard/downloads')
   } catch (err) {
-    const toast = useToast()
-    const status =
-      (err as { data?: { statusCode?: number }; statusCode?: number })?.data?.statusCode ??
-      (err as { statusCode?: number })?.statusCode
+    const status = getApiStatusCode(err)
     if (status === 507) {
       toast.add({
         title: t('download.diskFull'),

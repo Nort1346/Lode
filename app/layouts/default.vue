@@ -18,7 +18,7 @@ const avatarVersion = useState('avatarVersion', () => 0)
 
 const sidebarAvatarSrc = computed(() => {
   const url = me.value?.avatarUrl
-  if (!url) return undefined
+  if (url === null || url === undefined || url === '') return undefined
   return `${url}?v=${avatarVersion.value}`
 })
 
@@ -77,7 +77,7 @@ onMounted(() => {
 
   const redirect = route.query.redirect
   if (typeof redirect === 'string' && redirect.length > 0 && redirect.startsWith('/') && !redirect.startsWith('//')) {
-    navigateTo(redirect, { replace: true })
+    void navigateTo(redirect, { replace: true })
   }
 })
 
@@ -88,7 +88,7 @@ onUnmounted(() => {
 async function handleLogout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   await clear()
-  navigateTo('/login')
+  await navigateTo('/login')
 }
 
 watch(

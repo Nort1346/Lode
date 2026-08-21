@@ -7,8 +7,10 @@ definePageMeta({
   layout: 'default'
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toast = useToast()
+const { confirm } = useConfirmDialog()
+const { copyToClipboard } = useCopyToClipboard()
 const users = ref<AdminUser[]>([])
 const loading = ref(true)
 const showModal = ref(false)
@@ -86,9 +88,14 @@ function resetForm() {
   form.jellyfinMaxActiveSessions = 0
 }
 
-async function fetchPresets() {
+// Bumped on every open: preset/defaults responses from an older "create" session must not
+// overwrite a form that was opened for editing in the meantime
+let formSession = 0
+
+async function fetchPresets(session: number) {
   try {
     const res = await $fetch('/api/admin/jellyfin/presets')
+    if (session !== formSession) return
     const data = res as {
       libraryAccess: string[] | 'all'
       videoTranscoding: boolean
@@ -106,6 +113,7 @@ async function fetchPresets() {
     form.jellyfinEnableLiveTvManagement = data.liveTvManagement
     form.jellyfinMaxActiveSessions = data.maxActiveSessions
   } catch {
+    if (session !== formSession) return
     form.jellyfinLibraryAccess = 'all'
     form.jellyfinEnableVideoTranscoding = true
     form.jellyfinEnableAudioTranscoding = true
@@ -116,9 +124,10 @@ async function fetchPresets() {
   }
 }
 
-async function fetchDefaults() {
+async function fetchDefaults(session: number) {
   try {
     const res = await $fetch('/api/admin/defaults')
+    if (session !== formSession) return
     const data = res as {
       dailyDownloadLimit: number
       activeTorrentLimit: number
@@ -139,17 +148,19 @@ async function fetchDefaults() {
 }
 
 function openCreate() {
+  formSession++
   editingUser.value = null
   resetForm()
   pendingAvatarFile.value = null
   pendingAvatarRemoved.value = false
   error.value = ''
   showModal.value = true
-  fetchPresets()
-  fetchDefaults()
+  void fetchPresets(formSession)
+  void fetchDefaults(formSession)
 }
 
 function openEdit(user: AdminUser) {
+  formSession++
   editingUser.value = user
   form.username = user.username
   form.password = ''
@@ -175,12 +186,28 @@ function openEdit(user: AdminUser) {
   showModal.value = true
 }
 
+let generatedPasswordTimeout: ReturnType<typeof setTimeout> | null = null
+
 function handleGeneratePassword() {
   form.password = generatePassword()
   showGeneratedPassword.value = true
-  setTimeout(() => {
+  // Reset the timer on re-trigger, otherwise a second generate hides the password after the
+  // first 5s window regardless of when the new one was created
+  if (generatedPasswordTimeout !== null) clearTimeout(generatedPasswordTimeout)
+  generatedPasswordTimeout = setTimeout(() => {
     showGeneratedPassword.value = false
+    generatedPasswordTimeout = null
   }, 5000)
+}
+
+onUnmounted(() => {
+  if (generatedPasswordTimeout !== null) clearTimeout(generatedPasswordTimeout)
+})
+
+// A cleared v-model.number input leaves '' behind; normalize to a number before sending
+function num(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
 }
 
 async function saveUser() {
@@ -191,13 +218,13 @@ async function saveUser() {
     if (editingUser.value) {
       const body: Record<string, unknown> = {
         role: form.role,
-        dailyDownloadLimit: form.dailyDownloadLimit,
-        activeTorrentLimit: form.activeTorrentLimit,
-        maxTorrentSizeGb: form.maxTorrentSizeGb,
-        privateTrackerLimit: form.privateTrackerLimit,
+        dailyDownloadLimit: num(form.dailyDownloadLimit),
+        activeTorrentLimit: num(form.activeTorrentLimit),
+        maxTorrentSizeGb: num(form.maxTorrentSizeGb),
+        privateTrackerLimit: num(form.privateTrackerLimit),
         discordId: form.discordId || null,
         canSubmit: form.canSubmit,
-        maxSessions: form.maxSessions,
+        maxSessions: num(form.maxSessions),
         jellyfinLibraryAccess: form.jellyfinLibraryAccess,
         jellyfinEnableVideoTranscoding: form.jellyfinEnableVideoTranscoding,
         jellyfinEnableAudioTranscoding: form.jellyfinEnableAudioTranscoding,
@@ -229,7 +256,14 @@ async function saveUser() {
     } else {
       const res = await $fetch<{ success: boolean; id: string }>('/api/admin/users', {
         method: 'POST',
-        body: { ...form }
+        body: {
+          ...form,
+          dailyDownloadLimit: num(form.dailyDownloadLimit),
+          activeTorrentLimit: num(form.activeTorrentLimit),
+          maxTorrentSizeGb: num(form.maxTorrentSizeGb),
+          privateTrackerLimit: num(form.privateTrackerLimit),
+          maxSessions: num(form.maxSessions)
+        }
       })
       if (pendingAvatarFile.value) {
         const formData = new FormData()
@@ -242,15 +276,20 @@ async function saveUser() {
     showModal.value = false
     await fetchUsers()
   } catch (e: unknown) {
-    const err = e as { data?: { statusMessage?: string } }
-    error.value = err.data?.statusMessage || t('admin.saveFailed')
+    error.value = mapApiError(e).data?.statusMessage ?? t('admin.saveFailed')
   } finally {
     saving.value = false
   }
 }
 
 async function deleteUser(id: string) {
-  if (!confirm(t('admin.confirmDelete'))) return
+  const confirmed = await confirm({
+    title: t('common.confirm'),
+    description: t('admin.confirmDelete'),
+    confirmLabel: t('common.delete'),
+    cancelLabel: t('common.cancel')
+  })
+  if (!confirmed) return
 
   try {
     await $fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
@@ -262,7 +301,13 @@ async function deleteUser(id: string) {
 
 async function toggleActive(user: { id: string; isActive: boolean }) {
   if (user.isActive) {
-    if (!confirm(t('admin.jellyfinDisableWarning'))) return
+    const confirmed = await confirm({
+      title: t('common.confirm'),
+      description: t('admin.jellyfinDisableWarning'),
+      confirmLabel: t('common.confirm'),
+      cancelLabel: t('common.cancel')
+    })
+    if (!confirmed) return
   }
 
   try {
@@ -277,7 +322,13 @@ async function toggleActive(user: { id: string; isActive: boolean }) {
 }
 
 async function forceSync(user: AdminUser) {
-  if (!confirm(t('admin.forceSyncConfirm'))) return
+  const confirmed = await confirm({
+    title: t('common.confirm'),
+    description: t('admin.forceSyncConfirm'),
+    confirmLabel: t('common.confirm'),
+    cancelLabel: t('common.cancel')
+  })
+  if (!confirmed) return
 
   syncingUserId.value = user.id
   try {
@@ -285,7 +336,7 @@ async function forceSync(user: AdminUser) {
       method: 'POST'
     })) as { success: boolean; action: 'synced' | 'created'; tempPassword?: string }
 
-    if (res.action === 'created' && res.tempPassword) {
+    if (res.action === 'created' && res.tempPassword !== undefined && res.tempPassword !== '') {
       tempPasswordValue.value = res.tempPassword
       tempPasswordModal.value = true
       toast.add({ title: t('admin.forceSyncCreated'), color: 'success' })
@@ -295,15 +346,14 @@ async function forceSync(user: AdminUser) {
 
     await fetchUsers()
   } catch (e: unknown) {
-    const err = e as { data?: { statusMessage?: string } }
-    toast.add({ title: t('admin.forceSyncError'), description: err.data?.statusMessage, color: 'error' })
+    toast.add({ title: t('admin.forceSyncError'), description: mapApiError(e).data?.statusMessage, color: 'error' })
   } finally {
     syncingUserId.value = null
   }
 }
 
 function copyTempPassword() {
-  navigator.clipboard.writeText(tempPasswordValue.value)
+  void copyToClipboard(tempPasswordValue.value)
 }
 
 const roleOptions = computed(() => [
@@ -312,7 +362,7 @@ const roleOptions = computed(() => [
 ])
 
 function toLocalDateString(iso: string | null): string {
-  if (!iso) return ''
+  if (iso === null || iso === '') return ''
   return iso.slice(0, 10)
 }
 
@@ -474,11 +524,11 @@ function onExpiresAtInput(event: Event) {
                   class="block text-[10px] mt-0.5 leading-tight"
                   :class="new Date(u.expiresAt) < new Date() ? 'text-red-400' : 'text-amber-400'"
                 >
-                  {{ formatDate(u.expiresAt) }}
+                  {{ formatDate(u.expiresAt, locale) }}
                 </span>
               </td>
               <td class="px-4 py-3 text-sm text-zinc-400 dark:text-zinc-500 hidden xl:table-cell">
-                {{ formatDate(u.createdAt) }}
+                {{ formatDate(u.createdAt, locale) }}
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-1">

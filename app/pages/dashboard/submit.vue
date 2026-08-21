@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mapApiError } from '~/types/api'
+import { getApiStatusCode, mapApiError } from '~/composables/useApiError'
 
 definePageMeta({
   middleware: ['auth', 'submit'],
@@ -127,18 +127,16 @@ async function handleSubmit() {
     }
 
     toast.add({ title: t('submit.success'), color: 'success' })
-    navigateTo('/dashboard/downloads')
+    await navigateTo('/dashboard/downloads')
   } catch (e: unknown) {
     const err = mapApiError(e)
-    const statusCode =
-      (e as { data?: { statusCode?: number }; statusCode?: number })?.data?.statusCode ??
-      (e as { statusCode?: number })?.statusCode
+    const statusCode = getApiStatusCode(e)
     if (statusCode === 507) {
       toast.add({ title: t('download.diskFull'), description: err.data?.statusMessage, color: 'warning' })
     } else if (statusCode === 413) {
       toast.add({ title: t('download.sizeLimit'), description: err.data?.statusMessage, color: 'warning' })
     } else {
-      toast.add({ title: err.data?.statusMessage || t('submit.failed'), color: 'error' })
+      toast.add({ title: err.data?.statusMessage ?? t('submit.failed'), color: 'error' })
     }
   } finally {
     loading.value = false

@@ -66,16 +66,21 @@ function writeStorage(value: string) {
 
 export function useMediaLanguage() {
   const mediaLanguage = useState<string>('mediaLanguage', () => readStorage())
+  const { t } = useI18n()
 
   watch(mediaLanguage, (val) => {
     writeStorage(val)
   })
 
+  function originalLabel(origName: string): string {
+    return origName ? t('common.originalWithName', { name: origName }) : t('common.original')
+  }
+
   function getLanguageOptions(originalLanguage?: string) {
     const origName = originalLanguage ? (LANGUAGE_NAMES[originalLanguage] ?? originalLanguage) : ''
     return MEDIA_LANGUAGE_OPTIONS.map((opt) => {
       if (opt.value === 'original') {
-        return { ...opt, label: origName ? `Original (${origName})` : 'Original' }
+        return { ...opt, label: originalLabel(origName) }
       }
       return opt
     })
@@ -84,7 +89,7 @@ export function useMediaLanguage() {
   function getCurrentLanguageLabel(originalLanguage?: string): string {
     if (mediaLanguage.value === 'original') {
       const origName = originalLanguage ? (LANGUAGE_NAMES[originalLanguage] ?? originalLanguage) : ''
-      return origName ? `Original (${origName})` : 'Original'
+      return originalLabel(origName)
     }
     return LANGUAGE_NAMES[mediaLanguage.value] ?? mediaLanguage.value
   }

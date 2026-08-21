@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { RankingConfig } from '#server/types/ranking'
-import { DEFAULT_RANKING_CONFIG } from '#server/types/ranking'
+import type { RankingConfig, RankingSizeThreshold } from '#shared/ranking'
+import { DEFAULT_RANKING_CONFIG, RANKING_SIZE_UNLIMITED } from '#shared/ranking'
 
 definePageMeta({
   middleware: ['auth', 'admin'],
@@ -9,6 +9,7 @@ definePageMeta({
 
 const { t } = useI18n()
 const toast = useToast()
+const { confirm } = useConfirmDialog()
 
 const config = ref<RankingConfig>(structuredClone(DEFAULT_RANKING_CONFIG))
 const originalConfig = ref<string>('')
@@ -70,10 +71,45 @@ async function fetchConfig() {
   }
 }
 
+// A cleared v-model.number input leaves '' behind; normalize every numeric leaf before sending
+function sanitizeConfig(cfg: RankingConfig): RankingConfig {
+  const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+  const thresholds = (list: RankingSizeThreshold[]): RankingSizeThreshold[] =>
+    list.map((t) => ({ min: num(t.min), max: num(t.max), score: num(t.score) }))
+  const record = (rec: Record<string, number>): Record<string, number> =>
+    Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, num(v)]))
+  return {
+    weights: {
+      resolution: num(cfg.weights.resolution),
+      language: num(cfg.weights.language),
+      seeders: num(cfg.weights.seeders),
+      size: num(cfg.weights.size),
+      source: num(cfg.weights.source),
+      group: num(cfg.weights.group)
+    },
+    resolutions: record(cfg.resolutions),
+    sources: record(cfg.sources),
+    languages: cfg.languages.map((l) => ({ ...l, score: num(l.score) })),
+    knownGroups: cfg.knownGroups,
+    sizeThresholds: {
+      movie: thresholds(cfg.sizeThresholds.movie),
+      series: thresholds(cfg.sizeThresholds.series),
+      seasonPack: thresholds(cfg.sizeThresholds.seasonPack)
+    },
+    titleRelevance: {
+      wordWeight: num(cfg.titleRelevance.wordWeight),
+      yearWeight: num(cfg.titleRelevance.yearWeight),
+      fullTitleWeight: num(cfg.titleRelevance.fullTitleWeight),
+      penalty: num(cfg.titleRelevance.penalty)
+    },
+    recommendedCount: num(cfg.recommendedCount)
+  }
+}
+
 async function saveConfig() {
   saving.value = true
   try {
-    await $fetch('/api/admin/ranking/config', { method: 'PUT', body: config.value })
+    await $fetch('/api/admin/ranking/config', { method: 'PUT', body: sanitizeConfig(config.value) })
     originalConfig.value = JSON.stringify(config.value)
     toast.add({ title: t('ranking.saved'), color: 'success' })
   } catch {
@@ -94,9 +130,11 @@ async function resetConfig() {
   }
 }
 
-function resetSection(key: keyof RankingConfig) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(config.value as any)[key] = structuredClone((DEFAULT_RANKING_CONFIG as any)[key])
+function resetSection<K extends keyof RankingConfig>(key: K) {
+  config.value = {
+    ...config.value,
+    [key]: structuredClone(DEFAULT_RANKING_CONFIG[key])
+  }
 }
 
 function addGroup() {
@@ -191,19 +229,17 @@ function removeThreshold(type: 'movie' | 'series' | 'seasonPack', index: number)
 function toggleUnlimited(type: 'movie' | 'series' | 'seasonPack', index: number) {
   const t = config.value.sizeThresholds[type][index]
   if (t === undefined) return
-  t.max = t.max === Infinity ? 10 : Infinity
+  t.max = t.max === RANKING_SIZE_UNLIMITED ? 10 : RANKING_SIZE_UNLIMITED
 }
 
-onBeforeRouteLeave((_to, _from, next) => {
-  if (hasChanges.value) {
-    if (window.confirm(t('ranking.unsavedWarning'))) {
-      next()
-    } else {
-      next(false)
-    }
-  } else {
-    next()
-  }
+onBeforeRouteLeave(async () => {
+  if (!hasChanges.value) return true
+  return await confirm({
+    title: t('common.confirm'),
+    description: t('ranking.unsavedWarning'),
+    confirmLabel: t('common.confirm'),
+    cancelLabel: t('common.cancel')
+  })
 })
 
 onMounted(fetchConfig)
@@ -530,7 +566,7 @@ onMounted(fetchConfig)
                 :placeholder="t('ranking.sizeThresholds.min')"
               />
               <span class="text-zinc-400">-</span>
-              <template v-if="threshold.max === Infinity">
+              <template v-if="threshold.max === RANKING_SIZE_UNLIMITED">
                 <span class="w-24 text-center text-sm font-medium text-amber-600 dark:text-amber-400">
                   {{ t('ranking.sizeThresholds.unlimited') }}
                 </span>
@@ -555,7 +591,7 @@ onMounted(fetchConfig)
               <UButton
                 color="warning"
                 variant="ghost"
-                :icon="threshold.max === Infinity ? 'i-lucide-lock' : 'i-lucide-lock-open'"
+                :icon="threshold.max === RANKING_SIZE_UNLIMITED ? 'i-lucide-lock' : 'i-lucide-lock-open'"
                 size="xs"
                 :title="t('ranking.sizeThresholds.unlimited')"
                 @click="toggleUnlimited(typeKey as keyof typeof config.sizeThresholds, index)"

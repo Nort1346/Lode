@@ -6,17 +6,24 @@ const logs = ref<string[]>([])
 const logsPaused = ref(false)
 const logsContainer = ref<HTMLElement | null>(null)
 let eventSource: EventSource | null = null
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+let reconnectDelay = 2000
 
 function connectLogs() {
-  if (eventSource !== null) return
+  if (eventSource !== null || reconnectTimer !== null) return
   eventSource = new EventSource('/api/admin/logs-stream')
+  eventSource.onopen = () => {
+    reconnectDelay = 2000
+  }
   eventSource.onmessage = (e) => {
     if (logsPaused.value) return
+    if (typeof e.data !== 'string') return
     try {
       const data = JSON.parse(e.data) as { line: string }
+      if (typeof data.line !== 'string') return
       logs.value.push(data.line)
       if (logs.value.length > 500) logs.value.splice(0, logs.value.length - 500)
-      nextTick(() => {
+      void nextTick(() => {
         if (logsContainer.value && !logsPaused.value) {
           logsContainer.value.scrollTop = logsContainer.value.scrollHeight
         }
@@ -28,12 +35,25 @@ function connectLogs() {
   eventSource.onerror = () => {
     eventSource?.close()
     eventSource = null
+    // The stream can drop at any time (server restart, network blip) - without a reconnect
+    // the panel silently stops receiving logs until it is closed and reopened
+    if (!showLogs.value) return
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null
+      reconnectDelay = Math.min(reconnectDelay * 2, 30_000)
+      connectLogs()
+    }, reconnectDelay)
   }
 }
 
 function disconnectLogs() {
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
   eventSource?.close()
   eventSource = null
+  reconnectDelay = 2000
 }
 
 function toggleLogs() {

@@ -68,7 +68,10 @@ async function fetchPresets() {
     const res = await $fetch('/api/admin/jellyfin/presets')
     const data = res as typeof presets
     if (typeof data.libraryAccess === 'string' && data.libraryAccess !== 'all') {
-      data.libraryAccess = JSON.parse(data.libraryAccess)
+      const parsed: unknown = JSON.parse(data.libraryAccess)
+      if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')) {
+        data.libraryAccess = parsed
+      }
     }
     Object.assign(presets, data)
   } catch {
@@ -78,12 +81,21 @@ async function fetchPresets() {
   }
 }
 
+// A cleared v-model.number input leaves '' behind; normalize to a number before sending
+function num(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
 async function savePresets() {
   saving.value = true
   try {
     await $fetch('/api/admin/jellyfin/presets', {
       method: 'PUT',
-      body: presets
+      body: {
+        ...presets,
+        maxActiveSessions: num(presets.maxActiveSessions)
+      }
     })
     toast.add({ title: t('admin.jellyfinPresetsSaved'), color: 'success' })
   } catch {
@@ -94,8 +106,8 @@ async function savePresets() {
 }
 
 onMounted(() => {
-  fetchPresets()
-  fetchLibraries()
+  void fetchPresets()
+  void fetchLibraries()
 })
 </script>
 

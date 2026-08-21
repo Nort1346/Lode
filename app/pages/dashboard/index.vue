@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ConfirmDialog from '~/components/ConfirmDialog.vue'
 import type { MediaCarouselItem } from '~/types/media'
 import type { Download } from '~/types/downloads'
 import { formatEta, formatSpeed, formatSize, getTorrentQuality, useQualityConfig } from '~/composables/useTorrentUtils'
@@ -10,7 +9,7 @@ definePageMeta({
 
 const { user } = useUserSession()
 const { t, locale } = useI18n()
-const overlay = useOverlay()
+const { confirm } = useConfirmDialog()
 const toast = useToast()
 
 const stats = ref({
@@ -19,27 +18,38 @@ const stats = ref({
   completedToday: 0
 })
 
-const recentDownloads = ref<Download[]>([])
-const activeDownloads = computed(() => recentDownloads.value.filter((d) => d.status === 'downloading'))
+const activeList = ref<Download[]>([])
+const activeDownloads = computed(() => activeList.value)
 const loading = ref(true)
 const cancelling = ref<string | null>(null)
 
+let fetchInFlight = false
+let lastFetchOk = true
+
 async function fetchData() {
+  // Skip polls while one is still in flight so a slow response cannot clobber newer data
+  if (fetchInFlight) return
+  fetchInFlight = true
   try {
-    const downloadsRes = await $fetch<{ downloads: Download[] }>('/api/torrents/list')
-
-    recentDownloads.value = downloadsRes.downloads || []
-    stats.value.activeTorrents = recentDownloads.value.filter((d: Download) => d.status === 'downloading').length
-
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
-    stats.value.completedToday = recentDownloads.value.filter(
-      (d: Download) => d.status === 'completed' && new Date(d.createdAt) >= todayStart
-    ).length
-    stats.value.downloadsToday = stats.value.completedToday
+    const [statsRes, listRes] = await Promise.all([
+      $fetch<{ active: number; createdSince: number; completedSince: number }>('/api/torrents/stats'),
+      $fetch<{ downloads: Download[] }>('/api/torrents/list?status=downloading&limit=50')
+    ])
+    stats.value = {
+      activeTorrents: statsRes.active,
+      downloadsToday: statsRes.createdSince,
+      completedToday: statsRes.completedSince
+    }
+    activeList.value = listRes.downloads ?? []
+    lastFetchOk = true
   } catch {
-    toast.add({ title: t('download.error'), color: 'error' })
+    // Keep previous data on failure; toast only on the first failure so the poll loop does not spam
+    if (lastFetchOk) {
+      toast.add({ title: t('download.error'), color: 'error' })
+    }
+    lastFetchOk = false
   } finally {
+    fetchInFlight = false
     loading.value = false
   }
 }
@@ -48,7 +58,9 @@ onMounted(fetchData)
 
 const intervalId = ref<ReturnType<typeof setInterval>>()
 onMounted(() => {
-  intervalId.value = setInterval(fetchData, 3000)
+  intervalId.value = setInterval(() => {
+    void fetchData()
+  }, 3000)
 })
 onUnmounted(() => {
   if (intervalId.value) clearInterval(intervalId.value)
@@ -79,24 +91,17 @@ const popularTvShows = computed(
     })) as MediaCarouselItem[]
 )
 
-function goToItem(item: { id: number; type: string }) {
-  if (item.type === 'movie') {
-    navigateTo(`/browse/movie/${item.id}`)
-  } else {
-    navigateTo(`/browse/tv/${item.id}`)
-  }
+function goToItem(item: { id: number; type: 'movie' | 'tv' }) {
+  void navigateTo(item.type === 'movie' ? `/browse/movie/${item.id}` : `/browse/tv/${item.id}`)
 }
 
 async function cancelTorrent(dl: Download) {
-  const modal = overlay.create(ConfirmDialog, {
-    props: {
-      title: t('download.confirmTitle'),
-      description: t('download.confirmDelete'),
-      confirmLabel: t('download.delete'),
-      cancelLabel: t('common.cancel')
-    }
+  const confirmed = await confirm({
+    title: t('download.confirmTitle'),
+    description: t('download.confirmDelete'),
+    confirmLabel: t('download.delete'),
+    cancelLabel: t('common.cancel')
   })
-  const confirmed = await modal.open()
   if (!confirmed) return
 
   cancelling.value = dl.id
@@ -126,13 +131,13 @@ const statusColors: Record<string, string> = {
   removed: 'bg-zinc-500/15 text-zinc-500 dark:text-zinc-500'
 }
 
-const savePathLabels: Record<string, string> = {
+const savePathLabels = computed<Record<string, string>>(() => ({
   movies: t('common.savePath_movies'),
   series: t('common.savePath_series'),
   games: t('common.savePath_games'),
   music: t('common.savePath_music'),
   books: t('common.savePath_books')
-}
+}))
 </script>
 
 <template>
@@ -352,7 +357,7 @@ const savePathLabels: Record<string, string> = {
       <MediaCarousel :title="t('browse.popularTv')" :items="popularTvShows" @item-click="goToItem" />
     </div>
 
-    <div v-reveal="4">
+    <div v-reveal>
       <DashboardBrowseCTA />
     </div>
   </div>

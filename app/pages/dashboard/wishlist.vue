@@ -24,9 +24,9 @@ async function removeFromWishlist(item: WishlistItem) {
 
 function goToItem(item: WishlistItem) {
   if (item.mediaType === 'movie') {
-    navigateTo(`/browse/movie/${item.mediaId}`)
+    void navigateTo(`/browse/movie/${item.mediaId}`)
   } else {
-    navigateTo(`/browse/tv/${item.mediaId}`)
+    void navigateTo(`/browse/tv/${item.mediaId}`)
   }
 }
 </script>

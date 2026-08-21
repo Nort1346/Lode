@@ -9,18 +9,22 @@ const { t, locale } = useI18n()
 const { goToItem } = useGoToItem()
 
 const logoUrl = ref<string | null>(null)
+// Invalidates in-flight logo requests so a slow response cannot attach the previous item's logo
+let logoRequestId = 0
 
 watch(
   [() => props.item, locale],
   async ([item]) => {
     logoUrl.value = null
-    if (!item) return
+    const id = ++logoRequestId
     try {
       const data = await $fetch<{ logoUrl: string | null }>('/api/browse/logo', {
         query: { mediaType: item.type, id: item.id, locale: locale.value }
       })
+      if (id !== logoRequestId) return
       logoUrl.value = data.logoUrl
     } catch {
+      if (id !== logoRequestId) return
       logoUrl.value = null
     }
   },

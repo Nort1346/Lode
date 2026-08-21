@@ -26,12 +26,25 @@ async function fetchDefaults() {
   }
 }
 
+// A cleared v-model.number input leaves '' behind; normalize to a number before sending
+function num(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
 async function saveDefaults() {
   saving.value = true
   try {
     await $fetch('/api/admin/defaults', {
       method: 'PUT',
-      body: defaults
+      body: {
+        ...defaults,
+        dailyDownloadLimit: num(defaults.dailyDownloadLimit),
+        activeTorrentLimit: num(defaults.activeTorrentLimit),
+        maxTorrentSizeGb: num(defaults.maxTorrentSizeGb),
+        privateTrackerLimit: num(defaults.privateTrackerLimit),
+        maxSessions: num(defaults.maxSessions)
+      }
     })
     toast.add({ title: t('admin.defaultLimitsSaved'), color: 'success' })
   } catch {
@@ -42,7 +55,7 @@ async function saveDefaults() {
 }
 
 onMounted(() => {
-  fetchDefaults()
+  void fetchDefaults()
 })
 </script>
 

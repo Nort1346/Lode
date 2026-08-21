@@ -8,7 +8,6 @@ definePageMeta({
 
 const { t } = useI18n()
 const { smallerThan } = useBreakpoints()
-const toast = useToast()
 const logs = ref<ActivityLog[]>([])
 const loading = ref(true)
 const page = ref(1)
@@ -65,6 +64,20 @@ const ACTION_COLORS: Record<string, string> = {
   prep_config_update: 'teal'
 }
 
+// Full literal class strings: Tailwind JIT cannot generate dynamically composed class names
+const ACTION_BADGE_CLASSES: Record<string, string> = {
+  green: 'bg-green-500/15 text-green-700 dark:text-green-400',
+  red: 'bg-red-500/15 text-red-700 dark:text-red-400',
+  zinc: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-400',
+  blue: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+  orange: 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
+  amber: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  cyan: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400',
+  indigo: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-400',
+  violet: 'bg-violet-500/15 text-violet-700 dark:text-violet-400',
+  teal: 'bg-teal-500/15 text-teal-700 dark:text-teal-400'
+}
+
 const ACTION_OPTIONS = computed(() => [
   { value: 'all', label: t('logs.allActions') },
   ...Object.entries(ACTION_KEYS).map(([value, key]) => ({
@@ -73,7 +86,13 @@ const ACTION_OPTIONS = computed(() => [
   }))
 ])
 
+let fetchInFlight = false
+
 async function fetchLogs() {
+  // applyFilters() sets page = 1 (watch fetches) and also calls fetchLogs() directly -
+  // the guard ensures exactly one request goes out
+  if (fetchInFlight) return
+  fetchInFlight = true
   loading.value = true
   try {
     const params = new URLSearchParams()
@@ -91,12 +110,13 @@ async function fetchLogs() {
   } catch {
     // silently fail
   } finally {
+    fetchInFlight = false
     loading.value = false
   }
 }
 
 onMounted(async () => {
-  fetchLogs()
+  await fetchLogs()
   try {
     users.value = await $fetch('/api/admin/users')
   } catch {
@@ -113,7 +133,7 @@ const USER_OPTIONS = computed(() => [
 
 function applyFilters() {
   page.value = 1
-  fetchLogs()
+  void fetchLogs()
 }
 
 function formatTime(dateStr: string): string {
@@ -122,7 +142,7 @@ function formatTime(dateStr: string): string {
 }
 
 function formatDetails(raw: string | null): string {
-  if (!raw) return '-'
+  if (raw === null || raw === '') return '-'
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>
     return Object.entries(parsed)
@@ -139,20 +159,16 @@ function actionColor(action: string): string {
 
 function actionLabel(action: string): string {
   const key = ACTION_KEYS[action]
-  return key ? t(`logs.${key}`) : action
+  return key !== undefined && key !== '' ? t(`logs.${key}`) : action
 }
 
 function shortenUA(ua: string | null): string {
-  if (!ua) return '-'
+  if (ua === null || ua === '') return '-'
   if (ua.length > 60) return ua.substring(0, 60) + '…'
   return ua
 }
 
-async function copyToClipboard(text: string) {
-  if (!text) return
-  await navigator.clipboard.writeText(text)
-  toast.add({ title: t('logs.copied'), color: 'success' })
-}
+const { copyToClipboard } = useCopyToClipboard()
 </script>
 
 <template>
@@ -235,7 +251,7 @@ async function copyToClipboard(text: string) {
               <td class="px-4 py-3 min-w-[180px]">
                 <span
                   class="text-xs font-medium px-2 py-1 rounded-full"
-                  :class="`bg-${actionColor(log.action)}-500/15 text-${actionColor(log.action)}-700 dark:text-${actionColor(log.action)}-400`"
+                  :class="ACTION_BADGE_CLASSES[actionColor(log.action)]"
                 >
                   {{ actionLabel(log.action) }}
                 </span>

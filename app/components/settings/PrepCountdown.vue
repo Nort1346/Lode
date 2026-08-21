@@ -54,10 +54,17 @@ function onSpeedInput(val: number | undefined) {
   if (val === undefined) return
   speedMb.value = Math.max(1, Math.min(100, Math.round(val)))
   if (speedTimer !== null) clearTimeout(speedTimer)
-  speedTimer = setTimeout(() => saveSpeed(speedMb.value), 500)
+  speedTimer = setTimeout(() => {
+    void saveSpeed(speedMb.value)
+  }, 500)
 }
 
 onMounted(fetchConfig)
+
+onUnmounted(() => {
+  // A pending debounced save must not fire after the component is gone
+  if (speedTimer !== null) clearTimeout(speedTimer)
+})
 </script>
 
 <template>

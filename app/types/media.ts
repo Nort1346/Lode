@@ -1,3 +1,5 @@
+export type MediaItemType = 'movie' | 'tv'
+
 export interface MediaCarouselItem {
   id: number
   type: 'movie' | 'tv'

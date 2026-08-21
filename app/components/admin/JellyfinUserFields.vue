@@ -97,10 +97,19 @@ function triggerFileInput() {
   fileInputRef.value?.click()
 }
 
+// Blob URLs are never GC'd until explicitly revoked
+function revokeAvatarPreview() {
+  if (avatarPreview.value !== null) {
+    URL.revokeObjectURL(avatarPreview.value)
+    avatarPreview.value = null
+  }
+}
+
 function onAvatarChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (file) {
+    revokeAvatarPreview()
     avatarPreview.value = URL.createObjectURL(file)
     avatarRemoved.value = false
     emit('update:avatar', file)
@@ -108,8 +117,10 @@ function onAvatarChange(event: Event) {
   }
 }
 
+onUnmounted(revokeAvatarPreview)
+
 function removeAvatar() {
-  avatarPreview.value = null
+  revokeAvatarPreview()
   avatarRemoved.value = true
   emit('update:avatar', null)
   emit('update:avatarRemoved', true)

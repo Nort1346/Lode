@@ -7,7 +7,8 @@ definePageMeta({
   layout: 'default'
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const toast = useToast()
 const { smallerThan } = useBreakpoints()
 const items = ref<Request[]>([])
 const loading = ref(true)
@@ -30,7 +31,13 @@ const actionNote = ref('')
 const actionId = ref<string | null>(null)
 const processingId = ref<string | null>(null)
 
+let fetchInFlight = false
+
 async function fetchRequests() {
+  // applyFilters() sets page = 1 (watch fetches) and also calls fetchRequests() directly -
+  // the guard ensures exactly one request goes out
+  if (fetchInFlight) return
+  fetchInFlight = true
   loading.value = true
   try {
     const params = new URLSearchParams()
@@ -47,6 +54,7 @@ async function fetchRequests() {
   } catch {
     // silently fail
   } finally {
+    fetchInFlight = false
     loading.value = false
   }
 }
@@ -57,7 +65,15 @@ watch(page, () => fetchRequests())
 
 function applyFilters() {
   page.value = 1
-  fetchRequests()
+  void fetchRequests()
+}
+
+// Full literal class strings: Tailwind JIT cannot generate dynamically composed class names
+const STATUS_BADGE_CLASSES: Record<string, string> = {
+  amber: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  green: 'bg-green-500/15 text-green-700 dark:text-green-400',
+  red: 'bg-red-500/15 text-red-700 dark:text-red-400',
+  zinc: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-400'
 }
 
 function statusColor(status: string): string {
@@ -76,7 +92,7 @@ function statusLabel(status: string): string {
     rejected: 'requests.rejected'
   }
   const key = map[status]
-  return key ? t(key) : status
+  return key !== undefined && key !== '' ? t(key) : status
 }
 
 function typeLabel(mediaType: string): string {
@@ -98,7 +114,7 @@ function openRejectModal(id: string) {
 }
 
 async function confirmAction() {
-  if (!actionId.value) return
+  if (actionId.value === null) return
   processingId.value = actionId.value
   try {
     await $fetch(`/api/requests/${actionId.value}`, {
@@ -111,7 +127,8 @@ async function confirmAction() {
     actionModalOpen.value = false
     await fetchRequests()
   } catch {
-    // silently fail
+    // Keep the modal open on failure so the admin's note is not lost
+    toast.add({ title: t('common.error'), color: 'error' })
   } finally {
     processingId.value = null
     actionId.value = null
@@ -201,13 +218,13 @@ async function confirmAction() {
               <td class="px-4 py-3">
                 <span
                   class="text-xs font-medium px-2 py-1 rounded-full"
-                  :class="`bg-${statusColor(req.status)}-500/15 text-${statusColor(req.status)}-700 dark:text-${statusColor(req.status)}-400`"
+                  :class="STATUS_BADGE_CLASSES[statusColor(req.status)]"
                 >
                   {{ statusLabel(req.status) }}
                 </span>
               </td>
               <td class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
-                {{ formatDate(req.createdAt) }}
+                {{ formatDate(req.createdAt, locale) }}
               </td>
               <td class="px-4 py-3 text-right">
                 <div v-if="req.status === 'pending'" class="flex items-center justify-end gap-2">

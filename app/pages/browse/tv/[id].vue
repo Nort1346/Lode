@@ -288,6 +288,15 @@ import type { RequestStatus } from '~/types/requests'
 
 const route = useRoute()
 const selectedSeason = ref(1)
+
+// The component is reused when navigating show -> show: a show with fewer seasons must
+// not keep requesting the previous show's selected season
+watch(
+  () => route.params.id,
+  () => {
+    selectedSeason.value = 1
+  }
+)
 const downloadingKey = ref<string | null>(null)
 const downloadingPackIdx = ref<number | null>(null)
 const { active: downloadActive, startDownload, finishDownload } = useDownloadOverlay()
@@ -295,11 +304,12 @@ const requesting = ref(false)
 const requestStatus = ref<RequestStatus>(null)
 const rejectedAdminNote = ref<string | null>(null)
 const wishlisted = ref(false)
-const wishlistId = ref<string | null>(null)
+
 const debugOpenKey = ref<string | null>(null)
 const requestModalOpen = ref(false)
 const requestNote = ref('')
 const { t } = useI18n()
+const toast = useToast()
 const { user } = useUserSession()
 
 const isDev = computed(() => import.meta.dev && user.value?.role === 'admin')
@@ -320,12 +330,15 @@ const languageDropdownItems = computed(() =>
   }))
 )
 
+// route.params.id is typed string | string[] | undefined, but on this dynamic route it is always a plain string
+const mediaId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
+
 const {
   data: showData,
   pending,
   error
 } = await useFetch<{ show: ShowData }>(
-  computed(() => `/api/browse/tv/${route.params.id}?locale=${mediaLanguage.value}`),
+  computed(() => `/api/browse/tv/${mediaId.value}?locale=${mediaLanguage.value}`),
   { watch: [mediaLanguage] }
 )
 
@@ -345,15 +358,14 @@ const {
   pending: seasonPending,
   error: seasonError
 } = useLazyFetch<SeasonData>(
-  computed(() => `/api/browse/tv/${route.params.id}/season/${selectedSeason.value}?locale=${mediaLanguage.value}`),
+  computed(() => `/api/browse/tv/${mediaId.value}/season/${selectedSeason.value}?locale=${mediaLanguage.value}`),
   { watch: [selectedSeason, mediaLanguage] }
 )
 
 const seasonLimitInfo = computed(() => {
   if (seasonError.value === null || seasonError.value === undefined) return null
+  if (getApiStatusCode(seasonError.value) !== 429) return null
   const err = seasonError.value as unknown as Record<string, unknown>
-  const status = err.status ?? err.statusCode
-  if (status !== 429) return null
   const body = err.data as Record<string, unknown> | undefined
   if (body !== null && body !== undefined && 'activeCount' in body) return body
   const nested = body?.data as Record<string, unknown> | undefined
@@ -404,14 +416,10 @@ async function downloadTorrent(
         torrentSize: torrentSize ?? 0
       }
     })
-    const toast = useToast()
     toast.add({ title: t('download.added'), description: t('download.addedDesc', { label }), color: 'success' })
-    navigateTo('/dashboard/downloads')
+    await navigateTo('/dashboard/downloads')
   } catch (err) {
-    const toast = useToast()
-    const status =
-      (err as { data?: { statusCode?: number }; statusCode?: number })?.data?.statusCode ??
-      (err as { statusCode?: number })?.statusCode
+    const status = getApiStatusCode(err)
     if (status === 507) {
       toast.add({
         title: t('download.diskFull'),
@@ -435,17 +443,27 @@ async function downloadTorrent(
   }
 }
 
-watchEffect(async () => {
-  if (!show.value) return
+// When navigating show -> show the component is reused: a slow response for the previous
+// show must not overwrite the new show's request status
+let requestStatusSeq = 0
+
+async function loadRequestStatus(showId: number, seq: number) {
   try {
     const res = await $fetch<{ status: string | null; adminNote: string | null }>(
-      `/api/requests/mine?mediaType=tv&mediaId=${show.value.id}`
+      `/api/requests/mine?mediaType=tv&mediaId=${showId}`
     )
+    if (seq !== requestStatusSeq) return
     requestStatus.value = res.status as 'pending' | 'accepted' | 'rejected' | null
     rejectedAdminNote.value = res.adminNote
   } catch {
     // not logged in or error
   }
+}
+
+watchEffect(() => {
+  const showData = show.value
+  if (!showData) return
+  void loadRequestStatus(showData.id, ++requestStatusSeq)
 })
 
 function openRequestModal() {
@@ -469,14 +487,12 @@ async function submitRequest() {
     })
     requestStatus.value = 'pending'
     requestModalOpen.value = false
-    const toast = useToast()
     toast.add({
       title: t('requests.requestSuccess'),
       description: t('requests.requestSuccessDesc'),
       color: 'success'
     })
   } catch (err) {
-    const toast = useToast()
     const msg = err instanceof Error ? err.message : t('requests.alreadyRequested')
     toast.add({ title: t('requests.alreadyRequested'), description: msg, color: 'warning' })
   } finally {
@@ -484,43 +500,46 @@ async function submitRequest() {
   }
 }
 
-watchEffect(async () => {
-  if (!show.value) return
+let wishlistSeq = 0
+
+async function loadWishlistState(showId: number, seq: number) {
   try {
-    const res = await $fetch<{ wishlisted: boolean; id: string | null }>(
-      `/api/wishlist/check?mediaType=tv&mediaId=${show.value.id}`
-    )
+    const res = await $fetch<{ wishlisted: boolean }>(`/api/wishlist/check?mediaType=tv&mediaId=${showId}`)
+    if (seq !== wishlistSeq) return
     wishlisted.value = res.wishlisted
-    wishlistId.value = res.id
   } catch {
     // not logged in or error
   }
+}
+
+watchEffect(() => {
+  const showData = show.value
+  if (!showData) return
+  void loadWishlistState(showData.id, ++wishlistSeq)
 })
 
 async function toggleWishlist() {
-  if (!show.value) return
-  const toast = useToast()
+  const showData = show.value
+  if (!showData) return
   try {
     if (wishlisted.value) {
-      await $fetch('/api/wishlist', { method: 'DELETE', body: { mediaType: 'tv', mediaId: show.value.id } })
+      await $fetch('/api/wishlist', { method: 'DELETE', body: { mediaType: 'tv', mediaId: showData.id } })
       wishlisted.value = false
-      wishlistId.value = null
       toast.add({ title: t('wishlist.removedFromWishlist'), color: 'success' })
     } else {
-      const res = await $fetch<{ id: string }>('/api/wishlist', {
+      await $fetch('/api/wishlist', {
         method: 'POST',
         body: {
           mediaType: 'tv',
-          mediaId: show.value.id,
-          mediaTitle: show.value.name,
-          mediaPoster: show.value.posterUrl
+          mediaId: showData.id,
+          mediaTitle: showData.name,
+          mediaPoster: showData.posterUrl
         }
       })
       wishlisted.value = true
-      wishlistId.value = res.id
       toast.add({
         title: t('wishlist.addedToWishlist'),
-        description: t('wishlist.addedToWishlistDesc', { title: show.value.name }),
+        description: t('wishlist.addedToWishlistDesc', { title: showData.name }),
         color: 'success'
       })
     }

@@ -43,21 +43,23 @@ const styleSections = computed(() =>
 
 const currentAvatarSrc = computed(() => {
   const url = profile.value?.avatarUrl
-  if (!url) return undefined
+  if (url === null || url === undefined || url === '') return undefined
   return `${url}?v=${avatarVersion.value}`
 })
 
 async function selectAvatar(styleName: string, seed: string, bgColor: string) {
   if (saving.value) return
+  const current = profile.value
+  if (!current) return
   saving.value = true
   try {
     const res = await $fetch<{ avatarUrl: string }>('/api/user/avatar', {
       method: 'PUT',
       body: { style: styleName, seed, bgColor }
     })
-    profile.value = { ...profile.value!, avatarUrl: res.avatarUrl }
+    profile.value = { ...current, avatarUrl: res.avatarUrl }
     avatarVersion.value++
-    refreshNuxtData()
+    void refreshNuxtData()
     toast.add({ title: t('profile.saved'), color: 'success' })
   } catch (err) {
     const msg = err instanceof Error ? err.message : t('profile.error')
@@ -74,7 +76,8 @@ function triggerFileInput() {
 async function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file) return
+  const current = profile.value
+  if (!file || !current) return
 
   uploading.value = true
   try {
@@ -84,9 +87,9 @@ async function onFileChange(event: Event) {
       method: 'POST',
       body: formData
     })
-    profile.value = { ...profile.value!, avatarUrl: res.avatarUrl }
+    profile.value = { ...current, avatarUrl: res.avatarUrl }
     avatarVersion.value++
-    refreshNuxtData()
+    void refreshNuxtData()
     toast.add({ title: t('profile.uploaded'), color: 'success' })
   } catch (err) {
     const msg = err instanceof Error ? err.message : t('profile.error')
@@ -98,12 +101,15 @@ async function onFileChange(event: Event) {
 }
 
 async function removeAvatar() {
+  if (saving.value) return
+  const current = profile.value
+  if (!current) return
   saving.value = true
   try {
     await $fetch('/api/user/avatar', { method: 'DELETE' })
-    profile.value = { ...profile.value!, avatarUrl: null }
+    profile.value = { ...current, avatarUrl: null }
     avatarVersion.value++
-    refreshNuxtData()
+    void refreshNuxtData()
     toast.add({ title: t('profile.removed'), color: 'success' })
   } catch (err) {
     const msg = err instanceof Error ? err.message : t('profile.error')
@@ -139,8 +145,8 @@ async function changePassword() {
     toast.add({ title: t('profile.passwordChanged'), color: 'success' })
   } catch (err) {
     const msg = err instanceof Error ? err.message : t('profile.error')
-    const data = (err as { data?: { statusMessage?: string } }).data
-    toast.add({ title: t('profile.error'), description: data?.statusMessage || msg, color: 'error' })
+    const data = mapApiError(err).data
+    toast.add({ title: t('profile.error'), description: data?.statusMessage ?? msg, color: 'error' })
   } finally {
     changingPassword.value = false
   }

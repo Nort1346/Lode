@@ -13,6 +13,7 @@ const heroNext = ref<MediaCarouselItem | null>(null)
 const heroOverview = ref<string>('')
 const transitioning = ref(false)
 const heroIntervalId = ref<ReturnType<typeof setInterval>>()
+const heroRotationTimeout = ref<ReturnType<typeof setTimeout>>()
 const currentZoomKey = ref(0)
 const nextZoomKey = ref(0)
 const textVisible = ref(true)
@@ -35,7 +36,7 @@ function startHeroRotation() {
     transitioning.value = true
     textVisible.value = false
     nextZoomKey.value++
-    setTimeout(() => {
+    heroRotationTimeout.value = setTimeout(() => {
       heroCurrent.value = heroNext.value
       heroNext.value = null
       currentZoomKey.value++
@@ -49,7 +50,7 @@ async function initHero() {
   if (heroCurrent.value !== null) return
 
   // DEV: fetch a specific TMDB item for screenshots
-  if (import.meta.dev && DEV_HERO_ID) {
+  if (import.meta.dev && DEV_HERO_ID !== null) {
     try {
       const endpoint = DEV_HERO_TYPE === 'movie' ? `/api/browse/movie/${DEV_HERO_ID}` : `/api/browse/tv/${DEV_HERO_ID}`
       const data = await $fetch<{ movie?: Record<string, unknown>; show?: Record<string, unknown> }>(endpoint, {
@@ -88,26 +89,33 @@ onMounted(initHero)
 watch(
   () => props.trendingItems,
   (items) => {
-    if (!heroCurrent.value || items.length === 0) return
-    const matched = items.find((i) => i.id === heroCurrent.value!.id && i.type === heroCurrent.value!.type)
+    const current = heroCurrent.value
+    if (!current || items.length === 0) return
+    const matched = items.find((i) => i.id === current.id && i.type === current.type)
     if (matched) {
       heroCurrent.value = matched
     }
   }
 )
 
+// Only the latest rotation/locale may write the overview - the hero swaps items every 8s
+let overviewRequestId = 0
+
 watch(
   [heroCurrent, locale],
   async ([item]) => {
     if (!item) return
-    if (import.meta.dev && DEV_HERO_ID) return
+    if (import.meta.dev && DEV_HERO_ID !== null) return
+    const id = ++overviewRequestId
     try {
       const endpoint = item.type === 'movie' ? `/api/browse/movie/${item.id}` : `/api/browse/tv/${item.id}`
       const data = await $fetch<{ movie?: { overview: string }; show?: { overview: string } }>(endpoint, {
         query: { locale }
       })
+      if (id !== overviewRequestId) return
       heroOverview.value = (data.movie ?? data.show)?.overview ?? item.overview
     } catch {
+      if (id !== overviewRequestId) return
       heroOverview.value = item.overview
     }
   },
@@ -116,12 +124,13 @@ watch(
 
 useHead(() => {
   const img = heroCurrent.value?.backdropUrl ?? heroCurrent.value?.posterUrl
-  if (!img) return {}
+  if (img === null || img === undefined || img === '') return {}
   return { link: [{ rel: 'preload', as: 'image', href: img }] }
 })
 
 onUnmounted(() => {
   if (heroIntervalId.value) clearInterval(heroIntervalId.value)
+  if (heroRotationTimeout.value) clearTimeout(heroRotationTimeout.value)
 })
 </script>
 
