@@ -25,32 +25,44 @@ export const users = pgTable('users', {
     .default('synced')
 })
 
-export const downloads = pgTable('downloads', {
-  id: text('id').primaryKey(),
-  userId: text('user_id').notNull(),
-  label: text('label').notNull().default(''),
-  torrentName: text('torrent_name').notNull().default(''),
-  magnetLink: text('magnet_link').notNull(),
-  savePath: text('save_path', { enum: ['movies', 'series', 'games', 'books', 'music'] }).notNull(),
-  status: text('status', { enum: ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed', 'disk_full'] })
-    .notNull()
-    .default('pending'),
-  torrentHash: text('torrent_hash'),
-  progress: real('progress').notNull().default(0),
-  etaSeconds: integer('eta_seconds').notNull().default(0),
-  downloadSpeed: integer('download_speed').notNull().default(0),
-  uploadSpeed: integer('upload_speed').notNull().default(0),
-  sizeBytes: integer('size_bytes').notNull().default(0),
-  downloadedBytes: integer('downloaded_bytes').notNull().default(0),
-  numSeeds: integer('num_seeds').notNull().default(0),
-  numLeechs: integer('num_leechs').notNull().default(0),
-  createdAt: text('created_at').notNull().default(''),
-  completedAt: text('completed_at'),
-  tmdbId: integer('tmdb_id'),
-  mediaType: text('media_type', { enum: ['movie', 'tv'] }),
-  posterUrl: text('poster_url'),
-  isPrivate: boolean('is_private').notNull().default(false)
-})
+export const downloads = pgTable(
+  'downloads',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    label: text('label').notNull().default(''),
+    torrentName: text('torrent_name').notNull().default(''),
+    magnetLink: text('magnet_link').notNull(),
+    savePath: text('save_path', { enum: ['movies', 'series', 'games', 'books', 'music'] }).notNull(),
+    status: text('status', {
+      enum: ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed', 'disk_full']
+    })
+      .notNull()
+      .default('pending'),
+    torrentHash: text('torrent_hash'),
+    progress: real('progress').notNull().default(0),
+    etaSeconds: integer('eta_seconds').notNull().default(0),
+    downloadSpeed: integer('download_speed').notNull().default(0),
+    uploadSpeed: integer('upload_speed').notNull().default(0),
+    sizeBytes: integer('size_bytes').notNull().default(0),
+    downloadedBytes: integer('downloaded_bytes').notNull().default(0),
+    numSeeds: integer('num_seeds').notNull().default(0),
+    numLeechs: integer('num_leechs').notNull().default(0),
+    createdAt: text('created_at').notNull().default(''),
+    completedAt: text('completed_at'),
+    tmdbId: integer('tmdb_id'),
+    mediaType: text('media_type', { enum: ['movie', 'tv'] }),
+    posterUrl: text('poster_url'),
+    isPrivate: boolean('is_private').notNull().default(false)
+  },
+  // Serves the hot query paths: per-user limit/active checks (user_id + status),
+  // torrent-sync global status scans (status), per-user history and range counts (user_id + created_at)
+  (t) => [
+    index('idx_downloads_user_status').on(t.userId, t.status),
+    index('idx_downloads_status').on(t.status),
+    index('idx_downloads_user_created').on(t.userId, t.createdAt)
+  ]
+)
 
 export const settings = pgTable('settings', {
   key: text('key').primaryKey(),

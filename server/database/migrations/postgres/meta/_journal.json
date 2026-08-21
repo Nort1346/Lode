@@ -8,6 +8,13 @@
       "when": 1784895133789,
       "tag": "0000_cold_ego",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787313092167,
+      "tag": "0001_remarkable_red_ghost",
+      "breakpoints": true
     }
   ]
 }

@@ -29,6 +29,13 @@
       "when": 1783000000000,
       "tag": "0003_add_user_expires_at",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1787313083139,
+      "tag": "0004_lucky_mimic",
+      "breakpoints": true
     }
   ]
 }
