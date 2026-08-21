@@ -70,7 +70,10 @@
     "limitResetInfo": "The limit resets daily at midnight.",
     "inLibrary": "In Library",
     "copied": "Copied to clipboard",
-    "copyFailed": "Failed to copy"
+    "copyFailed": "Failed to copy",
+    "plDubbing": "PL Dubbing",
+    "plSubtitles": "PL Subtitles",
+    "plLektor": "PL Audio"
   },
   "mediaCard": {
     "movie": "Movie",
@@ -460,6 +463,8 @@
     "confirmDelete": "Are you sure you want to delete tracker \"{name}\"?"
   },
   "common": {
+    "confirm": "Confirm",
+    "error": "Something went wrong",
     "loading": "Loading...",
     "min": "min",
     "limit": "Limit",
@@ -486,7 +491,9 @@
     "create": "Create",
     "edit": "Edit",
     "scrollLeft": "Scroll left",
-    "scrollRight": "Scroll right"
+    "scrollRight": "Scroll right",
+    "original": "Original",
+    "originalWithName": "Original ({name})"
   },
   "bruteForce": {
     "title": "Login Protection",

@@ -70,7 +70,10 @@
     "limitResetInfo": "El límite se renueva todos los días a medianoche.",
     "inLibrary": "En la biblioteca",
     "copied": "Copiado al portapapeles",
-    "copyFailed": "Error al copiar"
+    "copyFailed": "Error al copiar",
+    "plDubbing": "PL Dubbing",
+    "plSubtitles": "PL Subtítulos",
+    "plLektor": "PL Audio"
   },
   "mediaCard": {
     "movie": "Película",
@@ -460,6 +463,8 @@
     "confirmDelete": "¿Estás seguro de que quieres eliminar el tracker \"{name}\"?"
   },
   "common": {
+    "confirm": "Confirmar",
+    "error": "Algo salió mal",
     "loading": "Cargando...",
     "min": "min",
     "limit": "Límite",
@@ -486,7 +491,9 @@
     "create": "Crear",
     "edit": "Editar",
     "scrollLeft": "Desplazar a la izquierda",
-    "scrollRight": "Desplazar a la derecha"
+    "scrollRight": "Desplazar a la derecha",
+    "original": "Original",
+    "originalWithName": "Original ({name})"
   },
   "bruteForce": {
     "title": "Seguridad de login",

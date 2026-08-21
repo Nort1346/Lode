@@ -70,7 +70,10 @@
     "limitResetInfo": "Limit odnawia się codziennie o północy.",
     "inLibrary": "W bibliotece",
     "copied": "Skopiowano do schowka",
-    "copyFailed": "Nie udało się skopiować"
+    "copyFailed": "Nie udało się skopiować",
+    "plDubbing": "PL Dubbing",
+    "plSubtitles": "PL Napisy",
+    "plLektor": "PL Lektor"
   },
   "mediaCard": {
     "movie": "Film",
@@ -460,6 +463,8 @@
     "confirmDelete": "Czy na pewno chcesz usunąć tracker \"{name}\"?"
   },
   "common": {
+    "confirm": "Potwierdź",
+    "error": "Coś poszło nie tak",
     "loading": "Ładowanie...",
     "min": "min",
     "limit": "Limit",
@@ -486,7 +491,9 @@
     "create": "Utwórz",
     "edit": "Edytuj",
     "scrollLeft": "Przewiń w lewo",
-    "scrollRight": "Przewiń w prawo"
+    "scrollRight": "Przewiń w prawo",
+    "original": "Oryginał",
+    "originalWithName": "Oryginał ({name})"
   },
   "bruteForce": {
     "title": "Ochrona logowania",
