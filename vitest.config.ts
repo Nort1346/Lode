@@ -5,7 +5,8 @@ const serverAlias = {
   '#server': resolve(__dirname, 'server'),
   '#db': resolve(__dirname, 'server/database'),
   '#utils': resolve(__dirname, 'server/utils'),
-  '#server/types': resolve(__dirname, 'server/types')
+  '#server/types': resolve(__dirname, 'server/types'),
+  '#shared': resolve(__dirname, 'shared')
 }
 
 export default defineConfig({

@@ -11,6 +11,7 @@ vi.mock('#server/utils/settings', () => ({
 }))
 
 import { getRankingConfig, saveRankingConfig, resetRankingConfig } from '#server/utils/torrents/ranking-config'
+import { RANKING_SIZE_UNLIMITED } from '#shared/ranking'
 
 describe('ranking-config', () => {
   beforeEach(() => {
@@ -32,7 +33,7 @@ describe('ranking-config', () => {
       expect(config.weights.resolution).toBe(40)
     })
 
-    it('hydrates Infinity sentinels (-1 → Infinity)', async () => {
+    it('hydrates legacy sentinels (-1 → JSON-safe cap)', async () => {
       mockGetSetting.mockReturnValue(
         JSON.stringify({
           sizeThresholds: {
@@ -43,9 +44,9 @@ describe('ranking-config', () => {
         })
       )
       const config = await getRankingConfig()
-      expect(config.sizeThresholds!.movie[0]!.max).toBe(Infinity)
-      expect(config.sizeThresholds!.series[0]!.max).toBe(Infinity)
-      expect(config.sizeThresholds!.seasonPack[0]!.max).toBe(Infinity)
+      expect(config.sizeThresholds!.movie[0]!.max).toBe(RANKING_SIZE_UNLIMITED)
+      expect(config.sizeThresholds!.series[0]!.max).toBe(RANKING_SIZE_UNLIMITED)
+      expect(config.sizeThresholds!.seasonPack[0]!.max).toBe(RANKING_SIZE_UNLIMITED)
     })
 
     it('returns defaults when JSON is invalid', async () => {
@@ -56,7 +57,7 @@ describe('ranking-config', () => {
   })
 
   describe('saveRankingConfig', () => {
-    it('dehydrates Infinity sentinels and stores JSON', async () => {
+    it('stores the JSON-safe size cap as-is', async () => {
       const config = {
         weights: { resolution: 40, language: 30, seeders: 100, size: 20, source: 10, group: 5 },
         resolutions: { '1080p': 40 },
@@ -64,9 +65,9 @@ describe('ranking-config', () => {
         languages: [],
         knownGroups: [],
         sizeThresholds: {
-          movie: [{ min: 0, max: Infinity, score: 10 }],
-          series: [{ min: 0, max: Infinity, score: 10 }],
-          seasonPack: [{ min: 0, max: Infinity, score: 10 }]
+          movie: [{ min: 0, max: RANKING_SIZE_UNLIMITED, score: 10 }],
+          series: [{ min: 0, max: RANKING_SIZE_UNLIMITED, score: 10 }],
+          seasonPack: [{ min: 0, max: RANKING_SIZE_UNLIMITED, score: 10 }]
         },
         titleRelevance: { wordWeight: 15, yearWeight: 10, fullTitleWeight: 10, penalty: -20 },
         recommendedCount: 3
@@ -74,7 +75,7 @@ describe('ranking-config', () => {
       await saveRankingConfig(config)
       expect(mockPutSetting).toHaveBeenCalled()
       const stored = JSON.parse(mockPutSetting.mock.calls[0]![1] as string)
-      expect(stored.sizeThresholds.movie[0].max).toBe(-1)
+      expect(stored.sizeThresholds.movie[0].max).toBe(RANKING_SIZE_UNLIMITED)
     })
   })
 

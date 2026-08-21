@@ -1,21 +1,15 @@
 import type { RankingConfig, RankingSizeThreshold } from '#server/types/ranking'
-import { DEFAULT_RANKING_CONFIG } from '#server/types/ranking'
+import { DEFAULT_RANKING_CONFIG, RANKING_SIZE_UNLIMITED } from '#shared/ranking'
 import { SETTINGS } from '#server/types/settings'
 import { getSetting, putSetting, deleteSetting } from '#server/utils/settings'
 
-const INFINITY_SENTINEL = -1
+// Legacy rows may still store -1 as the "unlimited" sentinel from before the JSON-safe cap
+const LEGACY_INFINITY_SENTINEL = -1
 
 function hydrateThresholds(thresholds: RankingSizeThreshold[]): RankingSizeThreshold[] {
   return thresholds.map((t) => ({
     ...t,
-    max: t.max === INFINITY_SENTINEL ? Infinity : t.max
-  }))
-}
-
-function dehydrateThresholds(thresholds: RankingSizeThreshold[]): RankingSizeThreshold[] {
-  return thresholds.map((t) => ({
-    ...t,
-    max: t.max === Infinity ? INFINITY_SENTINEL : t.max
+    max: t.max === LEGACY_INFINITY_SENTINEL ? RANKING_SIZE_UNLIMITED : t.max
   }))
 }
 
@@ -46,16 +40,8 @@ export async function getRankingConfig(): Promise<RankingConfig> {
 }
 
 export async function saveRankingConfig(config: RankingConfig): Promise<void> {
-  const toStore: RankingConfig = {
-    ...config,
-    sizeThresholds: {
-      movie: dehydrateThresholds(config.sizeThresholds.movie),
-      series: dehydrateThresholds(config.sizeThresholds.series),
-      seasonPack: dehydrateThresholds(config.sizeThresholds.seasonPack)
-    }
-  }
-
-  await putSetting(SETTINGS.RANKING_CONFIG, JSON.stringify(toStore))
+  // The size cap is a plain number, so the config serializes to JSON as-is
+  await putSetting(SETTINGS.RANKING_CONFIG, JSON.stringify(config))
 }
 
 export async function resetRankingConfig(): Promise<void> {
