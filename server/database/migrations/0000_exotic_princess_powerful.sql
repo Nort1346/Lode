@@ -145,9 +145,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 	`created_at` text DEFAULT '' NOT NULL,
 	`discord_id` text,
 	`can_submit` integer DEFAULT false NOT NULL,
-	`max_sessions` integer DEFAULT 0 NOT NULL,
-	`avatar_url` text,
-	`sync_status` text DEFAULT 'synced' NOT NULL
+	`max_sessions` integer DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS `users_username_unique` ON `users` (`username`);--> statement-breakpoint
@@ -163,5 +161,7 @@ CREATE TABLE IF NOT EXISTS `wishlist` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS `idx_wishlist_user_media` ON `wishlist` (`user_id`,`media_type`,`media_id`);
 --> statement-breakpoint
+-- avatar_url/sync_status are added via ALTER (not inline above) so the CREATE TABLE
+-- matches the originally generated schema and fresh installs apply without duplicate-column errors
 ALTER TABLE `users` ADD `avatar_url` text;--> statement-breakpoint
 ALTER TABLE `users` ADD `sync_status` text DEFAULT 'synced' NOT NULL;
