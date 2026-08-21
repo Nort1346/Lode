@@ -48,6 +48,12 @@ export interface Download {
   isPrivate: boolean
 }
 
+export interface DownloadStats {
+  active: number
+  createdSince: number
+  completedSince: number
+}
+
 export type CreateDownloadInput = Omit<
   Download,
   | 'status'

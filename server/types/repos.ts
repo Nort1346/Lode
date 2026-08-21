@@ -14,7 +14,8 @@ import type {
   WishlistItem,
   PushSubscription,
   SyncProvider,
-  SyncUserSettings
+  SyncUserSettings,
+  DownloadStats
 } from '#server/types/entities'
 
 export interface UserRepo {
@@ -41,6 +42,7 @@ export interface DownloadRepo {
   ): Promise<Download[]>
   countFiltered(filters: { userId?: string; status?: Download['status'] }): Promise<number>
   countByUserSince(userId: string, sinceIso: string, excludeStatuses: Download['status'][]): Promise<number>
+  stats(filters: { userId?: string }, sinceIso: string): Promise<DownloadStats>
   create(data: CreateDownloadInput): Promise<void>
   update(id: string, data: UpdateDownloadInput): Promise<void>
 }

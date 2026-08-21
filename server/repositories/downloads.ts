@@ -1,5 +1,6 @@
 import { downloads } from '#server/database/schema'
 import { eq, and, desc, count, gte, notInArray } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import { dbGet, dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
 import type { DownloadRepo } from '#server/types/repos'
@@ -69,6 +70,38 @@ export function createDownloadRepo(db: SqliteDb): DownloadRepo {
           .where(and(...conditions))
       )
       return row?.count ?? 0
+    },
+
+    async stats(filters, sinceIso) {
+      const where = (extra: SQL[]) =>
+        filters.userId !== undefined ? and(eq(downloads.userId, filters.userId), ...extra) : and(...extra)
+
+      const [activeRow, createdRow, completedRow] = await Promise.all([
+        dbGet(
+          db
+            .select({ count: count() })
+            .from(downloads)
+            .where(where([eq(downloads.status, 'downloading')]))
+        ),
+        dbGet(
+          db
+            .select({ count: count() })
+            .from(downloads)
+            .where(where([gte(downloads.createdAt, sinceIso)]))
+        ),
+        dbGet(
+          db
+            .select({ count: count() })
+            .from(downloads)
+            .where(where([eq(downloads.status, 'completed'), gte(downloads.completedAt, sinceIso)]))
+        )
+      ])
+
+      return {
+        active: activeRow?.count ?? 0,
+        createdSince: createdRow?.count ?? 0,
+        completedSince: completedRow?.count ?? 0
+      }
     },
 
     async create(data) {
