@@ -25,7 +25,7 @@ Users can request media content and maintain a wishlist. Admins review requests 
 ## Request Visibility Rules
 
 ### Request Carousel (`/dashboard`)
-Shows recent requests from the last 30 days with specific visibility rules:
+Shows recent requests from the last 30 days with specific visibility rules (the 30-day window is applied client-side to the `GET /api/requests/my` response):
 
 | Status | Visibility |
 |--------|-----------|
@@ -67,8 +67,8 @@ After 30 days, accepted and rejected requests are hidden from the carousel but r
 |----------|--------|-------------|
 | `/api/requests/post` | POST | Create request |
 | `/api/requests/list` | GET | List all requests (admin) |
-| `/api/requests/mine` | GET | List own requests (30-day carousel) |
-| `/api/requests/my` | GET | List all own requests |
+| `/api/requests/mine` | GET | Status of own request for one media item (`?mediaType=&mediaId=`) |
+| `/api/requests/my` | GET | List all own requests (feeds the dashboard carousel) |
 | `/api/requests/[id]` | PATCH | Accept/reject request (admin) |
 | `/api/wishlist` | GET | List own wishlist |
 | `/api/wishlist` | POST | Add to wishlist |

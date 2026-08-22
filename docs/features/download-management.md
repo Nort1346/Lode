@@ -12,10 +12,10 @@ The download management system tracks torrent progress from qBittorrent, provide
 - Quick access to download details
 
 ### Downloads (`/dashboard/downloads`)
-- Full download list with filtering and sorting
+- Paginated download list (default 10, max 100 per page) with status filtering
 - Quality badges (dead/poor/slow/ok)
 - Progress bars with ETA and speed
-- Delete/pause/resume controls
+- Delete control (removes from qBittorrent and marks the record `removed`; pause/resume is managed in qBittorrent itself)
 
 ## Download Statuses
 
@@ -31,14 +31,14 @@ The download management system tracks torrent progress from qBittorrent, provide
 
 ## Quality Badges
 
-Torrent health is determined by seed count and download speed:
+Torrent health is determined by seed count and download speed (`getTorrentQuality`):
 
 | Badge | Condition | Color |
 |-------|-----------|-------|
-| `dead` | No seeds | Red |
-| `poor` | < 5 seeds | Orange |
-| `slow` | 5-20 seeds | Yellow |
-| `ok` | > 20 seeds or active download | Green |
+| `ok` | Seeds > 0 while downloading, or >= 20 seeds | Green |
+| `slow` | 5-19 seeds idle, or downloading with 0 seeds | Yellow |
+| `poor` | 1-4 seeds, not downloading | Orange |
+| `dead` | No seeds, not downloading | Red |
 
 ## Prep Countdown
 
@@ -67,12 +67,14 @@ Status changes are pushed to connected clients via Server-Sent Events:
 
 ## Quality Config
 
+Each entry has `border`, `badge`, `badgeText` (i18n label), and `bar` (progress bar color):
+
 ```ts
 const qualityConfig = {
-  dead: { border: 'border-red-500/50', badge: 'bg-red-500/20 text-red-400' },
-  poor: { border: 'border-orange-500/50', badge: 'bg-orange-500/20 text-orange-400' },
-  slow: { border: 'border-yellow-500/50', badge: 'bg-yellow-500/20 text-yellow-400' },
-  ok:   { border: 'border-green-500/50', badge: 'bg-green-500/20 text-green-400' }
+  dead: { border: 'border-red-500/50', badge: 'bg-red-500/20 text-red-400', badgeText: t('dashboard.dead'), bar: 'bg-red-500' },
+  poor: { border: 'border-orange-500/50', badge: 'bg-orange-500/20 text-orange-400', badgeText: t('dashboard.poor'), bar: 'bg-orange-500' },
+  slow: { border: 'border-yellow-500/50', badge: 'bg-yellow-500/20 text-yellow-400', badgeText: t('dashboard.slow'), bar: 'bg-yellow-500' },
+  ok:   { border: 'border-green-500/50', badge: 'bg-green-500/20 text-green-400', badgeText: t('dashboard.good'), bar: 'bg-green-500' }
 }
 ```
 
@@ -83,4 +85,4 @@ const qualityConfig = {
 | `formatEta(3661)` | `1h 1m` | Human-readable ETA |
 | `formatSpeed(1048576)` | `1.0 MB/s` | Human-readable speed |
 | `formatSize(1073741824)` | `1.00 GB` | Human-readable size |
-| `formatDate('2025-01-15')` | `15.01.2025` | Localized date |
+| `formatDate('2025-01-15')` | locale-dependent (2-digit month/day, numeric year) | `toLocaleDateString` in the active locale; returns `-` for empty input |

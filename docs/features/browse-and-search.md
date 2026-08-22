@@ -31,15 +31,20 @@ The Browse section is the main content discovery interface, powered by TMDB with
 - Filtered carousels by genre ID
 - Supports both movie and TV genres simultaneously
 - Results deduplicated and sorted by rating
-- Cached in Redis (TTL: 60 minutes)
+- Cached (TTL: 6 hours; Redis when `NUXT_REDIS_URL` is set, no-op otherwise)
 
 ## Spotlights
 
-The spotlight carousel displays 5 randomly selected items from a pool of 14 genres (7 movie, 7 TV). The pool is shuffled using Fisher-Yates algorithm, and items are re-shuffled on each page load.
+The spotlight carousel displays items from 5 randomly selected genres out of a pool of 14 entries (8 movie, 6 TV). The pool is shuffled with the Fisher-Yates algorithm and cached for 6 hours, so the selection changes when the cache expires - not on every page load.
 
-**Genre pool**: Action, Adventure, Comedy, Drama, Sci-Fi, Horror, Thriller, Animation, Western, War, Crime, Mystery
+**Genre pool**:
 
-Spotlights use full-width backdrop images with logo overlay and do NOT show in-library badges.
+| Type | Genres |
+|------|--------|
+| Movie | Action, Adventure, Comedy, Drama, Sci-Fi, Horror, Thriller, Animation |
+| TV | Action & Adventure, Comedy, Drama, News, Crime, Kids |
+
+Spotlights use full-width backdrop images without a logo overlay (`logoUrl` is always `null`) and do NOT show in-library badges.
 
 ## Search
 

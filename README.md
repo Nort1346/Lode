@@ -41,7 +41,7 @@ The script checks Docker, pulls the full stack, generates secrets, and walks you
 | | |
 |---|---|
 | **Browse & Search** | TMDB carousels, spotlights, full-text search with genre filters |
-| **Torrent Ranking** | Configurable 240-point scoring engine - resolution, language, seeders, source |
+| **Torrent Ranking** | Configurable weighted scoring engine (max 205 base points) - resolution, language, seeders, size, source, group |
 | **Private Trackers** | Cookie and login-based auth with auto-retry on session expiry |
 | **User Management** | Per-user limits, session control, brute force protection, auto-expiration, password generation |
 | **Jellyfin Sync** | Library detection, user CRUD sync, avatar upload, Live TV config |
@@ -79,7 +79,7 @@ After setup, open **http://localhost:5757** and login with `admin`. The auto-gen
 
 #### Prerequisites
 
-- Node.js 22+
+- Node.js 24+
 - pnpm 11+
 - qBittorrent with WebUI API key enabled
 
@@ -98,17 +98,20 @@ Default admin: `admin` - the password is auto-generated on first start. Check `d
 ```bash
 cp .env.example .env        # configure first
 # Choose one:
-docker compose -f docker-compose.sqlite.yml up -d --build     # SQLite (default)
-# docker compose -f docker-compose.postgres.yml up -d --build # PostgreSQL
-docker compose -f docker-compose.sqlite.yml logs -f            # view logs
+docker compose -f docker-compose.sqlite.yml up -d     # SQLite (default)
+# docker compose -f docker-compose.postgres.yml up -d # PostgreSQL
+docker compose -f docker-compose.sqlite.yml logs -f   # view logs
 ```
+
+The compose files use the prebuilt `ghcr.io/nort1346/streamhub:latest` image. To build from source instead, uncomment the `#build: .` line in the `streamhub` service.
 
 | Service | Port | Purpose |
 |---------|------|---------|
 | `streamhub` | 5757 | Application |
 | `qbittorrent` | 8080 | Torrent client |
 | `prowlarr` | 9900 | Indexer manager |
-| `jellyfin` | 8096 | Media server |
+| `flaresolverr` | 8191 | CAPTCHA solver (optional) |
+| `jellyfin` | 8096 | Media server (optional) |
 | `redis` | 6379 | Caching (optional) |
 | `dozzle` | 8082 | Live log viewer |
 
@@ -139,7 +142,7 @@ Full documentation lives in [`docs/`](./docs/):
 
 Unlike request-only tools (Overseerr, Seerr) that stop at "request and forget", StreamHub owns the full loop:
 
-- **One-click download** - picks the best torrent via a 240-point ranking engine and sends it straight to qBittorrent.
+- **One-click download** - picks the best torrent via a configurable ranking engine and sends it straight to qBittorrent.
 - **Private tracker support** - cookie/login auth with auto-retry on session expiry, not just public indexers.
 - **Built-in user system** - per-user limits, session control, brute-force protection, and auto-expiration. No external auth provider required.
 - **Jellyfin-native** - library detection, user sync, and avatar management out of the box.
@@ -156,7 +159,7 @@ The key difference is *who controls the download*:
 |---|---|---|
 | **Primary flow** | Browse TMDB → rank torrents → send to qBittorrent | Request → *arr (Radarr/Sonarr) fetches |
 | **Torrent control** | Direct qBittorrent, one-click, manual pick | Delegated to *arr, no manual torrent pick |
-| **Torrent ranking** | Built-in 240-point scoring engine | None (left to *arr) |
+| **Torrent ranking** | Built-in weighted scoring engine (max 205 base points) | None (left to *arr) |
 | **Private trackers** | Cookie/login auth with auto-retry | Via *arr indexers only |
 | **User management** | Built-in: per-user limits, brute-force, sessions, expiry | Media-server OAuth only |
 | **Real-time logs** | SSE live logs in admin panel | - |

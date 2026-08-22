@@ -29,19 +29,21 @@ Core user accounts.
 | `id` | text PK | UUID |
 | `username` | text UNIQUE | Login name |
 | `password` | text | bcrypt hash (12 rounds) |
-| `role` | text enum | `user` or `admin` |
-| `isActive` | boolean | Account enabled/disabled |
-| `dailyDownloadLimit` | integer | Max downloads per day (default: 5) |
-| `activeTorrentLimit` | integer | Max concurrent torrents (default: 3) |
-| `maxTorrentSizeGb` | integer | Max single torrent size in GB (default: 20) |
-| `privateTrackerLimit` | integer | Max private tracker downloads per day (default: 5) |
-| `downloadsToday` | integer | Counter (reset daily) |
-| `canSubmit` | boolean | Can submit torrent requests |
-| `maxSessions` | integer | Max concurrent sessions (0 = unlimited) |
-| `expiresAt` | text | Auto-disable date (ISO 8601) |
-| `syncStatus` | text enum | `synced`, `pending`, or `failed` |
-| `avatarUrl` | text | Path to avatar image |
-| `discordId` | text | Discord user ID (for mentions) |
+| `role` | text enum | `user` or `admin` (default `user`) |
+| `is_active` | boolean | Account enabled/disabled (default true) |
+| `daily_download_limit` | integer | Max downloads per day (default 5) |
+| `active_torrent_limit` | integer | Max concurrent torrents (default 3) |
+| `max_torrent_size_gb` | integer | Max single torrent size in GB (default 20) |
+| `private_tracker_limit` | integer | Max private tracker downloads per day (default 5) |
+| `downloads_today` | integer | Counter (reset daily) |
+| `downloads_reset_at` | text | Last counter reset (ISO 8601) |
+| `created_at` | text | Creation timestamp (ISO 8601) |
+| `discord_id` | text | Discord user ID (for mentions) |
+| `can_submit` | boolean | Can submit torrent requests (default false) |
+| `max_sessions` | integer | Max concurrent sessions (0 = unlimited) |
+| `avatar_url` | text | Path to avatar image |
+| `expires_at` | text | Auto-disable date (ISO 8601) |
+| `sync_status` | text enum | `synced`, `pending`, or `failed` (default `synced`) |
 
 ### `downloads`
 Torrent download records.
@@ -49,22 +51,26 @@ Torrent download records.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | text PK | UUID |
-| `userId` | text FK | Owner |
-| `magnetLink` | text | Magnet, download URL, or `guid:` prefix |
-| `savePath` | text enum | `movies`, `series`, `games`, `books`, `music` |
-| `status` | text enum | `pending`, `downloading`, `completed`, `failed`, `paused`, `removed`, `disk_full` |
-| `torrentHash` | text | qBittorrent hash |
+| `user_id` | text FK | Owner |
+| `label` | text | Human-readable media name |
+| `torrent_name` | text | Tracker torrent title |
+| `magnet_link` | text | Magnet, download URL, or `guid:` prefix |
+| `save_path` | text enum | `movies`, `series`, `games`, `books`, `music` |
+| `status` | text enum | `pending`, `downloading`, `completed`, `failed`, `paused`, `removed`, `disk_full` (default `pending`) |
+| `torrent_hash` | text | qBittorrent hash |
 | `progress` | real | 0.0 to 1.0 |
-| `etaSeconds` | integer | Estimated time remaining |
-| `downloadSpeed` | integer | Bytes/sec |
-| `uploadSpeed` | integer | Bytes/sec |
-| `sizeBytes` | integer | Total size |
-| `downloadedBytes` | integer | Downloaded bytes |
-| `numSeeds` / `numLeechs` | integer | Seeder/leecher counts |
-| `isPrivate` | boolean | From a private tracker |
-| `tmdbId` | integer | TMDB media ID |
-| `mediaType` | text enum | `movie` or `tv` |
-| `posterUrl` | text | Poster image URL |
+| `eta_seconds` | integer | Estimated time remaining |
+| `download_speed` / `upload_speed` | integer | Bytes/sec |
+| `size_bytes` / `downloaded_bytes` | integer | Total / downloaded size |
+| `num_seeds` / `num_leechs` | integer | Seeder/leecher counts |
+| `created_at` | text | Creation timestamp (ISO 8601) |
+| `completed_at` | text | Completion timestamp (ISO 8601) |
+| `tmdb_id` | integer | TMDB media ID |
+| `media_type` | text enum | `movie` or `tv` |
+| `poster_url` | text | Poster image URL |
+| `is_private` | boolean | From a private tracker (default false) |
+
+Indexed on `(user_id, status)`, `(status)`, and `(user_id, created_at)`.
 
 ### `requests`
 Media requests from users.
@@ -72,11 +78,12 @@ Media requests from users.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | text PK | UUID |
-| `userId` / `username` | text | Requester |
-| `mediaType` / `mediaId` / `mediaTitle` | - | Media identification |
-| `status` | text enum | `pending`, `accepted`, `rejected` |
-| `userNote` / `adminNote` | text | Notes |
-| `createdAt` / `updatedAt` | text | Timestamps |
+| `user_id` / `username` | text | Requester |
+| `media_type` / `media_id` / `media_title` | - | Media identification |
+| `media_poster` | text | Poster image URL |
+| `status` | text enum | `pending`, `accepted`, `rejected` (default `pending`) |
+| `user_note` / `admin_note` | text | Notes |
+| `created_at` / `updated_at` | text | Timestamps (ISO 8601) |
 
 ### `settings`
 Key-value store for runtime configuration.
@@ -92,9 +99,9 @@ Active user sessions.
 | Column | Type |
 |--------|------|
 | `id` | text PK |
-| `userId` | text FK |
-| `ip` / `userAgent` / `deviceName` | text |
-| `createdAt` / `lastActiveAt` | text |
+| `user_id` | text FK |
+| `ip` / `user_agent` / `device_name` | text |
+| `created_at` / `last_active_at` | text |
 
 When a user is deleted, all of their active sessions are removed automatically.
 
@@ -103,11 +110,13 @@ Private tracker configurations.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `indexerName` | text UNIQUE | Tracker name |
-| `trackerType` | text enum | `guid` or `counting` |
+| `id` | text PK | UUID |
+| `indexer_name` | text UNIQUE | Tracker name |
+| `tracker_type` | text enum | `guid` or `counting` (default `counting`) |
 | `cookie` | text | Session cookie |
-| `loginUrl` / `loginUsername` / `loginPassword` | text | Login credentials (password AES encrypted) |
-| `enabled` | boolean | Active toggle |
+| `login_url` / `login_username` / `login_password` | text | Login credentials (password AES encrypted) |
+| `enabled` | boolean | Active toggle (default true) |
+| `created_at` | text | Creation timestamp (ISO 8601) |
 
 ### `login_attempts`
 Brute force tracking.
@@ -117,12 +126,12 @@ Indexed on `(ip, created_at)`, `(username, created_at)`, and `(created_at)`.
 ### `wishlist`
 User media wishlists.
 
-Unique constraint on `(userId, mediaType, mediaId)`.
+Unique constraint on `(user_id, media_type, media_id)`.
 
 ### `notifications`
 In-app notifications.
 
-Indexed on `(userId)` and `(userId, read)`.
+Indexed on `(user_id)` and `(user_id, read)`.
 
 ### `push_subscriptions`
 Web Push (VAPID) subscriptions.
@@ -132,7 +141,7 @@ Indexed on `(userId)` and `(endpoint)`.
 ### `sync_providers`
 Jellyfin user mappings.
 
-Unique on `(userId, providerName)`. Tracks `syncStatus` per provider.
+Unique on `(user_id, provider_name)`. Tracks `sync_status` per provider.
 
 ### `sync_user_settings`
 Per-user Jellyfin permissions.
