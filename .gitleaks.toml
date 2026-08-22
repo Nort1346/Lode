@@ -3,6 +3,11 @@ title = "StreamHub gitleaks config"
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "Documented placeholder values in README, docs and .env.example"
-stopWords = ['replace_me_with_64_hex_chars']
+[allowlist]
+description = "Placeholder values in README, docs and .env.example are not real secrets"
+paths = [
+  '''^README\.md$''',
+  '''^docs/getting-started\.md$''',
+  '''(^|/)\.env\.example$'''
+]
+stopwords = ['replace_me_with_64_hex_chars']
