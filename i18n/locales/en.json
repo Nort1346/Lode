@@ -175,6 +175,7 @@
     "poor": "Low seeders",
     "slow": "Slow connection",
     "good": "OK",
+    "etaCalculating": "Calculating…",
     "browseCTA": "Explore Movies & TV",
     "browseCTADesc": "Discover trending, popular, and top-rated content",
     "title": "Dashboard",

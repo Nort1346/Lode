@@ -167,13 +167,16 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         )
       }
     } else {
+      const remainingBytes = Math.max(qbitTorrent.size - qbitTorrent.downloaded, 0)
+      const etaSeconds =
+        qbitTorrent.dlspeed_avg > 0 ? Math.round(remainingBytes / qbitTorrent.dlspeed_avg) : qbitTorrent.eta
       await dbRun(
         db
           .update(downloads)
           .set({
             torrentName: qbitTorrent.name || dl.torrentName,
             progress: progressPct,
-            etaSeconds: qbitTorrent.eta,
+            etaSeconds,
             downloadSpeed: qbitTorrent.dlspeed,
             uploadSpeed: qbitTorrent.upspeed,
             sizeBytes: qbitTorrent.size,

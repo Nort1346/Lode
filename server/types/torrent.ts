@@ -21,6 +21,7 @@ export interface QBitTorrent {
   progress: number
   eta: number
   dlspeed: number
+  dlspeed_avg: number
   upspeed: number
   size: number
   downloaded: number

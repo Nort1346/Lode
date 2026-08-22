@@ -322,7 +322,9 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   </span>
                   <span
                     >{{ t('common.eta') }}:
-                    <span class="text-zinc-900 dark:text-white">{{ formatEta(dl.etaSeconds) }}</span></span
+                    <span class="text-zinc-900 dark:text-white">
+                      {{ dl.etaSeconds > 0 ? formatEta(dl.etaSeconds) : t('dashboard.etaCalculating') }}
+                    </span></span
                   >
                 </div>
               </div>
