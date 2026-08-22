@@ -22,22 +22,30 @@
 │   ├── layouts/                # Default layout with sidebar
 │   ├── middleware/              # Route guards (auth, admin, submit)
 │   ├── pages/                  # File-based routing
+│   │   ├── index.vue           # Landing page
+│   │   ├── login.vue           # Login / register
 │   │   ├── admin/              # 8 admin pages
 │   │   ├── browse/             # Browse, movie/[id], tv/[id]
-│   │   └── dashboard/          # Index, downloads, submit, wishlist
+│   │   ├── dashboard/          # Index, downloads, submit, wishlist
+│   │   └── user/               # User settings (profile, avatar, password)
 │   ├── plugins/                # Client plugins (session-expired)
 │   ├── types/                  # Frontend type definitions
 │   └── utils/                  # Client utilities
 ├── server/                     # Backend (Nitro server)
 │   ├── api/                    # File-based API routes
-│   │   ├── admin/              # 25+ admin endpoints
+│   │   ├── admin/              # 40+ admin endpoints (users, trackers, sessions,
+│   │   │                         requests, brute-force, ranking, jellyfin, sync,
+│   │   │                         defaults, settings, logs, system-status, ...)
 │   │   ├── auth/               # login, logout, register, me
-│   │   ├── browse/             # discover, search, spotlights, etc.
-│   │   ├── notifications/      # SSE stream, push subscribe
-│   │   ├── requests/           # CRUD + accept/reject
-│   │   ├── torrents/           # add, list, delete
-│   │   ├── user/               # me, limits
-│   │   └── wishlist/           # CRUD + check
+│   │   ├── browse/             # search, autocomplete, popular, trending, top-rated,
+│   │   │                         spotlights, genre, discover, logo, download,
+│   │   │                         movie/tv detail + per-item torrents
+│   │   ├── notifications/      # SSE stream, push subscribe/unsubscribe, vapid-key, read
+│   │   ├── requests/           # list, my, mine, create, patch (accept/reject)
+│   │   ├── torrents/           # add, list, stats, get, delete
+│   │   ├── user/               # me, limits, password, avatar (generate/upload/delete)
+│   │   ├── wishlist/           # list, add, remove, check
+│   │   └── (top-level)         # health, categories, prep-config, notifications
 │   ├── database/               # Drizzle schema + migrations
 │   │   ├── drivers/            # SQLite and PostgreSQL DB drivers
 │   │   ├── schema.ts           # Runtime resolver (PG/SQLite based on DB_DRIVER)
@@ -52,7 +60,7 @@
 │   │   └── settings.ts         # SETTINGS constant system
 │   └── utils/                  # Server utilities (30+ files)
 ├── i18n/locales/               # pl, en, de, fr, es (5 locales)
-├── shared/                     # Shared type augmentations (auth.d.ts)
+├── shared/                     # Shared code (auth.d.ts type augmentations, ranking.ts default config)
 ├── docs/                       # This documentation
 ├── scripts/                    # Migration scripts
 └── public/                     # Static assets, PWA icons
@@ -65,6 +73,7 @@
 | `#server` | `./server` |
 | `#db` | `./server/database` |
 | `#utils` | `./server/utils` |
+| `#shared` | `./shared` (Nuxt 4 built-in alias) |
 | `~/` | `./app/` |
 
 ## Layout System
@@ -99,6 +108,7 @@ The default layout (`app/layouts/default.vue`) provides:
 | `torrent-sync.ts` | Polls qBittorrent every N seconds for status updates |
 | `user-expiry.ts` | Disables expired users every 15 minutes |
 | `logs-cleanup.ts` | Deletes activity logs older than 90 days |
+| `security-headers.ts` | Sets security response headers (nosniff, DENY frame, referrer/permissions policy) on every request |
 
 ## Middleware
 

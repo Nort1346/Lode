@@ -18,11 +18,13 @@
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NUXT_SAVE_PATH_MOVIES` | `/media/Movies` | qBittorrent save path for movies |
-| `NUXT_SAVE_PATH_SERIES` | `/media/Series` | qBittorrent save path for series |
-| `NUXT_SAVE_PATH_GAMES` | `/media/Games` | qBittorrent save path for games |
-| `NUXT_SAVE_PATH_BOOKS` | `/media/Books` | qBittorrent save path for books |
-| `NUXT_SAVE_PATH_MUSIC` | `/media/Music` | qBittorrent save path for music |
+| `NUXT_SAVE_PATH_MOVIES` | `/data/Movies` | qBittorrent save path for movies (required by config validation) |
+| `NUXT_SAVE_PATH_SERIES` | `/data/Series` | qBittorrent save path for series (required by config validation) |
+| `NUXT_SAVE_PATH_GAMES` | (empty) | qBittorrent save path for games (optional) |
+| `NUXT_SAVE_PATH_BOOKS` | (empty) | qBittorrent save path for books (optional) |
+| `NUXT_SAVE_PATH_MUSIC` | (empty) | qBittorrent save path for music (optional) |
+
+`.env.example` suggests `/media/*` paths for all five categories. Categories without a configured path are hidden from the UI via `GET /api/categories`.
 
 ### Optional - Integrations
 
@@ -49,7 +51,7 @@
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NUXT_TORRENT_SYNC_INTERVAL_MS` | `10000` | Background torrent sync interval (ms) |
+| `NUXT_TORRENT_SYNC_INTERVAL_MS` | `10000` | Background torrent sync interval (ms; not listed in `.env.example`) |
 | `DB_DRIVER` | `sqlite` | Database driver: `sqlite` or `postgres` |
 | `DATABASE_URL` | - | PostgreSQL connection URL (required when `DB_DRIVER=postgres`) |
 
@@ -74,7 +76,13 @@ export const SETTINGS = {
   DISK_CHECK_ENABLED: 'disk_check_enabled',
   DISK_MIN_FREE_GB: 'disk_min_free_gb',
   DISCORD_MENTIONS_ENABLED: 'discord_mentions_enabled',
-  DISCORD_LOCALE: 'discord_locale'
+  DISCORD_LOCALE: 'discord_locale',
+  USER_DEFAULT_DAILY_DOWNLOAD_LIMIT: 'user_default_daily_download_limit',
+  USER_DEFAULT_ACTIVE_TORRENT_LIMIT: 'user_default_active_torrent_limit',
+  USER_DEFAULT_MAX_TORRENT_SIZE_GB: 'user_default_max_torrent_size_gb',
+  USER_DEFAULT_PRIVATE_TRACKER_LIMIT: 'user_default_private_tracker_limit',
+  USER_DEFAULT_MAX_SESSIONS: 'user_default_max_sessions',
+  USER_DEFAULT_CAN_SUBMIT: 'user_default_can_submit'
 } as const
 
 export type SettingKey = (typeof SETTINGS)[keyof typeof SETTINGS]
@@ -95,6 +103,12 @@ Some settings are stored in the `settings` DB table and can be changed at runtim
 | `discord_locale` | `pl` | Discord webhook language (`pl` or `en`) |
 | `discord_mentions_enabled` | `true` | Enable user mentions in Discord notifications |
 | `jellyfin_sync_enabled` | `false` | Enable Jellyfin user sync |
+| `user_default_daily_download_limit` | `5` | Default daily download limit for new users |
+| `user_default_active_torrent_limit` | `3` | Default active torrent limit for new users |
+| `user_default_max_torrent_size_gb` | `20` | Default max torrent size (GB) for new users |
+| `user_default_private_tracker_limit` | `5` | Default daily private tracker limit for new users |
+| `user_default_max_sessions` | `0` | Default max concurrent sessions for new users (0 = unlimited) |
+| `user_default_can_submit` | `false` | Default torrent submission permission for new users |
 
 ## Zod Validation
 

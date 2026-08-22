@@ -43,6 +43,13 @@ The project uses strict TypeScript ESLint with `projectService: true` for full t
 - Same `no-unsafe-*` rules as server
 - `no-non-null-assertion: error`
 
+### App Vue components (`app/**/*.vue`)
+
+- `no-console: warn`
+- `eqeqeq: always`
+- Same strict `no-unsafe-*`, promise, and style rules as server files
+- Type-aware linting via `projectService` with `extraFileExtensions: ['.vue']`
+
 ### Common Rules
 
 - Unused vars: warning (with `^_` ignore pattern for args, vars, and caught errors)
@@ -116,7 +123,7 @@ Defined in `vitest.config.ts`:
 - **Include**: `test/**/*.test.ts`
 - **Setup**: `test/setup.ts` - stubs `h3` globals (`defineEventHandler`, `createError`, `readBody`, `getQuery`) so API handlers can be unit-tested without a running server.
 - **Environment**: `node`
-- **Path aliases**: `#server`, `#db`, `#utils`, `#server/types` are mapped to the `server/` tree.
+- **Path aliases**: `#server`, `#db`, `#utils`, `#server/types` are mapped to the `server/` tree; `#shared` maps to `shared/`.
 - **Coverage**: V8 provider, `text` + `lcov` reporters, scoped to `server/utils`, `server/api`, and `server/middleware`.
 
 ### Structure
@@ -127,6 +134,7 @@ test/
 ├── tsconfig.json         # Dedicated typecheck config for tests
 ├── api/                  # Route handlers (auth, browse, torrents, requests, wishlist, notifications, admin/*)
 ├── middleware/           # Session validation + brute force middleware
+├── repositories/         # Data access layer (settings, login-attempts, sync-user-settings)
 ├── utils/                # Server utils (ranking, disk, limits, auth, format, etc.)
 └── types/                # Shared test type helpers
 ```

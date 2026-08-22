@@ -6,38 +6,45 @@
 
 ```bash
 cp .env.example .env   # configure first
-docker compose -f docker-compose.sqlite.yml up -d --build     # SQLite
-# docker compose -f docker-compose.postgres.yml up -d --build # PostgreSQL
+docker compose -f docker-compose.sqlite.yml up -d              # SQLite
+# docker compose -f docker-compose.postgres.yml up -d          # PostgreSQL
 docker compose -f docker-compose.sqlite.yml logs -f            # view logs
 ```
+
+The `streamhub` service uses the prebuilt `ghcr.io/nort1346/streamhub:latest` image. To build from source instead, uncomment the `#build: .` line in the compose file (requires Docker Desktop with >=4GB memory).
 
 ### Services
 
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
-| `streamhub` | Built from Dockerfile | 5757 | Main application |
+| `streamhub` | `ghcr.io/nort1346/streamhub:latest` | 5757 | Main application |
 | `redis` | `redis:7-alpine` | 6379 | Caching (optional) |
-| `qbittorrent` | `linuxserver/qbittorrent` | 8080 | Torrent client |
-| `prowlarr` | `linuxserver/prowlarr` | 9900 | Indexer manager |
-| `jellyfin` | `jellyfin/jellyfin` | 8096 | Media server |
-| `postgres` | `postgres:16-alpine` | 5432 | Database (optional) |
-| `dozzle` | `amir20/dozzle:latest` | 8082 | Log viewer |
+| `qbittorrent` | `lscr.io/linuxserver/qbittorrent` | 8080 | Torrent client |
+| `prowlarr` | `lscr.io/linuxserver/prowlarr` | 9900 | Indexer manager |
+| `flaresolverr` | `ghcr.io/flaresolverr/flaresolverr` | 8191 | Cloudflare bypass (optional) |
+| `jellyfin` | `jellyfin/jellyfin` | 8096 | Media server (optional) |
+| `postgres` | `postgres:16-alpine` | 5432 | Database (postgres compose only) |
+| `dozzle` | `amir20/dozzle:latest` | 8082 | Log viewer (optional) |
 
 ### Volumes
 
 | Volume | Mount | Purpose |
 |--------|-------|---------|
-| `./data` | `/app/.data` | SQLite database persistence |
+| `./data` | `/app/.data` | SQLite database + app data persistence |
 | `./media` | `/media` | Media storage |
+| `streamhub-avatars` | `/app/.output/public/avatars` | User avatar images |
 | `redis-data` | Redis data | Cache persistence |
-| `postgres-data` | PostgreSQL data | Database persistence |
+| `qbittorrent-config` | qBittorrent config | Torrent client state |
+| `prowlarr-config` | Prowlarr config | Indexer manager state |
+| `jellyfin-config` | Jellyfin config | Media server state |
+| `jellyfin-cache` | Jellyfin cache | Media server cache |
+| `postgres-data` | PostgreSQL data | Database persistence (postgres compose only) |
 
 ## Dockerfile Stages
 
 ### 1. `base`
-- Node.js 24 trixie-slim
-- pnpm 11.5.2 via corepack
-- `NODE_ENV=production`
+- Node.js 24 trixie-slim (`NODE_VERSION=24` arg)
+- pnpm 11.18.0 via corepack
 
 ### 2. `deps`
 - Installs **production dependencies only** (with native addon build tools)
@@ -45,15 +52,16 @@ docker compose -f docker-compose.sqlite.yml logs -f            # view logs
 
 ### 3. `build`
 - Installs all dependencies (including devDependencies)
-- Runs `pnpm run build` (Nuxt production build)
+- Runs `pnpm run build` (Nuxt production build, 4GB heap)
 - Strips `.map` files from output
 
 ### 4. `runtime`
-- Clean Node.js 22 bookworm-slim
-- Installs runtime libraries: `libsqlite3-0`, `libssl3`, `gosu`
+- Same Node.js 24 trixie-slim image as `base`
+- Installs runtime libraries: `libssl3`, `ca-certificates`, `gosu`
 - Creates `appuser:nodejs` (1001:1001)
-- Copies: `.output`, `node_modules`, migrations, scripts
-- Entrypoint runs migrations → drops privileges → starts app
+- Copies: `.output`, `node_modules` (prebuilt native binaries), migrations, scripts
+- `NODE_ENV=production`, exposes 5757
+- Entrypoint runs migrations → Jellyfin library setup → drops privileges → starts app
 
 ### Entrypoint
 
@@ -65,6 +73,7 @@ chown -R appuser:nodejs /app/.data
 mkdir -p /app/.output/public/avatars
 chown -R appuser:nodejs /app/.output/public/avatars
 gosu appuser node scripts/migrate.mjs
+gosu appuser node scripts/setup-jellyfin.mjs
 exec gosu appuser "$@"
 ```
 
