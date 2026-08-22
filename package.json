@@ -60,7 +60,7 @@
     "@discordjs/rest": "^2.6.3",
     "@iconify-json/lucide": "^1.2.121",
     "@iconify-json/simple-icons": "^1.2.93",
-    "@node-rs/bcrypt": "^1.10.7",
+    "@node-rs/bcrypt": "^1.10.8",
     "@nuxt/hints": "1.1.4",
     "@nuxt/image": "2.1.0",
     "@nuxt/ui": "^4.10.0",
