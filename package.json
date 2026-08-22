@@ -38,7 +38,7 @@
     "build:preview": "pnpm run build && pnpm run preview --host",
     "preview": "node scripts/migrate.mjs && nuxt preview",
     "postinstall": "nuxt prepare",
-    "prepare": "husky",
+    "prepare": "node scripts/prepare.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
