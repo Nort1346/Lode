@@ -82,7 +82,7 @@
     "@nuxt/eslint": "^1.17.0",
     "@nuxt/test-utils": "^4.1.0",
     "@types/better-sqlite3": "^9.6.0",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/web-push": "^3.6.4",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vite-pwa/assets-generator": "^1.0.2",
