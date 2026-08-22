@@ -10,6 +10,7 @@ vi.stubGlobal('useRuntimeConfig', () => mockRuntimeConfig)
 describe('encryptAES / decryptAES', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockRuntimeConfig.trackerEncryptionKey = 'a'.repeat(64)
   })
 
   it('encrypts and decrypts correctly', () => {
@@ -75,8 +76,11 @@ describe('encryptAES / decryptAES', () => {
     const plaintext = 'test-password-123'
     const encrypted = encryptAES(plaintext)
     const parts = encrypted.split(':')
-    // Corrupt the data part
-    const corrupted = `${parts[0]}:${parts[1]}:${parts[2]!.slice(0, -2)}00`
-    expect(() => decryptAES(corrupted)).toThrow()
+    const data = parts[2]!
+    // Flip every bit of the first byte so the data is always different from the original
+    const flipped = (parseInt(data.slice(0, 2), 16) ^ 0xff).toString(16).padStart(2, '0')
+    expect(() => decryptAES(`${parts[0]}:${parts[1]}:${flipped}${data.slice(2)}`)).toThrow()
+    // Truncating the data also fails authentication
+    expect(() => decryptAES(`${parts[0]}:${parts[1]}:${data.slice(0, -2)}`)).toThrow()
   })
 })
