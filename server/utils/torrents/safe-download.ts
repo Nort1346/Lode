@@ -71,19 +71,13 @@ function getExtensions(filename: string): string[] {
   return extensions
 }
 
-export function checkForDangerousFiles(
-  files: TorrentFile[],
-  minSizeBytes: number = 0
-): { safe: boolean; dangerousFiles: string[] } {
+export function checkForDangerousFiles(files: TorrentFile[]): { safe: boolean; dangerousFiles: string[] } {
   const dangerousFiles: string[] = []
 
   for (const file of files) {
     const extensions = getExtensions(file.name)
     if (extensions.some((ext) => DANGEROUS_EXTENSIONS.has(ext))) {
       dangerousFiles.push(file.name)
-    }
-    if (file.size > 0 && file.size < minSizeBytes) {
-      dangerousFiles.push(`${file.name} (${file.size} bytes — below minimum ${minSizeBytes} bytes)`)
     }
   }
 
