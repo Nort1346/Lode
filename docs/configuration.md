@@ -54,6 +54,8 @@
 | `NUXT_TORRENT_SYNC_INTERVAL_MS` | `10000` | Background torrent sync interval (ms; not listed in `.env.example`) |
 | `DB_DRIVER` | `sqlite` | Database driver: `sqlite` or `postgres` |
 | `DATABASE_URL` | - | PostgreSQL connection URL (required when `DB_DRIVER=postgres`) |
+| `POSTGRES_PASSWORD` | - | Postgres password (passed to the `postgres` service via compose `env_file`; required for the postgres setup) |
+| `TZ` | `UTC` | Container timezone (forwarded to qBittorrent) |
 
 ## SETTINGS Constant
 
@@ -100,7 +102,7 @@ Some settings are stored in the `settings` DB table and can be changed at runtim
 | `disk_min_free_gb` | `7` | Minimum free GB per disk |
 | `prep_countdown_enabled` | `true` | Show prep countdown for completed downloads |
 | `prep_speed_mb` | `15` | Simulated file copy speed (MB/s) |
-| `discord_locale` | `pl` | Discord webhook language (`pl` or `en`) |
+| `discord_locale` | `en` | Discord webhook language (`pl`, `en`, `de`, `fr`, `es`) |
 | `discord_mentions_enabled` | `true` | Enable user mentions in Discord notifications |
 | `jellyfin_sync_enabled` | `false` | Enable Jellyfin user sync |
 | `user_default_daily_download_limit` | `5` | Default daily download limit for new users |

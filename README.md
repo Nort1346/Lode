@@ -59,19 +59,21 @@ The script checks Docker, pulls the full stack, generates secrets, and walks you
 
 ### Option 1: Auto-Setup (Recommended)
 
-Run the one-line command from [Get started](#get-started), then the guided script walks you through 12 steps:
+Run the one-line command from [Get started](#get-started), then the guided script walks you through 14 steps:
 1. Check prerequisites (Docker, Docker Compose)
 2. Create `.env` from `.env.example`
 3. Generate secrets (session password, tracker encryption key)
-4. Download the appropriate `docker-compose` file (`docker-compose.sqlite.yml` or `docker-compose.postgres.yml`)
-5. Start infrastructure services (Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle)
-6. Get your **Jellyfin API key** (guided instructions)
-7. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
-8. Get your **Prowlarr API key** (guided instructions)
-9. Get your **TMDB API key** (guided instructions)
-10. Set **Discord webhook** (optional)
-11. Pull StreamHub Docker image
-12. Start StreamHub with health check
+4. Choose StreamHub image tag (`latest` or `nightly`)
+5. Choose database driver (SQLite or PostgreSQL)
+6. Download the appropriate `docker-compose` file (`docker-compose.sqlite.yml` or `docker-compose.postgres.yml`)
+7. Start infrastructure services (Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle)
+8. Get your **Jellyfin API key** (guided instructions)
+9. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
+10. Get your **Prowlarr API key** (guided instructions)
+11. Get your **TMDB API key** (guided instructions)
+12. Set **Discord webhook** (optional)
+13. Pull StreamHub Docker image
+14. Start StreamHub with health check
 
 After setup, open **http://localhost:5757** and login with `admin`. The auto-generated password is shown in `docker compose -f <compose_file> logs streamhub`. Create users in Admin > Users.
 

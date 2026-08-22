@@ -54,9 +54,9 @@ Open `http://localhost:5757`. Login with `admin` - the password is auto-generate
 
 ```bash
 cp .env.example .env   # configure first
-docker compose -f docker-compose.sqlite.yml up -d --build     # SQLite
-# docker compose -f docker-compose.postgres.yml up -d --build # PostgreSQL
-docker compose -f docker-compose.sqlite.yml logs -f            # view logs
+docker compose -f docker-compose.sqlite.yml up -d     # SQLite
+# docker compose -f docker-compose.postgres.yml up -d # PostgreSQL
+docker compose -f docker-compose.sqlite.yml logs -f   # view logs
 ```
 
 ## Verify Installation

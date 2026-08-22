@@ -11,7 +11,7 @@ docker compose -f docker-compose.sqlite.yml up -d              # SQLite
 docker compose -f docker-compose.sqlite.yml logs -f            # view logs
 ```
 
-The `streamhub` service uses the prebuilt `ghcr.io/nort1346/streamhub:latest` image. To build from source instead, uncomment the `#build: .` line in the compose file (requires Docker Desktop with >=4GB memory).
+The `streamhub` service uses the prebuilt `ghcr.io/nort1346/streamhub:latest` image (a `:nightly` tag with the latest dev build is also published daily). To build from source instead, uncomment the `#build: .` line in the compose file (requires Docker Desktop with >=4GB memory).
 
 ### Services
 
