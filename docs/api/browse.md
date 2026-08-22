@@ -14,9 +14,9 @@ GET /api/browse/search?q=matrix&type=movie&page=1&locale=pl&movieGenre=28,12
 | `q` | string | required | Search query (min 2 chars) |
 | `type` | string | `all` | `movie`, `tv`, or `all` |
 | `page` | number | `1` | Page number |
-| `locale` | string | `pl` | TMDB locale |
-| `movieGenre` | string | - | Comma-separated genre IDs |
-| `tvGenre` | string | - | Comma-separated genre IDs |
+| `locale` | string | `en` | TMDB locale (`en`, `pl`, `de`, `fr`, `es`) |
+| `movieGenre` | string | - | Comma-separated movie genre IDs |
+| `tvGenre` | string | - | Comma-separated TV genre IDs |
 
 ### Response
 ```json
@@ -24,6 +24,32 @@ GET /api/browse/search?q=matrix&type=movie&page=1&locale=pl&movieGenre=28,12
   "results": [{ "id": 550, "type": "movie", "title": "Fight Club", "inLibrary": false, ... }],
   "query": "matrix",
   "page": 1
+}
+```
+
+---
+
+## Autocomplete
+
+Quick search suggestions for the search box. Returns at most 5 items per media type, sorted by year (newest first). Returns an empty list when the query is shorter than 2 characters or TMDB fails.
+
+```
+GET /api/browse/autocomplete?q=fight&type=all&locale=en
+```
+
+### Query Parameters
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `q` | string | required | Search query (min 2 chars) |
+| `type` | string | `all` | `movie`, `tv`, or `all` |
+| `locale` | string | `en` | TMDB locale |
+
+### Response
+```json
+{
+  "suggestions": [
+    { "id": 550, "title": "Fight Club", "type": "movie", "posterUrl": "https://image.tmdb.org/...", "year": "1999" }
+  ]
 }
 ```
 
@@ -111,7 +137,7 @@ GET /api/browse/genre?genreId=28&mediaType=movie&locale=pl
 |-------|------|---------|-------------|
 | `genreId` | number | required | TMDB genre ID |
 | `mediaType` | string | `movie` | `movie` or `tv` |
-| `locale` | string | `pl` | TMDB locale |
+| `locale` | string | `en` | TMDB locale (`en`, `pl`, `de`, `fr`, `es`) |
 
 ---
 

@@ -61,6 +61,50 @@ DELETE /api/torrents/abc123
 }
 ```
 
+## Public Endpoints
+
+Endpoints that do not require an authenticated session:
+
+```
+GET /api/health
+GET /api/categories
+GET /api/prep-config
+GET /api/notifications/vapid-key
+```
+
+### Health
+```
+GET /api/health
+```
+```json
+{
+  "status": "healthy",
+  "database": "ok",
+  "version": "1.0.0"
+}
+```
+
+`status` is `degraded` and `database` is `error` when the database check fails. Used by the Docker healthcheck.
+
+### Categories
+```
+GET /api/categories
+```
+
+Returns the enabled save-path categories, e.g. `["movies", "series", "games", "books", "music"]`. Only categories with a non-empty save path configured are included.
+
+### Prep Config
+```
+GET /api/prep-config
+```
+
+Public download-prep (countdown) settings:
+```json
+{ "enabled": true, "speedMb": 15 }
+```
+
+---
+
 ## Rate Limiting
 
 - **Brute force protection**: Login endpoint blocked after N failed attempts per IP

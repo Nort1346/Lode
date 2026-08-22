@@ -56,6 +56,48 @@ Cannot delete admin users. Jellyfin delete must succeed before local delete. All
 
 ---
 
+## Admin Defaults
+
+Default limits applied to new users.
+
+### Get Defaults
+```
+GET /api/admin/defaults
+```
+
+### Response
+```json
+{
+  "dailyDownloadLimit": 5,
+  "activeTorrentLimit": 3,
+  "maxTorrentSizeGb": 20,
+  "privateTrackerLimit": 5,
+  "maxSessions": 0,
+  "canSubmit": false
+}
+```
+
+### Update Defaults
+```
+PUT /api/admin/defaults
+```
+
+### Body
+All fields are optional - only provided fields are updated. Values are clamped to `>= 0`.
+
+```json
+{
+  "dailyDownloadLimit": 5,
+  "activeTorrentLimit": 3,
+  "maxTorrentSizeGb": 20,
+  "privateTrackerLimit": 5,
+  "maxSessions": 0,
+  "canSubmit": true
+}
+```
+
+---
+
 ## Sessions
 
 ### List All Sessions
@@ -132,7 +174,7 @@ POST /api/admin/trackers/test-login
 }
 ```
 
-Or omit to use stored credentials from `[id]` path.
+The route is fixed (no path parameters) - credentials must always be provided in the body.
 
 ---
 
@@ -152,10 +194,12 @@ PUT /api/admin/brute-force/config
 ```json
 {
   "maxAttemptsPerIp": 5,
-  "ipBlockDurationMinutes": 30,
+  "ipBlockDurationMinutes": 60,
   "windowMinutes": 15
 }
 ```
+
+Defaults when no config is stored: `maxAttemptsPerIp: 5`, `ipBlockDurationMinutes: 60`, `windowMinutes: 15`.
 
 ### Get Stats
 ```

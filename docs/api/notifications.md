@@ -52,6 +52,21 @@ data: {"type":"read_all_update"}
 
 ---
 
+## VAPID Public Key
+
+Get the VAPID public key used to build Web Push subscriptions. Public (no auth required).
+
+```
+GET /api/notifications/vapid-key
+```
+
+### Response
+```json
+{ "publicKey": "BHx..." }
+```
+
+---
+
 ## Subscribe to Push
 
 Register a Web Push subscription.

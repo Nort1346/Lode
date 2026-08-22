@@ -53,34 +53,42 @@ GET /api/requests/list?page=1&limit=50&status=pending
 
 ---
 
-## My Requests (30-Day Carousel)
+## My Request Status
 
-Get recent requests for the carousel (30-day window).
+Check the status of the current user's request for a specific media item. Used by media detail pages to show request state and admin notes.
 
 ```
-GET /api/requests/mine
+GET /api/requests/mine?mediaType=movie&mediaId=550
 ```
 
-### Visibility Rules
-- `pending`: Always shown
-- `accepted`: Shown for 30 days
-- `rejected`: Shown for 30 days
+### Query Parameters
+| Param | Type | Description |
+|-------|------|-------------|
+| `mediaType` | string | Required: `movie` or `tv` |
+| `mediaId` | number | Required: TMDB media ID |
+
+### Response
+```json
+{ "status": "pending", "adminNote": null }
+```
+
+`status` is `null` when the user has not requested the item.
+
+---
+
+## My Requests
+
+Get all requests by the current user, newest first. This endpoint powers the dashboard request carousel: the client keeps all `pending` requests and only the last 30 days of `accepted`/`rejected` ones, sorted pending → rejected → accepted.
+
+```
+GET /api/requests/my
+```
 
 ### Response
 ```json
 {
   "requests": [{ ... }]
 }
-```
-
----
-
-## All My Requests
-
-Get all requests by the current user.
-
-```
-GET /api/requests/my
 ```
 
 ---
