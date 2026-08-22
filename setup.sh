@@ -238,6 +238,19 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# -- Piped stdin guard (curl | bash) ------------------------------------
+# When piped via stdin, interactive prompts (gum/read) read the consumed
+# pipe (immediate EOF). Re-run from a local copy with stdin reopened from
+# the controlling terminal so the guided prompts work.
+if [ ! -t 0 ] && [ -z "${STREAMHUB_SETUP_REEXEC:-}" ]; then
+  if { : < /dev/tty; } 2>/dev/null && curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
+    export STREAMHUB_SETUP_REEXEC=1
+    chmod +x "$SETUP_NEW"
+    exec bash "$SETUP_NEW" < /dev/tty "$@"
+  fi
+  warn "Running without interactive input - prompts will be skipped."
+fi
+
 if curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
   if ! diff -q "$SETUP_SELF" "$SETUP_NEW" &>/dev/null; then
     echo ""
