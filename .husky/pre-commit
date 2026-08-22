@@ -1,0 +1,10 @@
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "ERROR: gitleaks is not installed - commit blocked."
+  echo "Install it first:"
+  echo "  Windows: winget install Gitleaks.Gitleaks"
+  echo "  macOS:   brew install gitleaks"
+  echo "  Linux:   https://github.com/gitleaks/gitleaks#installing"
+  exit 1
+fi
+
+gitleaks git --staged --no-banner

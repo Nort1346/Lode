@@ -1,0 +1,4 @@
+# Executable scripts stay LF on every platform
+*.sh text eol=lf
+Dockerfile text eol=lf
+.husky/* text eol=lf

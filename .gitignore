@@ -33,3 +33,6 @@ data
 media
 
 .agents
+
+# Husky generated hook shims
+.husky/_

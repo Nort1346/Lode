@@ -1,0 +1,8 @@
+title = "StreamHub gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Documented placeholder values in README, docs and .env.example"
+stopWords = ['replace_me_with_64_hex_chars']

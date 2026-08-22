@@ -57,6 +57,19 @@ See [docs/development.md](./docs/development.md#testing) for the full testing gu
 - External services are always mocked (`vi.mock('@node-rs/bcrypt')`, `vi.mock('#server/utils/sync')`, etc.) - no network calls in tests.
 - Put test files next to the code they cover, mirroring `server/` layout under `test/`. Type-check tests separately with `pnpm typecheck:test` (uses `test/tsconfig.json`).
 
+## Pre-commit hooks
+
+The repo uses **husky** + **gitleaks**: `pnpm install` runs `husky` (via the `prepare` script), wiring `.husky/pre-commit` and `.husky/pre-push` into git.
+
+- **pre-commit** scans only the staged changes (`gitleaks git --staged`) and is **blocked** if a secret is found - fast, runs on every commit
+- **pre-push** scans the full git history (`gitleaks git`) as a local backstop
+- A weekly full-history gitleaks scan also runs in CI (`.github/workflows/gitleaks.yml`)
+- The **gitleaks binary is required locally** - the hooks fail with an install hint if it is missing:
+  - Windows: `winget install Gitleaks.Gitleaks`
+  - macOS: `brew install gitleaks`
+  - Linux: https://github.com/gitleaks/gitleaks#installing
+- Do not commit secrets - if one ever leaks, rotate it; rewriting history does not un-leak it
+
 ## Environment Variables
 
 StreamHub is configured entirely through env vars (see `.env.example`). Nuxt maps `NUXT_*` vars into `runtimeConfig` by lowercasing and stripping the prefix: `NUXT_TMDB_API_KEY` → `useRuntimeConfig().tmdbApiKey`, `NUXT_QBITTORRENT_URL` → `runtimeConfig.qbittorrentUrl`. Public vars need the `NUXT_PUBLIC_` prefix (e.g. `NUXT_PUBLIC_VAPID_PUBLIC_KEY`). `DB_DRIVER` (sqlite/postgres) selects the DB driver and is NOT a `NUXT_` var.
