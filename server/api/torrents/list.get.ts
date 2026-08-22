@@ -34,9 +34,11 @@ export default defineEventHandler(async (event) => {
   const isAdmin = session.user.role === 'admin'
 
   const whereClause = (() => {
-    if (isAdmin) return undefined
-    if (status !== undefined) return and(eq(downloads.userId, session.user.id), eq(downloads.status, status))
-    return eq(downloads.userId, session.user.id)
+    const userFilter = isAdmin ? undefined : eq(downloads.userId, session.user.id)
+    if (status !== undefined) {
+      return userFilter !== undefined ? and(userFilter, eq(downloads.status, status)) : eq(downloads.status, status)
+    }
+    return userFilter
   })()
 
   const countResult = await dbGet(db.select({ count: count() }).from(downloads).where(whereClause))
