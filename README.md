@@ -93,7 +93,7 @@ cp .env.example .env    # then edit with your settings
 pnpm dev                # opens at http://localhost:5757
 ```
 
-Default admin: `admin` - the password is auto-generated on first start. Check `docker compose -f <compose_file> logs streamhub` for the password. Create users in Admin > Users.
+Default admin: `admin` - the password is auto-generated on first start and printed to the terminal (look for `Admin password:`). Create users in Admin > Users.
 
 ## Docker
 
@@ -180,7 +180,7 @@ StreamHub gives your users the ability to browse and download content themselves
 - [ ] Prowlarr indexer management (add/configure indexers from StreamHub admin)
 - [ ] Home Assistant integration (webhook, sensors, automations)
 
-Got an idea? [Open a feature request](.github/ISSUE_TEMPLATE/feature_request.yml).
+Got an idea? [Open a feature request](issues/new?template=feature_request.yml).
 
 ## Contributing
 
