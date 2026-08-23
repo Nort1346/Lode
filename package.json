@@ -53,7 +53,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@dicebear/core": "^10.4.0",
+    "@dicebear/core": "^10.6.1",
     "@dicebear/styles": "^10.5.0",
     "@discordjs/builders": "^1.14.1",
     "@discordjs/formatters": "^0.6.2",
