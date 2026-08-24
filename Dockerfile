@@ -47,6 +47,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 --ingroup nodejs appuser
 
+# Not needed at runtime (app runs via node) and the bundled npm ships a vulnerable tar copy
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+
 WORKDIR /app
 
 # Built server output
