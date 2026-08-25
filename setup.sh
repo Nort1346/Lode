@@ -396,8 +396,27 @@ if ! command -v docker &> /dev/null; then
 fi
 ok "Docker $(docker --version | sed -n 's/.*version \([^ ,]*\).*/\1/p')"
 
-if ! docker info &> /dev/null; then
-  err "Docker daemon is not running. Start Docker Desktop and try again."
+if ! docker_info_err="$(docker info 2>&1)"; then
+  err "Docker daemon is not running or not reachable from this shell."
+  printf '%s\n' "$docker_info_err" | sed -e 's/^/    /' | head -n 5
+  case "$(uname -s)" in
+    Darwin)
+      echo "  Start Docker Desktop and try again."
+      ;;
+    MSYS* | MINGW* | CYGWIN*)
+      echo "  Start Docker Desktop (WSL2 backend) and try again."
+      ;;
+    Linux)
+      echo "  Start the daemon:  sudo systemctl start docker"
+      if printf '%s' "$docker_info_err" | grep -qi 'permission'; then
+        echo "  The error looks like a permission problem - add your user to the docker group:"
+        echo "    sudo usermod -aG docker ${USER:-$(id -un)}   (then log out and back in)"
+      fi
+      ;;
+    *)
+      echo "  Start the Docker daemon and try again."
+      ;;
+  esac
   exit 1
 fi
 ok "Docker daemon running"
