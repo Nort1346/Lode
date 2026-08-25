@@ -398,7 +398,14 @@ ok "Docker $(docker --version | sed -n 's/.*version \([^ ,]*\).*/\1/p')"
 
 if ! docker_info_err="$(docker info 2>&1)"; then
   err "Docker daemon is not running or not reachable from this shell."
-  printf '%s\n' "$docker_info_err" | sed -e 's/^/    /' | head -n 5
+  # `docker info` prints the whole client section before the failure
+  # (the client part works even when the daemon is off) - show only
+  # the error lines, falling back to the last lines of the output.
+  docker_info_lines="$(printf '%s\n' "$docker_info_err" | grep -iE 'failed to connect|cannot connect|permission denied|connection refused|cannot find|no such file' | head -n 3 || true)"
+  if [ -z "$docker_info_lines" ]; then
+    docker_info_lines="$(printf '%s\n' "$docker_info_err" | tail -n 3)"
+  fi
+  printf '%s\n' "$docker_info_lines" | sed -e 's/^/    /'
   case "$(uname -s)" in
     Darwin)
       echo "  Start Docker Desktop and try again."
