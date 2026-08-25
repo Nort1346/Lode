@@ -416,8 +416,15 @@ if ! docker_info_err="$(docker info 2>&1)"; then
     Linux)
       echo "  Start the daemon:  sudo systemctl start docker"
       if printf '%s' "$docker_info_err" | grep -qi 'permission'; then
-        echo "  The error looks like a permission problem - add your user to the docker group:"
-        echo "    sudo usermod -aG docker ${USER:-$(id -un)}   (then log out and back in)"
+        current_user="${USER:-$(id -un)}"
+        if getent group docker 2>/dev/null | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user" \
+          && ! id -nG 2>/dev/null | tr ' ' '\n' | grep -qx docker; then
+          echo "  You are in the docker group, but this session predates the change."
+          echo "  Log out and back in, or run:  newgrp docker"
+        else
+          echo "  The error looks like a permission problem - add your user to the docker group:"
+          echo "    sudo usermod -aG docker ${current_user}   (then log out and back in)"
+        fi
       fi
       ;;
     *)
@@ -718,12 +725,8 @@ if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
   INFRA_SERVICES+=(postgres)
 fi
 
-if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Pulling images..." -- docker compose -f "$COMPOSE_FILE" pull "${INFRA_SERVICES[@]}" || true
-else
-  info "Pulling images..."
-  docker compose -f "$COMPOSE_FILE" pull "${INFRA_SERVICES[@]}" || true
-fi
+info "Pulling images..."
+docker compose -f "$COMPOSE_FILE" pull "${INFRA_SERVICES[@]}" || true
 
 docker compose -f "$COMPOSE_FILE" up -d --remove-orphans "${INFRA_SERVICES[@]}"
 
@@ -928,12 +931,8 @@ fi
 
 step "[13/14] Pulling StreamHub"
 
-if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Pulling StreamHub image..." -- docker compose -f "$COMPOSE_FILE" pull streamhub || true
-else
-  info "Pulling StreamHub image..."
-  docker compose -f "$COMPOSE_FILE" pull streamhub || true
-fi
+info "Pulling StreamHub image..."
+docker compose -f "$COMPOSE_FILE" pull streamhub || true
 
 if ! docker image inspect "ghcr.io/nort1346/streamhub:${STREAMHUB_TAG}" &> /dev/null; then
   err "Failed to pull StreamHub image. Check your network and try again."
@@ -956,12 +955,8 @@ if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
   update_env "DATABASE_URL" "postgresql://streamhub:${POSTGRES_PASSWORD}@postgres:5432/streamhub"
 fi
 
-if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Starting StreamHub..." -- docker compose -f "$COMPOSE_FILE" up -d streamhub || true
-else
-  info "Starting StreamHub..."
-  docker compose -f "$COMPOSE_FILE" up -d streamhub || true
-fi
+info "Starting StreamHub..."
+docker compose -f "$COMPOSE_FILE" up -d streamhub || true
 
 if ! service_running streamhub; then
   err "StreamHub container failed to start. Check logs:"
