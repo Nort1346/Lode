@@ -5,105 +5,187 @@ set -euo pipefail
 # Sets up the full self-hosted stack: Redis, qBittorrent, Prowlarr,
 # Jellyfin, and StreamHub with guided manual configuration.
 #
-# Usage: ./setup.sh
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.sh | bash
+#   ./setup.sh
 # ----------------------------------------------------------------------
 
-# -- gum bootstrap -----------------------------------------------------
+# -- Constants ---------------------------------------------------------
+
+REPO_RAW="https://raw.githubusercontent.com/Nort1346/StreamHub/main"
+SETUP_URL="${REPO_RAW}/setup.sh"
+SETUP_SELF="$0"
+SETUP_NEW="$(mktemp)"
+COMPOSE_TMP="$(mktemp)"
+
+cleanup() {
+  rm -f "$SETUP_NEW" "$COMPOSE_TMP"
+}
+trap cleanup EXIT
+
+# -- Privilege helper --------------------------------------------------
+# SUDO stays empty when running as root or when no privilege tool exists.
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+  if command -v sudo >/dev/null 2>&1; then
+    SUDO="sudo"
+  elif command -v doas >/dev/null 2>&1; then
+    SUDO="doas"
+  fi
+fi
+
+run_privileged() {
+  if [ -n "$SUDO" ]; then
+    # shellcheck disable=SC2086
+    $SUDO "$@"
+  else
+    "$@"
+  fi
+}
+
+# -- Output helpers (plain ANSI - available before gum is known) -------
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
+ok()   { echo -e "${GREEN}[ OK ]${NC}  $*"; }
+warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
+err()  { echo -e "${RED}[ERR ]${NC}  $*"; }
+
+header() { echo -e "\n${BOLD}${CYAN}=== $1 ===${NC}\n"; }
+step()   { echo -e "\n${BOLD}${CYAN}--- $1 ---${NC}"; }
+
+# -- Piped stdin guard (curl | bash) -----------------------------------
+# When piped, the script text arrives on stdin, so interactive prompts
+# would read the consumed pipe. Re-exec the freshly downloaded copy with
+# the controlling terminal as stdin so the guided prompts work.
+if [ ! -t 0 ] && [ -z "${STREAMHUB_SETUP_REEXEC:-}" ]; then
+  # Note: `[ -r /dev/tty ]` is unreliable here (access() succeeds even
+  # without a controlling terminal) - actually opening it is the real test.
+  if { : < /dev/tty; } 2>/dev/null && curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
+    export STREAMHUB_SETUP_REEXEC=1
+    chmod +x "$SETUP_NEW"
+    exec bash "$SETUP_NEW" < /dev/tty "$@"
+  fi
+  err "Interactive terminal required, but none is available."
+  err "Download the script and run it directly: bash setup.sh"
+  exit 1
+fi
+
+# -- gum bootstrap (optional, never fatal) -----------------------------
+# gum is cosmetic: on any failure we continue with plain output.
+# The official binary is downloaded from the GitHub release, so no
+# package manager, gpg key, or /etc writes are needed.
 
 HAS_GUM=false
 
 install_gum() {
-  if command -v gum &> /dev/null; then
+  if command -v gum >/dev/null 2>&1; then
+    HAS_GUM=true
+    return 0
+  fi
+  if ! command -v curl >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local os arch
+  os=$(uname -s)
+  arch=$(uname -m)
+  case "$os" in
+    Darwin)
+      if command -v brew >/dev/null 2>&1; then
+        info "Installing gum via Homebrew..."
+        if brew install gum >/dev/null 2>&1; then
+          HAS_GUM=true
+          return 0
+        fi
+      fi
+      case "$arch" in
+        arm64 | x86_64) ;;
+        *)
+          warn "Unsupported architecture: $arch - continuing without gum."
+          return 0
+          ;;
+      esac
+      ;;
+    Linux)
+      case "$arch" in
+        x86_64 | amd64) arch="x86_64" ;;
+        aarch64 | arm64) arch="arm64" ;;
+        *)
+          warn "Unsupported architecture: $arch - continuing without gum."
+          return 0
+          ;;
+      esac
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+
+  info "Installing gum (charm) for beautiful output..."
+
+  local tag url tmpdir gum_bin
+  tag=$(curl -fsSL https://api.github.com/repos/charmbracelet/gum/releases/latest 2>/dev/null \
+    | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1) || tag=""
+  if [ -z "$tag" ]; then
+    warn "Could not resolve the latest gum version - continuing without gum."
+    return 0
+  fi
+
+  url="https://github.com/charmbracelet/gum/releases/download/${tag}/gum_${tag#v}_${os}_${arch}.tar.gz"
+  tmpdir=$(mktemp -d)
+
+  if ! curl -fsSL "$url" -o "${tmpdir}/gum.tar.gz" 2>/dev/null || ! tar -xzf "${tmpdir}/gum.tar.gz" -C "$tmpdir" 2>/dev/null; then
+    rm -rf "$tmpdir"
+    warn "Could not download gum - continuing without gum."
+    return 0
+  fi
+
+  gum_bin=$(find "$tmpdir" -type f -name gum 2>/dev/null | head -n 1)
+  if [ -z "$gum_bin" ]; then
+    rm -rf "$tmpdir"
+    warn "gum binary not found in the download - continuing without gum."
+    return 0
+  fi
+
+  if run_privileged install -m 0755 "$gum_bin" /usr/local/bin/gum 2>/dev/null && command -v gum >/dev/null 2>&1; then
+    rm -rf "$tmpdir"
     HAS_GUM=true
     return 0
   fi
 
-  if ! command -v curl &> /dev/null; then
-    return 0
+  local userbin
+  if [ -n "${HOME:-}" ]; then
+    userbin="${HOME}/.local/bin/gum"
+    if mkdir -p "${HOME}/.local/bin" 2>/dev/null && install -m 0755 "$gum_bin" "$userbin" 2>/dev/null; then
+      export PATH="${HOME}/.local/bin:${PATH}"
+      rm -rf "$tmpdir"
+      HAS_GUM=true
+      return 0
+    fi
   fi
 
-  echo "Installing gum (charm) for beautiful output..."
-
-  if command -v brew &> /dev/null; then
-    brew install gum
-  elif command -v apt-get &> /dev/null; then
-    mkdir -p /etc/apt/keyrings
-    curl -fsSL https://repo.charm.sh/apt/gpg.key | gpg --dearmor -o /etc/apt/keyrings/charm.gpg 2>/dev/null
-    echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" \
-      > /etc/apt/sources.list.d/charm.list
-    apt-get update -qq && apt-get install -y -qq gum > /dev/null 2>&1
-  elif command -v yum &> /dev/null; then
-    cat > /etc/yum.repos.d/charm.repo << 'EOF'
-[charm]
-name=Charm
-baseurl=https://repo.charm.sh/yum/
-enabled=1
-gpgcheck=1
-gpgkey=https://repo.charm.sh/yum/gpg.key
-EOF
-    yum install -y gum > /dev/null 2>&1
-  elif command -v dnf &> /dev/null; then
-    cat > /etc/yum.repos.d/charm.repo << 'EOF'
-[charm]
-name=Charm
-baseurl=https://repo.charm.sh/yum/
-enabled=1
-gpgcheck=1
-gpgkey=https://repo.charm.sh/yum/gpg.key
-EOF
-    dnf install -y gum > /dev/null 2>&1
-  elif command -v apk &> /dev/null; then
-    apk add --no-cache gum 2>/dev/null
-  else
-    local os arch
-    os=$(uname -s)
-    arch=$(uname -m)
-    case "$arch" in
-      x86_64)  arch="x86_64" ;;
-      arm64|aarch64) arch="arm64" ;;
-      *)       echo "Unsupported architecture: $arch"; return 1 ;;
-    esac
-    local tmp
-    tmp=$(mktemp -d)
-    curl -fsSL "https://github.com/charmbracelet/gum/releases/latest/download/gum_*_${os}_${arch}.tar.gz" \
-      | tar xz -C "$tmp" gum 2>/dev/null
-    mkdir -p /usr/local/bin
-    mv "$tmp/gum" /usr/local/bin/gum 2>/dev/null
-    rm -rf "$tmp"
-  fi
-
-  if command -v gum &> /dev/null; then
-    HAS_GUM=true
-  fi
+  rm -rf "$tmpdir"
+  warn "Could not install gum - continuing without gum."
+  return 0
 }
 
 install_gum
 
-# -- Output helpers ----------------------------------------------------
+# -- Prompt & summary helpers (gum-aware) ------------------------------
 
 if [ "$HAS_GUM" = true ]; then
-  info()  { gum log --level info "$*"; }
-  ok()    { gum log --level info "$*"; }
-  warn()  { gum log --level warn "$*"; }
-  err()   { gum log --level error "$*"; }
-
-  header() {
-    gum style \
-      --foreground "#FAFAFA" --background "#6C91BF" \
-      --padding "0 2" --bold "$1"
-  }
-
-  step() {
-    echo ""
-    gum style \
-      --foreground "#E0E0E0" --background "#333333" \
-      --padding "0 1" --bold "$1"
-  }
-
-  spinner() {
-    local title="$1"; shift
-    gum spin --spinner dot --title "$title" -- "$@"
-  }
+  info() { gum log --level info "$*"; }
+  ok()   { gum log --level info "$*"; }
+  warn() { gum log --level warn "$*"; }
+  err()  { gum log --level error "$*"; }
 
   summary_box() {
     gum style \
@@ -123,6 +205,9 @@ if [ "$HAS_GUM" = true ]; then
     printf "  %-18s %s\n" "$label" "$url"
   }
 
+  bold() { gum style --bold --foreground 11 "$1"; }
+  dim()  { gum style --foreground 14 "$1"; }
+
   read_input() {
     gum input --placeholder "$1"
   }
@@ -132,48 +217,47 @@ if [ "$HAS_GUM" = true ]; then
     gum choose --header "$prompt" "$@"
   }
 else
-  RED='\033[0;31m'
-  GREEN='\033[0;32m'
-  YELLOW='\033[1;33m'
-  BLUE='\033[0;34m'
-  CYAN='\033[0;36m'
-  BOLD='\033[1m'
-  NC='\033[0m'
-
-  info()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
-  ok()    { echo -e "${GREEN}[ OK ]${NC}  $*"; }
-  warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-  err()   { echo -e "${RED}[ERR ]${NC}  $*"; }
-
-  header() { echo -e "\n${BOLD}${CYAN}=== $1 ===${NC}\n"; }
-  step()   { echo -e "\n${BOLD}${CYAN}--- $1 ---${NC}"; }
-
-  spinner() {
-    local title="$1"; shift
-    info "$title"
-    "$@"
-  }
-
   summary_box() { echo -e "\n${GREEN}$1${NC}\n"; }
 
+  summary_section() { echo -e "${CYAN}$1${NC}"; }
+
+  summary_row() {
+    local label="$1" url="$2"
+    printf "  %-18s %s\n" "$label" "$url"
+  }
+
+  bold() { echo -e "${BOLD}$1${NC}"; }
+  dim()  { echo "$1"; }
+
   read_input() {
-    read -rp "$1: " result
+    local result=""
+    read -rp "$1: " result || result=""
     echo "$result"
   }
 
   gum_menu() {
     local prompt="$1"; shift
     local options=("$@")
-    echo "$prompt"
     local i=1
+    echo "$prompt"
     for opt in "${options[@]}"; do
       echo "  $i) $opt"
       i=$((i + 1))
     done
-    local choice
+    local choice=""
     while true; do
-      read -rp "Enter choice [1-${#options[@]}]: " choice
-      if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#options[@]}" ]; then
+      if ! read -rp "Enter choice [1-${#options[@]}] (default 1): " choice; then
+        choice="1"
+        break
+      fi
+      if [ -n "$choice" ] && [[ ! "$choice" =~ ^[0-9]+$ ]]; then
+        echo "  Invalid choice. Please enter a number between 1 and ${#options[@]}."
+        continue
+      fi
+      if [ -z "$choice" ]; then
+        choice="1"
+      fi
+      if [ "$choice" -ge 1 ] && [ "$choice" -le "${#options[@]}" ]; then
         break
       fi
       echo "  Invalid choice. Please enter a number between 1 and ${#options[@]}."
@@ -185,7 +269,9 @@ fi
 # -- Helpers -----------------------------------------------------------
 
 generate_password() {
-  openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c "$1"
+  local raw
+  raw=$(openssl rand -base64 96 | tr -dc 'a-zA-Z0-9')
+  printf '%s' "${raw:0:$1}"
 }
 
 generate_hex() {
@@ -214,6 +300,12 @@ wait_for_port() {
   done
 }
 
+service_running() {
+  # `ps -q` is stable across Compose versions (the JSON output format
+  # changed in Compose 2.21, so it is not used for state checks).
+  [ -n "$(docker compose -f "$COMPOSE_FILE" ps -q "$1" 2>/dev/null)" ]
+}
+
 update_env() {
   local key="$1" value="$2"
   if grep -q "^${key}=" .env 2>/dev/null; then
@@ -225,31 +317,7 @@ update_env() {
   fi
 }
 
-# -- Self-update check --------------------------------------------------
-
-REPO_RAW="https://raw.githubusercontent.com/Nort1346/StreamHub/main"
-SETUP_URL="${REPO_RAW}/setup.sh"
-SETUP_NEW=$(mktemp)
-SETUP_SELF="$0"
-COMPOSE_TMP=$(mktemp)
-
-cleanup() {
-  rm -f "$SETUP_NEW" "$COMPOSE_TMP"
-}
-trap cleanup EXIT
-
-# -- Piped stdin guard (curl | bash) ------------------------------------
-# When piped via stdin, interactive prompts (gum/read) read the consumed
-# pipe (immediate EOF). Re-run from a local copy with stdin reopened from
-# the controlling terminal so the guided prompts work.
-if [ ! -t 0 ] && [ -z "${STREAMHUB_SETUP_REEXEC:-}" ]; then
-  if { : < /dev/tty; } 2>/dev/null && curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
-    export STREAMHUB_SETUP_REEXEC=1
-    chmod +x "$SETUP_NEW"
-    exec bash "$SETUP_NEW" < /dev/tty "$@"
-  fi
-  warn "Running without interactive input - prompts will be skipped."
-fi
+# -- Self-update check (continue with local copy on failure) -----------
 
 if curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
   if ! diff -q "$SETUP_SELF" "$SETUP_NEW" &>/dev/null; then
@@ -270,7 +338,7 @@ if curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
         exec "$SETUP_SELF" "$@"
       }
     else
-      read -rp "Update setup.sh and restart? [y/N] " answer
+      read -rp "Update setup.sh and restart? [y/N] " answer || answer=""
       if [[ "$answer" =~ ^[Yy]$ ]]; then
         cp "$SETUP_SELF" "${SETUP_SELF}.bak"
         cp "$SETUP_NEW" "$SETUP_SELF"
@@ -295,7 +363,7 @@ echo ""
 if [ "$HAS_GUM" = true ]; then
   gum confirm --default=false "Do you want to continue?" || { echo "Aborted."; exit 0; }
 else
-  read -rp "Do you want to continue? (y/N) " confirm
+  read -rp "Do you want to continue? (y/N) " confirm || confirm=""
   [[ "$confirm" =~ ^[yY] ]] || { echo "Aborted."; exit 0; }
 fi
 
@@ -374,6 +442,60 @@ if ! command -v curl &> /dev/null; then
   exit 1
 fi
 ok "curl available"
+
+if ! command -v openssl &> /dev/null; then
+  err "openssl is not installed."
+  case "$(uname -s)" in
+    Darwin)
+      echo "  Install Xcode Command Line Tools: xcode-select --install"
+      ;;
+    Linux)
+      if command -v apt-get &> /dev/null; then
+        echo "  Install openssl: sudo apt-get install -y openssl"
+      elif command -v yum &> /dev/null; then
+        echo "  Install openssl: sudo yum install -y openssl"
+      elif command -v dnf &> /dev/null; then
+        echo "  Install openssl: sudo dnf install -y openssl"
+      elif command -v apk &> /dev/null; then
+        echo "  Install openssl: apk add --no-cache openssl"
+      else
+        echo "  Install openssl using your package manager."
+      fi
+      ;;
+    *)
+      echo "  Install openssl using your package manager."
+      ;;
+  esac
+  exit 1
+fi
+ok "openssl available"
+
+if ! command -v nc &> /dev/null; then
+  err "nc (netcat) is not installed."
+  case "$(uname -s)" in
+    Darwin)
+      echo "  nc ships with macOS - check that /usr/bin is in your PATH."
+      ;;
+    Linux)
+      if command -v apt-get &> /dev/null; then
+        echo "  Install netcat: sudo apt-get install -y netcat-openbsd"
+      elif command -v yum &> /dev/null; then
+        echo "  Install netcat: sudo yum install -y nmap-ncat"
+      elif command -v dnf &> /dev/null; then
+        echo "  Install netcat: sudo dnf install -y nmap-ncat"
+      elif command -v apk &> /dev/null; then
+        echo "  Install netcat: apk add --no-cache netcat-openbsd"
+      else
+        echo "  Install netcat using your package manager."
+      fi
+      ;;
+    *)
+      echo "  Install netcat using your package manager."
+      ;;
+  esac
+  exit 1
+fi
+ok "nc available"
 
 # -- 2. Create .env ----------------------------------------------------
 
@@ -517,7 +639,7 @@ if [ -f "$COMPOSE_FILE" ]; then
       fi
     }
   else
-    read -rp "$COMPOSE_FILE already exists. Download latest version? [y/N] " answer
+    read -rp "$COMPOSE_FILE already exists. Download latest version? [y/N] " answer || answer=""
     if [[ "$answer" =~ ^[Yy]$ ]]; then
       info "Downloading $COMPOSE_FILE..."
       if curl -fsSL "${REPO_RAW}/${COMPOSE_FILE}" -o "$COMPOSE_TMP" 2>/dev/null; then
@@ -525,7 +647,7 @@ if [ -f "$COMPOSE_FILE" ]; then
           warn "$COMPOSE_FILE has changed"
           diff "$COMPOSE_FILE" "$COMPOSE_TMP" || true
           echo ""
-          read -rp "Replace $COMPOSE_FILE with latest version? [y/N] " replace
+          read -rp "Replace $COMPOSE_FILE with latest version? [y/N] " replace || replace=""
           if [[ "$replace" =~ ^[Yy]$ ]]; then
             cp "$COMPOSE_FILE" "${COMPOSE_FILE}.bak"
             cp "$COMPOSE_TMP" "$COMPOSE_FILE"
@@ -553,39 +675,40 @@ else
 fi
 
 if [ "$STREAMHUB_TAG" = "nightly" ]; then
-  sed -i.bak "s|ghcr.io/nort1346/streamhub:latest|ghcr.io/nort1346/streamhub:nightly|" "$COMPOSE_FILE" && rm -f "${COMPOSE_FILE}.bak"
-  ok "Configured for nightly builds"
+  if grep -q 'ghcr.io/nort1346/streamhub:latest' "$COMPOSE_FILE"; then
+    sed -i.bak "s|ghcr.io/nort1346/streamhub:latest|ghcr.io/nort1346/streamhub:nightly|" "$COMPOSE_FILE" && rm -f "${COMPOSE_FILE}.bak"
+    ok "Configured for nightly builds"
+  else
+    warn "$COMPOSE_FILE does not reference streamhub:latest - check the image tag manually"
+  fi
 fi
 
 # -- 6. Start infrastructure services ---------------------------------
 
 step "[7/14] Starting infrastructure services"
 
-INFRA_SERVICES="redis qbittorrent prowlarr flaresolverr jellyfin dozzle"
+INFRA_SERVICES=(redis qbittorrent prowlarr flaresolverr jellyfin dozzle)
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
-  INFRA_SERVICES="redis qbittorrent prowlarr flaresolverr jellyfin dozzle postgres"
+  INFRA_SERVICES+=(postgres)
 fi
 
 if [ "$HAS_GUM" = true ]; then
-  gum spin --spinner dot --title "Pulling images..." -- docker compose -f "$COMPOSE_FILE" pull $INFRA_SERVICES || true
+  gum spin --spinner dot --title "Pulling images..." -- docker compose -f "$COMPOSE_FILE" pull "${INFRA_SERVICES[@]}" || true
 else
   info "Pulling images..."
-  docker compose -f "$COMPOSE_FILE" pull $INFRA_SERVICES || true
+  docker compose -f "$COMPOSE_FILE" pull "${INFRA_SERVICES[@]}" || true
 fi
 
-docker compose -f "$COMPOSE_FILE" up -d --remove-orphans $INFRA_SERVICES
+docker compose -f "$COMPOSE_FILE" up -d --remove-orphans "${INFRA_SERVICES[@]}"
 
 failed_services=""
-while IFS= read -r line; do
-  [ -z "$line" ] && continue
-  svc=$(echo "$line" | grep -o '"Service":"[^"]*"' | cut -d'"' -f4)
-  state=$(echo "$line" | grep -o '"State":"[^"]*"' | cut -d'"' -f4)
-  if [ "$state" != "running" ] && [ -n "$svc" ]; then
+for svc in "${INFRA_SERVICES[@]}"; do
+  if ! service_running "$svc"; then
     failed_services="$failed_services $svc"
     last_log=$(docker compose -f "$COMPOSE_FILE" logs "$svc" --tail 3 2>&1 | tail -1)
     warn "$svc failed to start: $last_log"
   fi
-done < <(docker compose -f "$COMPOSE_FILE" ps --format json 2>/dev/null)
+done
 
 if [[ " $failed_services " =~ " redis " ]]; then
   err "Redis failed to start. Cannot continue."
@@ -611,7 +734,7 @@ wait_for_port "localhost" "8080" 60 || true
 
 sleep 3
 
-QBIT_TEMP_PASS=$(docker logs streamhub-qbittorrent 2>&1 | sed -n 's/.*A temporary password is provided for this session: *//p' | tail -1) || true
+QBIT_TEMP_PASS=$(docker compose -f "$COMPOSE_FILE" logs qbittorrent 2>&1 | sed -n 's/.*A temporary password is provided for this session: *//p' | tail -1) || true
 
 if [[ " $failed_services " =~ " prowlarr " ]]; then
   warn "Prowlarr not running -- you can configure it later (step 10)"
@@ -786,7 +909,7 @@ else
   docker compose -f "$COMPOSE_FILE" pull streamhub || true
 fi
 
-if ! docker image inspect ghcr.io/nort1346/streamhub:$STREAMHUB_TAG &> /dev/null; then
+if ! docker image inspect "ghcr.io/nort1346/streamhub:${STREAMHUB_TAG}" &> /dev/null; then
   err "Failed to pull StreamHub image. Check your network and try again."
   err "You can also try manually: docker compose -f $COMPOSE_FILE pull streamhub"
   exit 1
@@ -814,7 +937,7 @@ else
   docker compose -f "$COMPOSE_FILE" up -d streamhub || true
 fi
 
-if ! docker compose -f "$COMPOSE_FILE" ps streamhub 2>/dev/null | grep -q "Up"; then
+if ! service_running streamhub; then
   err "StreamHub container failed to start. Check logs:"
   err "  docker compose -f $COMPOSE_FILE logs streamhub"
   exit 1
@@ -839,12 +962,12 @@ done
 # -- Summary -----------------------------------------------------------
 
 HAS_DOZZLE=false
-if docker compose -f "$COMPOSE_FILE" ps dozzle 2>/dev/null | grep -q "Up"; then
+if service_running dozzle; then
   HAS_DOZZLE=true
 fi
 
 # -- Header
-summary_box "$(gum style --bold --foreground 2 'StreamHub is ready!')"
+summary_box "$(bold 'StreamHub is ready!')"
 
 echo ""
 
@@ -874,10 +997,10 @@ summary_section "$SERVICES_TABLE"
 echo ""
 
 # -- Credentials
-CREDS=$(gum style --bold --foreground 11 'admin')
+CREDS=$(bold 'admin')
 summary_section "  Username: $CREDS"
 if [ -n "$ADMIN_PASS" ]; then
-  summary_section "  Password: $(gum style --bold --foreground 11 "$ADMIN_PASS")"
+  summary_section "  Password: $(bold "$ADMIN_PASS")"
 else
   summary_section "  Password: check 'docker compose -f $COMPOSE_FILE logs streamhub'"
 fi
@@ -887,10 +1010,10 @@ echo ""
 
 # -- Next steps
 STEPS=$(cat <<STEPS
-$(gum style --foreground 14 '  Next steps:')
-$(gum style --foreground 14 '   1. Login with admin -> Admin > Users to change the password')
-$(gum style --foreground 14 '   2. Jellyfin libraries (Movies/Series) are created automatically on startup')
-$(gum style --foreground 14 '   3. Prowlarr -> Add indexers + FlareSolverr proxy')
+$(dim '  Next steps:')
+$(dim '   1. Login with admin -> Admin > Users to change the password')
+$(dim '   2. Jellyfin libraries (Movies/Series) are created automatically on startup')
+$(dim '   3. Prowlarr -> Add indexers + FlareSolverr proxy')
 STEPS
 )
 
