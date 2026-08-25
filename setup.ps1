@@ -20,11 +20,6 @@ function Install-Gum {
         return
     }
 
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue) -and
-        -not (Get-Command scoop -ErrorAction SilentlyContinue)) {
-        return
-    }
-
     Write-Host "Installing gum (charm) for beautiful output..."
 
     if (Get-Command winget -ErrorAction SilentlyContinue) {
@@ -34,28 +29,30 @@ function Install-Gum {
         scoop install gum
     }
     else {
+        # Fallback: official release binary. gum publishes exact-version
+        # assets only (no "latest" alias, no glob), so resolve the tag first.
         $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
             "ARM64" { "x86_64" }
-            "x86"   { "i386" }
             default { "x86_64" }
         }
-        $tmp = Join-Path $env:TEMP "gum-download"
-        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
-
-        $url = "https://github.com/charmbracelet/gum/releases/latest/download/gum_*_Windows_${arch}.zip"
-        $zip = Join-Path $tmp "gum.zip"
-
         try {
-            Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing 2>$null
+            $tag = (Invoke-RestMethod -Uri "https://api.github.com/repos/charmbracelet/gum/releases/latest").tag_name
+            $url = "https://github.com/charmbracelet/gum/releases/download/$tag/gum_$($tag.TrimStart('v'))_Windows_${arch}.zip"
+            $tmp = Join-Path $env:TEMP "gum-download"
+            New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+            $zip = Join-Path $tmp "gum.zip"
+            Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
             Expand-Archive -Path $zip -DestinationPath $tmp -Force
             $gumExe = Get-ChildItem -Path $tmp -Filter "gum.exe" -Recurse | Select-Object -First 1
             if ($gumExe) {
-                Copy-Item $gumExe.FullName "$env:LOCALAPPDATA\Microsoft\WinGet\Links\gum.exe" -Force -ErrorAction SilentlyContinue
-                $script:HAS_GUM = $true
+                $destDir = Join-Path $env:LOCALAPPDATA "Programs\gum"
+                New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+                Copy-Item $gumExe.FullName (Join-Path $destDir "gum.exe") -Force
+                $env:Path = "$destDir;$env:Path"
             }
         }
         catch {
-            Write-Host "Could not install gum automatically."
+            Write-Host "Could not install gum automatically - continuing without it."
         }
         finally {
             Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
@@ -95,16 +92,6 @@ function Write-Step {
     } else {
         Write-Host ""
         Write-Host "--- $Msg ---" -ForegroundColor Cyan
-    }
-}
-
-function Invoke-Spinner {
-    param([string]$Title, [scriptblock]$Command)
-    if ($script:HAS_GUM) {
-        gum spin --spinner dot --title $Title -- $Command
-    } else {
-        Write-Info $Title
-        & $Command
     }
 }
 
@@ -249,7 +236,9 @@ $SETUP_SELF = $MyInvocation.MyCommand.Path
 
 try {
     Invoke-WebRequest -Uri $SETUP_URL -OutFile $SETUP_NEW -UseBasicParsing 2>$null
-    if ($LASTEXITCODE -eq 0 -and (Test-Path $SETUP_NEW)) {
+    # $LASTEXITCODE is not set by cmdlets like Invoke-WebRequest, and
+    # $SETUP_SELF is empty when the script is piped via irm | iex.
+    if ($SETUP_SELF -and (Test-Path $SETUP_NEW)) {
         $currentHash = (Get-FileHash $SETUP_SELF -Algorithm SHA256).Hash
         $newHash = (Get-FileHash $SETUP_NEW -Algorithm SHA256).Hash
         if ($currentHash -ne $newHash) {
@@ -321,13 +310,17 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Host "    https://docs.docker.com/desktop/windows-install/" -ForegroundColor Cyan
     exit 1
 }
-Write-Ok "Docker $(docker --version)"
+Write-Ok "Docker $((docker --version) -replace '.*version ([^ ,]+).*', '$1')"
 
-try {
-    docker info 2>$null | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Docker daemon not running" }
-} catch {
-    Write-Err "Docker daemon is not running. Start Docker Desktop and try again."
+$dockerInfo = docker info 2>&1 | ForEach-Object { $_.ToString() }
+if ($LASTEXITCODE -ne 0) {
+    Write-Err "Docker daemon is not running or not reachable from this shell."
+    # docker info prints the whole client section before the failure -
+    # show only the error lines (fall back to the last lines).
+    $dockerErrLines = @($dockerInfo | Where-Object { $_ -match 'failed to connect|cannot connect|permission denied|connection refused|cannot find the file' } | Select-Object -First 3)
+    if (-not $dockerErrLines) { $dockerErrLines = @($dockerInfo | Select-Object -Last 3) }
+    foreach ($line in $dockerErrLines) { Write-Host "    $line" }
+    Write-Host "  Start Docker Desktop (WSL2 backend) and try again." -ForegroundColor Yellow
     exit 1
 }
 Write-Ok "Docker daemon running"
@@ -565,23 +558,20 @@ if ($DB_DRIVER_CHOICE -eq "postgres") {
     $INFRA_SERVICES += "postgres"
 }
 
-Invoke-Spinner "Pulling images..." { docker compose -f $COMPOSE_FILE pull $INFRA_SERVICES 2>$null }
+Write-Info "Pulling images..."
+docker compose -f $COMPOSE_FILE pull $INFRA_SERVICES
 
 docker compose -f $COMPOSE_FILE up -d --remove-orphans $INFRA_SERVICES
 
+# `ps -q` is stable across Compose versions (the JSON output format
+# changed in Compose 2.21, so it is not used for state checks).
 $failedServices = @()
-$psOutput = docker compose -f $COMPOSE_FILE ps --format json 2>$null
-if ($psOutput) {
-    foreach ($line in ($psOutput -split "`n")) {
-        if (-not $line) { continue }
-        try {
-            $json = $line | ConvertFrom-Json
-            if ($json.State -ne "running") {
-                $failedServices += $json.Service
-                $lastLog = docker compose -f $COMPOSE_FILE logs $json.Service --tail 3 2>&1 | Select-Object -Last 1
-                Write-Warn "$($json.Service) failed to start: $lastLog"
-            }
-        } catch { }
+foreach ($svc in $INFRA_SERVICES) {
+    $svcId = docker compose -f $COMPOSE_FILE ps -q $svc 2>$null
+    if (-not $svcId) {
+        $failedServices += $svc
+        $lastLog = docker compose -f $COMPOSE_FILE logs $svc --tail 3 2>&1 | Select-Object -Last 1
+        Write-Warn "$svc failed to start: $lastLog"
     }
 }
 
@@ -707,7 +697,7 @@ Write-Host "  2. Go to Settings > General" -ForegroundColor Gray
 Write-Host "  3. Find the API Key field" -ForegroundColor Gray
 Write-Host "  4. Copy the API key" -ForegroundColor Gray
 Write-Host ""
-Write-Host "Tip: You can also add indexers here ( torrent ) later." -ForegroundColor DarkGray
+Write-Host "Tip: You can also add more indexers in Prowlarr later." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "For private trackers: go to Settings > Indexers > Add > FlareSolverr" -ForegroundColor DarkGray
 Write-Host "  Set URL: http://flaresolverr:8191" -ForegroundColor DarkGray
@@ -774,9 +764,10 @@ if ($discordKey) {
 
 Write-Step "[13/14] Pulling StreamHub"
 
-Invoke-Spinner "Pulling StreamHub image..." { docker compose -f $COMPOSE_FILE pull streamhub 2>$null }
+Write-Info "Pulling StreamHub image..."
+docker compose -f $COMPOSE_FILE pull streamhub
 
-if (-not (docker image inspect ghcr.io/nort1346/streamhub:$STREAMHUB_TAG 2>$null)) {
+if (-not (docker image inspect "ghcr.io/nort1346/streamhub:$STREAMHUB_TAG" 2>$null)) {
     Write-Err "Failed to pull StreamHub image. Check your network."
     Write-Err "You can also try manually: docker compose -f $COMPOSE_FILE pull streamhub"
     exit 1
@@ -800,8 +791,8 @@ if ($DB_DRIVER_CHOICE -eq "postgres") {
 docker compose -f $COMPOSE_FILE up -d streamhub 2>$null
 
 Start-Sleep -Seconds 3
-$streamhubUp = docker compose -f $COMPOSE_FILE ps streamhub 2>$null | Select-String "Up"
-if (-not $streamhubUp) {
+$streamhubId = docker compose -f $COMPOSE_FILE ps -q streamhub 2>$null
+if (-not $streamhubId) {
     Write-Err "StreamHub container is not running. Check logs:"
     Write-Err "  docker compose -f $COMPOSE_FILE logs streamhub"
     exit 1
