@@ -44,22 +44,37 @@ run_privileged() {
 }
 
 # -- Output helpers (plain ANSI - available before gum is known) -------
+# Colors degrade to nothing when output is not a terminal or when
+# NO_COLOR / TERM=dumb is set, so the script stays readable in old
+# terminals, logs, and piped output.
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ] || [ ! -t 1 ]; then
+  RED=''
+  GREEN=''
+  YELLOW=''
+  BLUE=''
+  CYAN=''
+  GRAY=''
+  BOLD=''
+  NC=''
+else
+  RED='\033[0;31m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[1;33m'
+  BLUE='\033[0;34m'
+  CYAN='\033[0;36m'
+  GRAY='\033[0;90m'
+  BOLD='\033[1m'
+  NC='\033[0m'
+fi
 
 info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
 ok()   { echo -e "${GREEN}[ OK ]${NC}  $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 err()  { echo -e "${RED}[ERR ]${NC}  $*"; }
 
-header() { echo -e "\n${BOLD}${CYAN}=== $1 ===${NC}\n"; }
-step()   { echo -e "\n${BOLD}${CYAN}--- $1 ---${NC}"; }
+header() { echo -e "\n${BOLD}$1${NC}\n"; }
+step()   { echo -e "\n${CYAN}${BOLD}$1${NC}"; }
 
 # -- Piped stdin guard (curl | bash) -----------------------------------
 # When piped, the script text arrives on stdin, so interactive prompts
@@ -179,6 +194,27 @@ install_gum() {
 
 install_gum
 
+# gum prompts are TUIs: they only render in a real terminal and need
+# v0.12.0+ (gum log). On any failure we fall back to plain output.
+gum_usable() {
+  command -v gum >/dev/null 2>&1 || return 1
+  [ -t 0 ] || return 1
+  [ -t 1 ] || return 1
+  [ "${TERM:-}" != "dumb" ] || return 1
+  [ -z "${NO_COLOR:-}" ] || return 1
+  local ver
+  ver=$(gum --version 2>/dev/null | sed -n 's/.*version v\{0,1\}\([0-9][0-9.]*\).*/\1/p' | head -n 1)
+  [ -n "$ver" ] || return 1
+  [ "$(printf '%s\n' "$ver" "0.12.0" | sort -V | head -n 1)" = "0.12.0" ] || return 1
+  command -v tput >/dev/null 2>&1 && tput cols >/dev/null 2>&1 || return 1
+  return 0
+}
+
+if [ "$HAS_GUM" = true ] && ! gum_usable; then
+  HAS_GUM=false
+  warn "gum cannot render prompts in this terminal - using plain output."
+fi
+
 # -- Prompt & summary helpers (gum-aware) ------------------------------
 
 if [ "$HAS_GUM" = true ]; then
@@ -186,13 +222,6 @@ if [ "$HAS_GUM" = true ]; then
   ok()   { gum log --level info "$*"; }
   warn() { gum log --level warn "$*"; }
   err()  { gum log --level error "$*"; }
-
-  summary_box() {
-    gum style \
-      --border double --border-foreground 2 \
-      --align center \
-      --padding "1 2" "$1"
-  }
 
   summary_section() {
     gum style \
@@ -217,8 +246,6 @@ if [ "$HAS_GUM" = true ]; then
     gum choose --header "$prompt" "$@"
   }
 else
-  summary_box() { echo -e "\n${GREEN}$1${NC}\n"; }
-
   summary_section() { echo -e "${CYAN}$1${NC}"; }
 
   summary_row() {
@@ -227,7 +254,7 @@ else
   }
 
   bold() { echo -e "${BOLD}$1${NC}"; }
-  dim()  { echo "$1"; }
+  dim()  { echo -e "${GRAY}$1${NC}"; }
 
   read_input() {
     local result=""
@@ -323,10 +350,9 @@ if curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
   if ! diff -q "$SETUP_SELF" "$SETUP_NEW" &>/dev/null; then
     echo ""
     if [ "$HAS_GUM" = true ]; then
-      gum style --foreground "#FFD700" --border normal --border-foreground "#FFD700" \
-        --padding "0 1" --bold "A newer version of setup.sh is available."
+      gum style --foreground 11 --bold "A newer version of setup.sh is available."
     else
-      echo -e "  A newer version of setup.sh is available."
+      echo -e "${YELLOW}${BOLD}  A newer version of setup.sh is available.${NC}"
     fi
     echo ""
     if [ "$HAS_GUM" = true ]; then
@@ -356,8 +382,8 @@ fi
 header "StreamHub Auto-Setup v1.0"
 
 echo ""
-echo "This will set up StreamHub and all required services."
-echo "All data will be stored in Docker volumes."
+dim "This will set up StreamHub and all required services."
+dim "All data will be stored in Docker volumes."
 echo ""
 
 if [ "$HAS_GUM" = true ]; then
@@ -583,11 +609,13 @@ step "[4/14] StreamHub version"
 
 STREAMHUB_TAG="latest"
 
-echo ""
-echo "Which StreamHub image do you want to use?"
-echo "  latest  - Stable release (recommended)"
-echo "  nightly - Latest dev build from main (may be unstable)"
-echo ""
+if [ "$HAS_GUM" != true ]; then
+  echo ""
+  echo "Which StreamHub image do you want to use?"
+  echo "  latest  - Stable release (recommended)"
+  echo "  nightly - Latest dev build from main (may be unstable)"
+  echo ""
+fi
 
 STREAMHUB_TAG_CHOICE=$(gum_menu "Select version:" "latest (recommended)" "nightly")
 
@@ -609,18 +637,19 @@ existing_db_driver=$(grep "^DB_DRIVER=" .env 2>/dev/null | cut -d= -f2- | tr -d 
 
 if [ -n "$existing_db_driver" ] && [ "$existing_db_driver" != "sqlite" ]; then
   if [ "$HAS_GUM" = true ]; then
-    gum style --foreground "#FFD700" --border normal --border-foreground "#FFD700" \
-      --padding "0 1" --bold "Existing database driver: $existing_db_driver"
+    gum style --foreground 11 --bold "Existing database driver: $existing_db_driver"
   else
-    echo -e "  Existing database driver: $existing_db_driver"
+    echo -e "${YELLOW}${BOLD}  Existing database driver: ${existing_db_driver}${NC}"
   fi
 fi
 
-echo ""
-echo "Choose your database driver:"
-echo "  SQLite    - Zero config, file-based, recommended for most users"
-echo "  PostgreSQL - Full-featured, requires more resources"
-echo ""
+if [ "$HAS_GUM" != true ]; then
+  echo ""
+  echo "Choose your database driver:"
+  echo "  SQLite    - Zero config, file-based, recommended for most users"
+  echo "  PostgreSQL - Full-featured, requires more resources"
+  echo ""
+fi
 
 DB_DRIVER_CHOICE=$(gum_menu "Select database driver:" "SQLite (recommended)" "PostgreSQL")
 
@@ -795,11 +824,11 @@ step "[8/14] Jellyfin API Key"
 
 echo ""
 echo "Follow these steps to get your Jellyfin API key:"
-echo "  1. Open http://localhost:8096 in your browser"
-echo "  2. Complete the setup wizard (create your admin account)"
-echo "  3. Go to Dashboard (gear icon) > API Keys"
-echo '  4. Click "+", name it "StreamHub", click OK'
-echo "  5. Copy the generated API key"
+dim "  1. Open http://localhost:8096 in your browser"
+dim "  2. Complete the setup wizard (create your admin account)"
+dim "  3. Go to Dashboard (gear icon) > API Keys"
+dim '  4. Click "+", name it "StreamHub", click OK'
+dim "  5. Copy the generated API key"
 echo ""
 
 jellyfinKey=$(read_input "Paste your Jellyfin API key (Enter to skip)")
@@ -817,31 +846,23 @@ step "[9/14] qBittorrent WebUI + API Key"
 
 if [ -n "${QBIT_TEMP_PASS:-}" ]; then
   echo ""
-  if [ "$HAS_GUM" = true ]; then
-    gum style --foreground "#FFD700" --border normal --border-foreground "#FFD700" \
-      --padding "0 1" --bold "qBittorrent temporary password: ${QBIT_TEMP_PASS}" \
-      "Copy this -- you will need it below"
-  else
-    echo -e "  +--------------------------------------------+"
-    echo -e "  | ${YELLOW}qBittorrent temporary password: ${QBIT_TEMP_PASS}${NC}"
-    echo -e "  | ${YELLOW}Copy this -- you will need it below        ${NC}"
-    echo -e "  +--------------------------------------------+"
-  fi
+  echo -e "${BOLD}${YELLOW}qBittorrent temporary password: ${QBIT_TEMP_PASS}${NC}"
+  dim "Copy this - you will need it below"
   echo ""
 else
-  warn "Could not extract qBittorrent temp password -- check: docker logs streamhub-qbittorrent"
+  warn "Could not extract qBittorrent temp password - check: docker compose -f $COMPOSE_FILE logs qbittorrent"
 fi
 
 echo "Follow these steps to configure qBittorrent:"
-echo "  1. Open http://localhost:8080 in your browser"
-echo "  2. Login with:"
-echo "       Username: admin"
-echo "       Password: [temporary password shown above]"
-echo "  3. Go to Tools > Options > Web UI"
-echo "  4. Change the password to something you remember"
-echo "  5. Save changes"
-echo "  6. Go to Tools > Options > Web UI > API Key section"
-echo "  7. Copy the API Key"
+dim "  1. Open http://localhost:8080 in your browser"
+dim "  2. Login with:"
+dim "       Username: admin"
+dim "       Password: [temporary password shown above]"
+dim "  3. Go to Tools > Options > Web UI"
+dim "  4. Change the password to something you remember"
+dim "  5. Save changes"
+dim "  6. Go to Tools > Options > Web UI > API Key section"
+dim "  7. Copy the API Key"
 echo ""
 
 qbitKey=$(read_input "Paste your qBittorrent API Key (Enter to skip)")
@@ -859,15 +880,15 @@ step "[10/14] Prowlarr API Key"
 
 echo ""
 echo "Follow these steps to get your Prowlarr API key:"
-echo "  1. Open http://localhost:9900 in your browser"
-echo "  2. Go to Settings > General"
-echo "  3. Find the API Key field"
-echo "  4. Copy the API key"
+dim "  1. Open http://localhost:9900 in your browser"
+dim "  2. Go to Settings > General"
+dim "  3. Find the API Key field"
+dim "  4. Copy the API key"
 echo ""
-echo "Tip: You can also add indexers here later."
-echo ""
-echo "For private trackers: go to Settings > Indexers > Add > FlareSolverr"
-echo "  Set URL: http://flaresolverr:8191"
+echo -e "${BOLD}${YELLOW}IMPORTANT: Prowlarr needs indexers before StreamHub can find anything.${NC}"
+dim "  1. Add at least one indexer (e.g. YTS): Settings > Indexers > Add"
+dim "  2. For private trackers: Settings > Indexers > Add > FlareSolverr"
+dim "     Set URL: http://flaresolverr:8191"
 echo ""
 
 prowlarrKey=$(read_input "Paste your Prowlarr API key (Enter to skip)")
@@ -885,15 +906,15 @@ step "[11/14] TMDB API Key"
 
 echo ""
 echo "Follow these steps to get your TMDB API key:"
-echo "  1. Go to https://www.themoviedb.org/settings/api"
-echo "  2. Create a free account (or log in)"
-echo '  3. Click "Click here to generate an API key"'
-echo "  4. Fill in the form:"
-echo "       Application Name:  StreamHub"
-echo "       Application URL:   http://localhost:5757"
-echo "  5. Copy your API Key (v3 auth)"
+dim "  1. Go to https://www.themoviedb.org/settings/api"
+dim "  2. Create a free account (or log in)"
+dim '  3. Click "Click here to generate an API key"'
+dim "  4. Fill in the form:"
+dim "       Application Name:  StreamHub"
+dim "       Application URL:   http://localhost:5757"
+dim "  5. Copy your API Key (v3 auth)"
 echo ""
-echo "This is required for movie/TV metadata."
+dim "This is required for movie/TV metadata."
 echo ""
 
 tmdbKey=$(read_input "Paste your TMDB API key (Enter to skip)")
@@ -910,12 +931,12 @@ fi
 step "[12/14] Discord Webhook (optional)"
 
 echo ""
-echo "Get notified when downloads complete."
+dim "Get notified when downloads complete."
 echo "To set up a Discord webhook:"
-echo "  1. Open your Discord server"
-echo "  2. Go to Server Settings > Integrations > Webhooks"
-echo '  3. Click "New Webhook"'
-echo "  4. Name it, choose a channel, click Copy Webhook URL"
+dim "  1. Open your Discord server"
+dim "  2. Go to Server Settings > Integrations > Webhooks"
+dim '  3. Click "New Webhook"'
+dim "  4. Name it, choose a channel, click Copy Webhook URL"
 echo ""
 
 discordKey=$(read_input "Paste your Discord Webhook URL (Enter to skip)")
@@ -987,9 +1008,8 @@ if service_running dozzle; then
   HAS_DOZZLE=true
 fi
 
-# -- Header
-summary_box "$(bold 'StreamHub is ready!')"
-
+echo ""
+echo -e "${BOLD}${GREEN}StreamHub is ready!${NC}"
 echo ""
 
 # -- Services table
@@ -1018,24 +1038,18 @@ summary_section "$SERVICES_TABLE"
 echo ""
 
 # -- Credentials
-CREDS=$(bold 'admin')
-summary_section "  Username: $CREDS"
+echo "Username: $(bold admin)"
 if [ -n "$ADMIN_PASS" ]; then
-  summary_section "  Password: $(bold "$ADMIN_PASS")"
+  echo "Password: $(bold "$ADMIN_PASS")"
 else
-  summary_section "  Password: check 'docker compose -f $COMPOSE_FILE logs streamhub'"
+  dim "Password: check 'docker compose -f $COMPOSE_FILE logs streamhub'"
 fi
-summary_section "  Change this password after first login!"
+dim "Change this password after first login."
 
 echo ""
 
-# -- Next steps
-STEPS=$(cat <<STEPS
-$(dim '  Next steps:')
-$(dim '   1. Login with admin -> Admin > Users to change the password')
-$(dim '   2. Jellyfin libraries (Movies/Series) are created automatically on startup')
-$(dim '   3. Prowlarr -> Add indexers + FlareSolverr proxy')
-STEPS
-)
-
-summary_section "$STEPS"
+# -- Required before first use
+echo -e "${BOLD}${YELLOW}Required before first use:${NC}"
+dim "  Prowlarr has no indexers yet - StreamHub cannot find torrents until you add them."
+dim "  Open http://localhost:9900 and add at least one indexer (e.g. YTS)."
+dim "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"

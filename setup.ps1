@@ -14,8 +14,27 @@ $ErrorActionPreference = "Continue"
 
 $script:HAS_GUM = $false
 
+function Test-GumUsable {
+    # gum prompts are TUIs: they only render in a real terminal and need
+    # v0.12.0+ (gum log). On any failure we fall back to plain output.
+    if (-not (Get-Command gum -ErrorAction SilentlyContinue)) { return $false }
+    if ([System.Console]::IsInputRedirected) { return $false }
+    if ([System.Console]::IsOutputRedirected) { return $false }
+    if ($env:NO_COLOR) { return $false }
+    if ($env:TERM -eq "dumb") { return $false }
+    try {
+        $verRaw = (gum --version 2>$null) -join " "
+        if ($verRaw -match '(\d+\.\d+\.\d+)') {
+            return ([version]$Matches[1]) -ge ([version]"0.12.0")
+        }
+    } catch {
+        # version check failed
+    }
+    return $false
+}
+
 function Install-Gum {
-    if (Get-Command gum -ErrorAction SilentlyContinue) {
+    if (Test-GumUsable) {
         $script:HAS_GUM = $true
         return
     }
@@ -59,8 +78,12 @@ function Install-Gum {
         }
     }
 
-    if (Get-Command gum -ErrorAction SilentlyContinue) {
-        $script:HAS_GUM = $true
+    $gumCmd = Get-Command gum -ErrorAction SilentlyContinue
+    if ($gumCmd) {
+        $script:HAS_GUM = Test-GumUsable
+        if (-not $script:HAS_GUM) {
+            Write-Host "gum cannot render prompts in this terminal - using plain output." -ForegroundColor Yellow
+        }
     }
 }
 
@@ -76,10 +99,11 @@ function Write-Err     { param([string]$Msg) if ($script:HAS_GUM) { gum log --le
 function Write-Header {
     param([string]$Msg)
     if ($script:HAS_GUM) {
-        gum style --foreground "#FAFAFA" --background "#6C91BF" --padding "0 2" --bold $Msg
+        Write-Host ""
+        gum style --bold $Msg
     } else {
         Write-Host ""
-        Write-Host "=== $Msg ===" -ForegroundColor Cyan
+        Write-Host $Msg -ForegroundColor White
         Write-Host ""
     }
 }
@@ -88,21 +112,30 @@ function Write-Step {
     param([string]$Msg)
     if ($script:HAS_GUM) {
         Write-Host ""
-        gum style --foreground "#E0E0E0" --background "#333333" --padding "0 1" --bold $Msg
+        gum style --bold --foreground cyan $Msg
     } else {
         Write-Host ""
-        Write-Host "--- $Msg ---" -ForegroundColor Cyan
+        Write-Host $Msg -ForegroundColor Cyan
     }
 }
 
-function Write-SummaryBox {
+function Write-Dim {
     param([string]$Msg)
     if ($script:HAS_GUM) {
-        gum style --border double --border-foreground 2 --align center --padding "1 2" $Msg
+        gum style --foreground 14 $Msg
     } else {
-        Write-Host ""
-        Write-Host $Msg -ForegroundColor Green
-        Write-Host ""
+        Write-Host $Msg -ForegroundColor DarkGray
+    }
+}
+
+function Write-Callout {
+    param([string]$Title, [string]$Body)
+    if ($script:HAS_GUM) {
+        gum style --bold --foreground 11 $Title
+        gum style --foreground 14 $Body
+    } else {
+        Write-Host $Title -ForegroundColor Yellow
+        Write-Host $Body -ForegroundColor DarkGray
     }
 }
 
@@ -244,7 +277,7 @@ try {
         if ($currentHash -ne $newHash) {
             Write-Host ""
             if ($script:HAS_GUM) {
-                gum style --foreground "#FFD700" --border normal --border-foreground "#FFD700" --padding "0 1" --bold "A newer version of setup.ps1 is available."
+                gum style --foreground 11 --bold "A newer version of setup.ps1 is available."
             } else {
                 Write-Host "  A newer version of setup.ps1 is available." -ForegroundColor Yellow
             }
@@ -282,8 +315,8 @@ try {
 Write-Header "StreamHub Auto-Setup v1.0"
 
 Write-Host ""
-Write-Host "This will set up StreamHub and all required services." -ForegroundColor White
-Write-Host "All data will be stored in Docker volumes." -ForegroundColor Gray
+Write-Dim "This will set up StreamHub and all required services."
+Write-Dim "All data will be stored in Docker volumes."
 Write-Host ""
 
 if ($script:HAS_GUM) {
@@ -399,11 +432,13 @@ Write-Step "[4/14] StreamHub version"
 
 $STREAMHUB_TAG = "latest"
 
-Write-Host ""
-Write-Host "Which StreamHub image do you want to use?" -ForegroundColor White
-Write-Host "  latest  - Stable release (recommended)" -ForegroundColor Gray
-Write-Host "  nightly - Latest dev build from main (may be unstable)" -ForegroundColor Gray
-Write-Host ""
+if (-not $script:HAS_GUM) {
+    Write-Host ""
+    Write-Host "Which StreamHub image do you want to use?" -ForegroundColor White
+    Write-Dim "  latest  - Stable release (recommended)"
+    Write-Dim "  nightly - Latest dev build from main (may be unstable)"
+    Write-Host ""
+}
 
 $versionChoice = Select-GumMenu -Prompt "Select version:" -Options @("latest (recommended)", "nightly")
 
@@ -421,21 +456,24 @@ Write-Step "[5/14] Database driver"
 
 $DB_DRIVER_CHOICE = "sqlite"
 
-$existingDbDriver = (Select-String -Path ".env" -Pattern "^DB_DRIVER=(.*)" -ErrorAction SilentlyContinue | Select-Object -First 1).Matches[0].Groups[1].Value
+$dbLine = Select-String -Path ".env" -Pattern "^DB_DRIVER=(.*)" -ErrorAction SilentlyContinue | Select-Object -First 1
+$existingDbDriver = if ($dbLine) { $dbLine.Matches[0].Groups[1].Value } else { "" }
 
 if ($existingDbDriver -and $existingDbDriver -ne "sqlite") {
     if ($script:HAS_GUM) {
-        gum style --foreground "#FFD700" --border normal --border-foreground "#FFD700" --padding "0 1" --bold "Existing database driver: $existingDbDriver"
+        gum style --foreground 11 --bold "Existing database driver: $existingDbDriver"
     } else {
         Write-Host "  Existing database driver: $existingDbDriver" -ForegroundColor Yellow
     }
 }
 
-Write-Host ""
-Write-Host "Choose your database driver:" -ForegroundColor White
-Write-Host "  SQLite    - Zero config, file-based, recommended for most users" -ForegroundColor Gray
-Write-Host "  PostgreSQL - Full-featured, requires more resources" -ForegroundColor Gray
-Write-Host ""
+if (-not $script:HAS_GUM) {
+    Write-Host ""
+    Write-Host "Choose your database driver:" -ForegroundColor White
+    Write-Dim "  SQLite    - Zero config, file-based, recommended for most users"
+    Write-Dim "  PostgreSQL - Full-featured, requires more resources"
+    Write-Host ""
+}
 
 $dbChoice = Select-GumMenu -Prompt "Select database driver:" -Options @("SQLite (recommended)", "PostgreSQL")
 
@@ -599,7 +637,7 @@ Test-Port -Host_ "localhost" -Port 8080 -Timeout 60 | Out-Null
 
 Start-Sleep -Seconds 3
 
-$QBIT_TEMP_PASS = docker logs streamhub-qbittorrent 2>&1 |
+$QBIT_TEMP_PASS = docker compose -f $COMPOSE_FILE logs qbittorrent 2>&1 |
     Select-String 'A temporary password is provided for this session:' |
     ForEach-Object { ($_ -replace '.*A temporary password is provided for this session:\s*', '').Trim() } |
     Select-Object -First 1
@@ -634,11 +672,11 @@ Write-Step "[8/14] Jellyfin API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Jellyfin API key:" -ForegroundColor White
-Write-Host "  1. Open http://localhost:8096 in your browser" -ForegroundColor Gray
-Write-Host "  2. Complete the setup wizard (create your admin account)" -ForegroundColor Gray
-Write-Host "  3. Go to Dashboard (gear icon) > API Keys" -ForegroundColor Gray
-Write-Host '  4. Click "+", name it "StreamHub", click OK' -ForegroundColor Gray
-Write-Host "  5. Copy the generated API key" -ForegroundColor Gray
+Write-Dim "  1. Open http://localhost:8096 in your browser"
+Write-Dim "  2. Complete the setup wizard (create your admin account)"
+Write-Dim "  3. Go to Dashboard (gear icon) > API Keys"
+Write-Dim '  4. Click "+", name it "StreamHub", click OK'
+Write-Dim "  5. Copy the generated API key"
 Write-Host ""
 
 $jellyfinKey = Read-GumInput -Placeholder "Paste your Jellyfin API key (Enter to skip)"
@@ -656,25 +694,23 @@ Write-Step "[9/14] qBittorrent WebUI + API Key"
 
 if ($QBIT_TEMP_PASS) {
     Write-Host ""
-    Write-Host "  +--------------------------------------------+" -ForegroundColor Yellow
-    Write-Host "  | qBittorrent temporary password: $QBIT_TEMP_PASS" -ForegroundColor Yellow
-    Write-Host "  | Copy this -- you will need it below        |" -ForegroundColor Yellow
-    Write-Host "  +--------------------------------------------+" -ForegroundColor Yellow
+    Write-Host "qBittorrent temporary password: $QBIT_TEMP_PASS" -ForegroundColor Yellow
+    Write-Dim "Copy this - you will need it below"
     Write-Host ""
 } else {
-    Write-Warn "Could not extract qBittorrent temp password -- check: docker logs streamhub-qbittorrent"
+    Write-Warn "Could not extract qBittorrent temp password - check: docker compose -f $COMPOSE_FILE logs qbittorrent"
 }
 
 Write-Host "Follow these steps to configure qBittorrent:" -ForegroundColor White
-Write-Host "  1. Open http://localhost:8080 in your browser" -ForegroundColor Gray
-Write-Host "  2. Login with:" -ForegroundColor Gray
-Write-Host "       Username: admin" -ForegroundColor Yellow
-Write-Host "       Password: [temporary password shown above]" -ForegroundColor Yellow
-Write-Host "  3. Go to Tools > Options > Web UI" -ForegroundColor Gray
-Write-Host "  4. Change the password to something you remember" -ForegroundColor Gray
-Write-Host "  5. Save changes" -ForegroundColor Gray
-Write-Host "  6. Go to Tools > Options > Web UI > API Key section" -ForegroundColor Gray
-Write-Host "  7. Copy the API Key" -ForegroundColor Gray
+Write-Dim "  1. Open http://localhost:8080 in your browser"
+Write-Dim "  2. Login with:"
+Write-Dim "       Username: admin"
+Write-Dim "       Password: [temporary password shown above]"
+Write-Dim "  3. Go to Tools > Options > Web UI"
+Write-Dim "  4. Change the password to something you remember"
+Write-Dim "  5. Save changes"
+Write-Dim "  6. Go to Tools > Options > Web UI > API Key section"
+Write-Dim "  7. Copy the API Key"
 Write-Host ""
 
 $qbitKey = Read-GumInput -Placeholder "Paste your qBittorrent API Key (Enter to skip)"
@@ -692,15 +728,16 @@ Write-Step "[10/14] Prowlarr API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your Prowlarr API key:" -ForegroundColor White
-Write-Host "  1. Open http://localhost:9900 in your browser" -ForegroundColor Gray
-Write-Host "  2. Go to Settings > General" -ForegroundColor Gray
-Write-Host "  3. Find the API Key field" -ForegroundColor Gray
-Write-Host "  4. Copy the API key" -ForegroundColor Gray
+Write-Dim "  1. Open http://localhost:9900 in your browser"
+Write-Dim "  2. Go to Settings > General"
+Write-Dim "  3. Find the API Key field"
+Write-Dim "  4. Copy the API key"
 Write-Host ""
-Write-Host "Tip: You can also add more indexers in Prowlarr later." -ForegroundColor DarkGray
-Write-Host ""
-Write-Host "For private trackers: go to Settings > Indexers > Add > FlareSolverr" -ForegroundColor DarkGray
-Write-Host "  Set URL: http://flaresolverr:8191" -ForegroundColor DarkGray
+Write-Callout "IMPORTANT: Prowlarr needs indexers before StreamHub can find anything." (@(
+    "  1. Add at least one indexer (e.g. YTS): Settings > Indexers > Add",
+    "  2. For private trackers: Settings > Indexers > Add > FlareSolverr",
+    "     Set URL: http://flaresolverr:8191"
+) -join "`n")
 Write-Host ""
 
 $prowlarrKey = Read-GumInput -Placeholder "Paste your Prowlarr API key (Enter to skip)"
@@ -718,15 +755,15 @@ Write-Step "[11/14] TMDB API Key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your TMDB API key:" -ForegroundColor White
-Write-Host "  1. Go to https://www.themoviedb.org/settings/api" -ForegroundColor Gray
-Write-Host "  2. Create a free account (or log in)" -ForegroundColor Gray
-Write-Host '  3. Click "Click here to generate an API key"' -ForegroundColor Gray
-Write-Host "  4. Fill in the form:" -ForegroundColor Gray
-Write-Host "       Application Name:  StreamHub" -ForegroundColor Yellow
-Write-Host "       Application URL:   http://localhost:5757" -ForegroundColor Yellow
-Write-Host "  5. Copy your API Key (v3 auth)" -ForegroundColor Gray
+Write-Dim "  1. Go to https://www.themoviedb.org/settings/api"
+Write-Dim "  2. Create a free account (or log in)"
+Write-Dim '  3. Click "Click here to generate an API key"'
+Write-Dim "  4. Fill in the form:"
+Write-Dim "       Application Name:  StreamHub"
+Write-Dim "       Application URL:   http://localhost:5757"
+Write-Dim "  5. Copy your API Key (v3 auth)"
 Write-Host ""
-Write-Host "This is required for movie/TV metadata." -ForegroundColor DarkGray
+Write-Dim "This is required for movie/TV metadata."
 Write-Host ""
 
 $tmdbKey = Read-GumInput -Placeholder "Paste your TMDB API key (Enter to skip)"
@@ -743,12 +780,12 @@ if ($tmdbKey) {
 Write-Step "[12/14] Discord Webhook (optional)"
 
 Write-Host ""
-Write-Host "Get notified when downloads complete." -ForegroundColor White
+Write-Dim "Get notified when downloads complete."
 Write-Host "To set up a Discord webhook:" -ForegroundColor Gray
-Write-Host "  1. Open your Discord server" -ForegroundColor Gray
-Write-Host "  2. Go to Server Settings > Integrations > Webhooks" -ForegroundColor Gray
-Write-Host '  3. Click "New Webhook"' -ForegroundColor Gray
-Write-Host "  4. Name it, choose a channel, click Copy Webhook URL" -ForegroundColor Gray
+Write-Dim "  1. Open your Discord server"
+Write-Dim "  2. Go to Server Settings > Integrations > Webhooks"
+Write-Dim '  3. Click "New Webhook"'
+Write-Dim "  4. Name it, choose a channel, click Copy Webhook URL"
 Write-Host ""
 
 $discordKey = Read-GumInput -Placeholder "Paste your Discord Webhook URL (Enter to skip)"
@@ -817,13 +854,10 @@ for ($retry = 1; $retry -le 5; $retry++) {
 
 # -- Summary ----------------------------------------------------------
 
-$dozzleUp = docker compose -f $COMPOSE_FILE ps dozzle 2>$null | Select-String "Up"
-$hasDozzle = $dozzleUp -ne $null
+$hasDozzle = [bool](docker compose -f $COMPOSE_FILE ps -q dozzle 2>$null)
 
-# -- Header
-$headerMsg = if ($script:HAS_GUM) { gum style --bold --foreground 2 'StreamHub is ready!' } else { 'StreamHub is ready!' }
-Write-SummaryBox $headerMsg
-
+Write-Host ""
+Write-Host "StreamHub is ready!" -ForegroundColor Green
 Write-Host ""
 
 # -- Services table
@@ -848,23 +882,20 @@ Write-Host ""
 
 # -- Credentials
 $credsUser = if ($script:HAS_GUM) { gum style --bold --foreground 11 'admin' } else { 'admin' }
-Write-SummarySection "  Username: $credsUser"
+Write-Host "Username: $credsUser"
 if ($adminPass) {
     $credsPass = if ($script:HAS_GUM) { gum style --bold --foreground 11 $adminPass } else { $adminPass }
-    Write-SummarySection "  Password: $credsPass"
+    Write-Host "Password: $credsPass"
 } else {
-    Write-SummarySection "  Password: check 'docker compose -f $COMPOSE_FILE logs streamhub'"
+    Write-Dim "Password: check 'docker compose -f $COMPOSE_FILE logs streamhub'"
 }
-Write-SummarySection "  Change this password after first login!"
+Write-Dim "Change this password after first login."
 
 Write-Host ""
 
-# -- Next steps
-$steps = @(
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '  Next steps:' } else { '  Next steps:' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   1. Login with admin -> Admin > Users to change the password' } else { '   1. Login with admin -> Admin > Users to change the password' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   2. Jellyfin libraries (Movies/Series) are created automatically on startup' } else { '   2. Jellyfin libraries (Movies/Series) are created automatically on startup' }),
-    $(if ($script:HAS_GUM) { gum style --foreground 14 '   3. Prowlarr -> Add indexers + FlareSolverr proxy' } else { '   3. Prowlarr -> Add indexers + FlareSolverr proxy' })
-)
-$stepsMsg = $steps -join "`n"
-Write-SummarySection $stepsMsg
+# -- Required before first use
+Write-Callout "Required before first use:" (@(
+    "  Prowlarr has no indexers yet - StreamHub cannot find torrents until you add them.",
+    "  Open http://localhost:9900 and add at least one indexer (e.g. YTS).",
+    "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"
+) -join "`n")
