@@ -10,7 +10,9 @@
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/License-AGPL--3.0-orange" alt="License">
   <img src="https://github.com/Nort1346/StreamHub/actions/workflows/ci.yml/badge.svg" alt="CI">
-  <img src="https://img.shields.io/docker/pulls/ghcr.io/nort1346/streamhub" alt="Docker pulls">
+  <a href="https://github.com/Nort1346/StreamHub/pkgs/container/streamhub">
+    <img src="https://img.shields.io/badge/GHCR-nort1346%2Fstreamhub-2496ED?logo=docker&logoColor=white" alt="GHCR image">
+  </a>
   <img src="https://img.shields.io/badge/i18n-en%20%7C%20pl%20%7C%20de%20%7C%20fr%20%7C%20es-3178C6" alt="i18n">
 </p>
 
@@ -180,7 +182,7 @@ StreamHub gives your users the ability to browse and download content themselves
 - [ ] Prowlarr indexer management (add/configure indexers from StreamHub admin)
 - [ ] Home Assistant integration (webhook, sensors, automations)
 
-Got an idea? [Open a feature request](issues/new?template=feature_request.yml).
+Got an idea? [Open a feature request](https://github.com/Nort1346/StreamHub/issues/new?template=feature_request.yml).
 
 ## Contributing
 
