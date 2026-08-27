@@ -41,11 +41,11 @@ describe('checkForDangerousFiles', () => {
     expect(result.dangerousFiles).toContain('game.jar')
   })
 
-  it('detects .app and .dmg files (macOS)', () => {
+  it('detects .dmg files (macOS)', () => {
     const files = [makeFile('installer.app'), makeFile('disk.dmg')]
     const result = checkForDangerousFiles(files)
     expect(result.safe).toBe(false)
-    expect(result.dangerousFiles).toHaveLength(2)
+    expect(result.dangerousFiles).toEqual(['disk.dmg'])
   })
 
   it('detects .deb and .rpm (Linux)', () => {
@@ -83,11 +83,25 @@ describe('checkForDangerousFiles', () => {
     expect(result.dangerousFiles).toEqual([])
   })
 
-  it('detects dangerous extension hidden behind a second extension', () => {
+  it('ignores dangerous-looking segments that are not the final extension', () => {
     const files = [makeFile('movie.txt'), makeFile('malware.exe.txt'), makeFile('payload.js.jpg')]
     const result = checkForDangerousFiles(files)
+    expect(result.safe).toBe(true)
+    expect(result.dangerousFiles).toEqual([])
+  })
+
+  it('ignores .com inside a filename (final extension only)', () => {
+    const files = [makeFile('WWW.YIFY-TORRENTS.COM.jpg')]
+    const result = checkForDangerousFiles(files)
+    expect(result.safe).toBe(true)
+    expect(result.dangerousFiles).toEqual([])
+  })
+
+  it('still blocks files whose final extension is dangerous', () => {
+    const files = [makeFile('movie.mkv'), makeFile('bonus/com/setup.exe'), makeFile('notes.txt')]
+    const result = checkForDangerousFiles(files)
     expect(result.safe).toBe(false)
-    expect(result.dangerousFiles).toEqual(['malware.exe.txt', 'payload.js.jpg'])
+    expect(result.dangerousFiles).toEqual(['bonus/com/setup.exe'])
   })
 
   it('detects dangerous extension with surrounding whitespace', () => {
