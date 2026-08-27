@@ -54,7 +54,7 @@ export interface DefaultsBody {
 export interface ServiceStatus {
   name: string
   configured: boolean
-  status: 'up' | 'down' | 'not_configured'
+  status: 'up' | 'down' | 'invalid' | 'not_configured'
   latencyMs?: number
   details?: string
 }

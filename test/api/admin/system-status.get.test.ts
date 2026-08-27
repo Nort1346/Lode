@@ -29,6 +29,8 @@ function stubConfig(overrides: Record<string, string> = {}) {
     prowlarrUrl: 'http://prowlarr:9696',
     prowlarrApiKey: 'prow-key',
     jellyfinUrl: 'http://jellyfin:8096',
+    jellyfinApiKey: 'jelly-key',
+    tmdbApiKey: 'tmdb-key',
     redisUrl: 'redis://localhost:6379',
     discordWebhookUrl: 'https://discord.com/api/webhooks/123',
     flaresolverrUrl: 'http://flaresolverr:8191'
@@ -64,8 +66,95 @@ describe('admin/system-status.get', () => {
 
     const result = await handler(mockEvent)
     expect(result).toHaveProperty('services')
-    expect(result.services).toHaveLength(6)
+    expect(result.services).toHaveLength(7)
     expect(result.services.every((s: { status: string }) => s.status === 'up')).toBe(true)
+  })
+
+  it('returns TMDB valid when the key is accepted', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve('2.0.0'),
+      json: () => Promise.resolve({ Version: '10.9.0' })
+    } as Response)
+
+    const result = await handler(mockEvent)
+    const tmdb = result.services.find((s: { name: string }) => s.name === 'TMDB')
+    expect(tmdb).toEqual(expect.objectContaining({ status: 'up', configured: true, details: 'API key valid' }))
+  })
+
+  it('detects invalid TMDB API key (401)', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      if (String(url).includes('themoviedb')) {
+        return { ok: false, status: 401, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const tmdb = result.services.find((s: { name: string }) => s.name === 'TMDB')
+    expect(tmdb).toEqual(expect.objectContaining({ status: 'invalid', configured: true }))
+  })
+
+  it('detects invalid qBittorrent API key (401)', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      if (String(url).includes('qbit')) {
+        return { ok: false, status: 401, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const qbit = result.services.find((s: { name: string }) => s.name === 'qBittorrent')
+    expect(qbit).toEqual(expect.objectContaining({ status: 'invalid', configured: true, details: 'API key rejected' }))
+  })
+
+  it('detects invalid Prowlarr API key (401)', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      if (String(url).includes('prowlarr')) {
+        return { ok: false, status: 401, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const prowlarr = result.services.find((s: { name: string }) => s.name === 'Prowlarr')
+    expect(prowlarr).toEqual(expect.objectContaining({ status: 'invalid', configured: true }))
+  })
+
+  it('detects invalid Jellyfin API key (401)', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      if (String(url).includes('jellyfin')) {
+        return { ok: false, status: 401, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const jellyfin = result.services.find((s: { name: string }) => s.name === 'Jellyfin')
+    expect(jellyfin).toEqual(
+      expect.objectContaining({ status: 'invalid', configured: true, details: 'API key rejected' })
+    )
+  })
+
+  it('detects missing Discord webhook (404)', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      if (String(url).includes('discord')) {
+        return { ok: false, status: 404, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const discord = result.services.find((s: { name: string }) => s.name === 'Discord')
+    expect(discord).toEqual(
+      expect.objectContaining({ status: 'invalid', configured: true, details: 'Webhook not found' })
+    )
   })
 
   it('detects qBittorrent down', async () => {
@@ -141,13 +230,14 @@ describe('admin/system-status.get', () => {
       prowlarrUrl: '',
       prowlarrApiKey: '',
       jellyfinUrl: '',
+      tmdbApiKey: '',
       redisUrl: '',
       discordWebhookUrl: '',
       flaresolverrUrl: ''
     })
 
     const result = await handler(mockEvent)
-    expect(result.services).toHaveLength(6)
+    expect(result.services).toHaveLength(7)
     expect(result.services.every((s: { status: string }) => s.status === 'not_configured')).toBe(true)
   })
 

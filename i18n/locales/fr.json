@@ -333,6 +333,7 @@
     "serviceUp": "En ligne",
     "serviceDown": "Hors ligne",
     "notConfigured": "Non configuré",
+    "serviceInvalid": "Invalide",
     "ms": "ms",
     "discordTitle": "Discord Webhook",
     "discordDesc": "Notifications de téléchargements terminés envoyées sur le canal Discord.",

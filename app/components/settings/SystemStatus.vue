@@ -10,6 +10,7 @@ const serviceIcons: Record<string, string> = {
   qBittorrent: 'i-simple-icons-qbittorrent',
   Prowlarr: 'i-simple-icons-rss',
   Jellyfin: 'i-simple-icons-jellyfin',
+  TMDB: 'i-lucide-film',
   Redis: 'i-simple-icons-redis',
   Discord: 'i-simple-icons-discord',
   FlareSolverr: 'i-simple-icons-cloudflare'
@@ -19,6 +20,7 @@ const serviceColors: Record<string, string> = {
   qBittorrent: 'text-blue-600 dark:text-blue-400',
   Prowlarr: 'text-purple-600 dark:text-purple-400',
   Jellyfin: 'text-pink-600 dark:text-pink-400',
+  TMDB: 'text-cyan-600 dark:text-cyan-400',
   Redis: 'text-red-600 dark:text-red-400',
   Discord: 'text-indigo-600 dark:text-indigo-400',
   FlareSolverr: 'text-orange-600 dark:text-orange-400'
@@ -27,13 +29,22 @@ const serviceColors: Record<string, string> = {
 const statusColors: Record<string, string> = {
   up: 'bg-green-500',
   down: 'bg-red-500',
+  invalid: 'bg-amber-500',
   not_configured: 'bg-zinc-400 dark:bg-zinc-600'
 }
 
 const statusTextColors: Record<string, string> = {
   up: 'text-green-600 dark:text-green-400',
   down: 'text-red-600 dark:text-red-400',
+  invalid: 'text-amber-600 dark:text-amber-400',
   not_configured: 'text-zinc-500 dark:text-zinc-400'
+}
+
+function statusLabel(status: string): string {
+  if (status === 'up') return t('settings.serviceUp')
+  if (status === 'down') return t('settings.serviceDown')
+  if (status === 'invalid') return t('settings.serviceInvalid')
+  return t('settings.notConfigured')
 }
 
 async function fetchServices() {
@@ -71,13 +82,7 @@ onMounted(fetchServices)
         <div class="flex items-center gap-2">
           <span class="size-2 rounded-full" :class="statusColors[s.status]" />
           <span class="text-xs font-medium" :class="statusTextColors[s.status]">
-            {{
-              s.status === 'up'
-                ? t('settings.serviceUp')
-                : s.status === 'down'
-                  ? t('settings.serviceDown')
-                  : t('settings.notConfigured')
-            }}
+            {{ statusLabel(s.status) }}
           </span>
           <span v-if="s.latencyMs != null" class="ml-auto text-xs text-zinc-400 dark:text-zinc-500">
             {{ s.latencyMs }}{{ t('settings.ms') }}

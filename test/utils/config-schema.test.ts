@@ -18,6 +18,31 @@ describe('configSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  it('accepts config without service API keys', () => {
+    const { tmdbApiKey: _tmdb, prowlarrApiKey: _prowlarr, qbittorrentApiKey: _qbit, ...noServiceKeys } = BASE_CONFIG
+    const result = configSchema.safeParse(noServiceKeys)
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts empty service API keys as not set', () => {
+    const result = configSchema.safeParse({
+      ...BASE_CONFIG,
+      tmdbApiKey: '',
+      prowlarrApiKey: '',
+      qbittorrentApiKey: ''
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects config without sessionPassword', () => {
+    const { sessionPassword: _password, ...noPassword } = BASE_CONFIG
+    const result = configSchema.safeParse(noPassword)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.path.includes('sessionPassword'))).toBe(true)
+    }
+  })
+
   it('rejects sessionPassword shorter than 32 chars', () => {
     const result = configSchema.safeParse({ ...BASE_CONFIG, sessionPassword: 'a'.repeat(31) })
     expect(result.success).toBe(false)

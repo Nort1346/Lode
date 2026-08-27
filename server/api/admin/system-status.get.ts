@@ -11,20 +11,35 @@ async function checkQbittorrent(config: ReturnType<typeof useRuntimeConfig>): Pr
   }
 
   const start = Date.now()
+  const base = normalizeUrl(url)
   try {
-    const res = await fetch(`${normalizeUrl(url)}/api/v2/app/version`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(5000)
-    })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const version = await res.text()
-    const trimmed = version.trim()
+    // app/version needs no auth, so app/preferences (auth required) is
+    // used to verify the API key actually works
+    const [versionResult, authResult] = await Promise.allSettled([
+      fetch(`${base}/api/v2/app/version`, { signal: AbortSignal.timeout(5000) }).then((res) => res.text()),
+      fetch(`${base}/api/v2/app/preferences`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(5000)
+      })
+    ])
+
+    const latencyMs = Date.now() - start
+    if (authResult.status === 'rejected') {
+      return { name: 'qBittorrent', configured: true, status: 'down', latencyMs }
+    }
+    if (authResult.value.status === 401 || authResult.value.status === 403) {
+      return { name: 'qBittorrent', configured: true, status: 'invalid', latencyMs, details: 'API key rejected' }
+    }
+    if (!authResult.value.ok) {
+      return { name: 'qBittorrent', configured: true, status: 'down', latencyMs }
+    }
+    const version = versionResult.status === 'fulfilled' ? versionResult.value.trim() : ''
     return {
       name: 'qBittorrent',
       configured: true,
       status: 'up',
-      latencyMs: Date.now() - start,
-      details: trimmed.length > 0 ? `v${trimmed}` : undefined
+      latencyMs,
+      details: version.length > 0 ? `v${version}` : undefined
     }
   } catch {
     return {
@@ -45,9 +60,19 @@ async function checkProwlarr(config: ReturnType<typeof useRuntimeConfig>): Promi
 
   const start = Date.now()
   try {
-    const res = await fetch(`${normalizeUrl(url)}/api/v1/health?apikey=${apiKey}`, {
+    // system/status requires the API key, unlike /health
+    const res = await fetch(`${normalizeUrl(url)}/api/v1/system/status?apikey=${apiKey}`, {
       signal: AbortSignal.timeout(5000)
     })
+    if (res.status === 401) {
+      return {
+        name: 'Prowlarr',
+        configured: true,
+        status: 'invalid',
+        latencyMs: Date.now() - start,
+        details: 'API key rejected'
+      }
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     return {
       name: 'Prowlarr',
@@ -67,15 +92,32 @@ async function checkProwlarr(config: ReturnType<typeof useRuntimeConfig>): Promi
 
 async function checkJellyfin(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
   const url = config.jellyfinUrl as string
+  const apiKey = (config.jellyfinApiKey as string) || ''
   if (!url) {
     return { name: 'Jellyfin', configured: false, status: 'not_configured' }
   }
 
   const start = Date.now()
   try {
-    const res = await fetch(`${normalizeUrl(url)}/System/Info/Public`, {
-      signal: AbortSignal.timeout(5000)
-    })
+    // With an API key, System/Info verifies it; without one, fall back
+    // to the public endpoint (reachability only)
+    const res = apiKey
+      ? await fetch(`${normalizeUrl(url)}/System/Info`, {
+          headers: { 'X-Emby-Token': apiKey },
+          signal: AbortSignal.timeout(5000)
+        })
+      : await fetch(`${normalizeUrl(url)}/System/Info/Public`, {
+          signal: AbortSignal.timeout(5000)
+        })
+    if (res.status === 401) {
+      return {
+        name: 'Jellyfin',
+        configured: true,
+        status: 'invalid',
+        latencyMs: Date.now() - start,
+        details: 'API key rejected'
+      }
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = (await res.json()) as { Version?: string }
     return {
@@ -107,6 +149,15 @@ async function checkDiscord(config: ReturnType<typeof useRuntimeConfig>): Promis
       method: 'GET',
       signal: AbortSignal.timeout(5000)
     })
+    if (res.status === 404) {
+      return {
+        name: 'Discord',
+        configured: true,
+        status: 'invalid',
+        latencyMs: Date.now() - start,
+        details: 'Webhook not found'
+      }
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     return {
       name: 'Discord',
@@ -117,6 +168,44 @@ async function checkDiscord(config: ReturnType<typeof useRuntimeConfig>): Promis
   } catch {
     return {
       name: 'Discord',
+      configured: true,
+      status: 'down',
+      latencyMs: Date.now() - start
+    }
+  }
+}
+
+async function checkTmdb(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
+  const apiKey = (config.tmdbApiKey as string) || ''
+  if (!apiKey) {
+    return { name: 'TMDB', configured: false, status: 'not_configured', details: 'NUXT_TMDB_API_KEY missing' }
+  }
+
+  const start = Date.now()
+  try {
+    const url = new URL('https://api.themoviedb.org/3/configuration')
+    url.searchParams.set('api_key', apiKey)
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(5000) })
+    if (res.status === 401) {
+      return {
+        name: 'TMDB',
+        configured: true,
+        status: 'invalid',
+        latencyMs: Date.now() - start,
+        details: 'API key rejected by TMDB'
+      }
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return {
+      name: 'TMDB',
+      configured: true,
+      status: 'up',
+      latencyMs: Date.now() - start,
+      details: 'API key valid'
+    }
+  } catch {
+    return {
+      name: 'TMDB',
       configured: true,
       status: 'down',
       latencyMs: Date.now() - start
@@ -194,6 +283,7 @@ export default defineEventHandler(async (event: H3Event) => {
     checkQbittorrent(config),
     checkProwlarr(config),
     checkJellyfin(config),
+    checkTmdb(config),
     checkRedis(config),
     checkDiscord(config),
     checkFlareSolverr(config)

@@ -1,3 +1,4 @@
+import { createError } from 'h3'
 import { cacheGet, cacheSet, CACHE_TTL } from './cache'
 import type {
   TmdbMovie,
@@ -35,9 +36,27 @@ function resolveTmdbLogoLanguage(locale: string): string {
 
 function getApiKey(): string {
   const config = useRuntimeConfig()
-  const key = config.tmdbApiKey as string
-  if (!key) throw new Error('TMDB API key not configured')
+  const key = (config.tmdbApiKey as string) || ''
+  if (!key) {
+    throw createError({
+      statusCode: 503,
+      statusMessage: 'TMDB is not configured. Set NUXT_TMDB_API_KEY and restart the server.'
+    })
+  }
   return key
+}
+
+function throwTmdbError(response: Response): never {
+  if (response.status === 401) {
+    throw createError({
+      statusCode: 503,
+      statusMessage: 'TMDB API key was rejected. Check NUXT_TMDB_API_KEY.'
+    })
+  }
+  throw createError({
+    statusCode: 502,
+    statusMessage: `TMDB API error ${response.status}`
+  })
 }
 
 export function getImageUrl(
@@ -61,7 +80,7 @@ export async function searchMovies(query: string, page = 1, locale = 'en'): Prom
   url.searchParams.set('page', String(page))
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const result = (await response.json()) as TmdbSearchResult<TmdbMovie>
   await cacheSet(cacheKey, result, CACHE_TTL.TMDB_POPULAR)
@@ -154,7 +173,7 @@ export async function searchTvShows(query: string, page = 1, locale = 'en'): Pro
   url.searchParams.set('page', String(page))
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const result = (await response.json()) as TmdbSearchResult<TmdbTvShow>
   await cacheSet(cacheKey, result, CACHE_TTL.TMDB_SEARCH)
@@ -173,7 +192,7 @@ export async function getMovieDetails(id: number, locale = 'en'): Promise<TmdbMo
   url.searchParams.set('append_to_response', 'external_ids')
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const data = (await response.json()) as TmdbMovie & { external_ids?: { imdb_id: string | null } }
   const result: TmdbMovie = {
@@ -197,7 +216,7 @@ export async function getTvShowDetails(id: number, locale = 'en'): Promise<TmdbT
   url.searchParams.set('append_to_response', 'external_ids')
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const data = (await response.json()) as TmdbTvShow
   await cacheSet(cacheKey, data, CACHE_TTL.TMDB_DETAILS)
@@ -215,7 +234,7 @@ export async function getSeasonDetails(showId: number, seasonNumber: number, loc
   if (lang) url.searchParams.set('language', lang)
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const data = (await response.json()) as TmdbSeason
   await cacheSet(cacheKey, data, CACHE_TTL.TMDB_DETAILS)
@@ -234,7 +253,7 @@ export async function getPopularMovies(locale = 'en', page = 1): Promise<TmdbSea
   url.searchParams.set('page', String(page))
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const result = (await response.json()) as TmdbSearchResult<TmdbMovie>
   await cacheSet(cacheKey, result, CACHE_TTL.TMDB_POPULAR)
@@ -253,7 +272,7 @@ export async function getPopularTvShows(locale = 'en', page = 1): Promise<TmdbSe
   url.searchParams.set('page', String(page))
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const result = (await response.json()) as TmdbSearchResult<TmdbTvShow>
   await cacheSet(cacheKey, result, CACHE_TTL.TMDB_POPULAR)
@@ -271,7 +290,7 @@ export async function getTrending(locale = 'en'): Promise<TmdbTrendingItem[]> {
   url.searchParams.set('language', lang)
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const data = (await response.json()) as { results: TmdbTrendingItem[] }
   await cacheSet(cacheKey, data.results, CACHE_TTL.TMDB_POPULAR)
@@ -290,7 +309,7 @@ export async function getTopRatedMovies(locale = 'en', page = 1): Promise<TmdbSe
   url.searchParams.set('page', String(page))
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const result = (await response.json()) as TmdbSearchResult<TmdbMovie>
   await cacheSet(cacheKey, result, CACHE_TTL.TMDB_POPULAR)
@@ -312,7 +331,7 @@ export async function getMoviesByGenre(genreId: number, locale = 'en', page = 1)
   url.searchParams.set('page', String(page))
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const result = (await response.json()) as TmdbSearchResult<TmdbMovie>
   await cacheSet(cacheKey, result, CACHE_TTL.TMDB_GENRE)
@@ -334,7 +353,7 @@ export async function getTvByGenre(genreId: number, locale = 'en', page = 1): Pr
   url.searchParams.set('page', String(page))
 
   const response = await fetch(url.toString())
-  if (!response.ok) throw new Error(`TMDB API error ${response.status}`)
+  if (!response.ok) throwTmdbError(response)
 
   const result = (await response.json()) as TmdbSearchResult<TmdbTvShow>
   await cacheSet(cacheKey, result, CACHE_TTL.TMDB_GENRE)

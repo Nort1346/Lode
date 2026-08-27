@@ -4,10 +4,10 @@ const configSchema = z.object({
   savePathMovies: z.string().min(1),
   savePathSeries: z.string().min(1),
   qbittorrentUrl: z.url().default('http://localhost:8080'),
-  qbittorrentApiKey: z.string().min(1),
+  qbittorrentApiKey: z.string().optional(),
   sessionPassword: z.string().min(32),
-  tmdbApiKey: z.string().min(1),
-  prowlarrApiKey: z.string().min(1),
+  tmdbApiKey: z.string().optional(),
+  prowlarrApiKey: z.string().optional(),
   trackerEncryptionKey: z.string().min(1),
   jellyfinUrl: z.string().optional(),
   jellyfinApiKey: z.string().optional()
