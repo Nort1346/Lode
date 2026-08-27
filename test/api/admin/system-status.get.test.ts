@@ -111,6 +111,27 @@ describe('admin/system-status.get', () => {
     expect(qbit).toEqual(expect.objectContaining({ status: 'invalid', configured: true, details: 'API key rejected' }))
   })
 
+  it('does not show the Forbidden body as qBittorrent version', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      const u = String(url)
+      if (u.includes('qbit') && u.includes('version')) {
+        return {
+          ok: false,
+          status: 403,
+          text: () => Promise.resolve('Forbidden'),
+          json: () => Promise.resolve({})
+        } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const qbit = result.services.find((s: { name: string }) => s.name === 'qBittorrent')
+    expect(qbit?.status).toBe('up')
+    expect(qbit?.details).toBeUndefined()
+  })
+
   it('detects invalid Prowlarr API key (401)', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
@@ -259,13 +280,13 @@ describe('admin/system-status.get', () => {
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
       if (u.includes('qbit'))
-        return { ok: true, text: () => Promise.resolve('2.0.0'), json: () => Promise.resolve({}) } as Response
+        return { ok: true, text: () => Promise.resolve('v5.2.3'), json: () => Promise.resolve({}) } as Response
       return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
     })
 
     const result = await handler(mockEvent)
     const qbit = result.services.find((s: { name: string }) => s.name === 'qBittorrent')
-    expect(qbit).toEqual(expect.objectContaining({ status: 'up', details: 'v2.0.0' }))
+    expect(qbit).toEqual(expect.objectContaining({ status: 'up', details: 'v5.2.3' }))
   })
 
   it('handles mixed statuses', async () => {

@@ -13,10 +13,13 @@ async function checkQbittorrent(config: ReturnType<typeof useRuntimeConfig>): Pr
   const start = Date.now()
   const base = normalizeUrl(url)
   try {
-    // app/version needs no auth, so app/preferences (auth required) is
-    // used to verify the API key actually works
+    // app/version answers 403 "Forbidden" without auth when the WebUI
+    // requires it, so the API key is sent and the body is only used when ok
     const [versionResult, authResult] = await Promise.allSettled([
-      fetch(`${base}/api/v2/app/version`, { signal: AbortSignal.timeout(5000) }).then((res) => res.text()),
+      fetch(`${base}/api/v2/app/version`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(5000)
+      }).then(async (res) => (res.ok ? res.text() : '')),
       fetch(`${base}/api/v2/app/preferences`, {
         headers: { Authorization: `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(5000)
@@ -33,7 +36,9 @@ async function checkQbittorrent(config: ReturnType<typeof useRuntimeConfig>): Pr
     if (!authResult.value.ok) {
       return { name: 'qBittorrent', configured: true, status: 'down', latencyMs }
     }
-    const version = versionResult.status === 'fulfilled' ? versionResult.value.trim() : ''
+    const rawVersion = versionResult.status === 'fulfilled' ? versionResult.value.trim() : ''
+    // app/version may answer with or without the leading "v"
+    const version = rawVersion.replace(/^v/i, '')
     return {
       name: 'qBittorrent',
       configured: true,
