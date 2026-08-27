@@ -827,7 +827,7 @@ echo "Follow these steps to get your Jellyfin API key:"
 dim "  1. Open http://localhost:8096 in your browser"
 dim "  2. Complete the setup wizard (create your admin account)"
 dim "  3. Go to Dashboard (gear icon) > API Keys"
-dim '  4. Click "+", name it "StreamHub", click OK'
+dim '  4. Click the + button, name it StreamHub, click OK'
 dim "  5. Copy the generated API key"
 echo ""
 
@@ -908,7 +908,7 @@ echo ""
 echo "Follow these steps to get your TMDB API key:"
 dim "  1. Go to https://www.themoviedb.org/settings/api"
 dim "  2. Create a free account (or log in)"
-dim '  3. Click "Click here to generate an API key"'
+dim '  3. Click the link to generate an API key'
 dim "  4. Fill in the form:"
 dim "       Application Name:  StreamHub"
 dim "       Application URL:   http://localhost:5757"
@@ -935,7 +935,7 @@ dim "Get notified when downloads complete."
 echo "To set up a Discord webhook:"
 dim "  1. Open your Discord server"
 dim "  2. Go to Server Settings > Integrations > Webhooks"
-dim '  3. Click "New Webhook"'
+dim '  3. Click New Webhook'
 dim "  4. Name it, choose a channel, click Copy Webhook URL"
 echo ""
 

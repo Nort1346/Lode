@@ -10,6 +10,41 @@
 
 $ErrorActionPreference = "Continue"
 
+# -- Keep window open on exit ----------------------------------------
+# When the script is launched by double-click (parent process is
+# Explorer), pause before the window closes so messages can be read.
+
+function Test-ExplorerLaunched {
+    try {
+        $id = $PID
+        for ($i = 0; $i -lt 4; $i++) {
+            $proc = Get-CimInstance Win32_Process -Filter "ProcessId = $id"
+            if (-not $proc -or -not $proc.ParentProcessId) { break }
+            $parent = Get-CimInstance Win32_Process -Filter "ProcessId = $($proc.ParentProcessId)"
+            if (-not $parent) { break }
+            if ($parent.Name -eq 'explorer.exe') { return $true }
+            if ($parent.Name -ne 'cmd.exe') { break }
+            $id = $proc.ParentProcessId
+        }
+    } catch {
+        # WMI unavailable - assume an interactive console
+    }
+    return $false
+}
+
+if (Test-ExplorerLaunched) {
+    $env:SETUP_PAUSE = 1
+}
+
+function Stop-Setup {
+    param([int]$Code = 0)
+    if ($env:SETUP_PAUSE) {
+        Write-Host ""
+        Read-Host "Press Enter to close this window" | Out-Null
+    }
+    exit $Code
+}
+
 # -- gum bootstrap ----------------------------------------------------
 
 $script:HAS_GUM = $false
@@ -289,7 +324,7 @@ try {
                     Copy-Item $SETUP_NEW $SETUP_SELF -Force
                     Write-Ok "Updated setup.ps1. Restarting..."
                     & $SETUP_SELF
-                    exit
+                    exit $LASTEXITCODE
                 }
             } else {
                 $answer = Read-Host "Update setup.ps1 and restart? (y/N)"
@@ -298,7 +333,7 @@ try {
                     Copy-Item $SETUP_NEW $SETUP_SELF -Force
                     Write-Ok "Updated setup.ps1. Restarting..."
                     & $SETUP_SELF
-                    exit
+                    exit $LASTEXITCODE
                 }
             }
             Write-Warn "Continuing with current version..."
@@ -323,13 +358,13 @@ if ($script:HAS_GUM) {
     gum confirm --default=false "Do you want to continue?" | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Aborted." -ForegroundColor Yellow
-        exit 0
+        Stop-Setup 0
     }
 } else {
     $confirm = Read-Host "Do you want to continue? (y/N)"
     if ($confirm -notmatch '^[yY]') {
         Write-Host "Aborted." -ForegroundColor Yellow
-        exit 0
+        Stop-Setup 0
     }
 }
 
@@ -341,7 +376,7 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Err "Docker is not installed."
     Write-Host "  Install Docker Desktop for Windows:" -ForegroundColor Yellow
     Write-Host "    https://docs.docker.com/desktop/windows-install/" -ForegroundColor Cyan
-    exit 1
+    Stop-Setup 1
 }
 Write-Ok "Docker $((docker --version) -replace '.*version ([^ ,]+).*', '$1')"
 
@@ -354,7 +389,7 @@ if ($LASTEXITCODE -ne 0) {
     if (-not $dockerErrLines) { $dockerErrLines = @($dockerInfo | Select-Object -Last 3) }
     foreach ($line in $dockerErrLines) { Write-Host "    $line" }
     Write-Host "  Start Docker Desktop (WSL2 backend) and try again." -ForegroundColor Yellow
-    exit 1
+    Stop-Setup 1
 }
 Write-Ok "Docker daemon running"
 
@@ -365,7 +400,7 @@ try {
     Write-Err "Docker Compose plugin is not installed."
     Write-Host "  Install or update Docker Desktop (includes Compose):" -ForegroundColor Yellow
     Write-Host "    https://docs.docker.com/get-docker/" -ForegroundColor Cyan
-    exit 1
+    Stop-Setup 1
 }
 Write-Ok "Docker Compose available"
 
@@ -373,7 +408,7 @@ if (-not (Get-Command curl -ErrorAction SilentlyContinue)) {
     Write-Err "curl is not installed."
     Write-Host "  On Windows 10+ curl is built-in." -ForegroundColor Yellow
     Write-Host "  If missing, download from: https://curl.se/windows/" -ForegroundColor Yellow
-    exit 1
+    Stop-Setup 1
 }
 Write-Ok "curl available"
 
@@ -388,7 +423,7 @@ if (-not (Test-Path .env)) {
             Invoke-WebRequest -Uri "$REPO_RAW/.env.example" -OutFile .env.example -UseBasicParsing 2>$null
         } catch {
             Write-Err "Failed to download .env.example"
-            exit 1
+            Stop-Setup 1
         }
     }
     Copy-Item .env.example .env
@@ -573,7 +608,7 @@ if (Test-Path $COMPOSE_FILE) {
     } catch {
         Write-Err "Failed to download $COMPOSE_FILE from GitHub."
         Write-Host "  Check your internet connection and try again." -ForegroundColor Yellow
-        exit 1
+        Stop-Setup 1
     }
     Write-Ok "$COMPOSE_FILE downloaded"
 }
@@ -616,17 +651,17 @@ foreach ($svc in $INFRA_SERVICES) {
 if ($failedServices -contains 'redis') {
     Write-Err "Redis failed to start. Cannot continue."
     Write-Host "  Check logs: docker compose -f $COMPOSE_FILE logs redis" -ForegroundColor Yellow
-    exit 1
+    Stop-Setup 1
 }
 if ($failedServices -contains 'qbittorrent') {
     Write-Err "qBittorrent failed to start. Cannot continue."
     Write-Host "  Check logs: docker compose -f $COMPOSE_FILE logs qbittorrent" -ForegroundColor Yellow
-    exit 1
+    Stop-Setup 1
 }
 if ($failedServices -contains 'postgres') {
     Write-Err "PostgreSQL failed to start. Cannot continue."
     Write-Host "  Check logs: docker compose -f $COMPOSE_FILE logs postgres" -ForegroundColor Yellow
-    exit 1
+    Stop-Setup 1
 }
 
 Write-Info "Waiting for Redis..."
@@ -675,7 +710,7 @@ Write-Host "Follow these steps to get your Jellyfin API key:" -ForegroundColor W
 Write-Dim "  1. Open http://localhost:8096 in your browser"
 Write-Dim "  2. Complete the setup wizard (create your admin account)"
 Write-Dim "  3. Go to Dashboard (gear icon) > API Keys"
-Write-Dim '  4. Click "+", name it "StreamHub", click OK'
+Write-Dim '  4. Click the + button, name it StreamHub, click OK'
 Write-Dim "  5. Copy the generated API key"
 Write-Host ""
 
@@ -757,7 +792,7 @@ Write-Host ""
 Write-Host "Follow these steps to get your TMDB API key:" -ForegroundColor White
 Write-Dim "  1. Go to https://www.themoviedb.org/settings/api"
 Write-Dim "  2. Create a free account (or log in)"
-Write-Dim '  3. Click "Click here to generate an API key"'
+Write-Dim '  3. Click the link to generate an API key'
 Write-Dim "  4. Fill in the form:"
 Write-Dim "       Application Name:  StreamHub"
 Write-Dim "       Application URL:   http://localhost:5757"
@@ -784,7 +819,7 @@ Write-Dim "Get notified when downloads complete."
 Write-Host "To set up a Discord webhook:" -ForegroundColor Gray
 Write-Dim "  1. Open your Discord server"
 Write-Dim "  2. Go to Server Settings > Integrations > Webhooks"
-Write-Dim '  3. Click "New Webhook"'
+Write-Dim '  3. Click New Webhook'
 Write-Dim "  4. Name it, choose a channel, click Copy Webhook URL"
 Write-Host ""
 
@@ -807,7 +842,7 @@ docker compose -f $COMPOSE_FILE pull streamhub
 if (-not (docker image inspect "ghcr.io/nort1346/streamhub:$STREAMHUB_TAG" 2>$null)) {
     Write-Err "Failed to pull StreamHub image. Check your network."
     Write-Err "You can also try manually: docker compose -f $COMPOSE_FILE pull streamhub"
-    exit 1
+    Stop-Setup 1
 }
 
 Write-Ok "StreamHub image pulled"
@@ -832,7 +867,7 @@ $streamhubId = docker compose -f $COMPOSE_FILE ps -q streamhub 2>$null
 if (-not $streamhubId) {
     Write-Err "StreamHub container is not running. Check logs:"
     Write-Err "  docker compose -f $COMPOSE_FILE logs streamhub"
-    exit 1
+    Stop-Setup 1
 }
 
 Write-Info "Waiting for StreamHub to start (first start may take 1-2 minutes)..."
@@ -899,3 +934,5 @@ Write-Callout "Required before first use:" (@(
     "  Open http://localhost:9900 and add at least one indexer (e.g. YTS).",
     "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"
 ) -join "`n")
+
+Stop-Setup 0
