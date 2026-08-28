@@ -82,6 +82,24 @@ describe('torrents/[id].get', () => {
     expect(mockRun).toHaveBeenCalled()
   })
 
+  it('normalizes qBittorrent unknown eta to zero', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', status: 'downloading' })
+    mockFindTorrentByHash.mockResolvedValue({
+      progress: 0.1,
+      completion_on: 0,
+      downloaded: 100,
+      size: 1000,
+      eta: 24000,
+      dlspeed: 512,
+      upspeed: 0,
+      state: 'downloading'
+    })
+
+    const result = await handler(mockEvent)
+    expect(result).toEqual(expect.objectContaining({ etaSeconds: 0, status: 'downloading' }))
+  })
+
   it('marks complete via completion_on > 0', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', status: 'downloading' })

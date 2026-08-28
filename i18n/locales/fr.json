@@ -176,6 +176,7 @@
     "slow": "Connexion lente",
     "good": "OK",
     "etaCalculating": "Calcul en cours…",
+    "etaWaitingSeeders": "En attente de seeders…",
     "browseCTA": "Films & Séries",
     "browseCTADesc": "Découvrez les tendances, populaires et les mieux notés",
     "title": "Tableau de bord",

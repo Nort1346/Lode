@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { Download } from '~/types/downloads'
 import {
-  formatEta,
   formatSpeed,
   formatSize,
   formatDate,
   getTorrentQuality,
-  useQualityConfig
+  useQualityConfig,
+  useEtaLabel
 } from '~/composables/useTorrentUtils'
 
 definePageMeta({
@@ -111,6 +111,7 @@ function getDisplayName(dl: Download): string {
 }
 
 const { qualityConfig } = useQualityConfig()
+const etaLabel = useEtaLabel()
 
 function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
   if (completedAt === null || completedAt === '') return ''
@@ -268,7 +269,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                 </span>
                 <span
                   >{{ t('common.eta') }}:
-                  <span class="text-zinc-900 dark:text-white font-medium">{{ formatEta(dl.etaSeconds) }}</span></span
+                  <span class="text-zinc-900 dark:text-white font-medium">{{ etaLabel(dl) }}</span></span
                 >
               </div>
             </div>

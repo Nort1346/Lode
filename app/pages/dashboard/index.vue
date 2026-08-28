@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import type { MediaCarouselItem } from '~/types/media'
 import type { Download } from '~/types/downloads'
-import { formatEta, formatSpeed, formatSize, getTorrentQuality, useQualityConfig } from '~/composables/useTorrentUtils'
+import {
+  formatSpeed,
+  formatSize,
+  getTorrentQuality,
+  useQualityConfig,
+  useEtaLabel
+} from '~/composables/useTorrentUtils'
 
 definePageMeta({
   middleware: 'auth'
@@ -120,6 +126,7 @@ function getDisplayName(dl: Download): string {
 }
 
 const { qualityConfig } = useQualityConfig()
+const etaLabel = useEtaLabel()
 
 const statusColors: Record<string, string> = {
   downloading: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400',
@@ -323,7 +330,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   <span
                     >{{ t('common.eta') }}:
                     <span class="text-zinc-900 dark:text-white">
-                      {{ dl.etaSeconds > 0 ? formatEta(dl.etaSeconds) : t('dashboard.etaCalculating') }}
+                      {{ etaLabel(dl) }}
                     </span></span
                   >
                 </div>

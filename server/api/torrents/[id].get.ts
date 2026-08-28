@@ -1,6 +1,7 @@
 import { downloads } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
+import { normalizeEta } from '#server/utils/torrents/eta'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -43,7 +44,7 @@ export default defineEventHandler(async (event) => {
             .update(downloads)
             .set({
               progress: isComplete ? 100 : progressPct,
-              etaSeconds: isComplete ? 0 : torrent.eta,
+              etaSeconds: isComplete ? 0 : normalizeEta(torrent.eta),
               downloadSpeed: isComplete ? 0 : torrent.dlspeed,
               uploadSpeed: isComplete ? 0 : torrent.upspeed,
               downloadedBytes: torrent.downloaded,
@@ -56,7 +57,7 @@ export default defineEventHandler(async (event) => {
         return {
           ...download,
           progress: isComplete ? 100 : progressPct,
-          etaSeconds: isComplete ? 0 : torrent.eta,
+          etaSeconds: isComplete ? 0 : normalizeEta(torrent.eta),
           downloadSpeed: isComplete ? 0 : torrent.dlspeed,
           uploadSpeed: isComplete ? 0 : torrent.upspeed,
           downloadedBytes: torrent.downloaded,

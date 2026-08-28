@@ -11,6 +11,7 @@ import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tm
 import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { checkForDangerousFiles } from '#server/utils/torrents/safe-download'
+import { normalizeEta } from '#server/utils/torrents/eta'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
 import type { DownloadBody } from '#server/types/browse'
@@ -557,7 +558,7 @@ export default defineEventHandler(async (event) => {
           status: 'downloading',
           torrentHash: torrent?.hash ?? null,
           progress: torrent !== null ? torrent.progress * 100 : 0,
-          etaSeconds: torrent?.eta ?? 0,
+          etaSeconds: normalizeEta(torrent?.eta ?? 0),
           downloadSpeed: torrent?.dlspeed ?? 0,
           uploadSpeed: torrent?.upspeed ?? 0,
           sizeBytes: torrent?.size ?? 0,

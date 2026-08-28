@@ -176,6 +176,7 @@
     "slow": "Slow connection",
     "good": "OK",
     "etaCalculating": "Calculating…",
+    "etaWaitingSeeders": "Waiting for seeders…",
     "browseCTA": "Explore Movies & TV",
     "browseCTADesc": "Discover trending, popular, and top-rated content",
     "title": "Dashboard",

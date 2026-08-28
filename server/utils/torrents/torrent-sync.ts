@@ -4,6 +4,7 @@ import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 import { sendDownloadCompleteWebhook } from '#server/utils/notifications/discord'
 import { notifyDownloadComplete } from '#server/utils/notifications/notifications'
 import { createLogger } from '#server/utils/logger'
+import { normalizeEta } from '#server/utils/torrents/eta'
 import type { SyncResult } from '#server/types/torrent'
 
 const log = createLogger('TorrentSync')
@@ -168,8 +169,9 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
       }
     } else {
       const remainingBytes = Math.max(qbitTorrent.size - qbitTorrent.downloaded, 0)
-      const etaSeconds =
-        qbitTorrent.dlspeed_avg > 0 ? Math.round(remainingBytes / qbitTorrent.dlspeed_avg) : qbitTorrent.eta
+      const etaSeconds = normalizeEta(
+        qbitTorrent.dlspeed_avg > 0 ? remainingBytes / qbitTorrent.dlspeed_avg : qbitTorrent.eta
+      )
       await dbRun(
         db
           .update(downloads)

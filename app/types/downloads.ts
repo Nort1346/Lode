@@ -23,6 +23,10 @@ export interface Download {
 
 export type TorrentQuality = 'dead' | 'poor' | 'slow' | 'ok'
 
+export type EtaState = 'waiting-seeders' | 'calculating' | 'ready'
+
+export type EtaInput = Pick<Download, 'etaSeconds' | 'numSeeds' | 'downloadSpeed'>
+
 export const STATUS_COLORS: Record<string, string> = {
   downloading: 'text-blue-500',
   seeding: 'text-green-500',

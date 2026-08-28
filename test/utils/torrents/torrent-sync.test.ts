@@ -148,6 +148,26 @@ describe('syncTorrentStatus', () => {
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ etaSeconds: 0 }))
   })
 
+  it('stores zero eta for qBittorrent unknown sentinel', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ dlspeed_avg: 0, dlspeed: 0, eta: 24000 })])
+
+    await syncTorrentStatus()
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ etaSeconds: 0 }))
+  })
+
+  it('stores zero eta when the average-speed estimate is unreliable', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ sizeBytes: 50_000_000_000, downloadedBytes: 0 })])
+    mockGetAllTorrents.mockReturnValue([
+      makeQbit({ size: 50_000_000_000, downloaded: 0, dlspeed_avg: 100, dlspeed: 100, eta: 24000 })
+    ])
+
+    await syncTorrentStatus()
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ etaSeconds: 0 }))
+  })
+
   it('marks torrent completed with eta 0', async () => {
     mockActiveAll.mockReturnValue([makeDl()])
     mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])

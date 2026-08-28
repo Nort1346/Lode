@@ -1,4 +1,4 @@
-import type { TorrentQuality } from '~/types/downloads'
+import type { EtaInput, EtaState, TorrentQuality } from '~/types/downloads'
 
 export function formatEta(seconds: number): string {
   if (seconds <= 0) return '--'
@@ -8,6 +8,15 @@ export function formatEta(seconds: number): string {
   if (h > 0) return `${h}h ${m}m`
   if (m > 0) return `${m}m ${s}s`
   return `${s}s`
+}
+
+export const UNRELIABLE_ETA_SECONDS = 48 * 60 * 60
+
+export function getEtaState(dl: EtaInput): EtaState {
+  if (dl.numSeeds <= 0) return 'waiting-seeders'
+  if (dl.etaSeconds <= 0 || dl.downloadSpeed <= 0) return 'calculating'
+  if (dl.etaSeconds > UNRELIABLE_ETA_SECONDS) return 'calculating'
+  return 'ready'
 }
 
 export function formatSpeed(bytesPerSec: number): string {
@@ -51,6 +60,17 @@ export function getTorrentQuality(dl: { numSeeds: number; downloadSpeed: number 
   if (seeds < 5) return 'poor'
   if (seeds < 20) return 'slow'
   return 'ok'
+}
+
+export function useEtaLabel() {
+  const { t } = useI18n()
+
+  return function etaLabel(dl: EtaInput): string {
+    const state = getEtaState(dl)
+    if (state === 'waiting-seeders') return t('dashboard.etaWaitingSeeders')
+    if (state === 'calculating') return t('dashboard.etaCalculating')
+    return formatEta(dl.etaSeconds)
+  }
 }
 
 export function useQualityConfig() {
