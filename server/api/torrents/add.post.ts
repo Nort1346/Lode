@@ -7,6 +7,7 @@ import { getFreshUser } from '#server/utils/user'
 import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { normalizeEta } from '#server/utils/torrents/eta'
+import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
 import { SAVE_PATH_KEYS, type AddTorrentBody, type SavePathKey } from '#server/types/torrent'
@@ -244,7 +245,7 @@ export default defineEventHandler(async (event) => {
         magnetLink: storedMagnetLink,
         savePath: savePath as SavePathKey,
         status: 'downloading',
-        torrentHash: torrent?.hash ?? null,
+        torrentHash: torrent?.hash ?? extractMagnetHash(storedMagnetLink),
         progress: torrent !== null ? torrent.progress * 100 : 0,
         etaSeconds: normalizeEta(torrent?.eta ?? 0),
         downloadSpeed: torrent?.dlspeed ?? 0,

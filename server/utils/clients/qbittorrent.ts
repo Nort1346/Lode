@@ -1,6 +1,6 @@
 import type { TorrentFile, QBitTorrent } from '#server/types/torrent'
 
-function extractMagnetHash(magnetUrl: string): string | null {
+export function extractMagnetHash(magnetUrl: string): string | null {
   const match = magnetUrl.match(/btih:([a-fA-F0-9]{40})/i)
   const group = match?.[1]
   return group !== undefined ? group.toLowerCase() : null

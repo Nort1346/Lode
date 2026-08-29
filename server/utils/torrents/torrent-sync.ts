@@ -5,6 +5,7 @@ import { sendDownloadCompleteWebhook } from '#server/utils/notifications/discord
 import { notifyDownloadComplete } from '#server/utils/notifications/notifications'
 import { createLogger } from '#server/utils/logger'
 import { normalizeEta } from '#server/utils/torrents/eta'
+import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
 import type { SyncResult } from '#server/types/torrent'
 
 const log = createLogger('TorrentSync')
@@ -79,7 +80,17 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
   }
 
   for (const dl of activeDownloads) {
-    let qbitTorrent = dl.torrentHash !== null ? qbitTorrents.find((t) => t.hash === dl.torrentHash) : undefined
+    let dlHash = dl.torrentHash
+    if (dlHash === null) {
+      dlHash = extractMagnetHash(dl.magnetLink)
+    }
+
+    let qbitTorrent = dlHash !== null ? qbitTorrents.find((t) => t.hash === dlHash) : undefined
+
+    if (qbitTorrent !== undefined && dl.torrentHash === null && dlHash !== null) {
+      await dbRun(db.update(downloads).set({ torrentHash: dlHash }).where(eq(downloads.id, dl.id)))
+      dl.torrentHash = dlHash
+    }
 
     if (qbitTorrent === undefined && qbitTorrents.length > 0 && dl.torrentName !== '') {
       qbitTorrent = qbitTorrents.find((t) => t.name === dl.torrentName || t.name.includes(dl.torrentName))
@@ -91,7 +102,14 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     }
 
     if (qbitTorrent === undefined) {
-      if (dl.downloadedBytes > 0 && dl.sizeBytes > 0 && dl.downloadedBytes >= dl.sizeBytes) {
+      if (qbitTorrents.length === 0) {
+        log.warn(
+          `empty qBittorrent torrent list - skipping status updates for ${activeDownloads.length} active download(s)`
+        )
+        break
+      }
+
+      if (dl.sizeBytes > 0 && dl.downloadedBytes * 100 >= dl.sizeBytes * 99.9) {
         await dbRun(
           db
             .update(downloads)
@@ -120,6 +138,9 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           )
         }
       } else {
+        log.warn(
+          `marking download as failed - torrent not found in qBittorrent: id=${dl.id} hash=${dl.torrentHash} name="${dl.torrentName}" progress=${dl.progress}%`
+        )
         await dbRun(db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)))
         result.failed++
       }

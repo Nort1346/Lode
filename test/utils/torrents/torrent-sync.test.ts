@@ -64,6 +64,7 @@ function makeDl(overrides: Record<string, unknown> = {}) {
     userId: 'u1',
     torrentHash: 'h1',
     torrentName: 'Movie 2024',
+    magnetLink: '',
     label: '',
     posterUrl: '',
     tmdbId: 1,
@@ -186,13 +187,47 @@ describe('syncTorrentStatus', () => {
   })
 
   it('marks download failed when torrent is gone from qBittorrent', async () => {
-    mockActiveAll.mockReturnValue([makeDl({ downloadedBytes: 0 })])
-    mockGetAllTorrents.mockReturnValue([])
+    mockActiveAll.mockReturnValue([makeDl({ downloadedBytes: 0, torrentName: '' })])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'other', name: 'Other Movie' })])
 
     const result = await syncTorrentStatus()
 
     expect(result).toEqual({ synced: 0, completed: 0, failed: 1 })
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
+  })
+
+  it('does not mark downloads failed when the qBittorrent list is empty', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ downloadedBytes: 0 })])
+    mockGetAllTorrents.mockReturnValue([])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 0 })
+    expect(mockDb.update).not.toHaveBeenCalled()
+  })
+
+  it('marks download completed when torrent is gone but progress is at or above 99.9%', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ torrentName: '', downloadedBytes: 999_500_000 })])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'other', name: 'Other Movie' })])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 1, failed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
+  })
+
+  it('recovers the torrent hash from the magnet link and backfills it', async () => {
+    const recoveredHash = 'a'.repeat(40)
+    mockActiveAll.mockReturnValue([
+      makeDl({ torrentHash: null, torrentName: '', magnetLink: `magnet:?xt=urn:btih:${recoveredHash}` })
+    ])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ hash: recoveredHash, name: 'Recovered Movie' })])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 1, completed: 0, failed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ torrentHash: recoveredHash }))
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ torrentName: 'Recovered Movie', progress: 50 }))
   })
 
   it('returns empty result without querying qBittorrent when no active downloads', async () => {
