@@ -1,7 +1,8 @@
 import { downloads, users } from '#server/database/schema'
-import { eq, and, desc, count } from 'drizzle-orm'
+import { eq, and, count } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll } from '#server/utils/db'
 import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrents/torrent-sync'
+import { downloadsOrderBy } from '#server/utils/torrents/download-order'
 import type { DownloadRow, SupportedStatus } from '#server/types/torrent'
 import { DOWNLOAD_STATUS_VALUES } from '#server/types/torrent'
 
@@ -46,7 +47,13 @@ export default defineEventHandler(async (event) => {
   const total = countResult?.count ?? 0
 
   const results: DownloadRow[] = await dbAll(
-    db.select().from(downloads).where(whereClause).orderBy(desc(downloads.createdAt)).limit(limit).offset(offset)
+    db
+      .select()
+      .from(downloads)
+      .where(whereClause)
+      .orderBy(...downloadsOrderBy())
+      .limit(limit)
+      .offset(offset)
   )
 
   if (isAdmin) {

@@ -5,6 +5,14 @@ const mockAll = vi.fn()
 const _mockGet = vi.fn()
 const mockCountGet = vi.fn()
 const mockAllUsers = vi.fn()
+const mockOrderBy = vi.fn(() => ({
+  limit: vi.fn(() => ({
+    offset: vi.fn(() => ({
+      get: vi.fn(),
+      all: mockAll
+    }))
+  }))
+}))
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
 vi.stubGlobal(
@@ -39,14 +47,7 @@ vi.stubGlobal(
         return {
           from: vi.fn(() => ({
             where: vi.fn(() => ({
-              orderBy: vi.fn(() => ({
-                limit: vi.fn(() => ({
-                  offset: vi.fn(() => ({
-                    get: vi.fn(),
-                    all: mockAll
-                  }))
-                }))
-              }))
+              orderBy: mockOrderBy
             }))
           }))
         }
@@ -71,8 +72,10 @@ vi.mock('#server/database/schema', () => ({
 vi.mock('drizzle-orm', () => ({
   eq: vi.fn(() => ({})),
   and: vi.fn(() => ({})),
-  desc: vi.fn(() => ({})),
-  count: vi.fn(() => 'count')
+  desc: vi.fn(() => 'DESC_EXPR'),
+  count: vi.fn(() => 'count'),
+  inArray: vi.fn(() => 'IN_ARRAY_EXPR'),
+  sql: vi.fn(() => 'ORDER_GROUP_SQL')
 }))
 
 import handler from '#server/api/torrents/list.get'
@@ -107,6 +110,17 @@ describe('torrents/list.get', () => {
       })
     )
     expect(mockSyncTorrentStatus).toHaveBeenCalled()
+  })
+
+  it('pins active downloads first, then newest first', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    vi.mocked(getQuery).mockReturnValue({})
+    mockCountGet.mockReturnValue({ count: 0 })
+    mockAll.mockReturnValue([])
+
+    await handler(mockEvent)
+
+    expect(mockOrderBy).toHaveBeenCalledWith('ORDER_GROUP_SQL', 'DESC_EXPR')
   })
 
   it('calls notifyJellyfinIfNeeded', async () => {

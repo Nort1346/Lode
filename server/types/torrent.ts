@@ -7,6 +7,9 @@ export type DownloadRow = InferSelectModel<typeof downloads> & { username?: stri
 export const DOWNLOAD_STATUS_VALUES = ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed'] as const
 export type SupportedStatus = (typeof DOWNLOAD_STATUS_VALUES)[number]
 
+// In-progress downloads that should be pinned to the top of the list
+export const ACTIVE_DOWNLOAD_STATUSES: readonly SupportedStatus[] = ['pending', 'downloading']
+
 export interface TorrentFile {
   index: number
   name: string
