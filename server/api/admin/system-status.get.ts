@@ -1,6 +1,9 @@
 import type { H3Event } from 'h3'
+import { sql } from 'drizzle-orm'
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import Redis from 'ioredis'
 import type { ServiceStatus } from '#server/types/admin'
+import { useDbAsync } from '#server/utils/db'
 import { normalizeUrl } from '#server/utils/url'
 
 async function checkQbittorrent(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
@@ -279,6 +282,27 @@ async function checkRedis(config: ReturnType<typeof useRuntimeConfig>): Promise<
   }
 }
 
+async function checkDatabase(): Promise<ServiceStatus> {
+  const driver = (process.env.DB_DRIVER ?? 'sqlite').toLowerCase()
+  const name = driver === 'postgres' ? 'PostgreSQL' : 'SQLite'
+  const start = Date.now()
+  try {
+    const db = await useDbAsync()
+    let version: string | undefined
+    if (driver === 'postgres') {
+      const pg = db as unknown as PostgresJsDatabase
+      const rows = await pg.execute<{ v: string }>(sql`select current_setting('server_version') as v`)
+      version = rows[0]?.v
+    } else {
+      const row = db.get<{ v: string } | undefined>(sql`select version() as v`)
+      version = row?.v
+    }
+    return { name, configured: true, status: 'up', latencyMs: Date.now() - start, details: version }
+  } catch {
+    return { name, configured: true, status: 'down', latencyMs: Date.now() - start }
+  }
+}
+
 export default defineEventHandler(async (event: H3Event) => {
   await requireAdmin(event)
 
@@ -291,7 +315,8 @@ export default defineEventHandler(async (event: H3Event) => {
     checkTmdb(config),
     checkRedis(config),
     checkDiscord(config),
-    checkFlareSolverr(config)
+    checkFlareSolverr(config),
+    checkDatabase()
   ])
 
   return { services }

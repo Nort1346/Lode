@@ -22,6 +22,27 @@ vi.mock('ioredis', () => {
 
 import handler from '#server/api/admin/system-status.get'
 
+function stubDriver(driver: string | undefined) {
+  const env = { ...process.env }
+  if (driver === undefined) delete env.DB_DRIVER
+  else env.DB_DRIVER = driver
+  vi.stubGlobal('process', { ...process, env })
+}
+
+function makeFakeDb(options: { version?: string; fail?: boolean } = {}) {
+  const version = options.version ?? '3.45.1'
+  return {
+    get() {
+      if (options.fail) throw new Error('database error')
+      return { v: version }
+    },
+    async execute() {
+      if (options.fail) throw new Error('database error')
+      return [{ v: version }]
+    }
+  }
+}
+
 function stubConfig(overrides: Record<string, string> = {}) {
   const defaults: Record<string, string> = {
     qbittorrentUrl: 'http://qbit:8080',
@@ -45,6 +66,8 @@ describe('admin/system-status.get', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     stubConfig()
+    stubDriver(undefined)
+    vi.stubGlobal('useDb', () => makeFakeDb())
     global.fetch = vi.fn()
   })
 
@@ -66,7 +89,7 @@ describe('admin/system-status.get', () => {
 
     const result = await handler(mockEvent)
     expect(result).toHaveProperty('services')
-    expect(result.services).toHaveLength(7)
+    expect(result.services).toHaveLength(8)
     expect(result.services.every((s: { status: string }) => s.status === 'up')).toBe(true)
   })
 
@@ -258,8 +281,12 @@ describe('admin/system-status.get', () => {
     })
 
     const result = await handler(mockEvent)
-    expect(result.services).toHaveLength(7)
-    expect(result.services.every((s: { status: string }) => s.status === 'not_configured')).toBe(true)
+    expect(result.services).toHaveLength(8)
+    const db = result.services.find((s: { name: string }) => s.name === 'SQLite')
+    expect(db).toEqual(expect.objectContaining({ status: 'up', configured: true }))
+    const others = result.services.filter((s: { name: string }) => s.name !== 'SQLite')
+    expect(others).toHaveLength(7)
+    expect(others.every((s: { status: string }) => s.status === 'not_configured')).toBe(true)
   })
 
   it('returns Jellyfin version when up', async () => {
@@ -335,5 +362,49 @@ describe('admin/system-status.get', () => {
     redisFail = false
     const redis = result.services.find((s: { name: string }) => s.name === 'Redis')
     expect(redis).toEqual(expect.objectContaining({ status: 'down', configured: true }))
+  })
+
+  it('returns SQLite status with version when up', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(''),
+      json: () => Promise.resolve({})
+    } as Response)
+
+    const result = await handler(mockEvent)
+    const db = result.services.find((s: { name: string }) => s.name === 'SQLite')
+    expect(db).toEqual(expect.objectContaining({ status: 'up', configured: true, details: '3.45.1' }))
+    expect(result.services.find((s: { name: string }) => s.name === 'PostgreSQL')).toBeUndefined()
+  })
+
+  it('returns PostgreSQL status when DB_DRIVER=postgres', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(''),
+      json: () => Promise.resolve({})
+    } as Response)
+    vi.stubGlobal('useDb', () => makeFakeDb({ version: '16.2' }))
+    stubDriver('postgres')
+
+    const result = await handler(mockEvent)
+    const db = result.services.find((s: { name: string }) => s.name === 'PostgreSQL')
+    expect(db).toEqual(expect.objectContaining({ status: 'up', configured: true, details: '16.2' }))
+    expect(result.services.find((s: { name: string }) => s.name === 'SQLite')).toBeUndefined()
+  })
+
+  it('detects database down when the version query fails', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(''),
+      json: () => Promise.resolve({})
+    } as Response)
+    vi.stubGlobal('useDb', () => makeFakeDb({ fail: true }))
+
+    const result = await handler(mockEvent)
+    const db = result.services.find((s: { name: string }) => s.name === 'SQLite')
+    expect(db).toEqual(expect.objectContaining({ status: 'down', configured: true }))
   })
 })

@@ -13,7 +13,9 @@ const serviceIcons: Record<string, string> = {
   TMDB: 'i-lucide-film',
   Redis: 'i-simple-icons-redis',
   Discord: 'i-simple-icons-discord',
-  FlareSolverr: 'i-simple-icons-cloudflare'
+  FlareSolverr: 'i-simple-icons-cloudflare',
+  SQLite: 'i-simple-icons-sqlite',
+  PostgreSQL: 'i-simple-icons-postgresql'
 }
 
 const serviceColors: Record<string, string> = {
@@ -23,7 +25,9 @@ const serviceColors: Record<string, string> = {
   TMDB: 'text-cyan-600 dark:text-cyan-400',
   Redis: 'text-red-600 dark:text-red-400',
   Discord: 'text-indigo-600 dark:text-indigo-400',
-  FlareSolverr: 'text-orange-600 dark:text-orange-400'
+  FlareSolverr: 'text-orange-600 dark:text-orange-400',
+  SQLite: 'text-lime-600 dark:text-lime-400',
+  PostgreSQL: 'text-sky-600 dark:text-sky-400'
 }
 
 const statusColors: Record<string, string> = {
@@ -65,10 +69,10 @@ onMounted(fetchServices)
 <template>
   <div class="card p-6 mb-4">
     <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">{{ t('settings.systemStatus') }}</h2>
-    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-      <USkeleton v-for="i in 6" :key="i" class="h-24 rounded-xl" />
+    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <USkeleton v-for="i in 8" :key="i" class="h-24 rounded-xl" />
     </div>
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       <div v-for="s in services" :key="s.name" class="card p-4">
         <div class="flex items-center gap-3 mb-3">
           <div class="flex justify-center items-center p-2 rounded-lg bg-zinc-100 dark:bg-white/5">
