@@ -15,8 +15,26 @@ const mockSet = vi.fn((_payload: unknown) => ({ where: vi.fn(() => ({ run: mockR
 const mockSendWebhook = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 const mockNotifyDownloadComplete = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 const mockUseJellyfin = vi.hoisted(() => vi.fn(() => null as unknown))
+const mockLog = vi.hoisted(() => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn()
+}))
 
-let selectIndex = 0
+const mockSchema = vi.hoisted(() => ({
+  downloads: {
+    id: 'id',
+    userId: 'userId',
+    status: 'status',
+    torrentHash: 'torrentHash',
+    torrentName: 'torrentName',
+    sizeBytes: 'sizeBytes',
+    downloadedBytes: 'downloadedBytes'
+  },
+  users: { id: 'id', username: 'username', discordId: 'discordId' },
+  settings: { key: 'key', value: 'value' }
+}))
 
 const mockDb = {
   select: vi.fn((...args: unknown[]) => {
@@ -27,11 +45,11 @@ const mockDb = {
         }))
       }
     }
-    selectIndex++
-    if (selectIndex === 1) {
-      return { from: vi.fn(() => ({ where: vi.fn(() => ({ all: mockActiveAll })) })) }
+    return {
+      from: vi.fn((table: unknown) =>
+        table === mockSchema.downloads ? { where: vi.fn(() => ({ all: mockActiveAll })) } : { all: mockUsersAll }
+      )
     }
-    return { from: vi.fn(() => ({ all: mockUsersAll })) }
   }),
   update: vi.fn(() => ({ set: mockSet }))
 }
@@ -46,19 +64,7 @@ vi.stubGlobal('useRuntimeConfig', () => ({
   savePathMusic: '/data/music'
 }))
 
-vi.mock('#server/database/schema', () => ({
-  downloads: {
-    id: 'id',
-    userId: 'userId',
-    status: 'status',
-    torrentHash: 'torrentHash',
-    torrentName: 'torrentName',
-    sizeBytes: 'sizeBytes',
-    downloadedBytes: 'downloadedBytes'
-  },
-  users: { id: 'id', username: 'username', discordId: 'discordId' },
-  settings: { key: 'key', value: 'value' }
-}))
+vi.mock('#server/database/schema', () => mockSchema)
 
 vi.mock('drizzle-orm', () => ({
   eq: vi.fn((_col: unknown, val?: string) => ({ key: val }))
@@ -76,7 +82,11 @@ vi.mock('#server/utils/settings', () => ({
   getSetting: mockGetSetting
 }))
 
-import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrents/torrent-sync'
+vi.mock('#server/utils/logger', () => ({
+  createLogger: vi.fn(() => mockLog)
+}))
+
+import { syncTorrentStatus, notifyJellyfinIfNeeded, resetSyncDiagnostics } from '#server/utils/torrents/torrent-sync'
 
 function makeDl(overrides: Record<string, unknown> = {}) {
   return {
@@ -133,7 +143,7 @@ describe('syncTorrentStatus', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSetting.mockReset()
-    selectIndex = 0
+    resetSyncDiagnostics()
   })
 
   it('uses average download speed for a stable ETA', async () => {
@@ -301,6 +311,74 @@ describe('syncTorrentStatus', () => {
     expect(result).toEqual({ synced: 0, completed: 0, failed: 0 })
     expect(mockDb.update).not.toHaveBeenCalled()
   })
+
+  it('logs the first sync after start with swarm counts', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit(), makeQbit({ hash: 'h2', name: 'Other', num_complete: 0 })])
+
+    await syncTorrentStatus()
+
+    expect(mockLog.info).toHaveBeenCalledWith(
+      'first sync after start: 2 torrent(s) in qBittorrent, 1 with num_complete=0, 1 active download(s)'
+    )
+
+    await syncTorrentStatus()
+
+    expect(mockLog.info).toHaveBeenCalledTimes(1)
+  })
+
+  it('warns when seeders are zero while the torrent is still downloading', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ num_seeds: 0, num_complete: 0, dlspeed: 5_000_000 })])
+
+    await syncTorrentStatus()
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ numSeeds: 0 }))
+    expect(mockLog.warn).toHaveBeenCalledWith(
+      'zero seeders while actively downloading: id=dl-1 hash=h1 name="Movie 2024" num_seeds=0 num_complete=0 dlspeed=5000000 progress=50.0% state=downloading'
+    )
+  })
+
+  it('warns only once per zero-seeder episode', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ num_seeds: 0, num_complete: 0, dlspeed: 5_000_000 })])
+
+    await syncTorrentStatus()
+    await syncTorrentStatus()
+    await syncTorrentStatus()
+
+    expect(mockLog.warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not warn for zero seeders when the torrent is not downloading', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ num_seeds: 0, num_complete: 0, dlspeed: 0, dlspeed_avg: 0 })])
+
+    await syncTorrentStatus()
+
+    expect(mockLog.warn).not.toHaveBeenCalled()
+  })
+
+  it('logs when seeders return after a zero-seeder episode', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ num_seeds: 0, num_complete: 0, dlspeed: 5_000_000 })])
+    await syncTorrentStatus()
+    mockGetAllTorrents.mockReturnValue([makeQbit()])
+    await syncTorrentStatus()
+
+    expect(mockLog.info).toHaveBeenCalledWith('seeders restored: id=dl-1 hash=h1 num_seeds=5 num_complete=5')
+  })
+
+  it('warns when a torrent is matched by name instead of hash', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'h2', name: 'Movie 2024 REMAKE' })])
+
+    await syncTorrentStatus()
+
+    expect(mockLog.warn).toHaveBeenCalledWith(
+      'matched torrent by name instead of hash: id=dl-1 hash=h1 name="Movie 2024" matched_hash=h2 matched_name="Movie 2024 REMAKE"'
+    )
+  })
 })
 
 describe('notifyJellyfinIfNeeded', () => {
@@ -314,7 +392,6 @@ describe('notifyJellyfinIfNeeded', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    selectIndex = 0
     mockGetSetting.mockReset()
     mockSettingGet.mockReset()
     mockUseJellyfin.mockReset()

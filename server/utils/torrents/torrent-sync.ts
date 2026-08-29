@@ -19,6 +19,14 @@ const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP
 // last recorded progress already reached this threshold.
 const AUTO_REMOVE_COMPLETE_MIN_PROGRESS = 90
 
+let firstSyncReported = false
+const zeroSeedDownloads = new Set<string>()
+
+export function resetSyncDiagnostics(): void {
+  firstSyncReported = false
+  zeroSeedDownloads.clear()
+}
+
 async function isPrepCountdownEnabled(): Promise<boolean> {
   const db = await useDbAsync()
   const row = await dbGet(
@@ -87,6 +95,14 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     return result
   }
 
+  if (!firstSyncReported) {
+    firstSyncReported = true
+    const zeroCompleteTorrents = qbitTorrents.filter((t) => t.num_complete === 0).length
+    log.info(
+      `first sync after start: ${qbitTorrents.length} torrent(s) in qBittorrent, ${zeroCompleteTorrents} with num_complete=0, ${activeDownloads.length} active download(s)`
+    )
+  }
+
   for (const dl of activeDownloads) {
     let dlHash = dl.torrentHash
     if (dlHash === null) {
@@ -104,6 +120,9 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
       qbitTorrent = qbitTorrents.find((t) => t.name === dl.torrentName || t.name.includes(dl.torrentName))
 
       if (qbitTorrent !== undefined) {
+        log.warn(
+          `matched torrent by name instead of hash: id=${dl.id} hash=${dlHash ?? 'null'} name="${dl.torrentName}" matched_hash=${qbitTorrent.hash} matched_name="${qbitTorrent.name}"`
+        )
         await dbRun(db.update(downloads).set({ torrentHash: qbitTorrent.hash }).where(eq(downloads.id, dl.id)))
         dl.torrentHash = qbitTorrent.hash
       }
@@ -210,6 +229,19 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
       const etaSeconds = normalizeEta(
         qbitTorrent.dlspeed_avg > 0 ? remainingBytes / qbitTorrent.dlspeed_avg : qbitTorrent.eta
       )
+      const numSeeds = Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0)
+      if (numSeeds === 0) {
+        if (!zeroSeedDownloads.has(dl.id) && qbitTorrent.dlspeed > 0) {
+          log.warn(
+            `zero seeders while actively downloading: id=${dl.id} hash=${qbitTorrent.hash} name="${qbitTorrent.name}" num_seeds=${qbitTorrent.num_seeds} num_complete=${qbitTorrent.num_complete} dlspeed=${qbitTorrent.dlspeed} progress=${progressPct.toFixed(1)}% state=${qbitTorrent.state}`
+          )
+        }
+        zeroSeedDownloads.add(dl.id)
+      } else if (zeroSeedDownloads.delete(dl.id)) {
+        log.info(
+          `seeders restored: id=${dl.id} hash=${qbitTorrent.hash} num_seeds=${qbitTorrent.num_seeds} num_complete=${qbitTorrent.num_complete}`
+        )
+      }
       await dbRun(
         db
           .update(downloads)
@@ -221,7 +253,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
             uploadSpeed: qbitTorrent.upspeed,
             sizeBytes: qbitTorrent.size,
             downloadedBytes: qbitTorrent.downloaded,
-            numSeeds: Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0),
+            numSeeds,
             numLeechs: qbitTorrent.num_leechs
           })
           .where(eq(downloads.id, dl.id))
