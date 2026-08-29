@@ -7,6 +7,7 @@ vi.stubGlobal(
 )
 
 const mockSettingGet = vi.fn(() => undefined)
+const mockGetSetting = vi.hoisted(() => vi.fn((_key?: string) => undefined as string | undefined))
 const mockActiveAll = vi.fn(() => [] as unknown[])
 const mockUsersAll = vi.fn(() => [] as unknown[])
 const mockRun = vi.fn(() => ({ changes: 1 }))
@@ -54,6 +55,10 @@ vi.mock('#server/utils/notifications/discord', () => ({
 
 vi.mock('#server/utils/notifications/notifications', () => ({
   notifyDownloadComplete: vi.fn(() => Promise.resolve())
+}))
+
+vi.mock('#server/utils/settings', () => ({
+  getSetting: mockGetSetting
 }))
 
 import { syncTorrentStatus } from '#server/utils/torrents/torrent-sync'
@@ -112,6 +117,7 @@ function makeQbit(overrides: Record<string, unknown> = {}) {
 describe('syncTorrentStatus', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetSetting.mockReset()
     selectIndex = 0
   })
 
@@ -214,6 +220,28 @@ describe('syncTorrentStatus', () => {
 
     expect(result).toEqual({ synced: 0, completed: 1, failed: 0 })
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
+  })
+
+  it('marks download completed when the torrent disappears at 90% progress with auto-remove enabled', async () => {
+    mockGetSetting.mockReturnValueOnce('true')
+    mockActiveAll.mockReturnValue([makeDl({ torrentName: '', downloadedBytes: 900_000_000 })])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'other', name: 'Other Movie' })])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 1, failed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
+  })
+
+  it('still marks download failed when the torrent disappears below 90% progress with auto-remove enabled', async () => {
+    mockGetSetting.mockReturnValueOnce('true')
+    mockActiveAll.mockReturnValue([makeDl({ torrentName: '', downloadedBytes: 800_000_000 })])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'other', name: 'Other Movie' })])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 1 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
   })
 
   it('recovers the torrent hash from the magnet link and backfills it', async () => {

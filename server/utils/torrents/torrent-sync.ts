@@ -6,11 +6,18 @@ import { notifyDownloadComplete } from '#server/utils/notifications/notification
 import { createLogger } from '#server/utils/logger'
 import { normalizeEta } from '#server/utils/torrents/eta'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
+import { getSetting } from '#server/utils/settings'
+import { SETTINGS } from '#server/types/settings'
 import type { SyncResult } from '#server/types/torrent'
 
 const log = createLogger('TorrentSync')
 
 const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
+
+// A download whose torrent has vanished from qBittorrent is treated as completed
+// (instead of failed) when auto-remove of finished torrents is enabled and the
+// last recorded progress already reached this threshold.
+const AUTO_REMOVE_COMPLETE_MIN_PROGRESS = 90
 
 async function isPrepCountdownEnabled(): Promise<boolean> {
   const db = await useDbAsync()
@@ -69,6 +76,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
   const discordIdMap = new Map(allUsers.map((u) => [u.id, u.discordId ?? null]))
 
   const countdownEnabled = await isPrepCountdownEnabled()
+  const autoRemoveCompleted = (await getSetting(SETTINGS.QBIT_AUTO_REMOVE_COMPLETED)) === 'true'
 
   let qbitTorrents
   try {
@@ -109,7 +117,11 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         break
       }
 
-      if (dl.sizeBytes > 0 && dl.downloadedBytes * 100 >= dl.sizeBytes * 99.9) {
+      const lastProgressPct = dl.sizeBytes > 0 ? (dl.downloadedBytes / dl.sizeBytes) * 100 : 0
+      const observedComplete = dl.sizeBytes > 0 && dl.downloadedBytes * 100 >= dl.sizeBytes * 99.9
+      const inferredComplete = autoRemoveCompleted && lastProgressPct >= AUTO_REMOVE_COMPLETE_MIN_PROGRESS
+
+      if (observedComplete || inferredComplete) {
         await dbRun(
           db
             .update(downloads)
@@ -124,6 +136,11 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
             .where(eq(downloads.id, dl.id))
         )
         result.completed++
+        if (inferredComplete) {
+          log.info(
+            `marked as completed - torrent no longer in qBittorrent (auto-remove enabled): id=${dl.id} hash=${dl.torrentHash} name="${dl.torrentName}" last progress=${lastProgressPct.toFixed(1)}%`
+          )
+        }
         if (!countdownEnabled) {
           void notifyDiscord(dl, userMap, discordIdMap)
           void notifyDownloadComplete(

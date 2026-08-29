@@ -75,6 +75,7 @@ export const SETTINGS = {
   BRUTE_FORCE_CONFIG: 'brute_force_config',
   PREP_COUNTDOWN_ENABLED: 'prep_countdown_enabled',
   PREP_SPEED_MB: 'prep_speed_mb',
+  QBIT_AUTO_REMOVE_COMPLETED: 'qbit_auto_remove_completed',
   DISK_CHECK_ENABLED: 'disk_check_enabled',
   DISK_MIN_FREE_GB: 'disk_min_free_gb',
   DISCORD_MENTIONS_ENABLED: 'discord_mentions_enabled',
@@ -102,6 +103,7 @@ Some settings are stored in the `settings` DB table and can be changed at runtim
 | `disk_min_free_gb` | `7` | Minimum free GB per disk |
 | `prep_countdown_enabled` | `true` | Show prep countdown for completed downloads |
 | `prep_speed_mb` | `15` | Simulated file copy speed (MB/s) |
+| `qbit_auto_remove_completed` | `false` | Mark a download as completed when its torrent disappears from qBittorrent at ≥90% progress (for setups that auto-remove finished torrents) |
 | `discord_locale` | `en` | Discord webhook language (`pl`, `en`, `de`, `fr`, `es`) |
 | `discord_mentions_enabled` | `true` | Enable user mentions in Discord notifications |
 | `jellyfin_sync_enabled` | `false` | Enable Jellyfin user sync |

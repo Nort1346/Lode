@@ -22,6 +22,8 @@ const { t } = useI18n()
 
     <SettingsPrepCountdown v-reveal />
 
+    <SettingsQbittorrent v-reveal />
+
     <SettingsDefaultLimits v-reveal />
 
     <SettingsSyncProviders v-reveal />

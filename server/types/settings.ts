@@ -11,6 +11,7 @@ export const SETTINGS = {
   BRUTE_FORCE_CONFIG: 'brute_force_config',
   PREP_COUNTDOWN_ENABLED: 'prep_countdown_enabled',
   PREP_SPEED_MB: 'prep_speed_mb',
+  QBIT_AUTO_REMOVE_COMPLETED: 'qbit_auto_remove_completed',
   DISK_CHECK_ENABLED: 'disk_check_enabled',
   DISK_MIN_FREE_GB: 'disk_min_free_gb',
   DISCORD_MENTIONS_ENABLED: 'discord_mentions_enabled',
