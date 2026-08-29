@@ -55,4 +55,53 @@ describe('admin/brute-force/config.put', () => {
 
     await expect(handler(mockEvent)).rejects.toThrow('403: Forbidden')
   })
+
+  it('throws 400 when maxAttemptsPerIp is not an integer', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ maxAttemptsPerIp: 2.5 })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: maxAttemptsPerIp must be an integer between 1 and 100')
+  })
+
+  it('throws 400 when maxAttemptsPerIp is out of range', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ maxAttemptsPerIp: 0 })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: maxAttemptsPerIp must be an integer between 1 and 100')
+  })
+
+  it('throws 400 when ipBlockDurationMinutes exceeds the maximum', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ ipBlockDurationMinutes: 1441 })
+
+    await expect(handler(mockEvent)).rejects.toThrow(
+      '400: ipBlockDurationMinutes must be an integer between 1 and 1440'
+    )
+  })
+
+  it('throws 400 when windowMinutes is not an integer', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ windowMinutes: '30' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: windowMinutes must be an integer between 1 and 1440')
+  })
+
+  it('saves all three fields when provided', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ maxAttemptsPerIp: 5, ipBlockDurationMinutes: 15, windowMinutes: 120 })
+    mockSaveBruteForceConfig.mockResolvedValue(undefined)
+    mockGetBruteForceConfig.mockResolvedValue({ maxAttemptsPerIp: 5, ipBlockDurationMinutes: 15, windowMinutes: 120 })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({
+      success: true,
+      config: { maxAttemptsPerIp: 5, ipBlockDurationMinutes: 15, windowMinutes: 120 }
+    })
+    expect(mockSaveBruteForceConfig).toHaveBeenCalledWith({
+      maxAttemptsPerIp: 5,
+      ipBlockDurationMinutes: 15,
+      windowMinutes: 120
+    })
+  })
 })

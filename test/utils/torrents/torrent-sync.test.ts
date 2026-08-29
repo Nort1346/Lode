@@ -6,19 +6,26 @@ vi.stubGlobal(
   vi.fn(() => ({ getAllTorrents: mockGetAllTorrents }))
 )
 
-const mockSettingGet = vi.fn(() => undefined)
+const mockSettingGet = vi.fn((_cond?: { key?: string }) => undefined as { value: string } | undefined)
 const mockGetSetting = vi.hoisted(() => vi.fn((_key?: string) => undefined as string | undefined))
 const mockActiveAll = vi.fn(() => [] as unknown[])
 const mockUsersAll = vi.fn(() => [] as unknown[])
 const mockRun = vi.fn(() => ({ changes: 1 }))
 const mockSet = vi.fn((_payload: unknown) => ({ where: vi.fn(() => ({ run: mockRun })) }))
+const mockSendWebhook = vi.hoisted(() => vi.fn(() => Promise.resolve()))
+const mockNotifyDownloadComplete = vi.hoisted(() => vi.fn(() => Promise.resolve()))
+const mockUseJellyfin = vi.hoisted(() => vi.fn(() => null as unknown))
 
 let selectIndex = 0
 
 const mockDb = {
   select: vi.fn((...args: unknown[]) => {
     if (args.length > 0) {
-      return { from: vi.fn(() => ({ where: vi.fn(() => ({ get: mockSettingGet })) })) }
+      return {
+        from: vi.fn(() => ({
+          where: vi.fn((cond: { key?: string }) => ({ get: vi.fn(() => mockSettingGet(cond)) }))
+        }))
+      }
     }
     selectIndex++
     if (selectIndex === 1) {
@@ -30,6 +37,14 @@ const mockDb = {
 }
 
 vi.stubGlobal('useDb', () => mockDb)
+vi.stubGlobal('useJellyfin', mockUseJellyfin)
+vi.stubGlobal('useRuntimeConfig', () => ({
+  savePathMovies: '/data/movies',
+  savePathSeries: '/data/series',
+  savePathGames: '/data/games',
+  savePathBooks: '/data/books',
+  savePathMusic: '/data/music'
+}))
 
 vi.mock('#server/database/schema', () => ({
   downloads: {
@@ -46,22 +61,22 @@ vi.mock('#server/database/schema', () => ({
 }))
 
 vi.mock('drizzle-orm', () => ({
-  eq: vi.fn(() => ({}))
+  eq: vi.fn((_col: unknown, val?: string) => ({ key: val }))
 }))
 
 vi.mock('#server/utils/notifications/discord', () => ({
-  sendDownloadCompleteWebhook: vi.fn(() => Promise.resolve())
+  sendDownloadCompleteWebhook: mockSendWebhook
 }))
 
 vi.mock('#server/utils/notifications/notifications', () => ({
-  notifyDownloadComplete: vi.fn(() => Promise.resolve())
+  notifyDownloadComplete: mockNotifyDownloadComplete
 }))
 
 vi.mock('#server/utils/settings', () => ({
   getSetting: mockGetSetting
 }))
 
-import { syncTorrentStatus } from '#server/utils/torrents/torrent-sync'
+import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrents/torrent-sync'
 
 function makeDl(overrides: Record<string, unknown> = {}) {
   return {
@@ -265,5 +280,147 @@ describe('syncTorrentStatus', () => {
 
     expect(result).toEqual({ synced: 0, completed: 0, failed: 0 })
     expect(mockGetAllTorrents).not.toHaveBeenCalled()
+  })
+
+  it('matches the torrent by name when the hash is missing and backfills the hash', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ torrentName: 'Movie 2024', downloadedBytes: 500_000_000 })])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'h2', name: 'Movie 2024 REMAKE', progress: 0.5 })])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 1, completed: 0, failed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ torrentHash: 'h2' }))
+  })
+
+  it('returns early without updates when the qBittorrent fetch fails', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockRejectedValueOnce(new Error('offline'))
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 0 })
+    expect(mockDb.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('notifyJellyfinIfNeeded', () => {
+  const mockJellyfin = {
+    notifyMediaUpdated: vi.fn(() => Promise.resolve()),
+    invalidateLibraryCache: vi.fn()
+  }
+
+  // A fixed point in the past so the prep-delay comparison is deterministic
+  const completedAtPast = () => new Date(Date.now() - 60_000).toISOString()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    selectIndex = 0
+    mockGetSetting.mockReset()
+    mockSettingGet.mockReset()
+    mockUseJellyfin.mockReset()
+    mockUseJellyfin.mockReturnValue(null)
+    mockJellyfin.notifyMediaUpdated.mockReset()
+    mockJellyfin.notifyMediaUpdated.mockResolvedValue(undefined)
+    mockJellyfin.invalidateLibraryCache.mockReset()
+  })
+
+  it('returns early when no completed downloads have a completedAt', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: null })])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockDb.update).not.toHaveBeenCalled()
+  })
+
+  it('clears completedAt and skips notifications when the countdown is disabled and Jellyfin is absent', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: completedAtPast() })])
+    mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ completedAt: null }))
+    expect(mockSendWebhook).not.toHaveBeenCalled()
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+  })
+
+  it('notifies Jellyfin and invalidates the library cache once the prep countdown elapses', async () => {
+    mockSettingGet.mockImplementation((cond: { key?: string } | undefined) =>
+      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '10' }
+    )
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([
+      makeDl({ status: 'completed', completedAt: completedAtPast(), savePath: 'movies', sizeBytes: 100 })
+    ])
+    mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).toHaveBeenCalledWith(['/data/movies'])
+    expect(mockJellyfin.invalidateLibraryCache).toHaveBeenCalled()
+    expect(mockSendWebhook).toHaveBeenCalledTimes(1)
+    expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ completedAt: null }))
+  })
+
+  it('waits out the prep countdown before notifying', async () => {
+    mockSettingGet.mockImplementation((cond: { key?: string } | undefined) =>
+      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '10' }
+    )
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        completedAt: completedAtPast(),
+        savePath: 'movies',
+        sizeBytes: 100 * 1024 ** 3
+      })
+    ])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
+    expect(mockJellyfin.invalidateLibraryCache).not.toHaveBeenCalled()
+    expect(mockDb.update).not.toHaveBeenCalled()
+  })
+
+  it('clears completedAt without notifying when the save path is unknown', async () => {
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([
+      makeDl({ status: 'completed', completedAt: completedAtPast(), savePath: 'unknown' })
+    ])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
+    expect(mockJellyfin.invalidateLibraryCache).not.toHaveBeenCalled()
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ completedAt: null }))
+  })
+
+  it('survives a rejected Jellyfin notification', async () => {
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockJellyfin.notifyMediaUpdated.mockRejectedValueOnce(new Error('jellyfin down'))
+    mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: completedAtPast(), savePath: 'movies' })])
+
+    await expect(notifyJellyfinIfNeeded()).resolves.toBeUndefined()
+
+    expect(mockJellyfin.invalidateLibraryCache).toHaveBeenCalled()
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ completedAt: null }))
+  })
+
+  it('sends Discord and push notifications when the countdown is enabled but Jellyfin is absent', async () => {
+    mockSettingGet.mockImplementation((cond: { key?: string } | undefined) =>
+      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '10' }
+    )
+    mockUseJellyfin.mockReturnValue(null)
+    mockActiveAll.mockReturnValue([
+      makeDl({ status: 'completed', completedAt: completedAtPast(), savePath: 'movies', sizeBytes: 100 })
+    ])
+    mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: '999' }])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockSendWebhook).toHaveBeenCalledTimes(1)
+    expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ completedAt: null }))
   })
 })
