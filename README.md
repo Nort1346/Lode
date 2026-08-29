@@ -191,3 +191,7 @@ Contributions are welcome! See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for se
 ## License
 
 [AGPL-3.0](LICENSE) - Copyright (C) 2026 Nort
+
+## Support
+
+If you find StreamHub useful, consider giving the repo a star - it helps the project get discovered.
