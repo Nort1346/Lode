@@ -55,7 +55,8 @@ async function createLibrary(name, collectionType, path) {
     headers: HEADERS,
     body: JSON.stringify({
       LibraryOptions: {
-        PathInfos: [{ Path: path }]
+        PathInfos: [{ Path: path }],
+        EnableRealtimeMonitor: true
       }
     })
   })
