@@ -14,8 +14,8 @@ importers:
   .:
     dependencies:
       '@dicebear/core':
-        specifier: ^10.6.1
-        version: 10.6.1
+        specifier: ^10.7.0
+        version: 10.7.0
       '@dicebear/styles':
         specifier: ^10.5.0
         version: 10.5.0
@@ -781,8 +781,8 @@ packages:
       '@devframes/hub':
         optional: true
 
-  '@dicebear/core@10.6.1':
-    resolution: {integrity: sha512-AMhre1Hj83y3KTyhdOQeU0Dc81pw3rMCvm7tKBz+pE+N3nOusRDcQBfRsf67w+GYBI/dHq7eeezzDQHUjoC5XA==}
+  '@dicebear/core@10.7.0':
+    resolution: {integrity: sha512-JUOzKOd8RUByJJo8ZL+C7YE/pvEsWewfpbWUmR8OIQZWv/PvUQHnohdevySC3icyyxe6EIU/8B/rQgA42us1QA==}
     engines: {node: '>=22.0.0'}
 
   '@dicebear/styles@10.5.0':
@@ -9201,7 +9201,7 @@ snapshots:
       '@devframes/hub': 0.7.14(devframe@0.7.14(cac@7.0.0)(srvx@0.11.22)(typescript@6.0.3))
     optional: true
 
-  '@dicebear/core@10.6.1': {}
+  '@dicebear/core@10.7.0': {}
 
   '@dicebear/styles@10.5.0': {}
 
@@ -16691,7 +16691,7 @@ snapshots:
 
   tsx@4.23.9:
     dependencies:
-      esbuild: 0.28.1
+      esbuild: 0.28.2
     optionalDependencies:
       fsevents: 2.3.3
 
