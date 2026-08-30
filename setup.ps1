@@ -461,33 +461,9 @@ if (-not (Test-EnvMinLength -Key "NUXT_TRACKER_ENCRYPTION_KEY" -MinLength 32)) {
 Write-Ok "Session password generated"
 Write-Ok "Tracker encryption key generated"
 
-# -- 4. StreamHub version choice --------------------------------------
+# -- 4. Database driver choice ----------------------------------------
 
-Write-Step "[4/14] StreamHub version"
-
-$STREAMHUB_TAG = "latest"
-
-if (-not $script:HAS_GUM) {
-    Write-Host ""
-    Write-Host "Which StreamHub image do you want to use?" -ForegroundColor White
-    Write-Dim "  latest  - Stable release (recommended)"
-    Write-Dim "  nightly - Latest dev build from main (may be unstable)"
-    Write-Host ""
-}
-
-$versionChoice = Select-GumMenu -Prompt "Select version:" -Options @("latest (recommended)", "nightly")
-
-if ($versionChoice -match "nightly") {
-    $STREAMHUB_TAG = "nightly"
-} else {
-    $STREAMHUB_TAG = "latest"
-}
-
-Write-Ok "StreamHub version: $STREAMHUB_TAG"
-
-# -- 5. Database driver choice ----------------------------------------
-
-Write-Step "[5/14] Database driver"
+Write-Step "[4/14] Database driver"
 
 $DB_DRIVER_CHOICE = "sqlite"
 
@@ -532,9 +508,16 @@ if ($DB_DRIVER_CHOICE -eq "postgres") {
     Write-Ok "PostgreSQL password generated"
 }
 
-# -- 6. Download docker-compose if needed ------------------------------
+# -- 5. Download docker-compose if needed ------------------------------
+# The streamhub image tag is written by the version step below - mask it
+# when comparing, so tag-only differences never trigger a replace prompt.
 
-Write-Step "[6/14] Downloading $COMPOSE_FILE"
+function Get-ComposeTagMasked {
+    param([string]$Path)
+    (Get-Content $Path) -replace '(?m)^(\s*(#\s*)?)(image:\s*ghcr\.io/nort1346/streamhub:)\S+$', '$1$3<version>'
+}
+
+Write-Step "[5/14] Downloading $COMPOSE_FILE"
 
 $COMPOSE_TMP = Join-Path $env:TEMP "docker-compose.new.yml"
 
@@ -545,11 +528,10 @@ if (Test-Path $COMPOSE_FILE) {
             Write-Info "Downloading $COMPOSE_FILE..."
             try {
                 Invoke-WebRequest -Uri "$REPO_RAW/$COMPOSE_FILE" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
-                $currentHash = (Get-FileHash $COMPOSE_FILE -Algorithm SHA256).Hash
-                $newHash = (Get-FileHash $COMPOSE_TMP -Algorithm SHA256).Hash
-                if ($currentHash -ne $newHash) {
-                    Write-Warn "$COMPOSE_FILE has changed"
-                    Write-Host (Compare-Object (Get-Content $COMPOSE_FILE) (Get-Content $COMPOSE_TMP) | ForEach-Object {
+                $composeDiff = Compare-Object (Get-ComposeTagMasked $COMPOSE_FILE) (Get-ComposeTagMasked $COMPOSE_TMP)
+                if ($composeDiff) {
+                    Write-Warn "$COMPOSE_FILE has changed (image tag differences are ignored - the version step sets the tag)"
+                    Write-Host ($composeDiff | ForEach-Object {
                         $prefix = if ($_.SideIndicator -eq "<=") { "-" } else { "+" }
                         "$prefix $($_.InputObject)"
                     }) -ForegroundColor Yellow
@@ -575,11 +557,10 @@ if (Test-Path $COMPOSE_FILE) {
             Write-Info "Downloading $COMPOSE_FILE..."
             try {
                 Invoke-WebRequest -Uri "$REPO_RAW/$COMPOSE_FILE" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
-                $currentHash = (Get-FileHash $COMPOSE_FILE -Algorithm SHA256).Hash
-                $newHash = (Get-FileHash $COMPOSE_TMP -Algorithm SHA256).Hash
-                if ($currentHash -ne $newHash) {
-                    Write-Warn "$COMPOSE_FILE has changed"
-                    Write-Host (Compare-Object (Get-Content $COMPOSE_FILE) (Get-Content $COMPOSE_TMP) | ForEach-Object {
+                $composeDiff = Compare-Object (Get-ComposeTagMasked $COMPOSE_FILE) (Get-ComposeTagMasked $COMPOSE_TMP)
+                if ($composeDiff) {
+                    Write-Warn "$COMPOSE_FILE has changed (image tag differences are ignored - the version step sets the tag)"
+                    Write-Host ($composeDiff | ForEach-Object {
                         $prefix = if ($_.SideIndicator -eq "<=") { "-" } else { "+" }
                         "$prefix $($_.InputObject)"
                     })
@@ -615,11 +596,39 @@ if (Test-Path $COMPOSE_FILE) {
 
 if (Test-Path $COMPOSE_TMP) { Remove-Item $COMPOSE_TMP -Force -ErrorAction SilentlyContinue }
 
-if ($STREAMHUB_TAG -eq "nightly") {
-    $content = Get-Content $COMPOSE_FILE -Raw
-    $content = $content -replace 'ghcr\.io/nort1346/streamhub:latest', 'ghcr.io/nort1346/streamhub:nightly'
-    Set-Content -Path $COMPOSE_FILE -Value $content -NoNewline
-    Write-Ok "Configured for nightly builds"
+# -- 6. StreamHub version choice --------------------------------------
+# The version choice is the single source of truth for the image tag:
+# it is written into the compose file here, after the download step.
+
+Write-Step "[6/14] StreamHub version"
+
+$STREAMHUB_TAG = "latest"
+
+if (-not $script:HAS_GUM) {
+    Write-Host ""
+    Write-Host "Which StreamHub image do you want to use?" -ForegroundColor White
+    Write-Dim "  latest  - Stable release (recommended)"
+    Write-Dim "  nightly - Latest dev build from main (may be unstable)"
+    Write-Host ""
+}
+
+$versionChoice = Select-GumMenu -Prompt "Select version:" -Options @("latest (recommended)", "nightly")
+
+if ($versionChoice -match "nightly") {
+    $STREAMHUB_TAG = "nightly"
+} else {
+    $STREAMHUB_TAG = "latest"
+}
+
+$composeContent = Get-Content $COMPOSE_FILE -Raw
+if ($composeContent -match '(?m)^\s*image:\s*ghcr\.io/nort1346/streamhub:') {
+    $composeContent = $composeContent -replace '(?m)^(\s*image:\s*ghcr\.io/nort1346/streamhub:)\S+', ('$1' + $STREAMHUB_TAG)
+    Set-Content -Path $COMPOSE_FILE -Value $composeContent -NoNewline
+    Write-Ok "StreamHub version: $STREAMHUB_TAG (image: ghcr.io/nort1346/streamhub:$STREAMHUB_TAG)"
+} elseif ($composeContent -match '(?m)^\s*#\s*image:.*ghcr\.io/nort1346/streamhub:') {
+    Write-Warn "$COMPOSE_FILE builds from source (image line commented out) - the $STREAMHUB_TAG tag does not apply"
+} else {
+    Write-Warn "No streamhub image line found in $COMPOSE_FILE - check the image tag manually"
 }
 
 # -- 7. Start infrastructure services --------------------------------
@@ -701,7 +710,7 @@ if ($DB_DRIVER_CHOICE -eq "postgres") {
 Write-Info "Waiting 10s for services to fully initialize..."
 Start-Sleep -Seconds 10
 
-# -- 5. Jellyfin API Key ----------------------------------------------
+# -- 8. Jellyfin API Key -----------------------------------------------
 
 Write-Step "[8/14] Jellyfin API Key"
 
@@ -723,7 +732,7 @@ if ($jellyfinKey) {
     Write-Warn "Skipping Jellyfin API key -- set it later in .env"
 }
 
-# -- 6. qBittorrent WebUI + API Key ------------------------------------
+# -- 9. qBittorrent WebUI + API Key ------------------------------------
 
 Write-Step "[9/14] qBittorrent WebUI + API Key"
 
@@ -757,7 +766,7 @@ if ($qbitKey) {
     Write-Warn "Skipping qBittorrent API key -- set it later in .env"
 }
 
-# -- 7. Prowlarr API Key ----------------------------------------------
+# -- 10. Prowlarr API Key ---------------------------------------------
 
 Write-Step "[10/14] Prowlarr API Key"
 
@@ -784,7 +793,7 @@ if ($prowlarrKey) {
     Write-Warn "Skipping Prowlarr API key -- set it later in .env"
 }
 
-# -- 8. TMDB API Key --------------------------------------------------
+# -- 11. TMDB API Key --------------------------------------------------
 
 Write-Step "[11/14] TMDB API Key"
 
@@ -810,7 +819,7 @@ if ($tmdbKey) {
     Write-Warn "Skipping TMDB API key -- set it later in .env"
 }
 
-# -- 9. Discord Webhook (optional) ------------------------------------
+# -- 12. Discord Webhook (optional) ------------------------------------
 
 Write-Step "[12/14] Discord Webhook (optional)"
 
@@ -832,7 +841,7 @@ if ($discordKey) {
     Write-Warn "Skipping Discord webhook -- set it later in .env"
 }
 
-# -- 10. Pull StreamHub -----------------------------------------------
+# -- 13. Pull StreamHub ------------------------------------------------
 
 Write-Step "[13/14] Pulling StreamHub"
 
@@ -847,7 +856,7 @@ if (-not (docker image inspect "ghcr.io/nort1346/streamhub:$STREAMHUB_TAG" 2>$nu
 
 Write-Ok "StreamHub image pulled"
 
-# -- 10. Start StreamHub ----------------------------------------------
+# -- 14. Start StreamHub -----------------------------------------------
 
 Write-Step "[14/14] Starting StreamHub"
 
