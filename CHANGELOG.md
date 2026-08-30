@@ -41,4 +41,4 @@ Initial public release.
 - Zod config validation at startup
 - Scroll reveal animations throughout the UI
 - Responsive pagination with useBreakpoints composable
-- 857 unit tests across 120 test files
+- 859 unit tests across 120 test files
