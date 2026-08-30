@@ -278,14 +278,37 @@ describe('syncTorrentStatus', () => {
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
   })
 
-  it('does not mark downloads failed when the qBittorrent list is empty', async () => {
-    mockActiveAll.mockReturnValue([makeDl({ downloadedBytes: 0 })])
+  it('marks download failed when the qBittorrent list is empty and progress is below the threshold', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ torrentName: '', downloadedBytes: 500_000_000 })])
     mockGetAllTorrents.mockReturnValue([])
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 0, completed: 0, failed: 0 })
-    expect(mockDb.update).not.toHaveBeenCalled()
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 1 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
+  })
+
+  it('marks download completed when the qBittorrent list is empty and progress is at or above 99.9%', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ torrentName: '', downloadedBytes: 999_500_000 })])
+    mockGetAllTorrents.mockReturnValue([])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 1, failed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
+  })
+
+  it('marks download completed when the last torrent was auto-removed at 95% progress', async () => {
+    mockGetSetting.mockReturnValueOnce('true')
+    mockActiveAll.mockReturnValue([makeDl({ torrentName: '', downloadedBytes: 950_000_000 })])
+    mockGetAllTorrents.mockReturnValue([])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 1, failed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'completed', progress: 100, completedAt: expect.any(String) })
+    )
   })
 
   it('marks download completed when torrent is gone but progress is at or above 99.9%', async () => {

@@ -103,6 +103,12 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     )
   }
 
+  if (qbitTorrents.length === 0) {
+    log.info(
+      `qBittorrent torrent list is empty - resolving ${activeDownloads.length} active download(s) against empty state`
+    )
+  }
+
   for (const dl of activeDownloads) {
     let dlHash = dl.torrentHash
     if (dlHash === null) {
@@ -129,13 +135,6 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     }
 
     if (qbitTorrent === undefined) {
-      if (qbitTorrents.length === 0) {
-        log.warn(
-          `empty qBittorrent torrent list - skipping status updates for ${activeDownloads.length} active download(s)`
-        )
-        break
-      }
-
       const lastProgressPct = dl.sizeBytes > 0 ? (dl.downloadedBytes / dl.sizeBytes) * 100 : 0
       const observedComplete = dl.sizeBytes > 0 && dl.downloadedBytes * 100 >= dl.sizeBytes * 99.9
       const inferredComplete = autoRemoveCompleted && lastProgressPct >= AUTO_REMOVE_COMPLETE_MIN_PROGRESS
