@@ -52,7 +52,10 @@ export async function createNotification(
 
   if (existing !== undefined) {
     await dbRun(
-      db.update(notifications).set({ title, message, createdAt: now }).where(eq(notifications.id, existing.id))
+      db
+        .update(notifications)
+        .set({ title, message, link: resolvedLink, data: JSON.stringify(data), createdAt: now })
+        .where(eq(notifications.id, existing.id))
     )
 
     const item: NotificationItem = {

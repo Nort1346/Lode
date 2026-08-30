@@ -94,7 +94,8 @@ import {
   getUserNotifications,
   getUnreadCount,
   markAsRead,
-  markAllAsRead
+  markAllAsRead,
+  notifyDownloadComplete
 } from '#server/utils/notifications/notifications'
 import { notifySseClients } from '#server/utils/notifications/sse-hubs'
 import { sendPushToUser } from '#server/utils/notifications/push'
@@ -168,6 +169,88 @@ describe('notifications', () => {
 
       expect(mockDbUpdate).toHaveBeenCalled()
       expect(mockRun).toHaveBeenCalled()
+    })
+
+    it('keeps title, link and data consistent when overlapping downloads complete', async () => {
+      const inserted: Record<string, unknown>[] = []
+      const updated: Record<string, unknown>[] = []
+
+      // first completion: no unread row yet, so a row is inserted
+      mockDbSelect.mockReturnValue({
+        from: vi.fn(() => ({ where: vi.fn(() => ({ get: vi.fn(() => undefined) })) }))
+      })
+      mockDbInsert.mockReturnValue({
+        values: vi.fn((values: Record<string, unknown>) => {
+          inserted.push(values)
+          return { run: vi.fn(() => ({ changes: 1 })) }
+        })
+      })
+
+      await notifyDownloadComplete(
+        'user1',
+        'dl-avengers',
+        'movie',
+        'Avengers',
+        'https://image.tmdb.org/p/avengers.jpg',
+        1000,
+        'movies',
+        299536
+      )
+
+      expect(inserted).toHaveLength(1)
+      const firstData = JSON.parse(String(inserted[0]?.data ?? '{}')) as {
+        posterUrl: string | null
+        downloadId: string
+      }
+      expect(inserted[0]).toEqual(
+        expect.objectContaining({
+          title: 'Avengers',
+          link: '/browse/movie/299536',
+          data: expect.any(String)
+        })
+      )
+      expect(firstData).toEqual(
+        expect.objectContaining({ posterUrl: 'https://image.tmdb.org/p/avengers.jpg', downloadId: 'dl-avengers' })
+      )
+
+      // second completion while the first notification is still unread: the row is reused
+      mockDbSelect.mockReturnValue({
+        from: vi.fn(() => ({ where: vi.fn(() => ({ get: vi.fn(() => ({ id: 'existing-id' })) })) }))
+      })
+      mockDbUpdate.mockReturnValue({
+        set: vi.fn((values: Record<string, unknown>) => {
+          updated.push(values)
+          return { where: vi.fn(() => ({ run: vi.fn(() => ({ changes: 1 })) })) }
+        })
+      })
+
+      await notifyDownloadComplete(
+        'user1',
+        'dl-sheep',
+        'movie',
+        'The Sheep Detectives',
+        'https://image.tmdb.org/p/sheep.jpg',
+        2000,
+        'movies',
+        123456
+      )
+
+      expect(updated).toHaveLength(1)
+      expect(updated[0]).toEqual(
+        expect.objectContaining({
+          title: 'The Sheep Detectives',
+          message: expect.stringContaining('The Sheep Detectives'),
+          link: '/browse/movie/123456',
+          data: expect.any(String)
+        })
+      )
+      const secondData = JSON.parse(String(updated[0]?.data ?? '{}')) as {
+        posterUrl: string | null
+        downloadId: string
+      }
+      expect(secondData).toEqual(
+        expect.objectContaining({ posterUrl: 'https://image.tmdb.org/p/sheep.jpg', downloadId: 'dl-sheep' })
+      )
     })
   })
 

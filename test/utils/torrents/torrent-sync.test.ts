@@ -217,6 +217,56 @@ describe('syncTorrentStatus', () => {
     )
   })
 
+  it('notifies each concurrently completed download with its own metadata', async () => {
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        id: 'dl-avengers',
+        torrentHash: 'h-avengers',
+        torrentName: 'Avengers 2012',
+        label: 'Avengers',
+        posterUrl: 'https://image.tmdb.org/p/avengers.jpg',
+        tmdbId: 299536
+      }),
+      makeDl({
+        id: 'dl-sheep',
+        torrentHash: 'h-sheep',
+        torrentName: 'The Sheep Detectives 2023',
+        label: 'The Sheep Detectives',
+        posterUrl: 'https://image.tmdb.org/p/sheep.jpg',
+        tmdbId: 123456
+      })
+    ])
+    mockGetAllTorrents.mockReturnValue([
+      makeQbit({ hash: 'h-avengers', name: 'Avengers 2012', progress: 1, completion_on: 1 }),
+      makeQbit({ hash: 'h-sheep', name: 'The Sheep Detectives 2023', progress: 1, completion_on: 1 })
+    ])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 2, completed: 2, failed: 0 })
+    expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(2)
+    expect(mockNotifyDownloadComplete).toHaveBeenCalledWith(
+      'u1',
+      'dl-avengers',
+      'movie',
+      'Avengers',
+      'https://image.tmdb.org/p/avengers.jpg',
+      expect.any(Number),
+      'movies',
+      299536
+    )
+    expect(mockNotifyDownloadComplete).toHaveBeenCalledWith(
+      'u1',
+      'dl-sheep',
+      'movie',
+      'The Sheep Detectives',
+      'https://image.tmdb.org/p/sheep.jpg',
+      expect.any(Number),
+      'movies',
+      123456
+    )
+  })
+
   it('marks download failed when torrent is gone from qBittorrent', async () => {
     mockActiveAll.mockReturnValue([makeDl({ downloadedBytes: 0, torrentName: '' })])
     mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'other', name: 'Other Movie' })])
