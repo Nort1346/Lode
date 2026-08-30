@@ -289,10 +289,12 @@ const savePathLabels = computed<Record<string, string>>(() => ({
           <div
             v-else-if="dl.status === 'completed'"
             class="flex items-center gap-2 text-sm"
-            :class="dl.completedAt ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'"
+            :class="
+              dl.notifiedAt === null ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
+            "
           >
-            <UIcon :name="dl.completedAt ? 'i-lucide-clock' : 'i-lucide-check-circle'" class="w-4 h-4" />
-            <span v-if="dl.completedAt">{{ formatPrepTime(dl.completedAt, dl.sizeBytes) }}</span>
+            <UIcon :name="dl.notifiedAt === null ? 'i-lucide-clock' : 'i-lucide-check-circle'" class="w-4 h-4" />
+            <span v-if="dl.notifiedAt === null">{{ formatPrepTime(dl.completedAt, dl.sizeBytes) }}</span>
             <span v-else>{{ t('dashboard.completed') }}</span>
             <span class="text-zinc-400 dark:text-zinc-500">· {{ formatSize(dl.sizeBytes) }}</span>
           </div>

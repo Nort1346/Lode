@@ -1,0 +1,2 @@
+ALTER TABLE `downloads` ADD `notified_at` text;--> statement-breakpoint
+UPDATE `downloads` SET `notified_at` = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE `status` = 'completed' AND `completed_at` IS NULL;

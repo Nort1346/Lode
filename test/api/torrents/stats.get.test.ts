@@ -29,7 +29,7 @@ describe('torrents/stats.get', () => {
   })
 
   const mockEvent = {} as never
-  const mockStats = { total: 10, today: 2, sizeBytes: 12345 }
+  const mockStats = { active: 1, createdSince: 2, completedSince: 3 }
 
   function setupRepos() {
     const statsFn = vi.fn(async () => mockStats)

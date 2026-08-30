@@ -284,7 +284,7 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
   }
 
   const completedWithPrep = (await dbAll(db.select().from(downloads).where(eq(downloads.status, 'completed')))).filter(
-    (d) => d.completedAt !== null
+    (d) => d.notifiedAt === null
   )
 
   if (completedWithPrep.length === 0) return
@@ -296,9 +296,11 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
   let needsCacheInvalidation = false
 
   for (const dl of completedWithPrep) {
-    if (dl.completedAt === null) continue
+    if (dl.notifiedAt !== null) continue
 
-    const elapsed = (Date.now() - new Date(dl.completedAt).getTime()) / 1000
+    // A completed row without a completion timestamp (e.g. pre-migration data) is treated as ready
+    const elapsed =
+      dl.completedAt === null ? Number.POSITIVE_INFINITY : (Date.now() - new Date(dl.completedAt).getTime()) / 1000
     const prepDelay = countdownEnabled ? dl.sizeBytes / prepSpeedBytes : 0
 
     if (elapsed >= prepDelay) {
@@ -322,7 +324,7 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
           dl.tmdbId
         )
       }
-      await dbRun(db.update(downloads).set({ completedAt: null }).where(eq(downloads.id, dl.id)))
+      await dbRun(db.update(downloads).set({ notifiedAt: new Date().toISOString() }).where(eq(downloads.id, dl.id)))
     }
   }
 

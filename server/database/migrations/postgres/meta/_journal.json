@@ -15,6 +15,13 @@
       "when": 1787313092167,
       "tag": "0001_remarkable_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788091311175,
+      "tag": "0002_useful_starjammers",
+      "breakpoints": true
     }
   ]
 }

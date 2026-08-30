@@ -18,6 +18,7 @@ export interface Download {
   numLeechs: number
   createdAt: string
   completedAt: string | null
+  notifiedAt: string | null
   posterUrl: string | null
 }
 

@@ -110,6 +110,7 @@ function makeDl(overrides: Record<string, unknown> = {}) {
     numLeechs: 0,
     status: 'downloading',
     completedAt: null,
+    notifiedAt: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     ...overrides
   }
@@ -451,21 +452,24 @@ describe('notifyJellyfinIfNeeded', () => {
     mockJellyfin.invalidateLibraryCache.mockReset()
   })
 
-  it('returns early when no completed downloads have a completedAt', async () => {
-    mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: null })])
+  it('returns early when no completed downloads are awaiting the ready notification', async () => {
+    mockActiveAll.mockReturnValue([
+      makeDl({ status: 'completed', completedAt: completedAtPast(), notifiedAt: completedAtPast() })
+    ])
 
     await notifyJellyfinIfNeeded()
 
     expect(mockDb.update).not.toHaveBeenCalled()
   })
 
-  it('clears completedAt and skips notifications when the countdown is disabled and Jellyfin is absent', async () => {
+  it('marks notified without touching completedAt when the countdown is disabled and Jellyfin is absent', async () => {
     mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: completedAtPast() })])
     mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
 
     await notifyJellyfinIfNeeded()
 
-    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ completedAt: null }))
+    expect(mockSet).toHaveBeenCalledTimes(1)
+    expect(mockSet.mock.calls[0]?.[0]).toEqual({ notifiedAt: expect.any(String) })
     expect(mockSendWebhook).not.toHaveBeenCalled()
     expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
   })
@@ -486,7 +490,7 @@ describe('notifyJellyfinIfNeeded', () => {
     expect(mockJellyfin.invalidateLibraryCache).toHaveBeenCalled()
     expect(mockSendWebhook).toHaveBeenCalledTimes(1)
     expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
-    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ completedAt: null }))
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
   })
 
   it('waits out the prep countdown before notifying', async () => {
@@ -510,7 +514,7 @@ describe('notifyJellyfinIfNeeded', () => {
     expect(mockDb.update).not.toHaveBeenCalled()
   })
 
-  it('clears completedAt without notifying when the save path is unknown', async () => {
+  it('marks notified without notifying when the save path is unknown', async () => {
     mockUseJellyfin.mockReturnValue(mockJellyfin)
     mockActiveAll.mockReturnValue([
       makeDl({ status: 'completed', completedAt: completedAtPast(), savePath: 'unknown' })
@@ -520,7 +524,7 @@ describe('notifyJellyfinIfNeeded', () => {
 
     expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
     expect(mockJellyfin.invalidateLibraryCache).not.toHaveBeenCalled()
-    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ completedAt: null }))
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
   })
 
   it('survives a rejected Jellyfin notification', async () => {
@@ -531,7 +535,7 @@ describe('notifyJellyfinIfNeeded', () => {
     await expect(notifyJellyfinIfNeeded()).resolves.toBeUndefined()
 
     expect(mockJellyfin.invalidateLibraryCache).toHaveBeenCalled()
-    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ completedAt: null }))
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
   })
 
   it('sends Discord and push notifications when the countdown is enabled but Jellyfin is absent', async () => {
@@ -548,6 +552,6 @@ describe('notifyJellyfinIfNeeded', () => {
 
     expect(mockSendWebhook).toHaveBeenCalledTimes(1)
     expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
-    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ completedAt: null }))
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
   })
 })

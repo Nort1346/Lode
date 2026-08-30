@@ -1,0 +1,2 @@
+ALTER TABLE "downloads" ADD COLUMN "notified_at" text;--> statement-breakpoint
+UPDATE "downloads" SET "notified_at" = to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') WHERE "status" = 'completed' AND "completed_at" IS NULL;

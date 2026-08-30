@@ -50,6 +50,7 @@ export const downloads = sqliteTable(
     numLeechs: integer('num_leechs').notNull().default(0),
     createdAt: text('created_at').notNull().default(''),
     completedAt: text('completed_at'),
+    notifiedAt: text('notified_at'),
     tmdbId: integer('tmdb_id'),
     mediaType: text('media_type', { enum: ['movie', 'tv'] }),
     posterUrl: text('poster_url'),
