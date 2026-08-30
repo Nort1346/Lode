@@ -2,11 +2,11 @@ import { defineConfig } from 'vitest/config'
 import { resolve } from 'node:path'
 
 const serverAlias = {
-  '#server': resolve(__dirname, 'server'),
-  '#db': resolve(__dirname, 'server/database'),
-  '#utils': resolve(__dirname, 'server/utils'),
-  '#server/types': resolve(__dirname, 'server/types'),
-  '#shared': resolve(__dirname, 'shared')
+  '#server': resolve(import.meta.dirname, 'server'),
+  '#db': resolve(import.meta.dirname, 'server/database'),
+  '#utils': resolve(import.meta.dirname, 'server/utils'),
+  '#server/types': resolve(import.meta.dirname, 'server/types'),
+  '#shared': resolve(import.meta.dirname, 'shared')
 }
 
 export default defineConfig({
