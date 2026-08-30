@@ -65,9 +65,9 @@ Run the one-line command from [Get started](#get-started), then the guided scrip
 1. Check prerequisites (Docker, Docker Compose)
 2. Create `.env` from `.env.example`
 3. Generate secrets (session password, tracker encryption key)
-4. Choose StreamHub image tag (`latest` or `nightly`)
-5. Choose database driver (SQLite or PostgreSQL)
-6. Download the appropriate `docker-compose` file (`docker-compose.sqlite.yml` or `docker-compose.postgres.yml`)
+4. Choose database driver (SQLite or PostgreSQL)
+5. Download the appropriate `docker-compose` file (`docker-compose.sqlite.yml` or `docker-compose.postgres.yml`)
+6. Choose StreamHub image tag (`latest` or `nightly`)
 7. Start infrastructure services (Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle)
 8. Get your **Jellyfin API key** (guided instructions)
 9. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
