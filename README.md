@@ -13,7 +13,7 @@
   <a href="https://github.com/Nort1346/StreamHub/pkgs/container/streamhub">
     <img src="https://img.shields.io/badge/GHCR-nort1346%2Fstreamhub-2496ED?logo=docker&logoColor=white" alt="GHCR image">
   </a>
-  <img src="https://img.shields.io/badge/i18n-en%20%7C%20pl%20%7C%20de%20%7C%20fr%20%7C%20es%20%7C%20pt-BR-3178C6" alt="i18n">
+  <img src="https://img.shields.io/badge/i18n-en%20%7C%20pl%20%7C%20de%20%7C%20fr%20%7C%20es%20%7C%20pt--BR-3178C6" alt="i18n">
 </p>
 
 <p align="center">
