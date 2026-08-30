@@ -1,7 +1,9 @@
 import pino from 'pino'
 import type { Logger } from '#server/types/logger'
 
-const isDev = process.env.NODE_ENV !== 'production'
+// The pino-pretty transport spawns a worker thread (thread-stream), which
+// leaks unhandled rejections in the Vitest environment - keep it out of tests.
+const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test'
 
 const transport = isDev
   ? {

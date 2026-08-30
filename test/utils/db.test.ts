@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const mockCreateSqliteDb = vi.hoisted(() => vi.fn().mockReturnValue({ type: 'sqlite' }))
 const mockCreatePostgresDb = vi.hoisted(() => vi.fn().mockResolvedValue({ type: 'postgres' }))
@@ -13,14 +13,21 @@ vi.mock('#server/database/drivers/postgres', () => ({
   createPostgresDb: mockCreatePostgresDb
 }))
 
+const originalDbDriver = process.env.DB_DRIVER
+
 describe('db utils', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.resetModules()
   })
 
+  afterEach(() => {
+    if (originalDbDriver === undefined) delete process.env.DB_DRIVER
+    else process.env.DB_DRIVER = originalDbDriver
+  })
+
   it('creates and caches sqlite db', async () => {
-    vi.stubGlobal('process', { ...process, env: { ...process.env, DB_DRIVER: 'sqlite' } })
+    process.env.DB_DRIVER = 'sqlite'
     const { useDb } = await import('#server/utils/db')
 
     const db = useDb()
@@ -33,14 +40,14 @@ describe('db utils', () => {
   })
 
   it('throws for postgres driver', async () => {
-    vi.stubGlobal('process', { ...process, env: { ...process.env, DB_DRIVER: 'postgres' } })
+    process.env.DB_DRIVER = 'postgres'
     const { useDb } = await import('#server/utils/db')
 
     expect(() => useDb()).toThrow('PostgreSQL is async')
   })
 
   it('useDbAsync delegates to useDb for sqlite', async () => {
-    vi.stubGlobal('process', { ...process, env: { ...process.env, DB_DRIVER: 'sqlite' } })
+    process.env.DB_DRIVER = 'sqlite'
     const { useDbAsync } = await import('#server/utils/db')
 
     const db = await useDbAsync()
@@ -48,7 +55,7 @@ describe('db utils', () => {
   })
 
   it('useDbAsync creates postgres db', async () => {
-    vi.stubGlobal('process', { ...process, env: { ...process.env, DB_DRIVER: 'postgres' } })
+    process.env.DB_DRIVER = 'postgres'
     const { useDbAsync } = await import('#server/utils/db')
 
     const db = await useDbAsync()
@@ -57,7 +64,7 @@ describe('db utils', () => {
   })
 
   it('useDbAsync caches postgres db', async () => {
-    vi.stubGlobal('process', { ...process, env: { ...process.env, DB_DRIVER: 'postgres' } })
+    process.env.DB_DRIVER = 'postgres'
     const { useDbAsync } = await import('#server/utils/db')
 
     const db1 = await useDbAsync()
@@ -67,7 +74,6 @@ describe('db utils', () => {
   })
 
   it('useDbAsync delegates to useDb when DB_DRIVER unset', async () => {
-    vi.stubGlobal('process', { ...process, env: { ...process.env } })
     delete process.env.DB_DRIVER
     const { useDbAsync } = await import('#server/utils/db')
 

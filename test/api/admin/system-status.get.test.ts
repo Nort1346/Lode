@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { stubAdminAuth } from '../helpers'
@@ -24,11 +24,11 @@ vi.mock('ioredis', () => {
 
 import handler from '#server/api/admin/system-status.get'
 
+const originalDbDriver = process.env.DB_DRIVER
+
 function stubDriver(driver: string | undefined) {
-  const env = { ...process.env }
-  if (driver === undefined) delete env.DB_DRIVER
-  else env.DB_DRIVER = driver
-  vi.stubGlobal('process', { ...process, env })
+  if (driver === undefined) delete process.env.DB_DRIVER
+  else process.env.DB_DRIVER = driver
 }
 
 function makeFakeDb(options: { version?: string; fail?: boolean } = {}) {
@@ -71,6 +71,11 @@ describe('admin/system-status.get', () => {
     stubDriver(undefined)
     vi.stubGlobal('useDb', () => makeFakeDb())
     global.fetch = vi.fn()
+  })
+
+  afterEach(() => {
+    if (originalDbDriver === undefined) delete process.env.DB_DRIVER
+    else process.env.DB_DRIVER = originalDbDriver
   })
 
   const mockEvent = {} as never
