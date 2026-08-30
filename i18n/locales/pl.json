@@ -325,7 +325,8 @@
     "action_disk_config_update": "Aktualizacja ustawień dysków",
     "action_ranking_config_update": "Aktualizacja konfiguracji rankingu",
     "action_ranking_config_reset": "Reset konfiguracji rankingu",
-    "action_prep_config_update": "Aktualizacja ustawień odliczania"
+    "action_prep_config_update": "Aktualizacja ustawień odliczania",
+    "action_qbit_config_update": "Aktualizacja ustawień qBittorrent"
   },
   "settings": {
     "title": "Ustawienia",

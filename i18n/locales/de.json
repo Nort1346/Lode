@@ -325,7 +325,8 @@
     "action_disk_config_update": "Festplatten-Einstellungen aktualisiert",
     "action_ranking_config_update": "Ranglisten-Konfiguration aktualisiert",
     "action_ranking_config_reset": "Ranglisten-Konfiguration zurückgesetzt",
-    "action_prep_config_update": "Countdown-Einstellungen aktualisiert"
+    "action_prep_config_update": "Countdown-Einstellungen aktualisiert",
+    "action_qbit_config_update": "qBittorrent-Einstellungen aktualisiert"
   },
   "settings": {
     "title": "Einstellungen",

@@ -38,7 +38,8 @@ const ACTION_KEYS: Record<string, string> = {
   disk_config_update: 'action_disk_config_update',
   ranking_config_update: 'action_ranking_config_update',
   ranking_config_reset: 'action_ranking_config_reset',
-  prep_config_update: 'action_prep_config_update'
+  prep_config_update: 'action_prep_config_update',
+  qbit_config_update: 'action_qbit_config_update'
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -61,7 +62,8 @@ const ACTION_COLORS: Record<string, string> = {
   disk_config_update: 'cyan',
   ranking_config_update: 'violet',
   ranking_config_reset: 'orange',
-  prep_config_update: 'teal'
+  prep_config_update: 'teal',
+  qbit_config_update: 'cyan'
 }
 
 // Full literal class strings: Tailwind JIT cannot generate dynamically composed class names

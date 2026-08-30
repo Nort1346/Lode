@@ -325,7 +325,8 @@
     "action_disk_config_update": "Disk Config Update",
     "action_ranking_config_update": "Ranking Config Update",
     "action_ranking_config_reset": "Ranking Config Reset",
-    "action_prep_config_update": "Prep Countdown Config Update"
+    "action_prep_config_update": "Prep Countdown Config Update",
+    "action_qbit_config_update": "qBittorrent Config Update"
   },
   "settings": {
     "title": "Settings",

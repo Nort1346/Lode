@@ -325,7 +325,8 @@
     "action_disk_config_update": "Mise à jour paramètres disques",
     "action_ranking_config_update": "Mise à jour configuration classement",
     "action_ranking_config_reset": "Réinitialisation configuration classement",
-    "action_prep_config_update": "Mise à jour paramètres décompte"
+    "action_prep_config_update": "Mise à jour paramètres décompte",
+    "action_qbit_config_update": "Mise à jour paramètres qBittorrent"
   },
   "settings": {
     "title": "Paramètres",

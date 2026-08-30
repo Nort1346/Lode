@@ -325,7 +325,8 @@
     "action_disk_config_update": "Actualizar configuración de discos",
     "action_ranking_config_update": "Actualizar configuración de clasificación",
     "action_ranking_config_reset": "Restablecer configuración de clasificación",
-    "action_prep_config_update": "Actualizar configuración de cuenta regresiva"
+    "action_prep_config_update": "Actualizar configuración de cuenta regresiva",
+    "action_qbit_config_update": "Actualizar configuración de qBittorrent"
   },
   "settings": {
     "title": "Configuración",
