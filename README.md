@@ -13,7 +13,7 @@
   <a href="https://github.com/Nort1346/StreamHub/pkgs/container/streamhub">
     <img src="https://img.shields.io/badge/GHCR-nort1346%2Fstreamhub-2496ED?logo=docker&logoColor=white" alt="GHCR image">
   </a>
-  <img src="https://img.shields.io/badge/i18n-en%20%7C%20pl%20%7C%20de%20%7C%20fr%20%7C%20es-3178C6" alt="i18n">
+  <img src="https://img.shields.io/badge/i18n-en%20%7C%20pl%20%7C%20de%20%7C%20fr%20%7C%20es%20%7C%20pt-BR-3178C6" alt="i18n">
 </p>
 
 <p align="center">
@@ -171,7 +171,7 @@ The key difference is *who controls the download*:
 | **PWA** | Installable, offline, push notifications | Mobile-responsive UI |
 | **Media servers** | Jellyfin (Emby planned) | Jellyfin, Emby, Plex |
 | **Auto-setup** | One-command `setup.sh` / `setup.ps1` (Docker + guided keys) | Manual compose / docs only |
-| **Translations** | EN, PL, DE, FR, ES (community) | Crowdsourced via Weblate |
+| **Translations** | EN, PL, DE, FR, ES, PT-BR (community) | Crowdsourced via Weblate |
 | **Best for** | Owning the full download loop + custom user tiers | *arr users wanting request management on top |
 
 StreamHub gives your users the ability to browse and download content themselves -- no admin intervention needed. Each user gets their own limits, session control, and a torrent ranking engine that picks the best source automatically.
