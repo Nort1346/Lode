@@ -4,7 +4,10 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import Redis from 'ioredis'
 import type { ServiceStatus } from '#server/types/admin'
 import { useDbAsync } from '#server/utils/db'
+import { createLogger } from '#server/utils/logger'
 import { normalizeUrl } from '#server/utils/url'
+
+const log = createLogger('SystemStatus')
 
 async function checkQbittorrent(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
   const url = config.qbittorrentUrl as string
@@ -294,11 +297,12 @@ async function checkDatabase(): Promise<ServiceStatus> {
       const rows = await pg.execute<{ v: string }>(sql`select current_setting('server_version') as v`)
       version = rows[0]?.v
     } else {
-      const row = db.get<{ v: string } | undefined>(sql`select version() as v`)
+      const row = db.get<{ v: string } | undefined>(sql`select sqlite_version() as v`)
       version = row?.v
     }
     return { name, configured: true, status: 'up', latencyMs: Date.now() - start, details: version }
-  } catch {
+  } catch (error) {
+    log.error(error, 'database status check failed')
     return { name, configured: true, status: 'down', latencyMs: Date.now() - start }
   }
 }

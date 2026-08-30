@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { stubAdminAuth } from '../helpers'
 
 const mockGetUserSession = vi.fn()
@@ -371,10 +373,14 @@ describe('admin/system-status.get', () => {
       text: () => Promise.resolve(''),
       json: () => Promise.resolve({})
     } as Response)
+    // real in-memory database: exercises the raw version query end-to-end
+    vi.stubGlobal('useDb', () => drizzle(new Database(':memory:')))
 
     const result = await handler(mockEvent)
     const db = result.services.find((s: { name: string }) => s.name === 'SQLite')
-    expect(db).toEqual(expect.objectContaining({ status: 'up', configured: true, details: '3.45.1' }))
+    expect(db?.status).toBe('up')
+    expect(db?.configured).toBe(true)
+    expect(db?.details).toMatch(/^3\.\d+\.\d+/)
     expect(result.services.find((s: { name: string }) => s.name === 'PostgreSQL')).toBeUndefined()
   })
 
