@@ -38,7 +38,7 @@ vi.mock('drizzle-orm', () => ({
 
 vi.mock('#server/utils/i18n-server', () => ({
   createT: () => (key: string) => key,
-  DISCORD_LOCALE_OPTIONS: ['pl', 'en', 'de', 'fr', 'es']
+  DISCORD_LOCALE_OPTIONS: ['pl', 'en', 'de', 'fr', 'es', 'pt-BR']
 }))
 
 import {

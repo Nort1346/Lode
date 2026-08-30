@@ -17,7 +17,8 @@ const TMDB_BCP47_MAP: Record<string, string> = {
   en: 'en-US',
   de: 'de-DE',
   fr: 'fr-FR',
-  es: 'es-ES'
+  es: 'es-ES',
+  pt: 'pt-BR'
 }
 
 export function resolveTmdbLanguage(locale: string): string {

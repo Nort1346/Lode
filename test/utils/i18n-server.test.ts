@@ -30,6 +30,12 @@ vi.mock('@@/i18n/locales/es.json', () => ({
     theme: { light: 'Modo claro', dark: 'Modo oscuro' }
   }
 }))
+vi.mock('@@/i18n/locales/pt-BR.json', () => ({
+  default: {
+    nav: { dashboard: 'Painel' },
+    theme: { light: 'Modo Claro', dark: 'Modo Escuro' }
+  }
+}))
 
 import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
 
@@ -49,6 +55,11 @@ describe('i18n-server', () => {
     expect(t('nav.dashboard')).toBe('Tableau de bord')
   })
 
+  it('resolves pt-BR locale', () => {
+    const t = createT('pt-BR')
+    expect(t('nav.dashboard')).toBe('Painel')
+  })
+
   it('returns key when key does not exist', () => {
     const t = createT('en')
     expect(t('nonexistent.key')).toBe('nonexistent.key')
@@ -60,6 +71,6 @@ describe('i18n-server', () => {
   })
 
   it('DISCORD_LOCALE_OPTIONS has correct locales', () => {
-    expect(DISCORD_LOCALE_OPTIONS).toEqual(['pl', 'en', 'de', 'fr', 'es'])
+    expect(DISCORD_LOCALE_OPTIONS).toEqual(['pl', 'en', 'de', 'fr', 'es', 'pt-BR'])
   })
 })

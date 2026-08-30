@@ -29,7 +29,7 @@ vi.mock('#server/utils/shuffle', () => ({
 }))
 
 vi.mock('~~/app/types/locale', () => ({
-  SupportedLocale: { PL: 'pl', EN: 'en', DE: 'de', FR: 'fr', ES: 'es' },
+  SupportedLocale: { PL: 'pl', EN: 'en', DE: 'de', FR: 'fr', ES: 'es', PT_BR: 'pt-BR' },
   DEFAULT_LOCALE: 'en'
 }))
 

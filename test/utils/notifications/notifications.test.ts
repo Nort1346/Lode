@@ -57,7 +57,7 @@ vi.mock('#server/utils/i18n-server', () => ({
       }
       return translations[key] ?? key
     },
-  DISCORD_LOCALE_OPTIONS: ['pl', 'en', 'de', 'fr', 'es']
+  DISCORD_LOCALE_OPTIONS: ['pl', 'en', 'de', 'fr', 'es', 'pt-BR']
 }))
 
 vi.mock('#server/database/schema', () => ({

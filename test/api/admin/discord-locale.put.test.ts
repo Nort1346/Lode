@@ -10,7 +10,7 @@ vi.mock('#server/utils/settings', () => ({
 }))
 
 vi.mock('#server/utils/i18n-server', () => ({
-  DISCORD_LOCALE_OPTIONS: ['en', 'pl', 'de', 'fr', 'es']
+  DISCORD_LOCALE_OPTIONS: ['en', 'pl', 'de', 'fr', 'es', 'pt-BR']
 }))
 
 vi.mock('#server/types/settings', () => ({

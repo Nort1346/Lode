@@ -33,6 +33,14 @@ describe('resolveTmdbLanguage', () => {
     expect(resolveTmdbLanguage('es')).toBe('es-ES')
   })
 
+  it('maps pt to pt-BR', () => {
+    expect(resolveTmdbLanguage('pt')).toBe('pt-BR')
+  })
+
+  it('maps pt-BR to pt-BR', () => {
+    expect(resolveTmdbLanguage('pt-BR')).toBe('pt-BR')
+  })
+
   it('falls back to en-US for unknown locale', () => {
     expect(resolveTmdbLanguage('unknown')).toBe('en-US')
   })

@@ -6,7 +6,8 @@ export const MEDIA_LANGUAGE_OPTIONS: Array<{ label: string; value: string; icon?
   { label: 'Polski', value: 'pl' },
   { label: 'Deutsch', value: 'de' },
   { label: 'Français', value: 'fr' },
-  { label: 'Español', value: 'es' }
+  { label: 'Español', value: 'es' },
+  { label: 'Português (Brasil)', value: 'pt-BR' }
 ]
 
 export const LANGUAGE_NAMES: Record<string, string> = {
@@ -19,6 +20,7 @@ export const LANGUAGE_NAMES: Record<string, string> = {
   ko: '한국어',
   zh: '中文',
   pt: 'Português',
+  'pt-BR': 'Português (Brasil)',
   it: 'Italiano',
   ru: 'Русский',
   ar: 'العربية',

@@ -11,7 +11,8 @@ const LOCALE_NAMES: Record<string, string> = {
   en: 'English',
   de: 'Deutsch',
   fr: 'Français',
-  es: 'Español'
+  es: 'Español',
+  'pt-BR': 'Português (Brasil)'
 }
 
 const localeOptions = computed(() => Object.entries(LOCALE_NAMES).map(([value, label]) => ({ label, value })))
@@ -33,7 +34,7 @@ async function fetchData() {
 }
 
 async function changeDiscordLocale(newLocale: string) {
-  const validLocales = ['pl', 'en', 'de', 'fr', 'es']
+  const validLocales = ['pl', 'en', 'de', 'fr', 'es', 'pt-BR']
   const valid = validLocales.includes(newLocale) ? newLocale : 'en'
   try {
     await $fetch('/api/admin/discord-locale', { method: 'PUT', body: { locale: valid } })
