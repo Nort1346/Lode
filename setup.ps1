@@ -11,36 +11,49 @@
 $ErrorActionPreference = "Continue"
 
 # -- Keep window open on exit ----------------------------------------
-# When the script is launched by double-click (parent process is
-# Explorer), pause before the window closes so messages can be read.
+# When the script runs in a console window that closes when the script
+# exits (double-click, Start Menu launch, Windows Terminal, VS Code, RDP),
+# the window vanishes before the user can read the summary or any error.
+# Walk the parent chain to detect that; set SETUP_PAUSE so Stop-Setup
+# waits for Enter before exiting.
 
-function Test-ExplorerLaunched {
+function Test-TransientWindow {
+    $transient = @('explorer.exe', 'conhost.exe', 'openconsole.exe', 'WindowsTerminal.exe', 'Code.exe')
+    $passthrough = @('cmd.exe', 'conhost.exe', 'openconsole.exe')
     try {
         $id = $PID
-        for ($i = 0; $i -lt 4; $i++) {
+        for ($i = 0; $i -lt 6; $i++) {
             $proc = Get-CimInstance Win32_Process -Filter "ProcessId = $id"
             if (-not $proc -or -not $proc.ParentProcessId) { break }
             $parent = Get-CimInstance Win32_Process -Filter "ProcessId = $($proc.ParentProcessId)"
             if (-not $parent) { break }
-            if ($parent.Name -eq 'explorer.exe') { return $true }
-            if ($parent.Name -ne 'cmd.exe') { break }
+            if ($transient -contains $parent.Name) { return $true }
+            if ($passthrough -notcontains $parent.Name) { return $false }
             $id = $proc.ParentProcessId
         }
     } catch {
-        # WMI unavailable - assume an interactive console
+        # Process info unavailable - assume the window will close so the
+        # user keeps the output
+        return $true
     }
     return $false
 }
 
-if (Test-ExplorerLaunched) {
+if (Test-TransientWindow) {
     $env:SETUP_PAUSE = 1
 }
 
+# A file run (powershell -File, double-click) is its own process, so exit
+# is safe. A piped run (irm | iex) executes inside the user's session,
+# where exit would kill the whole terminal - always pause first so the
+# result is readable.
+$script:IsScriptFile = [bool]$MyInvocation.MyCommand.Path
+
 function Stop-Setup {
     param([int]$Code = 0)
-    if ($env:SETUP_PAUSE) {
+    if ($env:SETUP_PAUSE -or -not $script:IsScriptFile) {
         Write-Host ""
-        Read-Host "Press Enter to close this window" | Out-Null
+        Read-Host "Press Enter to continue" | Out-Null
     }
     exit $Code
 }
@@ -219,26 +232,44 @@ function Test-EnvMinLength {
 }
 
 function Test-Port {
-    param([string]$Host_, [int]$Port, [int]$Timeout = 60)
-    $elapsed = 0
-    while ($elapsed -lt $Timeout) {
-        $tcp = $null
-        try {
-            $tcp = New-Object System.Net.Sockets.TcpClient
-            $task = $tcp.ConnectAsync($Host_, $Port)
-            if ($task.Wait(5000)) {
-                $tcp.Close()
-                return $true
+    param([string]$Host_, [int]$Port, [int]$Timeout = 60, [int]$Interval = 2)
+    try {
+        $ips = [System.Net.Dns]::GetHostAddresses($Host_)
+    }
+    catch {
+        Write-Err "Could not resolve host: ${Host_}"
+        return $false
+    }
+    $maxAttempts = [Math]::Max(1, [Math]::Floor($Timeout / $Interval))
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        $connected = $false
+        foreach ($ip in $ips) {
+            $client = $null
+            try {
+                $client = New-Object System.Net.Sockets.TcpClient
+                $ar = $client.BeginConnect($ip, $Port, $null, $null)
+                # Bound the wait: a refused port fails fast, a dropped one does not
+                if ($ar.AsyncWaitHandle.WaitOne(2000)) {
+                    try {
+                        $client.EndConnect($ar)
+                        $connected = $client.Connected
+                    }
+                    catch {
+                        # connection failed
+                    }
+                }
             }
+            catch { }
+            finally {
+                if ($client) { $client.Close() }
+            }
+            if ($connected) { break }
         }
-        catch {
-            # connection failed
+        if ($connected) { return $true }
+        if ($attempt -lt $maxAttempts) {
+            Write-Dim "Waiting for ${Host_}:${Port}... ($attempt/$maxAttempts)"
+            Start-Sleep -Seconds $Interval
         }
-        finally {
-            if ($tcp) { $tcp.Dispose() }
-        }
-        Start-Sleep -Seconds 2
-        $elapsed += 2
     }
     Write-Err "Timeout waiting for ${Host_}:${Port} after ${Timeout}s"
     return $false
@@ -860,29 +891,44 @@ Write-Ok "StreamHub image pulled"
 
 Write-Step "[14/14] Starting StreamHub"
 
-Update-EnvFile "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
-Update-EnvFile "NUXT_REDIS_URL" "redis://redis:6379"
-Update-EnvFile "NUXT_PROWLARR_URL" "http://prowlarr:9696"
-Update-EnvFile "DB_DRIVER" $DB_DRIVER_CHOICE
+try {
+    Update-EnvFile "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
+    Update-EnvFile "NUXT_REDIS_URL" "redis://redis:6379"
+    Update-EnvFile "NUXT_PROWLARR_URL" "http://prowlarr:9696"
+    Update-EnvFile "DB_DRIVER" $DB_DRIVER_CHOICE
 
-if ($DB_DRIVER_CHOICE -eq "postgres") {
-    Update-EnvFile "DATABASE_URL" "postgresql://streamhub:${POSTGRES_PASSWORD}@postgres:5432/streamhub"
+    if ($DB_DRIVER_CHOICE -eq "postgres") {
+        Update-EnvFile "DATABASE_URL" "postgresql://streamhub:${POSTGRES_PASSWORD}@postgres:5432/streamhub"
+    }
+
+    $upOutput = (docker compose -f $COMPOSE_FILE up -d streamhub 2>&1 | Out-String).Trim()
+
+    Start-Sleep -Seconds 3
+    $streamhubId = docker compose -f $COMPOSE_FILE ps -q streamhub 2>$null
+    if (-not $streamhubId) {
+        if ($upOutput) {
+            throw "StreamHub container did not start:`n$upOutput"
+        }
+        throw "StreamHub container did not start."
+    }
+
+    Write-Info "Waiting for StreamHub to start (first start may take 1-2 minutes)..."
+    if (-not (Test-Port -Host_ "localhost" -Port 5757 -Timeout 120 -Interval 4)) {
+        throw "StreamHub did not open http://localhost:5757 within 120s."
+    }
+
+    Write-Ok "StreamHub is running at http://localhost:5757"
 }
-
-docker compose -f $COMPOSE_FILE up -d streamhub 2>$null
-
-Start-Sleep -Seconds 3
-$streamhubId = docker compose -f $COMPOSE_FILE ps -q streamhub 2>$null
-if (-not $streamhubId) {
-    Write-Err "StreamHub container is not running. Check logs:"
-    Write-Err "  docker compose -f $COMPOSE_FILE logs streamhub"
+catch {
+    Write-Err "Could not start StreamHub: $_"
+    Write-Host ""
+    Write-Host "  The other containers are left running. To see what went wrong:" -ForegroundColor Yellow
+    Write-Host "    docker compose -f $COMPOSE_FILE logs streamhub" -ForegroundColor Yellow
+    Write-Host "  To retry:" -ForegroundColor Yellow
+    Write-Host "    docker compose -f $COMPOSE_FILE up -d streamhub" -ForegroundColor Yellow
+    Write-Host ""
     Stop-Setup 1
 }
-
-Write-Info "Waiting for StreamHub to start (first start may take 1-2 minutes)..."
-Test-Port -Host_ "localhost" -Port 5757 -Timeout 120 | Out-Null
-
-Write-Ok "StreamHub is running at http://localhost:5757"
 
 # -- Extract admin password from logs ---------------------------------
 
