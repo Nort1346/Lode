@@ -11,8 +11,7 @@ Users can request media content and maintain a wishlist. Admins review requests 
 2. Clicks "Request" button
 3. Optionally adds a note
 4. Request created with `pending` status
-5. In-app notification sent to admins
-6. Discord notification sent (if configured)
+5. Discord webhook notification sent (if configured)
 
 ### Admin Review
 1. Admin navigates to Admin → Requests
@@ -20,7 +19,6 @@ Users can request media content and maintain a wishlist. Admins review requests 
 3. Accepts or rejects with optional admin note
 4. Status updated to `accepted` or `rejected`
 5. In-app notification sent to requesting user
-6. Discord notification sent (if configured)
 
 ## Request Visibility Rules
 

@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  Self-hosted streaming hub for managing torrent downloads. Browse movies and TV shows from TMDB, find torrents via Prowlarr, and download with one click.
+  A self-hosted alternative to Seerr (Overseerr/Jellyseerr) and the Radarr/Sonarr stack - one app instead of three.
 </p>
 
 ## Get started
@@ -36,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.sh | 
 irm https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.ps1 | iex
 ```
 
-The script checks Docker, pulls the full stack, generates secrets, and walks you through each API key. Prefer manual setup? See [Quick Start](#quick-start) below.
+The script checks Docker, pulls the full stack, generates secrets, and walks you through each API key - unlike Seerr, which ships with a built-in TMDB key. Prefer manual setup? See [Quick Start](#quick-start) below.
 
 ## Features
 
@@ -44,6 +44,9 @@ The script checks Docker, pulls the full stack, generates secrets, and walks you
 |---|---|
 | **Browse & Search** | TMDB carousels, spotlights, full-text search with genre filters |
 | **Torrent Ranking** | Configurable weighted scoring engine (max 205 base points) - resolution, language, seeders, size, source, group |
+| **Wishlist** | Save any movie/TV title for later from its detail page - personal list, no active request created |
+| **Requests** | Users request a title when no torrents are available or they've hit a download limit; admin approves/rejects with an optional note; requester gets notified either way |
+| **Manual Torrent Add** | Opt-in per user (admin-granted permission) - add any magnet link, .torrent file, or download URL directly to qBittorrent with a chosen category; not limited to movies/TV, works for any content |
 | **Private Trackers** | Cookie and login-based auth with auto-retry on session expiry |
 | **User Management** | Per-user limits, session control, brute force protection, auto-expiration, password generation |
 | **Jellyfin Sync** | Library detection, user CRUD sync, avatar upload, Live TV config |
@@ -109,6 +112,8 @@ docker compose -f docker-compose.sqlite.yml logs -f   # view logs
 
 The compose files use the prebuilt `ghcr.io/nort1346/streamhub:latest` image. To build from source instead, uncomment the `#build: .` line in the `streamhub` service.
 
+StreamHub replaces Radarr and Sonarr entirely - it pulls candidate torrents from Prowlarr and sends the selected one straight to qBittorrent, which is why no *arr download services appear in the stack.
+
 | Service | Port | Purpose |
 |---------|------|---------|
 | `streamhub` | 5757 | Application |
@@ -155,23 +160,27 @@ Unlike request-only tools (Overseerr, Seerr) that stop at "request and forget", 
 
 ## StreamHub vs Seerr
 
-[Seerr](https://github.com/seerr-team/seerr) (formerly Overseerr / Jellyseerr) is a request management layer that sits on top of the *arr stack (Radarr, Sonarr, Prowlarr) and Jellyfin/Emby/Plex. Users request media, and *arr apps fetch it automatically. StreamHub replaces Radarr, Sonarr, and the request layer with a single app that gives you direct control over torrent selection.
+[Seerr](https://github.com/seerr-team/seerr) (formerly Overseerr / Jellyseerr) is a request management layer that sits on top of Radarr and Sonarr plus Jellyfin/Emby/Plex. Users request media, and the *arr apps fetch it automatically. StreamHub replaces Radarr, Sonarr, and the request layer with a single app that gives you direct control over torrent selection.
 
 The key difference is *who controls the download*:
+
+Comparison based on Seerr's public docs as of August 2026 - open an issue if anything is outdated or inaccurate.
 
 | | StreamHub | [Seerr](https://github.com/seerr-team/seerr) |
 |---|---|---|
 | **Primary flow** | Browse TMDB → rank torrents → send to qBittorrent | Request → *arr (Radarr/Sonarr) fetches |
 | **Torrent control** | Direct qBittorrent, one-click, manual pick | Delegated to *arr, no manual torrent pick |
-| **Torrent ranking** | Built-in weighted scoring engine (max 205 base points) | None (left to *arr) |
-| **Private trackers** | Cookie/login auth with auto-retry | Via *arr indexers only |
-| **User management** | Built-in: per-user limits, brute-force, sessions, expiry | Media-server OAuth only |
-| **Real-time logs** | SSE live logs in admin panel | - |
-| **Notifications** | SSE + Discord + browser push (VAPID) | Discord / Slack / Telegram webhooks |
-| **PWA** | Installable, offline, push notifications | Mobile-responsive UI |
+| **Torrent ranking** | Built-in weighted scoring engine (max 205 base points) | Not built-in (delegated to *arr) |
+| **Private trackers** | Cookie/login auth with auto-retry | Handled via *arr indexers |
+| **User management** | Built-in: per-user limits, brute-force, sessions, expiry | Media-server login plus local email/password users |
+| **Request limits** | No quotas, one active request per title per user | Per-user quotas per media type (global defaults + overrides) |
+| **Wishlist / Watchlist** | Personal save-for-later list | Per-user watchlist, admin blocklist, Plex watchlist auto-request |
+| **Real-time logs** | SSE live logs in admin panel | No in-app log viewer |
+| **Notifications** | SSE + Discord + browser push (VAPID) | 10 agents incl. email, Discord, Slack, Telegram, Web Push |
+| **PWA** | Installable with offline support | Web Push support, mobile-responsive UI |
 | **Media servers** | Jellyfin (Emby planned) | Jellyfin, Emby, Plex |
-| **Auto-setup** | One-command `setup.sh` / `setup.ps1` (Docker + guided keys) | Manual compose / docs only |
-| **Translations** | EN, PL, DE, FR, ES, PT-BR (community) | Crowdsourced via Weblate |
+| **Auto-setup** | One-command `setup.sh` / `setup.ps1` (Docker + guided keys) | Docker Compose + docs, no guided setup |
+| **Translations** | EN, PL, DE, FR, ES, PT-BR (community) | Crowdsourced via Weblate (25+ languages) |
 | **Best for** | Owning the full download loop + custom user tiers | *arr users wanting request management on top |
 
 StreamHub gives your users the ability to browse and download content themselves -- no admin intervention needed. Each user gets their own limits, session control, and a torrent ranking engine that picks the best source automatically.
