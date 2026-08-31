@@ -391,7 +391,7 @@ describe('browse/download.post', () => {
     await expect(handler(mockEvent)).rejects.toThrow('502')
   })
 
-  it('throws 401 for empty response from tracker', async () => {
+  it('throws 502 with tracker name for empty response (cookie invalid)', async () => {
     mockIsPrivateTracker.mockReturnValue(true)
     mockGetTrackerType.mockReturnValue('guid')
     mockGetTrackerCookieConfig.mockResolvedValue({ enabled: true, cookie: 'session=abc123' })
@@ -408,10 +408,69 @@ describe('browse/download.post', () => {
       label: 'test'
     })
 
-    await expect(handler(mockEvent)).rejects.toThrow('401')
+    await expect(handler(mockEvent)).rejects.toThrow('502: Failed to authenticate with Devil-Torrents')
   })
 
-  it('throws 401 for HTML response (cookie expired) without login creds', async () => {
+  it('tells admin to update cookie for empty response', async () => {
+    mockGetUserSession.mockResolvedValue({ user: adminUser })
+    mockIsPrivateTracker.mockReturnValue(true)
+    mockGetTrackerType.mockReturnValue('guid')
+    mockGetTrackerCookieConfig.mockResolvedValue({ enabled: true, cookie: 'session=abc123' })
+    mockGotScraping.mockResolvedValue({
+      statusCode: 200,
+      body: Buffer.alloc(0),
+      headers: { 'content-type': 'application/x-bittorrent' }
+    })
+    mockReadBody.mockResolvedValue({
+      guid: 'https://tracker.com/dl/123',
+      downloadUrl: 'https://tracker.com/dl/123',
+      indexer: 'Devil-Torrents',
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('Update the cookie in admin panel')
+  })
+
+  it('tells user to contact admin for empty response', async () => {
+    mockIsPrivateTracker.mockReturnValue(true)
+    mockGetTrackerType.mockReturnValue('guid')
+    mockGetTrackerCookieConfig.mockResolvedValue({ enabled: true, cookie: 'session=abc123' })
+    mockGotScraping.mockResolvedValue({
+      statusCode: 200,
+      body: Buffer.alloc(0),
+      headers: { 'content-type': 'application/x-bittorrent' }
+    })
+    mockReadBody.mockResolvedValue({
+      guid: 'https://tracker.com/dl/123',
+      downloadUrl: 'https://tracker.com/dl/123',
+      indexer: 'Devil-Torrents',
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('Please contact the site administrator')
+  })
+
+  it('throws 502 when tracker auto-login fails (e.g. account not activated)', async () => {
+    mockIsPrivateTracker.mockReturnValue(true)
+    mockGetTrackerType.mockReturnValue('guid')
+    mockGetTrackerCookieConfig.mockRejectedValue(
+      new Error('Auto-login failed for Devil-Torrents: Login failed - still on login page (wrong credentials?)')
+    )
+    mockReadBody.mockResolvedValue({
+      guid: 'https://tracker.com/dl/123',
+      downloadUrl: 'https://tracker.com/dl/123',
+      indexer: 'Devil-Torrents',
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('502: Failed to authenticate with Devil-Torrents')
+    expect(mockGotScraping).not.toHaveBeenCalled()
+  })
+
+  it('throws 502 for HTML response (cookie expired) without login creds', async () => {
     mockIsPrivateTracker.mockReturnValue(true)
     mockGetTrackerType.mockReturnValue('guid')
     mockGetTrackerCookieConfig.mockResolvedValue({ enabled: true, cookie: 'session=abc123' })
@@ -428,10 +487,10 @@ describe('browse/download.post', () => {
       label: 'test'
     })
 
-    await expect(handler(mockEvent)).rejects.toThrow('401')
+    await expect(handler(mockEvent)).rejects.toThrow('502: Failed to authenticate with Devil-Torrents')
   })
 
-  it('throws 401 when retry login also returns HTML', async () => {
+  it('throws 502 when retry login also returns HTML', async () => {
     mockIsPrivateTracker.mockReturnValue(true)
     mockGetTrackerType.mockReturnValue('guid')
     mockGetTrackerCookieConfig.mockResolvedValue({ enabled: true, cookie: 'session=abc123' })
@@ -463,12 +522,12 @@ describe('browse/download.post', () => {
       label: 'test'
     })
 
-    await expect(handler(mockEvent)).rejects.toThrow('401')
+    await expect(handler(mockEvent)).rejects.toThrow('502: Failed to authenticate with Devil-Torrents')
     expect(mockClearSessionCache).toHaveBeenCalled()
     expect(mockPerformTrackerLogin).toHaveBeenCalled()
   })
 
-  it('throws 401 for invalid torrent (wrong first byte)', async () => {
+  it('throws 502 for invalid torrent (wrong first byte)', async () => {
     mockIsPrivateTracker.mockReturnValue(true)
     mockGetTrackerType.mockReturnValue('guid')
     mockGetTrackerCookieConfig.mockResolvedValue({ enabled: true, cookie: 'session=abc123' })
@@ -485,7 +544,7 @@ describe('browse/download.post', () => {
       label: 'test'
     })
 
-    await expect(handler(mockEvent)).rejects.toThrow('401')
+    await expect(handler(mockEvent)).rejects.toThrow('502: Failed to authenticate with Devil-Torrents')
   })
 
   it('successful guid download (private tracker)', async () => {

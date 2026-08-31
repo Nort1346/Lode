@@ -52,7 +52,7 @@ export async function getTrackerCookieConfig(
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         log.error(`Auto-login failed for ${indexer}: ${msg}`)
-        return null
+        throw new Error(`Auto-login failed for ${indexer}: ${msg}`, { cause: err })
       }
     }
     return { enabled: row.enabled, cookie: row.cookie }

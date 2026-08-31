@@ -9,7 +9,8 @@ export default defineNuxtPlugin((nuxtApp) => {
       const response = await originalFetch(...args)
 
       const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof Request ? args[0].url : ''
-      if (url.includes('/api/') && !url.includes('/api/_auth/') && response.status === 401) {
+      const isAuthRoute = url.includes('/api/_auth/') || url.includes('/api/auth/')
+      if (url.includes('/api/') && !isAuthRoute && response.status === 401) {
         await clear()
         await navigateTo('/login')
       }

@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 import { getTrackerCookieConfig, getTrackerType, isPrivateTracker } from '#server/utils/prowlarr'
+import type { TrackerCookieConfig } from '#server/types/prowlarr'
 import { getFreshUser } from '#server/utils/user'
 import { clearSessionCache, performTrackerLogin } from '#server/utils/tracker-auth'
 import { decryptAES } from '#server/utils/crypto'
@@ -192,7 +193,22 @@ export default defineEventHandler(async (event) => {
       if (hasGuid && isPrivateTrackerEnabled && (await getTrackerType(indexer)) === 'guid') {
         log.info(`[Download:5:TRACKER] entering private tracker path...`)
 
-        const trackerConfig = await getTrackerCookieConfig(indexer, config)
+        const trackerFixHint =
+          userRole === 'admin'
+            ? 'Update the cookie in admin panel → Trackers.'
+            : 'Please contact the site administrator.'
+
+        let trackerConfig: TrackerCookieConfig | null
+        try {
+          trackerConfig = await getTrackerCookieConfig(indexer, config)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          log.error(`[Download:5:TRACKER] ✗ auto-login failed for ${indexer}: ${msg}`)
+          throw createError({
+            statusCode: 502,
+            statusMessage: `Failed to authenticate with ${indexer} - auto-login failed. ${trackerFixHint}`
+          })
+        }
 
         if (trackerConfig === null) {
           log.error(`[Download:5:TRACKER] ✗ unknown tracker: ${indexer}`)
@@ -276,8 +292,8 @@ export default defineEventHandler(async (event) => {
         if (fileBuffer.length === 0) {
           log.error(`[Download:7:VALIDATE] ✗ empty response - cookie may be invalid`)
           throw createError({
-            statusCode: 401,
-            statusMessage: `Empty response from ${indexer}. Cookie may be invalid.`
+            statusCode: 502,
+            statusMessage: `Failed to authenticate with ${indexer} - empty response, cookie may be invalid. ${trackerFixHint}`
           })
         }
 
@@ -350,8 +366,8 @@ export default defineEventHandler(async (event) => {
                 log.error(`[Download:7:VALIDATE] ✗ Retry also returned HTML - cookie truly invalid`)
                 log.error(`[Download:7:VALIDATE]   retry preview: ${retryHtmlPreview}`)
                 throw createError({
-                  statusCode: 401,
-                  statusMessage: `Cookie expired and re-login failed for ${indexer}. Update cookie in admin panel → Trackers.`
+                  statusCode: 502,
+                  statusMessage: `Failed to authenticate with ${indexer} - cookie expired and re-login failed. ${trackerFixHint}`
                 })
               }
             } catch (err) {
@@ -370,8 +386,8 @@ export default defineEventHandler(async (event) => {
               }
             })()
             throw createError({
-              statusCode: 401,
-              statusMessage: `Cookie expired or invalid for ${indexer}. Server returned login page for ${hostname}. Update cookie in admin panel → Trackers.`
+              statusCode: 502,
+              statusMessage: `Failed to authenticate with ${indexer} - server returned a login page for ${hostname}. ${trackerFixHint}`
             })
           }
         }
@@ -383,8 +399,8 @@ export default defineEventHandler(async (event) => {
           )
           log.error(`[Download:7:VALIDATE]   preview: ${preview}`)
           throw createError({
-            statusCode: 401,
-            statusMessage: `Invalid response from ${indexer} (not a valid torrent file, first byte: 0x${firstByte.toString(16)})`
+            statusCode: 502,
+            statusMessage: `Failed to authenticate with ${indexer} - response is not a valid torrent file. ${trackerFixHint}`
           })
         }
 
