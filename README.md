@@ -17,7 +17,11 @@
 </p>
 
 <p align="center">
-  A self-hosted alternative to Seerr (Overseerr/Jellyseerr) and the Radarr/Sonarr stack - one app instead of three.
+  Self-hosted streaming hub for managing torrent downloads. Browse movies and TV shows from TMDB, find torrents via Prowlarr, and download with one click.
+</p>
+
+<p align="center">
+  A self-hosted alternative to Seerr (Overseerr/Jellyseerr) and the Radarr/Sonarr stack.
 </p>
 
 ## Get started
