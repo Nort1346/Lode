@@ -126,6 +126,13 @@ function Install-Gum {
         }
     }
 
+    # winget/scoop update the persistent user PATH, but this process still
+    # holds the PATH from startup - re-read it so a fresh gum.exe resolves
+    # on this run, not just the next one.
+    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $env:Path = "$machinePath;$userPath"
+
     $gumCmd = Get-Command gum -ErrorAction SilentlyContinue
     if ($gumCmd) {
         $script:HAS_GUM = Test-GumUsable
