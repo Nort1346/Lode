@@ -133,6 +133,8 @@
   "download": {
     "added": "Pobranie dodane",
     "addedDesc": "{label} został dodany do kolejki.",
+    "already": "Już pobierany",
+    "alreadyDesc": "{label} jest już w Twoich pobieraniach.",
     "error": "Błąd pobierania",
     "errorDesc": "Nie udało się dodać pobrania.",
     "delete": "Usuń",

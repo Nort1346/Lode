@@ -112,6 +112,36 @@ describe('torrents/list.get', () => {
     expect(mockSyncTorrentStatus).toHaveBeenCalled()
   })
 
+  it('lists two simultaneous downloads of the same movie (regression: null-hash dedup must not hide rows)', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    vi.mocked(getQuery).mockReturnValue({})
+    mockCountGet.mockReturnValue({ count: 2 })
+    mockAll.mockReturnValue([
+      {
+        id: 'dl-1',
+        userId: 'u1',
+        status: 'downloading',
+        label: 'Test Movie',
+        tmdbId: 12345,
+        torrentHash: null,
+        createdAt: '2026-09-01T10:00:00.000Z'
+      },
+      {
+        id: 'dl-2',
+        userId: 'u1',
+        status: 'downloading',
+        label: 'Test Movie',
+        tmdbId: 12345,
+        torrentHash: null,
+        createdAt: '2026-09-01T10:01:00.000Z'
+      }
+    ])
+
+    const result = (await handler(mockEvent)) as { downloads: Array<{ id: string }> }
+
+    expect(result.downloads.map((dl) => dl.id)).toEqual(['dl-1', 'dl-2'])
+  })
+
   it('pins active downloads first, then newest first', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     vi.mocked(getQuery).mockReturnValue({})

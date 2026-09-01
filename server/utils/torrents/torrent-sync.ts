@@ -19,6 +19,11 @@ const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP
 // last recorded progress already reached this threshold.
 const AUTO_REMOVE_COMPLETE_MIN_PROGRESS = 90
 
+// A freshly created download may not be visible in qBittorrent yet (add still in
+// progress, e.g. guid fetch + file upload). Within this grace window it is
+// skipped instead of being marked failed.
+const NEW_DOWNLOAD_GRACE_MS = 2 * 60 * 1000
+
 let firstSyncReported = false
 const zeroSeedDownloads = new Set<string>()
 
@@ -73,7 +78,7 @@ function notifyDiscord(
 
 export async function syncTorrentStatus(): Promise<SyncResult> {
   const db = await useDbAsync()
-  const result: SyncResult = { synced: 0, completed: 0, failed: 0 }
+  const result: SyncResult = { synced: 0, completed: 0, failed: 0, removed: 0 }
 
   const activeDownloads = await dbAll(db.select().from(downloads).where(eq(downloads.status, 'downloading')))
 
@@ -122,6 +127,30 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
       dl.torrentHash = dlHash
     }
 
+    const dlTag = dl.qbitTag
+    if (qbitTorrent === undefined && dlTag !== null && dlTag !== '') {
+      qbitTorrent = qbitTorrents.find((t) =>
+        t.tags
+          .split(',')
+          .map((s) => s.trim())
+          .includes(dlTag)
+      )
+
+      if (qbitTorrent !== undefined) {
+        log.warn(
+          `matched torrent by tag instead of hash: id=${dl.id} tag="${dlTag}" matched_hash=${qbitTorrent.hash} matched_name="${qbitTorrent.name}"`
+        )
+        await dbRun(
+          db
+            .update(downloads)
+            .set({ torrentHash: qbitTorrent.hash, torrentName: qbitTorrent.name })
+            .where(eq(downloads.id, dl.id))
+        )
+        dl.torrentHash = qbitTorrent.hash
+        dl.torrentName = qbitTorrent.name
+      }
+    }
+
     if (qbitTorrent === undefined && qbitTorrents.length > 0 && dl.torrentName !== '') {
       qbitTorrent = qbitTorrents.find((t) => t.name === dl.torrentName || t.name.includes(dl.torrentName))
 
@@ -135,6 +164,12 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     }
 
     if (qbitTorrent === undefined) {
+      const ageMs = Date.now() - new Date(dl.createdAt).getTime()
+      if (ageMs < NEW_DOWNLOAD_GRACE_MS) {
+        log.info(`skipping young download not yet found in qBittorrent: id=${dl.id} age=${Math.round(ageMs / 1000)}s`)
+        continue
+      }
+
       const lastProgressPct = dl.sizeBytes > 0 ? (dl.downloadedBytes / dl.sizeBytes) * 100 : 0
       const observedComplete = dl.sizeBytes > 0 && dl.downloadedBytes * 100 >= dl.sizeBytes * 99.9
       const inferredComplete = autoRemoveCompleted && lastProgressPct >= AUTO_REMOVE_COMPLETE_MIN_PROGRESS
@@ -173,11 +208,22 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           )
         }
       } else {
-        log.warn(
-          `marking download as failed - torrent not found in qBittorrent: id=${dl.id} hash=${dl.torrentHash} name="${dl.torrentName}" progress=${dl.progress}%`
-        )
-        await dbRun(db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)))
-        result.failed++
+        // Distinguish a torrent that existed in qBittorrent and was deleted (e.g. manually
+        // removed via the qB WebUI) from one that never appeared there (failed add).
+        const wasConfirmed = dl.torrentHash !== null || dl.progress > 0 || dl.torrentName !== ''
+        if (wasConfirmed) {
+          log.info(
+            `marking download as removed - torrent deleted from qBittorrent: id=${dl.id} hash=${dl.torrentHash} name="${dl.torrentName}" progress=${dl.progress}%`
+          )
+          await dbRun(db.update(downloads).set({ status: 'removed' }).where(eq(downloads.id, dl.id)))
+          result.removed++
+        } else {
+          log.warn(
+            `marking download as failed - torrent never appeared in qBittorrent: id=${dl.id} hash=${dl.torrentHash} name="${dl.torrentName}" progress=${dl.progress}%`
+          )
+          await dbRun(db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)))
+          result.failed++
+        }
       }
       continue
     }

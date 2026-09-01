@@ -58,6 +58,11 @@ const defaultFreshUser = {
   dailyDownloadLimit: 10,
   maxTorrentSizeGb: 20
 }
+// Valid bencoded torrent with an `info` dict (i…e integers + binary pieces) so
+// computeTorrentInfoHash succeeds for the uploaded-file branch (same fixture as info-hash.test.ts).
+const TORRENT_FIXTURE_HEX =
+  '6431303a6372656174656420627931343a73747265616d6875622d7465737431333a6372656174696f6e2064617465693137353030303030303065343a696e666f64363a6c656e677468693130303030303065343a6e616d6533303a54657374204d6f766965203230323620313038307020574542207832363431323a7069656365206c656e6774686932363231343465363a70696563657334303aabababababababababababababababababababababababababababababababababababababababab373a707269766174656931656565'
+
 const mockQbit = {
   addTorrent: vi.fn(),
   addTorrentFile: vi.fn(),
@@ -121,7 +126,8 @@ describe('torrents/add.post', () => {
       eta: 0,
       dlspeed: 0,
       upspeed: 0,
-      downloaded: 0
+      downloaded: 0,
+      tags: ''
     })
     mockQbit.addTorrentFile.mockResolvedValue({
       hash: 'abc123',
@@ -131,7 +137,8 @@ describe('torrents/add.post', () => {
       eta: 0,
       dlspeed: 0,
       upspeed: 0,
-      downloaded: 0
+      downloaded: 0,
+      tags: ''
     })
   })
 
@@ -288,7 +295,8 @@ describe('torrents/add.post', () => {
       'https://example.com/file.torrent',
       '/data/series',
       'series',
-      expect.stringMatching(/^dl-/)
+      expect.stringMatching(/^dl-/),
+      null
     )
     vi.mocked(global.fetch).mockReset()
   })
@@ -321,6 +329,178 @@ describe('torrents/add.post', () => {
     const result = await handler(mockEvent)
     expect(result).toHaveProperty('success', true)
     expect(mockQbit.addTorrentFile).toHaveBeenCalled()
+  })
+
+  it('returns already when an active download with the same magnet hash exists', async () => {
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => []),
+          get: vi.fn(() => ({ id: 'existing-1' }))
+        }))
+      }))
+    } as never)
+    mockReadBody.mockResolvedValue({ magnetLink: `magnet:?xt=urn:btih:${'a'.repeat(40)}`, savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ already: true, id: 'existing-1' })
+    expect(mockQbit.addTorrent).not.toHaveBeenCalled()
+    expect(mockSetCooldown).not.toHaveBeenCalled()
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('returns already when the uploaded torrent info-hash has an active download', async () => {
+    const fileContent = Buffer.from(TORRENT_FIXTURE_HEX, 'hex').toString('base64')
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => []),
+          get: vi.fn(() => ({ id: 'existing-1' }))
+        }))
+      }))
+    } as never)
+    mockReadBody.mockResolvedValue({ torrentFile: fileContent, fileName: 'test.torrent', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ already: true, id: 'existing-1' })
+    expect(mockQbit.addTorrentFile).not.toHaveBeenCalled()
+    expect(mockSetCooldown).not.toHaveBeenCalled()
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('returns already when the same Prowlarr download URL is already active (link check)', async () => {
+    const getQueue: unknown[] = [{ id: 'existing-1' }]
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => []),
+          get: vi.fn(() => getQueue.shift())
+        }))
+      }))
+    } as never)
+    mockReadBody.mockResolvedValue({
+      magnetLink: 'magnet:?xt=urn:btih:abc',
+      downloadUrl: 'https://prowlarr.example/5/download?apikey=xyz',
+      savePath: 'series'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ already: true, id: 'existing-1' })
+    expect(mockQbit.addTorrent).not.toHaveBeenCalled()
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('returns already when the same magnet link is stored with a null hash (link check)', async () => {
+    const getQueue: unknown[] = [{ id: 'existing-1' }]
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => []),
+          get: vi.fn(() => getQueue.shift())
+        }))
+      }))
+    } as never)
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ already: true, id: 'existing-1' })
+    expect(mockQbit.addTorrent).not.toHaveBeenCalled()
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('returns already when the same uploaded file name is stored (link check)', async () => {
+    const getQueue: unknown[] = [{ id: 'existing-1' }]
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => []),
+          get: vi.fn(() => getQueue.shift())
+        }))
+      }))
+    } as never)
+    mockReadBody.mockResolvedValue({ torrentFile: 'dGVzdA==', fileName: 'bad.torrent', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ already: true, id: 'existing-1' })
+    expect(mockQbit.addTorrentFile).not.toHaveBeenCalled()
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('returns already after add when the stored row has a null hash but a matching tag (tag fallback)', async () => {
+    const allQueue: unknown[][] = [[], [], [{ id: 'existing-tag' }]]
+    const getQueue: unknown[] = [undefined, undefined]
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => allQueue.shift() ?? []),
+          get: vi.fn(() => getQueue.shift())
+        }))
+      }))
+    } as never)
+    mockQbit.addTorrent.mockResolvedValue({
+      hash: 'abc123',
+      name: 'Test',
+      size: 1000000000,
+      progress: 0,
+      eta: 0,
+      dlspeed: 0,
+      upspeed: 0,
+      downloaded: 0,
+      tags: 'dl-old1234'
+    })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ already: true, id: 'existing-tag' })
+    expect(mockQbit.addTorrent).toHaveBeenCalled()
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('passes the magnet hash as knownHash on the downloadUrl path and catches the 409 via tag fallback', async () => {
+    const allQueue: unknown[][] = [[], [], [{ id: 'existing-tag' }]]
+    const getQueue: unknown[] = [undefined, undefined, undefined]
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => allQueue.shift() ?? []),
+          get: vi.fn(() => getQueue.shift())
+        }))
+      }))
+    } as never)
+    mockQbit.addTorrent.mockResolvedValue({
+      hash: 'abc123',
+      name: 'Test',
+      size: 1000000000,
+      progress: 0,
+      eta: 0,
+      dlspeed: 0,
+      upspeed: 0,
+      downloaded: 0,
+      tags: 'dl-old1234'
+    })
+    mockReadBody.mockResolvedValue({
+      magnetLink: `magnet:?xt=urn:btih:${'a'.repeat(40)}`,
+      downloadUrl: 'https://example.com/file.torrent',
+      savePath: 'movies'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'https://example.com/file.torrent',
+      '/data/movies',
+      'movies',
+      expect.stringMatching(/^dl-/),
+      'a'.repeat(40)
+    )
+    expect(result).toEqual({ already: true, id: 'existing-tag' })
+    expect(mockDb.insert).not.toHaveBeenCalled()
   })
 
   it('throws 413 when torrent too large', async () => {

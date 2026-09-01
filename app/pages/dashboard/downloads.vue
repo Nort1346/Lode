@@ -222,6 +222,12 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   {{ savePathLabels[dl.savePath] }}
                 </span>
                 <span
+                  v-if="dl.resolution || dl.indexerName"
+                  class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400"
+                >
+                  {{ [dl.resolution, dl.indexerName].filter(Boolean).join(' · ') }}
+                </span>
+                <span
                   v-if="getTorrentQuality(dl) !== 'ok' && dl.status === 'downloading'"
                   class="text-xs px-2 py-0.5 rounded-full"
                   :class="qualityConfig[getTorrentQuality(dl)].badge"

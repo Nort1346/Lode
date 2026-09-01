@@ -100,6 +100,16 @@ describe('QBittorrentClient', () => {
       expect(result).toEqual({ hash: HASH, size: 10, tags: 'u1' })
     })
 
+    it('resolves the existing torrent by knownHash on 409 when the magnet has no extractable hash', async () => {
+      mockFetch
+        .mockResolvedValueOnce(errorResponse(409, 'Conflict'))
+        .mockResolvedValueOnce(okResponse([{ hash: HASH, size: 7, tags: 'u1' }]))
+
+      const result = await client.addTorrent(SHORT_MAGNET, '/save', 'movies', 'u1', HASH)
+
+      expect(result).toEqual({ hash: HASH, size: 7, tags: 'u1' })
+    })
+
     it('throws when the torrent already exists but no hash match is found', async () => {
       mockFetch.mockResolvedValueOnce(errorResponse(409, 'Conflict')).mockResolvedValueOnce(okResponse([]))
 

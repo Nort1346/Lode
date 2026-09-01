@@ -32,9 +32,12 @@ function createDb(): SqliteDb {
       notified_at TEXT,
       tmdb_id INTEGER,
       media_type TEXT,
-      poster_url TEXT,
-      is_private INTEGER NOT NULL DEFAULT 0
-    )
+       poster_url TEXT,
+       is_private INTEGER NOT NULL DEFAULT 0,
+       indexer_name TEXT,
+       resolution TEXT,
+       qbit_tag TEXT
+     )
   `)
   return drizzle(sqlite)
 }

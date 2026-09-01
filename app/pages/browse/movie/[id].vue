@@ -584,20 +584,30 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
   startDownload(movie.value?.title ?? t('download.adding'))
 
   try {
-    await $fetch('/api/browse/download', {
+    const res = await $fetch<{ already?: boolean }>('/api/browse/download', {
       method: 'POST',
       body: {
         magnetLink: torrent.magnetLink ?? '',
         downloadUrl: torrent.downloadUrl ?? '',
         guid: torrent.guid ?? '',
         indexer: torrent.indexer,
+        resolution: torrent.resolution ?? null,
         label: movie.value?.title ?? t('download.film'),
         savePath: 'movies',
         tmdbId: movie.value?.id ?? null,
         mediaType: 'movie',
-        torrentSize: torrent.size
+        torrentSize: torrent.size ?? 0
       }
     })
+    if (res.already === true) {
+      toast.add({
+        title: t('download.already'),
+        description: t('download.alreadyDesc', { label: movie.value?.title ?? t('download.film') }),
+        color: 'info'
+      })
+      await navigateTo('/dashboard/downloads')
+      return
+    }
     toast.add({
       title: t('download.added'),
       description: t('download.addedDesc', { label: movie.value?.title ?? t('download.film') }),

@@ -133,6 +133,8 @@
   "download": {
     "added": "Descarga añadida",
     "addedDesc": "{label} se ha añadido a la cola.",
+    "already": "Ya se está descargando",
+    "alreadyDesc": "{label} ya está en tus descargas.",
     "error": "Error de descarga",
     "errorDesc": "No se pudo añadir la descarga.",
     "delete": "Eliminar",

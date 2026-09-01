@@ -218,7 +218,8 @@
                   pack.guid,
                   pack.indexer,
                   pack.downloadUrl,
-                  pack.size
+                  pack.size,
+                  pack.resolution
                 )
               "
               @toggle-debug="toggleDebug(`pack-${idx}`)"
@@ -247,7 +248,8 @@
                   payload.guid,
                   payload.indexer,
                   payload.downloadUrl,
-                  payload.size
+                  payload.size,
+                  payload.resolution
                 )
             "
             @toggle-debug="(key) => toggleDebug(key)"
@@ -387,7 +389,8 @@ async function downloadTorrent(
   guid?: string | null,
   indexer?: string,
   downloadUrl?: string | null,
-  torrentSize?: number
+  torrentSize?: number,
+  resolution?: string | null
 ) {
   const hasMagnet = magnetLink !== null && magnetLink.length > 0
   const hasGuid = guid !== null && guid !== undefined && guid.length > 0
@@ -402,13 +405,14 @@ async function downloadTorrent(
   startDownload(label || t('download.adding'))
 
   try {
-    await $fetch('/api/browse/download', {
+    const res = await $fetch<{ already?: boolean }>('/api/browse/download', {
       method: 'POST',
       body: {
         magnetLink: magnetLink ?? '',
         downloadUrl: downloadUrl ?? '',
         guid: guid ?? '',
         indexer: indexer ?? '',
+        resolution: resolution ?? null,
         label,
         savePath: 'series',
         tmdbId: show.value?.id ?? null,
@@ -416,6 +420,11 @@ async function downloadTorrent(
         torrentSize: torrentSize ?? 0
       }
     })
+    if (res.already === true) {
+      toast.add({ title: t('download.already'), description: t('download.alreadyDesc', { label }), color: 'info' })
+      await navigateTo('/dashboard/downloads')
+      return
+    }
     toast.add({ title: t('download.added'), description: t('download.addedDesc', { label }), color: 'success' })
     await navigateTo('/dashboard/downloads')
   } catch (err) {

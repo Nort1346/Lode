@@ -34,7 +34,13 @@ export class QBittorrentClient {
     return response
   }
 
-  async addTorrent(magnetLink: string, savePath: string, category: string, tags: string): Promise<QBitTorrent | null> {
+  async addTorrent(
+    magnetLink: string,
+    savePath: string,
+    category: string,
+    tags: string,
+    knownHash: string | null = null
+  ): Promise<QBitTorrent | null> {
     const formData = new URLSearchParams()
     formData.append('urls', magnetLink)
     formData.append('savepath', savePath)
@@ -42,7 +48,7 @@ export class QBittorrentClient {
     formData.append('tags', tags)
     formData.append('paused', 'false')
 
-    const knownHash = extractMagnetHash(magnetLink)
+    const effectiveHash = knownHash ?? extractMagnetHash(magnetLink)
 
     try {
       await this.request('/api/v2/torrents/add', {
@@ -53,8 +59,8 @@ export class QBittorrentClient {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       if (!msg.includes('409')) throw err
-      if (knownHash !== null) {
-        const existing = await this.findTorrentByHash(knownHash)
+      if (effectiveHash !== null) {
+        const existing = await this.findTorrentByHash(effectiveHash)
         if (existing !== undefined) return existing
       }
       throw new Error('Torrent already exists in qBittorrent', { cause: err })
@@ -63,8 +69,8 @@ export class QBittorrentClient {
     for (let i = 0; i < 3; i++) {
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      if (knownHash !== null) {
-        const byHash = await this.findTorrentByHash(knownHash)
+      if (effectiveHash !== null) {
+        const byHash = await this.findTorrentByHash(effectiveHash)
         if (byHash !== undefined) {
           if (byHash.size === 0) {
             const waited = await this.waitForSize(byHash.hash, 10, 3000)
@@ -93,7 +99,8 @@ export class QBittorrentClient {
     fileName: string,
     savePath: string,
     category: string,
-    tags: string
+    tags: string,
+    knownHash: string | null = null
   ): Promise<QBitTorrent | null> {
     const formData = new FormData()
     const arrayBuf =
@@ -114,6 +121,10 @@ export class QBittorrentClient {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       if (!msg.includes('409')) throw err
+      if (knownHash !== null) {
+        const existing = await this.findTorrentByHash(knownHash)
+        if (existing !== undefined) return existing
+      }
       throw new Error('Torrent already exists in qBittorrent', { cause: err })
     }
 

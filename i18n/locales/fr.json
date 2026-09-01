@@ -133,6 +133,8 @@
   "download": {
     "added": "Téléchargement ajouté",
     "addedDesc": "{label} a été ajouté à la file d'attente.",
+    "already": "Déjà en téléchargement",
+    "alreadyDesc": "{label} est déjà dans vos téléchargements.",
     "error": "Erreur de téléchargement",
     "errorDesc": "Impossible d'ajouter le téléchargement.",
     "delete": "Supprimer",

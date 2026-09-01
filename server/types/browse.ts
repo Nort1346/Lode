@@ -46,6 +46,7 @@ export interface DownloadBody {
   downloadUrl?: string
   guid?: string
   indexer?: string
+  resolution?: string | null
   label: string
   savePath: string
   tmdbId?: number

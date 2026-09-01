@@ -133,6 +133,8 @@
   "download": {
     "added": "Download hinzugefügt",
     "addedDesc": "{label} wurde zur Warteschlange hinzugefügt.",
+    "already": "Bereits am Herunterladen",
+    "alreadyDesc": "{label} befindet sich bereits in deinen Downloads.",
     "error": "Download-Fehler",
     "errorDesc": "Download konnte nicht hinzugefügt werden.",
     "delete": "Löschen",

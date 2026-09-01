@@ -1,12 +1,14 @@
 import { downloads } from '#server/database/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { useDbAsync, dbAll, dbRun } from '#server/utils/db'
+import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { getFreshUser } from '#server/utils/user'
 import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { normalizeEta } from '#server/utils/torrents/eta'
+import { parseTorrentTitle } from '#server/utils/torrents/torrent-ranker'
+import { computeTorrentInfoHash } from '#server/utils/torrents/info-hash'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
@@ -106,8 +108,6 @@ export default defineEventHandler(async (event) => {
   const userRole = session.user.role
   const username = session.user.username
 
-  setCooldown(userId)
-
   return await withTorrentAddLock(async () => {
     if (userRole !== 'admin') {
       const userDownloads = await dbAll(
@@ -137,6 +137,46 @@ export default defineEventHandler(async (event) => {
           statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`
         })
       }
+    }
+
+    // Duplicate check: reject adding a torrent the user is already downloading
+    let infoHash: string | null = null
+    if (hasFile && !hasDownloadUrl) {
+      try {
+        infoHash = computeTorrentInfoHash(Buffer.from(torrentFileBase64, 'base64'))
+      } catch (err) {
+        log.warn(`info-hash computation failed: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }
+    const preHash = hasMagnet ? extractMagnetHash(magnetLink) : hasFile ? infoHash : null
+    if (preHash !== null) {
+      const existingActive = await dbGet(
+        db
+          .select()
+          .from(downloads)
+          .where(
+            and(eq(downloads.userId, userId), eq(downloads.torrentHash, preHash), eq(downloads.status, 'downloading'))
+          )
+      )
+      if (existingActive !== undefined) {
+        log.info(`already active: hash=${preHash} id=${existingActive.id}`)
+        return { already: true, id: existingActive.id }
+      }
+    }
+
+    // Duplicate check by stored link (covers rows with a null hash, e.g. same Prowlarr URL)
+    const storedValue = hasDownloadUrl ? `download:${downloadUrl}` : hasFile ? `file:${fileName}` : magnetLink
+    const existingByLink = await dbGet(
+      db
+        .select()
+        .from(downloads)
+        .where(
+          and(eq(downloads.userId, userId), eq(downloads.magnetLink, storedValue), eq(downloads.status, 'downloading'))
+        )
+    )
+    if (existingByLink !== undefined) {
+      log.info(`already active by link: id=${existingByLink.id}`)
+      return { already: true, id: existingByLink.id }
     }
 
     const qbit = useQBittorrent()
@@ -176,14 +216,23 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, statusMessage: 'URL returned HTML, not a torrent file' })
       }
 
+      setCooldown(userId)
       storedMagnetLink = `download:${downloadUrl}`
-      torrent = await qbit.addTorrent(downloadUrl, targetPath, savePath, dlTag)
+      torrent = await qbit.addTorrent(
+        downloadUrl,
+        targetPath,
+        savePath,
+        dlTag,
+        hasMagnet ? extractMagnetHash(magnetLink) : null
+      )
     } else if (hasFile) {
       const fileBuffer = Buffer.from(torrentFileBase64, 'base64')
       storedMagnetLink = `file:${fileName}`
-      torrent = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag)
+      setCooldown(userId)
+      torrent = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag, infoHash)
     } else {
       storedMagnetLink = magnetLink
+      setCooldown(userId)
       torrent = await qbit.addTorrent(magnetLink, targetPath, savePath, dlTag)
     }
 
@@ -220,6 +269,51 @@ export default defineEventHandler(async (event) => {
       await qbit.moveToTop([torrent.hash]).catch(() => {})
     }
 
+    // Post-add duplicate guard: qBittorrent may have returned an existing torrent (409)
+    if (torrent !== null) {
+      const existingActive = await dbGet(
+        db
+          .select()
+          .from(downloads)
+          .where(
+            and(
+              eq(downloads.userId, userId),
+              eq(downloads.torrentHash, torrent.hash),
+              eq(downloads.status, 'downloading')
+            )
+          )
+      )
+      if (existingActive !== undefined) {
+        log.info(`already active after add: hash=${torrent.hash} id=${existingActive.id}`)
+        return { already: true, id: existingActive.id }
+      }
+
+      // Tag fallback: catches the 409-existing case where the stored row has a null hash
+      const torrentTags = torrent.tags
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+      if (torrentTags.length > 0) {
+        const tagRows = await dbAll(
+          db
+            .select()
+            .from(downloads)
+            .where(
+              and(
+                eq(downloads.userId, userId),
+                inArray(downloads.qbitTag, torrentTags),
+                eq(downloads.status, 'downloading')
+              )
+            )
+        )
+        const tagRow = tagRows[0]
+        if (tagRow !== undefined) {
+          log.info(`already active after add (tag): tag="${torrent.tags}" id=${tagRow.id}`)
+          return { already: true, id: tagRow.id }
+        }
+      }
+    }
+
     let posterUrl: string | null = null
     if (tmdbId !== null && mediaType !== null) {
       try {
@@ -245,7 +339,7 @@ export default defineEventHandler(async (event) => {
         magnetLink: storedMagnetLink,
         savePath: savePath as SavePathKey,
         status: 'downloading',
-        torrentHash: torrent?.hash ?? extractMagnetHash(storedMagnetLink),
+        torrentHash: torrent?.hash ?? infoHash ?? extractMagnetHash(storedMagnetLink),
         progress: torrent !== null ? torrent.progress * 100 : 0,
         etaSeconds: normalizeEta(torrent?.eta ?? 0),
         downloadSpeed: torrent?.dlspeed ?? 0,
@@ -255,7 +349,9 @@ export default defineEventHandler(async (event) => {
         createdAt: new Date().toISOString(),
         tmdbId,
         mediaType,
-        posterUrl
+        posterUrl,
+        resolution: torrent !== null ? parseTorrentTitle(torrent.name).resolution : null,
+        qbitTag: dlTag
       })
     )
 

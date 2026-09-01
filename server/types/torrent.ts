@@ -84,4 +84,8 @@ export interface SyncResult {
   synced: number
   completed: number
   failed: number
+  removed: number
 }
+
+// Parsed bencode value: string (text or integer), Buffer (byte string), array (list) or object (dict)
+export type BencodeValue = string | Buffer | BencodeValue[] | { [key: string]: BencodeValue }

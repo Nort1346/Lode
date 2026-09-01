@@ -88,8 +88,9 @@ async function handleSubmit() {
   startDownload(form.label || t('download.adding'))
 
   try {
+    let res: { already?: boolean } | undefined
     if (inputMode.value === 'magnet') {
-      await $fetch('/api/torrents/add', {
+      res = await $fetch<{ already?: boolean }>('/api/torrents/add', {
         method: 'POST',
         body: {
           magnetLink: form.magnetLink.trim(),
@@ -98,7 +99,7 @@ async function handleSubmit() {
         }
       })
     } else if (inputMode.value === 'url') {
-      await $fetch('/api/torrents/add', {
+      res = await $fetch<{ already?: boolean }>('/api/torrents/add', {
         method: 'POST',
         body: {
           downloadUrl: form.torrentUrl.trim(),
@@ -114,7 +115,7 @@ async function handleSubmit() {
         return
       }
       const torrentFile = await fileToBase64(selectedFile.value)
-      await $fetch('/api/torrents/add', {
+      res = await $fetch<{ already?: boolean }>('/api/torrents/add', {
         method: 'POST',
         body: {
           torrentFile,
@@ -126,7 +127,15 @@ async function handleSubmit() {
       selectedFile.value = null
     }
 
-    toast.add({ title: t('submit.success'), color: 'success' })
+    if (res?.already === true) {
+      toast.add({
+        title: t('download.already'),
+        description: t('download.alreadyDesc', { label: form.label.trim() }),
+        color: 'info'
+      })
+    } else {
+      toast.add({ title: t('submit.success'), color: 'success' })
+    }
     await navigateTo('/dashboard/downloads')
   } catch (e: unknown) {
     const err = mapApiError(e)

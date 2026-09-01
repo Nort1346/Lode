@@ -54,7 +54,10 @@ export const downloads = sqliteTable(
     tmdbId: integer('tmdb_id'),
     mediaType: text('media_type', { enum: ['movie', 'tv'] }),
     posterUrl: text('poster_url'),
-    isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false)
+    isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false),
+    indexerName: text('indexer_name'),
+    resolution: text('resolution'),
+    qbitTag: text('qbit_tag')
   },
   // Serves the hot query paths: per-user limit/active checks (user_id + status),
   // torrent-sync global status scans (status), per-user history and range counts (user_id + created_at)

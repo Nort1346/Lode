@@ -153,7 +153,7 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 1, completed: 0, failed: 0 })
+    expect(result).toEqual({ synced: 1, completed: 0, failed: 0, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({
         etaSeconds: 500,
@@ -208,7 +208,7 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 1, completed: 1, failed: 0 })
+    expect(result).toEqual({ synced: 1, completed: 1, failed: 0, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'completed',
@@ -244,7 +244,7 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 2, completed: 2, failed: 0 })
+    expect(result).toEqual({ synced: 2, completed: 2, failed: 0, removed: 0 })
     expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(2)
     expect(mockNotifyDownloadComplete).toHaveBeenCalledWith(
       'u1',
@@ -268,23 +268,23 @@ describe('syncTorrentStatus', () => {
     )
   })
 
-  it('marks download failed when torrent is gone from qBittorrent', async () => {
+  it('marks download removed when a confirmed torrent is gone from qBittorrent', async () => {
     mockActiveAll.mockReturnValue([makeDl({ downloadedBytes: 0, torrentName: '' })])
     mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'other', name: 'Other Movie' })])
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 0, completed: 0, failed: 1 })
-    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 0, removed: 1 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'removed' }))
   })
 
-  it('marks download failed when the qBittorrent list is empty and progress is below the threshold', async () => {
-    mockActiveAll.mockReturnValue([makeDl({ torrentName: '', downloadedBytes: 500_000_000 })])
+  it('marks download failed when the torrent never appeared in qBittorrent', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ torrentHash: null, torrentName: '', progress: 0, downloadedBytes: 0 })])
     mockGetAllTorrents.mockReturnValue([])
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 0, completed: 0, failed: 1 })
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 1, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
   })
 
@@ -294,7 +294,7 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 0, completed: 1, failed: 0 })
+    expect(result).toEqual({ synced: 0, completed: 1, failed: 0, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
   })
 
@@ -305,7 +305,7 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 0, completed: 1, failed: 0 })
+    expect(result).toEqual({ synced: 0, completed: 1, failed: 0, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'completed', progress: 100, completedAt: expect.any(String) })
     )
@@ -317,7 +317,7 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 0, completed: 1, failed: 0 })
+    expect(result).toEqual({ synced: 0, completed: 1, failed: 0, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
   })
 
@@ -328,19 +328,31 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 0, completed: 1, failed: 0 })
+    expect(result).toEqual({ synced: 0, completed: 1, failed: 0, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
   })
 
-  it('still marks download failed when the torrent disappears below 90% progress with auto-remove enabled', async () => {
+  it('marks download removed when the torrent disappears below 90% progress with auto-remove enabled', async () => {
     mockGetSetting.mockReturnValueOnce('true')
     mockActiveAll.mockReturnValue([makeDl({ torrentName: '', downloadedBytes: 800_000_000 })])
     mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'other', name: 'Other Movie' })])
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 0, completed: 0, failed: 1 })
-    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 0, removed: 1 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'removed' }))
+  })
+
+  it('marks download removed when a progress-only confirmed torrent (null hash) disappears', async () => {
+    mockActiveAll.mockReturnValue([
+      makeDl({ torrentHash: null, torrentName: '', progress: 35, downloadedBytes: 350_000_000 })
+    ])
+    mockGetAllTorrents.mockReturnValue([])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 0, removed: 1 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'removed' }))
   })
 
   it('recovers the torrent hash from the magnet link and backfills it', async () => {
@@ -352,7 +364,7 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 1, completed: 0, failed: 0 })
+    expect(result).toEqual({ synced: 1, completed: 0, failed: 0, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ torrentHash: recoveredHash }))
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ torrentName: 'Recovered Movie', progress: 50 }))
   })
@@ -362,7 +374,7 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 0, completed: 0, failed: 0 })
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 0, removed: 0 })
     expect(mockGetAllTorrents).not.toHaveBeenCalled()
   })
 
@@ -372,7 +384,7 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 1, completed: 0, failed: 0 })
+    expect(result).toEqual({ synced: 1, completed: 0, failed: 0, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ torrentHash: 'h2' }))
   })
 
@@ -382,7 +394,7 @@ describe('syncTorrentStatus', () => {
 
     const result = await syncTorrentStatus()
 
-    expect(result).toEqual({ synced: 0, completed: 0, failed: 0 })
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 0, removed: 0 })
     expect(mockDb.update).not.toHaveBeenCalled()
   })
 
@@ -451,6 +463,45 @@ describe('syncTorrentStatus', () => {
 
     expect(mockLog.warn).toHaveBeenCalledWith(
       'matched torrent by name instead of hash: id=dl-1 hash=h1 name="Movie 2024" matched_hash=h2 matched_name="Movie 2024 REMAKE"'
+    )
+  })
+
+  it('matches a null-hash row by its qBittorrent tag and backfills hash and name', async () => {
+    mockActiveAll.mockReturnValue([
+      makeDl({ torrentHash: null, torrentName: '', magnetLink: '', qbitTag: 'dl-abc12345' })
+    ])
+    mockGetAllTorrents.mockReturnValue([
+      makeQbit({ hash: 'h-tag', name: 'Tagged Movie 2026', tags: 'other-tag, dl-abc12345, extra' })
+    ])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 1, completed: 0, failed: 0, removed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({ torrentHash: 'h-tag', torrentName: 'Tagged Movie 2026' })
+    )
+    expect(mockLog.warn).toHaveBeenCalledWith(
+      'matched torrent by tag instead of hash: id=dl-1 tag="dl-abc12345" matched_hash=h-tag matched_name="Tagged Movie 2026"'
+    )
+  })
+
+  it('skips a young download not yet found in qBittorrent instead of failing it', async () => {
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        torrentHash: null,
+        torrentName: '',
+        magnetLink: '',
+        createdAt: new Date(Date.now() - 30_000).toISOString()
+      })
+    ])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'other', name: 'Other Movie' })])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 0, removed: 0 })
+    expect(mockDb.update).not.toHaveBeenCalled()
+    expect(mockLog.info).toHaveBeenCalledWith(
+      expect.stringContaining('skipping young download not yet found in qBittorrent')
     )
   })
 })

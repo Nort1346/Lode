@@ -133,6 +133,8 @@
   "download": {
     "added": "Download added",
     "addedDesc": "{label} has been added to the queue.",
+    "already": "Already downloading",
+    "alreadyDesc": "{label} is already in your downloads.",
     "error": "Download error",
     "errorDesc": "Failed to add download.",
     "delete": "Delete",

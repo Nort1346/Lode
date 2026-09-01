@@ -1,3 +1,6 @@
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
 import type { EtaInput, EtaState, TorrentQuality } from '~/types/downloads'
 
 export function formatEta(seconds: number): string {
@@ -13,7 +16,9 @@ export function formatEta(seconds: number): string {
 export const UNRELIABLE_ETA_SECONDS = 48 * 60 * 60
 
 export function getEtaState(dl: EtaInput): EtaState {
-  if (dl.numSeeds <= 0) return 'waiting-seeders'
+  // A just-added torrent reports 0 seeders until its first announce completes -
+  // only treat zero seeders as "waiting" once the download has actually started.
+  if (dl.numSeeds <= 0) return dl.progress > 0 ? 'waiting-seeders' : 'calculating'
   if (dl.etaSeconds <= 0 || dl.downloadSpeed <= 0) return 'calculating'
   if (dl.etaSeconds > UNRELIABLE_ETA_SECONDS) return 'calculating'
   return 'ready'
@@ -50,13 +55,15 @@ export function formatDate(dateStr: string, locale?: string): string {
   return d.toLocaleDateString(locale, { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 
-export function getTorrentQuality(dl: { numSeeds: number; downloadSpeed: number }): TorrentQuality {
+export function getTorrentQuality(dl: { numSeeds: number; downloadSpeed: number; progress: number }): TorrentQuality {
   const seeds = dl.numSeeds
   const speed = dl.downloadSpeed
 
   if (speed > 0 && seeds > 0) return 'ok'
   if (speed > 0 && seeds === 0) return 'slow'
-  if (seeds <= 0) return 'dead'
+  // Zero seeders on a torrent that never started is unknown (announce not complete),
+  // not confirmed dead - only warn once the download has actually started.
+  if (seeds <= 0) return dl.progress > 0 ? 'dead' : 'ok'
   if (seeds < 5) return 'poor'
   if (seeds < 20) return 'slow'
   return 'ok'

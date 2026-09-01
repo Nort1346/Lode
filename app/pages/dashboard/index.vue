@@ -287,6 +287,12 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400">
                     {{ savePathLabels[dl.savePath] || dl.savePath }}
                   </span>
+                  <span
+                    v-if="dl.resolution || dl.indexerName"
+                    class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-400"
+                  >
+                    {{ [dl.resolution, dl.indexerName].filter(Boolean).join(' · ') }}
+                  </span>
                   <span class="text-xs px-2 py-0.5 rounded-full" :class="statusColors[dl.status]">
                     {{ t(`common.status_${dl.status}`) }}
                   </span>

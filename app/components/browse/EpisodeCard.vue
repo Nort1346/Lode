@@ -37,7 +37,8 @@
                 guid: tr.guid,
                 indexer: tr.indexer,
                 downloadUrl: tr.downloadUrl,
-                size: tr.size
+                size: tr.size,
+                resolution: tr.resolution
               })
             "
             @toggle-debug="$emit('toggleDebug', `ep-${episode.episodeNumber}-${tIdx}`)"
@@ -76,6 +77,7 @@ defineEmits<{
       indexer: string
       downloadUrl: string | null
       size: number
+      resolution: string | null
     }
   ]
   toggleDebug: [key: string]

@@ -13,8 +13,10 @@ export default defineNitroPlugin((nitroApp) => {
     void (async () => {
       try {
         const result = await syncTorrentStatus()
-        if (result.completed > 0 || result.failed > 0) {
-          log.info(`synced=${result.synced} completed=${result.completed} failed=${result.failed}`)
+        if (result.completed > 0 || result.failed > 0 || result.removed > 0) {
+          log.info(
+            `synced=${result.synced} completed=${result.completed} failed=${result.failed} removed=${result.removed}`
+          )
         }
         await notifyJellyfinIfNeeded()
       } catch (err) {

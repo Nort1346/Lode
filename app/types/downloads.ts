@@ -20,13 +20,15 @@ export interface Download {
   completedAt: string | null
   notifiedAt: string | null
   posterUrl: string | null
+  indexerName: string | null
+  resolution: string | null
 }
 
 export type TorrentQuality = 'dead' | 'poor' | 'slow' | 'ok'
 
 export type EtaState = 'waiting-seeders' | 'calculating' | 'ready'
 
-export type EtaInput = Pick<Download, 'etaSeconds' | 'numSeeds' | 'downloadSpeed'>
+export type EtaInput = Pick<Download, 'etaSeconds' | 'numSeeds' | 'downloadSpeed' | 'progress'>
 
 export const STATUS_COLORS: Record<string, string> = {
   downloading: 'text-blue-500',

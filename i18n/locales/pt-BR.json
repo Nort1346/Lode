@@ -133,6 +133,8 @@
   "download": {
     "added": "Download adicionado",
     "addedDesc": "{label} foi adicionado à fila.",
+    "already": "Já em download",
+    "alreadyDesc": "{label} já está nos seus downloads.",
     "error": "Erro no download",
     "errorDesc": "Falha ao adicionar o download.",
     "delete": "Excluir",
