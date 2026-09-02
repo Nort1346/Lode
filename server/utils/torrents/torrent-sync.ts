@@ -278,6 +278,12 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
       }
     } else {
       const isPaused = qbitTorrent.state === 'pausedDL'
+      const nextStatus = isPaused ? 'paused' : 'downloading'
+      if (dl.status !== nextStatus) {
+        log.info(
+          `status changed: ${dl.status} -> ${nextStatus}: id=${dl.id} hash=${qbitTorrent.hash} state=${qbitTorrent.state}`
+        )
+      }
       const remainingBytes = Math.max(qbitTorrent.size - qbitTorrent.downloaded, 0)
       const etaSeconds = isPaused
         ? 0
@@ -308,7 +314,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
             downloadedBytes: qbitTorrent.downloaded,
             numSeeds,
             numLeechs: qbitTorrent.num_leechs,
-            status: isPaused ? 'paused' : 'downloading'
+            status: nextStatus
           })
           .where(eq(downloads.id, dl.id))
       )

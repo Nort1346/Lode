@@ -247,6 +247,29 @@ describe('syncTorrentStatus', () => {
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'downloading' }))
   })
 
+  it('logs when sync transitions a torrent between downloading and paused', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ state: 'pausedDL', dlspeed: 0, dlspeed_avg: 0, upspeed: 0 })])
+    await syncTorrentStatus()
+    expect(mockLog.info).toHaveBeenCalledWith('status changed: downloading -> paused: id=dl-1 hash=h1 state=pausedDL')
+
+    mockActiveAll.mockReturnValue([makeDl({ status: 'paused' })])
+    mockGetAllTorrents.mockReturnValue([makeQbit()])
+    await syncTorrentStatus()
+    expect(mockLog.info).toHaveBeenCalledWith(
+      'status changed: paused -> downloading: id=dl-1 hash=h1 state=downloading'
+    )
+  })
+
+  it('does not log a status change when the status is unchanged', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit()])
+
+    await syncTorrentStatus()
+
+    expect(mockLog.info).not.toHaveBeenCalledWith(expect.stringContaining('status changed'))
+  })
+
   it('completes and notifies a paused row that finished while paused', async () => {
     mockActiveAll.mockReturnValue([makeDl({ status: 'paused' })])
     mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])

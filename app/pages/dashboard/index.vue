@@ -249,9 +249,9 @@ const savePathLabels = computed<Record<string, string>>(() => ({
           :key="dl.id"
           class="flex gap-3 p-3 rounded-xl border transition-all bg-zinc-50 dark:bg-white/2 sm:gap-4 sm:p-4"
           :class="
-            getTorrentQuality(dl) === 'ok'
-              ? 'border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/10'
-              : qualityConfig[getTorrentQuality(dl)].border
+            dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok'
+              ? qualityConfig[getTorrentQuality(dl)].border
+              : 'border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/10'
           "
         >
           <div
@@ -303,7 +303,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                     {{ t(`common.status_${dl.status}`) }}
                   </span>
                   <span
-                    v-if="getTorrentQuality(dl) !== 'ok'"
+                    v-if="getTorrentQuality(dl) !== 'ok' && dl.status === 'downloading'"
                     class="text-xs px-2 py-0.5 rounded-full"
                     :class="qualityConfig[getTorrentQuality(dl)].badge"
                   >
