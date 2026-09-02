@@ -341,7 +341,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   </span>
                   <span v-if="dl.status !== 'paused'"
                     >{{ t('common.eta') }}:
-                    <span class="text-zinc-900 dark:text-zinc-white">
+                    <span class="text-zinc-900 dark:text-white">
                       {{ etaLabel(dl) }}
                     </span></span
                   >
