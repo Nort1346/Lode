@@ -122,6 +122,25 @@ function stubConfig(overrides: Record<string, string> = {}) {
   vi.mocked(mockUseRuntimeConfig).mockReturnValue({ ...defaults, disks: '', ...overrides } as never)
 }
 
+// Collects bound param values from a drizzle-orm SQL chunk tree (where clauses built with eq/inArray/and)
+function collectParamStrings(chunk: unknown, out: string[] = []): string[] {
+  if (chunk === null || typeof chunk !== 'object') return out
+  if (Array.isArray(chunk)) {
+    for (const sub of chunk) {
+      collectParamStrings(sub, out)
+    }
+    return out
+  }
+  const c = chunk as { value?: unknown; encoder?: unknown; queryChunks?: unknown[] }
+  if (c.encoder !== undefined && typeof c.value === 'string') out.push(c.value)
+  if (Array.isArray(c.queryChunks)) {
+    for (const sub of c.queryChunks) {
+      collectParamStrings(sub, out)
+    }
+  }
+  return out
+}
+
 // Valid bencoded torrent with an `info` dict (i…e integers + binary pieces) so
 // computeTorrentInfoHash succeeds on the guid path (same fixture as info-hash.test.ts).
 const TORRENT_FIXTURE_HEX =
@@ -885,5 +904,35 @@ describe('browse/download.post', () => {
     const result = await handler(mockEvent)
     expect(result).toHaveProperty('success', true)
     expect(mockQbit.getTorrentFiles).toHaveBeenCalledTimes(5)
+  })
+
+  it('dedupe queries match pending, downloading and completed (never removed/failed/disk_full)', async () => {
+    const clauses: unknown[] = []
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn((clause: unknown) => {
+          clauses.push(clause)
+          return { all: vi.fn(() => []), get: vi.fn(() => undefined) }
+        })
+      }))
+    } as never)
+    mockReadBody.mockResolvedValue({
+      magnetLink: `magnet:?xt=urn:btih:${'a'.repeat(40)}`,
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await handler(mockEvent)
+
+    const dedupeClauses = clauses
+      .map((clause) => collectParamStrings(clause))
+      .filter((params) => params.includes('pending') && params.includes('completed'))
+    expect(dedupeClauses.length).toBeGreaterThanOrEqual(1)
+    for (const params of dedupeClauses) {
+      expect(params).toEqual(expect.arrayContaining(['pending', 'downloading', 'completed']))
+      expect(params).not.toContain('removed')
+      expect(params).not.toContain('failed')
+      expect(params).not.toContain('disk_full')
+    }
   })
 })

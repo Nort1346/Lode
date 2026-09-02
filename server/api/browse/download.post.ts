@@ -18,7 +18,7 @@ import { computeTorrentInfoHash } from '#server/utils/torrents/info-hash'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
 import type { DownloadBody } from '#server/types/browse'
-import { SAVE_PATH_KEYS, type SavePathKey } from '#server/types/torrent'
+import { DEDUP_MATCH_STATUSES, SAVE_PATH_KEYS, type SavePathKey } from '#server/types/torrent'
 
 const log = createLogger('Download')
 
@@ -197,7 +197,7 @@ export default defineEventHandler(async (event) => {
               and(
                 eq(downloads.userId, userId),
                 eq(downloads.torrentHash, magnetHash),
-                eq(downloads.status, 'downloading')
+                inArray(downloads.status, DEDUP_MATCH_STATUSES)
               )
             )
         )
@@ -219,7 +219,7 @@ export default defineEventHandler(async (event) => {
             and(
               eq(downloads.userId, userId),
               eq(downloads.magnetLink, willStoreLink),
-              eq(downloads.status, 'downloading')
+              inArray(downloads.status, DEDUP_MATCH_STATUSES)
             )
           )
       )
@@ -470,7 +470,7 @@ export default defineEventHandler(async (event) => {
                 and(
                   eq(downloads.userId, userId),
                   eq(downloads.torrentHash, infoHash),
-                  eq(downloads.status, 'downloading')
+                  inArray(downloads.status, DEDUP_MATCH_STATUSES)
                 )
               )
           )
@@ -636,7 +636,7 @@ export default defineEventHandler(async (event) => {
               and(
                 eq(downloads.userId, userId),
                 eq(downloads.torrentHash, torrent.hash),
-                eq(downloads.status, 'downloading')
+                inArray(downloads.status, DEDUP_MATCH_STATUSES)
               )
             )
         )
@@ -659,7 +659,7 @@ export default defineEventHandler(async (event) => {
                 and(
                   eq(downloads.userId, userId),
                   inArray(downloads.qbitTag, torrentTags),
-                  eq(downloads.status, 'downloading')
+                  inArray(downloads.status, DEDUP_MATCH_STATUSES)
                 )
               )
           )
