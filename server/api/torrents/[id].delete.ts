@@ -28,6 +28,13 @@ export default defineEventHandler(async (event) => {
     try {
       const qbit = useQBittorrent()
       await qbit.deleteTorrent(download.torrentHash, true)
+      // qBittorrent drops the torrent from its list before the file delete finishes;
+      // wait until it is gone so a quick re-add cannot race the in-progress delete
+      for (let i = 0; i < 20; i++) {
+        const remaining = await qbit.findTorrentByHash(download.torrentHash).catch(() => undefined)
+        if (remaining === undefined) break
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
     } catch {
       // qBittorrent might be offline
     }
