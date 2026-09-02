@@ -495,6 +495,10 @@ export default defineEventHandler(async (event) => {
           torrent = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag, infoHash)
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
+          if (msg.includes('already exists')) {
+            log.warn(`[Download:8:QBIT] torrent already exists in qBittorrent: ${msg}`)
+            throw createError({ statusCode: 409, statusMessage: 'Torrent already exists in qBittorrent' })
+          }
           log.error(`[Download:8:QBIT] ✗ addTorrentFile failed in ${Date.now() - t3}ms: ${msg}`)
           throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
         }
@@ -516,6 +520,10 @@ export default defineEventHandler(async (event) => {
           torrent = await qbit.addTorrent(torrentUrl, targetPath, savePath, dlTag, magnetHash)
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
+          if (msg.includes('already exists')) {
+            log.warn(`[Download:8:QBIT] torrent already exists in qBittorrent: ${msg}`)
+            throw createError({ statusCode: 409, statusMessage: 'Torrent already exists in qBittorrent' })
+          }
           log.error(`[Download:8:QBIT] ✗ addTorrent failed in ${Date.now() - t3}ms: ${msg}`)
           throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
         }

@@ -619,6 +619,30 @@ describe('torrents/add.post', () => {
     expect(mockSetCooldown).toHaveBeenCalledWith('u1')
   })
 
+  it('throws 409 when qBittorrent already has the torrent', async () => {
+    mockQbit.addTorrent.mockRejectedValue(new Error('Torrent already exists in qBittorrent'))
+    mockReadBody.mockResolvedValue({
+      magnetLink: `magnet:?xt=urn:btih:${'a'.repeat(40)}`,
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('409: Torrent already exists in qBittorrent')
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('throws 502 for other qBittorrent errors', async () => {
+    mockQbit.addTorrent.mockRejectedValue(new Error('connection refused'))
+    mockReadBody.mockResolvedValue({
+      magnetLink: `magnet:?xt=urn:btih:${'a'.repeat(40)}`,
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('502: qBittorrent error: connection refused')
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
   it('dedupe queries match pending, downloading and completed (never removed/failed/disk_full)', async () => {
     const clauses: unknown[] = []
     mockDb.select.mockReturnValue({

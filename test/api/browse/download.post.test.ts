@@ -906,6 +906,61 @@ describe('browse/download.post', () => {
     expect(mockQbit.getTorrentFiles).toHaveBeenCalledTimes(5)
   })
 
+  it('throws 409 when qBittorrent already has the torrent (magnet path)', async () => {
+    mockQbit.addTorrent.mockRejectedValue(new Error('Torrent already exists in qBittorrent'))
+    mockReadBody.mockResolvedValue({
+      magnetLink: `magnet:?xt=urn:btih:${'a'.repeat(40)}`,
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('409: Torrent already exists in qBittorrent')
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('throws 409 when qBittorrent already has the fetched torrent file (guid path)', async () => {
+    mockIsPrivateTracker.mockReturnValue(true)
+    mockGetTrackerType.mockReturnValue('guid')
+    mockGetTrackerCookieConfig.mockResolvedValue({ enabled: true, cookie: 'session=abc123' })
+    mockGotScraping.mockResolvedValue({
+      statusCode: 200,
+      body: Buffer.from('d8:intervali1440e'),
+      headers: { 'content-type': 'application/x-bittorrent' }
+    })
+    mockQbit.addTorrentFile.mockRejectedValue(new Error('Torrent already exists in qBittorrent'))
+    mockReadBody.mockResolvedValue({
+      guid: 'https://tracker.com/dl/123',
+      downloadUrl: 'https://tracker.com/dl/123',
+      indexer: 'Devil-Torrents',
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('409: Torrent already exists in qBittorrent')
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('throws 502 when the torrent file add fails with an unknown error (guid path)', async () => {
+    mockIsPrivateTracker.mockReturnValue(true)
+    mockGetTrackerType.mockReturnValue('guid')
+    mockGetTrackerCookieConfig.mockResolvedValue({ enabled: true, cookie: 'session=abc123' })
+    mockGotScraping.mockResolvedValue({
+      statusCode: 200,
+      body: Buffer.from('d8:intervali1440e'),
+      headers: { 'content-type': 'application/x-bittorrent' }
+    })
+    mockQbit.addTorrentFile.mockRejectedValue(new Error('bad torrent file'))
+    mockReadBody.mockResolvedValue({
+      guid: 'https://tracker.com/dl/123',
+      downloadUrl: 'https://tracker.com/dl/123',
+      indexer: 'Devil-Torrents',
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('502: qBittorrent error: bad torrent file')
+  })
+
   it('dedupe queries match pending, downloading and completed (never removed/failed/disk_full)', async () => {
     const clauses: unknown[] = []
     mockDb.select.mockReturnValue({

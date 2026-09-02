@@ -226,22 +226,52 @@ export default defineEventHandler(async (event) => {
 
       setCooldown(userId)
       storedMagnetLink = `download:${downloadUrl}`
-      torrent = await qbit.addTorrent(
-        downloadUrl,
-        targetPath,
-        savePath,
-        dlTag,
-        hasMagnet ? extractMagnetHash(magnetLink) : null
-      )
+      try {
+        torrent = await qbit.addTorrent(
+          downloadUrl,
+          targetPath,
+          savePath,
+          dlTag,
+          hasMagnet ? extractMagnetHash(magnetLink) : null
+        )
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg.includes('already exists')) {
+          log.warn(`torrent already exists in qBittorrent: ${msg}`)
+          throw createError({ statusCode: 409, statusMessage: 'Torrent already exists in qBittorrent' })
+        }
+        log.error(`qBittorrent error: ${msg}`)
+        throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
+      }
     } else if (hasFile) {
       const fileBuffer = Buffer.from(torrentFileBase64, 'base64')
       storedMagnetLink = `file:${fileName}`
       setCooldown(userId)
-      torrent = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag, infoHash)
+      try {
+        torrent = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag, infoHash)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg.includes('already exists')) {
+          log.warn(`torrent already exists in qBittorrent: ${msg}`)
+          throw createError({ statusCode: 409, statusMessage: 'Torrent already exists in qBittorrent' })
+        }
+        log.error(`qBittorrent error: ${msg}`)
+        throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
+      }
     } else {
       storedMagnetLink = magnetLink
       setCooldown(userId)
-      torrent = await qbit.addTorrent(magnetLink, targetPath, savePath, dlTag)
+      try {
+        torrent = await qbit.addTorrent(magnetLink, targetPath, savePath, dlTag)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg.includes('already exists')) {
+          log.warn(`torrent already exists in qBittorrent: ${msg}`)
+          throw createError({ statusCode: 409, statusMessage: 'Torrent already exists in qBittorrent' })
+        }
+        log.error(`qBittorrent error: ${msg}`)
+        throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
+      }
     }
 
     if (torrent !== null) {
