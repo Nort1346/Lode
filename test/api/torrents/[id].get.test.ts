@@ -169,6 +169,29 @@ describe('torrents/[id].get', () => {
     )
   })
 
+  it('completes when qBittorrent v5 reports stoppedUP', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', status: 'downloading' })
+    mockFindTorrentByHash.mockResolvedValue({
+      progress: 0.8,
+      completion_on: 0,
+      downloaded: 800,
+      size: 1000,
+      eta: 0,
+      dlspeed: 0,
+      upspeed: 512,
+      state: 'stoppedUP'
+    })
+
+    const result = await handler(mockEvent)
+    expect(result).toEqual(
+      expect.objectContaining({
+        progress: 100,
+        status: 'completed'
+      })
+    )
+  })
+
   it('falls back to DB data on qBittorrent error', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', status: 'downloading' })
@@ -205,6 +228,33 @@ describe('torrents/[id].get', () => {
       dlspeed: 0,
       upspeed: 0,
       state: 'pausedDL'
+    })
+
+    const result = await handler(mockEvent)
+    expect(result).toEqual(
+      expect.objectContaining({
+        progress: 50,
+        status: 'paused',
+        etaSeconds: 0,
+        downloadSpeed: 0,
+        uploadSpeed: 0
+      })
+    )
+    expect(mockRun).toHaveBeenCalled()
+  })
+
+  it('marks paused when qBittorrent v5 reports stoppedDL', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', status: 'downloading' })
+    mockFindTorrentByHash.mockResolvedValue({
+      progress: 0.5,
+      completion_on: 0,
+      downloaded: 500,
+      size: 1000,
+      eta: 24000,
+      dlspeed: 0,
+      upspeed: 0,
+      state: 'stoppedDL'
     })
 
     const result = await handler(mockEvent)

@@ -9,11 +9,9 @@ import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
-import type { SyncResult } from '#server/types/torrent'
+import { COMPLETED_STATES, PAUSED_DOWNLOAD_STATES, type SyncResult } from '#server/types/torrent'
 
 const log = createLogger('TorrentSync')
-
-const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
 
 // A download whose torrent has vanished from qBittorrent is treated as completed
 // (instead of failed) when auto-remove of finished torrents is enabled and the
@@ -241,7 +239,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
       (qbitTorrent.completion_on > 0 ||
         qbitTorrent.downloaded >= qbitTorrent.size ||
         progressPct >= 99.9 ||
-        completedStates.has(qbitTorrent.state))
+        COMPLETED_STATES.has(qbitTorrent.state))
 
     if (isComplete) {
       await dbRun(
@@ -277,7 +275,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         )
       }
     } else {
-      const isPaused = qbitTorrent.state === 'pausedDL'
+      const isPaused = PAUSED_DOWNLOAD_STATES.has(qbitTorrent.state)
       const nextStatus = isPaused ? 'paused' : 'downloading'
       if (dl.status !== nextStatus) {
         log.info(

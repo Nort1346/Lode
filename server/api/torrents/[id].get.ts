@@ -1,6 +1,7 @@
 import { downloads } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
+import { COMPLETED_STATES, PAUSED_DOWNLOAD_STATES } from '#server/types/torrent'
 import { normalizeEta } from '#server/utils/torrents/eta'
 
 export default defineEventHandler(async (event) => {
@@ -29,7 +30,6 @@ export default defineEventHandler(async (event) => {
     try {
       const qbit = useQBittorrent()
       const torrent = await qbit.findTorrentByHash(download.torrentHash)
-      const completedStates = new Set(['uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP'])
 
       if (torrent !== undefined) {
         const progressPct = torrent.progress * 100
@@ -37,8 +37,8 @@ export default defineEventHandler(async (event) => {
           torrent.completion_on > 0 ||
           torrent.downloaded >= torrent.size ||
           progressPct >= 99.9 ||
-          completedStates.has(torrent.state)
-        const isPaused = !isComplete && torrent.state === 'pausedDL'
+          COMPLETED_STATES.has(torrent.state)
+        const isPaused = !isComplete && PAUSED_DOWNLOAD_STATES.has(torrent.state)
 
         await dbRun(
           db

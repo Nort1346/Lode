@@ -43,6 +43,14 @@ export interface QBitTorrent {
   completion_on: number
 }
 
+// qBittorrent states for a torrent that is stopped without having finished downloading.
+// v5.0 renamed pausedDL/pausedUP to stoppedDL/stoppedUP, so both spellings are accepted
+// to keep working with 4.x and 5.x instances.
+export const PAUSED_DOWNLOAD_STATES = new Set(['pausedDL', 'stoppedDL'])
+
+// qBittorrent states for a torrent that has finished downloading.
+export const COMPLETED_STATES = new Set(['uploading', 'stalledUP', 'pausedUP', 'stoppedUP', 'queuedUP', 'forcedUP'])
+
 export interface RankedTorrent extends ProwlarrResult {
   score: number
   percentage: number

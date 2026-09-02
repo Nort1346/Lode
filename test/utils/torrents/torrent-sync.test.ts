@@ -238,6 +238,25 @@ describe('syncTorrentStatus', () => {
     expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
   })
 
+  it('marks torrent paused when qBittorrent v5 reports stoppedDL', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ state: 'stoppedDL', dlspeed: 0, dlspeed_avg: 0, upspeed: 0 })])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 1, completed: 0, failed: 0, removed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'paused',
+        progress: 50,
+        etaSeconds: 0,
+        downloadSpeed: 0,
+        uploadSpeed: 0
+      })
+    )
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+  })
+
   it('resumes a paused row when qBittorrent is downloading again', async () => {
     mockActiveAll.mockReturnValue([makeDl({ status: 'paused' })])
     mockGetAllTorrents.mockReturnValue([makeQbit()])
@@ -274,6 +293,20 @@ describe('syncTorrentStatus', () => {
     mockActiveAll.mockReturnValue([makeDl({ status: 'paused' })])
     mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
     mockGetAllTorrents.mockReturnValue([makeQbit({ state: 'pausedUP', progress: 1, completion_on: 1 })])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 1, completed: 1, failed: 0, removed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
+    expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('completes a paused row when qBittorrent v5 reports stoppedUP', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ status: 'paused' })])
+    mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
+    mockGetAllTorrents.mockReturnValue([
+      makeQbit({ state: 'stoppedUP', progress: 0.998, downloaded: 998_000_000, completion_on: 0 })
+    ])
 
     const result = await syncTorrentStatus()
 
