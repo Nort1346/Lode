@@ -39,7 +39,7 @@ async function fetchData() {
   try {
     const [statsRes, listRes] = await Promise.all([
       $fetch<{ active: number; createdSince: number; completedSince: number }>('/api/torrents/stats'),
-      $fetch<{ downloads: Download[] }>('/api/torrents/list?status=downloading&limit=50')
+      $fetch<{ downloads: Download[] }>('/api/torrents/list?status=downloading,paused&limit=50')
     ])
     stats.value = {
       activeTorrents: statsRes.active,
@@ -134,7 +134,7 @@ const statusColors: Record<string, string> = {
   pending: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
   failed: 'bg-red-500/15 text-red-700 dark:text-red-400',
   disk_full: 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
-  paused: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400',
+  paused: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
   removed: 'bg-zinc-500/15 text-zinc-500 dark:text-zinc-500'
 }
 
@@ -339,9 +339,9 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   <span v-if="dl.numSeeds > 0" class="text-zinc-500 dark:text-zinc-400">
                     <UIcon name="i-lucide-arrow-up" class="inline size-3" />{{ dl.numSeeds }}
                   </span>
-                  <span
+                  <span v-if="dl.status !== 'paused'"
                     >{{ t('common.eta') }}:
-                    <span class="text-zinc-900 dark:text-white">
+                    <span class="text-zinc-900 dark:text-zinc-white">
                       {{ etaLabel(dl) }}
                     </span></span
                   >
