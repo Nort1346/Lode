@@ -80,7 +80,7 @@ vi.mock('drizzle-orm', () => ({
 
 import handler from '#server/api/torrents/list.get'
 import { getQuery } from 'h3'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 
 describe('torrents/list.get', () => {
   beforeEach(() => {
@@ -212,6 +212,25 @@ describe('torrents/list.get', () => {
     expect(eqCalls).toContainEqual(['userId', 'u1'])
     expect(eqCalls).toContainEqual(['status', 'downloading'])
     expect(vi.mocked(and)).toHaveBeenCalled()
+  })
+
+  it('applies a comma-separated status list with inArray', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'admin1', role: 'admin', username: 'admin' } })
+    vi.mocked(getQuery).mockReturnValue({ status: 'downloading,paused' })
+    mockCountGet.mockReturnValue({ count: 1 })
+    mockAll.mockReturnValue([{ id: 'dl-1', userId: 'u1', status: 'paused' }])
+    mockAllUsers.mockReturnValue([{ id: 'u1', username: 'user1' }])
+
+    await handler(mockEvent)
+    const inArrayCalls = (vi.mocked(inArray) as unknown as { mock: { calls: unknown[][] } }).mock.calls
+    expect(inArrayCalls).toContainEqual(['status', ['downloading', 'paused']])
+  })
+
+  it('rejects an invalid status token with 400', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    vi.mocked(getQuery).mockReturnValue({ status: 'downloading,bogus' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Invalid status filter')
   })
 
   it('throws 401 when not authenticated', async () => {

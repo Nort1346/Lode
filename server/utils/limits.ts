@@ -18,7 +18,7 @@ export async function checkDailyLimit(userId: string): Promise<DailyLimitResult>
   const repos = await getReposAsync()
   const limit = freshUser.dailyDownloadLimit
 
-  const activeCount = await repos.downloads.countFiltered({ userId, status: 'downloading' })
+  const activeCount = await repos.downloads.countFiltered({ userId, statuses: ['downloading', 'paused'] })
 
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)

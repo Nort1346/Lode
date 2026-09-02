@@ -1,5 +1,5 @@
 import { downloads, users } from '#server/database/schema'
-import { eq, and, count } from 'drizzle-orm'
+import { eq, and, count, inArray } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll } from '#server/utils/db'
 import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrents/torrent-sync'
 import { downloadsOrderBy } from '#server/utils/torrents/download-order'
@@ -23,10 +23,19 @@ export default defineEventHandler(async (event) => {
   const limit = typeof rawLimit === 'string' ? Math.min(100, Math.max(1, Number.parseInt(rawLimit, 10) || 10)) : 10
   const offset = (page - 1) * limit
 
-  const status =
-    typeof rawStatus === 'string' && DOWNLOAD_STATUS_VALUES.includes(rawStatus as SupportedStatus)
-      ? (rawStatus as SupportedStatus)
-      : undefined
+  // Accepts a single status or a comma-separated list (e.g. "downloading,paused")
+  const statuses: SupportedStatus[] = []
+  if (typeof rawStatus === 'string') {
+    for (const part of rawStatus
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '')) {
+      if (!DOWNLOAD_STATUS_VALUES.includes(part as SupportedStatus)) {
+        throw createError({ statusCode: 400, statusMessage: 'Invalid status filter' })
+      }
+      statuses.push(part as SupportedStatus)
+    }
+  }
 
   // Sync before reading - data will be fresh on this request
   await syncTorrentStatus().catch(() => {})
@@ -36,8 +45,12 @@ export default defineEventHandler(async (event) => {
 
   const whereClause = (() => {
     const userFilter = isAdmin ? undefined : eq(downloads.userId, session.user.id)
-    if (status !== undefined) {
-      return userFilter !== undefined ? and(userFilter, eq(downloads.status, status)) : eq(downloads.status, status)
+    if (statuses.length > 0) {
+      const statusFilter =
+        statuses.length === 1 && statuses[0] !== undefined
+          ? eq(downloads.status, statuses[0])
+          : inArray(downloads.status, statuses)
+      return userFilter !== undefined ? and(userFilter, statusFilter) : statusFilter
     }
     return userFilter
   })()

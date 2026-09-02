@@ -114,7 +114,7 @@ export default defineEventHandler(async (event) => {
         db
           .select()
           .from(downloads)
-          .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
+          .where(and(eq(downloads.userId, userId), inArray(downloads.status, ['downloading', 'paused'])))
       )
 
       if (userDownloads.length >= freshUser.activeTorrentLimit) {

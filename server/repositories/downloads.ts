@@ -1,5 +1,5 @@
 import { downloads } from '#server/database/schema'
-import { eq, and, desc, count, gte, notInArray } from 'drizzle-orm'
+import { eq, and, desc, count, gte, inArray, notInArray } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { dbGet, dbAll, dbRun } from '#server/utils/db'
 import type { SqliteDb } from '#server/types/database'
@@ -51,7 +51,8 @@ export function createDownloadRepo(db: SqliteDb): DownloadRepo {
     async countFiltered(filters) {
       const conditions = []
       if (filters.userId !== undefined) conditions.push(eq(downloads.userId, filters.userId))
-      if (filters.status !== undefined) conditions.push(eq(downloads.status, filters.status))
+      if (filters.statuses !== undefined) conditions.push(inArray(downloads.status, filters.statuses))
+      else if (filters.status !== undefined) conditions.push(eq(downloads.status, filters.status))
       const where = conditions.length > 0 ? and(...conditions) : undefined
 
       let query = db.select({ count: count() }).from(downloads)
@@ -81,7 +82,7 @@ export function createDownloadRepo(db: SqliteDb): DownloadRepo {
           db
             .select({ count: count() })
             .from(downloads)
-            .where(where([eq(downloads.status, 'downloading')]))
+            .where(where([inArray(downloads.status, ['downloading', 'paused'])]))
         ),
         dbGet(
           db

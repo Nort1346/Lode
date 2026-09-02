@@ -67,7 +67,8 @@ vi.stubGlobal('useRuntimeConfig', () => ({
 vi.mock('#server/database/schema', () => mockSchema)
 
 vi.mock('drizzle-orm', () => ({
-  eq: vi.fn((_col: unknown, val?: string) => ({ key: val }))
+  eq: vi.fn((_col: unknown, val?: string) => ({ key: val })),
+  inArray: vi.fn((_col: unknown, vals?: unknown[]) => ({ in: vals }))
 }))
 
 vi.mock('#server/utils/notifications/discord', () => ({
@@ -216,6 +217,56 @@ describe('syncTorrentStatus', () => {
         etaSeconds: 0
       })
     )
+  })
+
+  it('marks torrent paused when qBittorrent reports pausedDL', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ state: 'pausedDL', dlspeed: 0, dlspeed_avg: 0, upspeed: 0 })])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 1, completed: 0, failed: 0, removed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'paused',
+        progress: 50,
+        etaSeconds: 0,
+        downloadSpeed: 0,
+        uploadSpeed: 0
+      })
+    )
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+  })
+
+  it('resumes a paused row when qBittorrent is downloading again', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ status: 'paused' })])
+    mockGetAllTorrents.mockReturnValue([makeQbit()])
+
+    await syncTorrentStatus()
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'downloading' }))
+  })
+
+  it('completes and notifies a paused row that finished while paused', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ status: 'paused' })])
+    mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ state: 'pausedUP', progress: 1, completion_on: 1 })])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 1, completed: 1, failed: 0, removed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
+    expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks a paused row removed when the torrent vanished from qBittorrent', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ status: 'paused' })])
+    mockGetAllTorrents.mockReturnValue([])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 0, failed: 0, removed: 1 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'removed' }))
   })
 
   it('notifies each concurrently completed download with its own metadata', async () => {

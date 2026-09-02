@@ -1,5 +1,5 @@
 import { downloads, users, settings } from '#server/database/schema'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 import { sendDownloadCompleteWebhook } from '#server/utils/notifications/discord'
 import { notifyDownloadComplete } from '#server/utils/notifications/notifications'
@@ -80,7 +80,13 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
   const db = await useDbAsync()
   const result: SyncResult = { synced: 0, completed: 0, failed: 0, removed: 0 }
 
-  const activeDownloads = await dbAll(db.select().from(downloads).where(eq(downloads.status, 'downloading')))
+  // Paused rows are synced too so external pause/resume in qBittorrent is picked up
+  const activeDownloads = await dbAll(
+    db
+      .select()
+      .from(downloads)
+      .where(inArray(downloads.status, ['downloading', 'paused']))
+  )
 
   if (activeDownloads.length === 0) return result
 
@@ -270,10 +276,11 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         )
       }
     } else {
+      const isPaused = qbitTorrent.state === 'pausedDL'
       const remainingBytes = Math.max(qbitTorrent.size - qbitTorrent.downloaded, 0)
-      const etaSeconds = normalizeEta(
-        qbitTorrent.dlspeed_avg > 0 ? remainingBytes / qbitTorrent.dlspeed_avg : qbitTorrent.eta
-      )
+      const etaSeconds = isPaused
+        ? 0
+        : normalizeEta(qbitTorrent.dlspeed_avg > 0 ? remainingBytes / qbitTorrent.dlspeed_avg : qbitTorrent.eta)
       const numSeeds = Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0)
       if (numSeeds === 0) {
         if (!zeroSeedDownloads.has(dl.id) && qbitTorrent.dlspeed > 0) {
@@ -294,12 +301,13 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
             torrentName: qbitTorrent.name || dl.torrentName,
             progress: progressPct,
             etaSeconds,
-            downloadSpeed: qbitTorrent.dlspeed,
-            uploadSpeed: qbitTorrent.upspeed,
+            downloadSpeed: isPaused ? 0 : qbitTorrent.dlspeed,
+            uploadSpeed: isPaused ? 0 : qbitTorrent.upspeed,
             sizeBytes: qbitTorrent.size,
             downloadedBytes: qbitTorrent.downloaded,
             numSeeds,
-            numLeechs: qbitTorrent.num_leechs
+            numLeechs: qbitTorrent.num_leechs,
+            status: isPaused ? 'paused' : 'downloading'
           })
           .where(eq(downloads.id, dl.id))
       )

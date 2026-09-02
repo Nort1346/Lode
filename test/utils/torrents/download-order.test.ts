@@ -15,8 +15,8 @@ describe('download-order', () => {
     }
 
     const group = dialect.sqlToQuery(groupExpr)
-    expect(group.sql).toBe('case when "downloads"."status" in (?, ?) then 0 else 1 end')
-    expect(group.params).toEqual(['pending', 'downloading'])
+    expect(group.sql).toBe('case when "downloads"."status" in (?, ?, ?) then 0 else 1 end')
+    expect(group.params).toEqual(['pending', 'downloading', 'paused'])
 
     const created = dialect.sqlToQuery(createdExpr)
     expect(created.sql).toBe('"downloads"."created_at" desc')

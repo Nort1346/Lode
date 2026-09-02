@@ -643,7 +643,7 @@ describe('torrents/add.post', () => {
     expect(mockDb.insert).not.toHaveBeenCalled()
   })
 
-  it('dedupe queries match pending, downloading and completed (never removed/failed/disk_full)', async () => {
+  it('dedupe queries match pending, downloading, completed and paused (never removed/failed/disk_full)', async () => {
     const clauses: unknown[] = []
     mockDb.select.mockReturnValue({
       from: vi.fn(() => ({
@@ -666,7 +666,7 @@ describe('torrents/add.post', () => {
       .filter((params) => params.includes('pending') && params.includes('completed'))
     expect(dedupeClauses.length).toBeGreaterThanOrEqual(1)
     for (const params of dedupeClauses) {
-      expect(params).toEqual(expect.arrayContaining(['pending', 'downloading', 'completed']))
+      expect(params).toEqual(expect.arrayContaining(['pending', 'downloading', 'paused', 'completed']))
       expect(params).not.toContain('removed')
       expect(params).not.toContain('failed')
       expect(params).not.toContain('disk_full')

@@ -38,17 +38,18 @@ export default defineEventHandler(async (event) => {
           torrent.downloaded >= torrent.size ||
           progressPct >= 99.9 ||
           completedStates.has(torrent.state)
+        const isPaused = !isComplete && torrent.state === 'pausedDL'
 
         await dbRun(
           db
             .update(downloads)
             .set({
               progress: isComplete ? 100 : progressPct,
-              etaSeconds: isComplete ? 0 : normalizeEta(torrent.eta),
-              downloadSpeed: isComplete ? 0 : torrent.dlspeed,
-              uploadSpeed: isComplete ? 0 : torrent.upspeed,
+              etaSeconds: isComplete || isPaused ? 0 : normalizeEta(torrent.eta),
+              downloadSpeed: isComplete || isPaused ? 0 : torrent.dlspeed,
+              uploadSpeed: isComplete || isPaused ? 0 : torrent.upspeed,
               downloadedBytes: torrent.downloaded,
-              status: isComplete ? 'completed' : 'downloading',
+              status: isComplete ? 'completed' : isPaused ? 'paused' : 'downloading',
               completedAt: isComplete ? new Date().toISOString() : null
             })
             .where(eq(downloads.id, id))
@@ -57,11 +58,11 @@ export default defineEventHandler(async (event) => {
         return {
           ...download,
           progress: isComplete ? 100 : progressPct,
-          etaSeconds: isComplete ? 0 : normalizeEta(torrent.eta),
-          downloadSpeed: isComplete ? 0 : torrent.dlspeed,
-          uploadSpeed: isComplete ? 0 : torrent.upspeed,
+          etaSeconds: isComplete || isPaused ? 0 : normalizeEta(torrent.eta),
+          downloadSpeed: isComplete || isPaused ? 0 : torrent.dlspeed,
+          uploadSpeed: isComplete || isPaused ? 0 : torrent.upspeed,
           downloadedBytes: torrent.downloaded,
-          status: isComplete ? 'completed' : 'downloading'
+          status: isComplete ? 'completed' : isPaused ? 'paused' : 'downloading'
         }
       }
     } catch {

@@ -140,7 +140,7 @@ export default defineEventHandler(async (event) => {
           db
             .select()
             .from(downloads)
-            .where(and(eq(downloads.userId, userId), eq(downloads.status, 'downloading')))
+            .where(and(eq(downloads.userId, userId), inArray(downloads.status, ['downloading', 'paused'])))
         )
 
         log.info(`[Download:3:LIMITS] active=${userDownloads.length}/${freshUser.activeTorrentLimit}`)
