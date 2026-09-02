@@ -16,9 +16,12 @@ export function formatEta(seconds: number): string {
 export const UNRELIABLE_ETA_SECONDS = 48 * 60 * 60
 
 export function getEtaState(dl: EtaInput): EtaState {
-  // A just-added torrent reports 0 seeders until its first announce completes -
-  // only treat zero seeders as "waiting" once the download has actually started.
-  if (dl.numSeeds <= 0) return dl.progress > 0 ? 'waiting-seeders' : 'calculating'
+  // -1 means the seed count is unknown (first announce pending) - keep the
+  // "calculating" state until qBittorrent reports the swarm.
+  if (dl.numSeeds < 0) return 'calculating'
+  // A confirmed 0-seed count with no speed means the torrent is stuck waiting
+  // for seeders to appear.
+  if (dl.numSeeds === 0 && dl.downloadSpeed === 0) return 'waiting-seeders'
   if (dl.etaSeconds <= 0 || dl.downloadSpeed <= 0) return 'calculating'
   if (dl.etaSeconds > UNRELIABLE_ETA_SECONDS) return 'calculating'
   return 'ready'
@@ -68,15 +71,15 @@ export function formatDateTime(dateStr: string, locale?: string): string {
   })
 }
 
-export function getTorrentQuality(dl: { numSeeds: number; downloadSpeed: number; progress: number }): TorrentQuality {
+export function getTorrentQuality(dl: { numSeeds: number; downloadSpeed: number }): TorrentQuality {
   const seeds = dl.numSeeds
   const speed = dl.downloadSpeed
 
   if (speed > 0 && seeds > 0) return 'ok'
   if (speed > 0 && seeds === 0) return 'slow'
-  // Zero seeders on a torrent that never started is unknown (announce not complete),
-  // not confirmed dead - only warn once the download has actually started.
-  if (seeds <= 0) return dl.progress > 0 ? 'dead' : 'ok'
+  // -1 means the seed count is unknown (first announce pending), not dead
+  if (seeds < 0) return 'ok'
+  if (seeds === 0) return 'dead'
   if (seeds < 5) return 'poor'
   if (seeds < 20) return 'slow'
   return 'ok'

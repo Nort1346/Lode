@@ -70,6 +70,7 @@ const mockQbit = {
   moveToTop: vi.fn().mockResolvedValue(undefined),
   getTorrentFiles: vi.fn()
 }
+const mockInsertValues = vi.fn(() => ({ run: vi.fn(() => ({ changes: 1 })) }))
 const mockDb = {
   select: vi.fn(() => ({
     from: vi.fn(() => ({
@@ -79,11 +80,7 @@ const mockDb = {
       }))
     }))
   })),
-  insert: vi.fn(() => ({
-    values: vi.fn(() => ({
-      run: vi.fn(() => ({ changes: 1 }))
-    }))
-  })),
+  insert: vi.fn(() => ({ values: mockInsertValues })),
   transaction: vi.fn((fn: () => void) => fn())
 }
 
@@ -146,7 +143,11 @@ describe('torrents/add.post', () => {
       dlspeed: 0,
       upspeed: 0,
       downloaded: 0,
-      tags: ''
+      tags: '',
+      // qBittorrent reports unknown swarm counts until the first announce completes
+      num_seeds: -1,
+      num_complete: -1,
+      num_leechs: -1
     })
     mockQbit.addTorrentFile.mockResolvedValue({
       hash: 'abc123',
@@ -157,7 +158,10 @@ describe('torrents/add.post', () => {
       dlspeed: 0,
       upspeed: 0,
       downloaded: 0,
-      tags: ''
+      tags: '',
+      num_seeds: -1,
+      num_complete: -1,
+      num_leechs: -1
     })
   })
 
@@ -285,6 +289,7 @@ describe('torrents/add.post', () => {
       'movies',
       expect.stringMatching(/^dl-/)
     )
+    expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({ numSeeds: -1, numLeechs: -1 }))
   })
 
   it('normalizes magnet:// to magnet:', async () => {

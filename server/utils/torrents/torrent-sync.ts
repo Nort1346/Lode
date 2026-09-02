@@ -5,6 +5,7 @@ import { sendDownloadCompleteWebhook } from '#server/utils/notifications/discord
 import { notifyDownloadComplete } from '#server/utils/notifications/notifications'
 import { createLogger } from '#server/utils/logger'
 import { normalizeEta } from '#server/utils/torrents/eta'
+import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
@@ -254,7 +255,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
             uploadSpeed: 0,
             sizeBytes: qbitTorrent.size,
             downloadedBytes: qbitTorrent.downloaded,
-            numSeeds: Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0),
+            numSeeds: swarmSeedCount(qbitTorrent),
             numLeechs: qbitTorrent.num_leechs,
             status: 'completed',
             completedAt: new Date().toISOString()
@@ -281,7 +282,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
       const etaSeconds = isPaused
         ? 0
         : normalizeEta(qbitTorrent.dlspeed_avg > 0 ? remainingBytes / qbitTorrent.dlspeed_avg : qbitTorrent.eta)
-      const numSeeds = Math.max(qbitTorrent.num_seeds, qbitTorrent.num_complete > 0 ? qbitTorrent.num_complete : 0)
+      const numSeeds = swarmSeedCount(qbitTorrent)
       if (numSeeds === 0) {
         if (!zeroSeedDownloads.has(dl.id) && qbitTorrent.dlspeed > 0) {
           log.warn(

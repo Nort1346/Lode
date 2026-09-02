@@ -35,10 +35,15 @@ Torrent health is determined by seed count and download speed (`getTorrentQualit
 
 | Badge | Condition | Color |
 |-------|-----------|-------|
-| `ok` | Seeds > 0 while downloading, or >= 20 seeds | Green |
+| `ok` | Seeds > 0 while downloading, >= 20 seeds, or seed count unknown (-1) | Green |
 | `slow` | 5-19 seeds idle, or downloading with 0 seeds | Yellow |
 | `poor` | 1-4 seeds, not downloading | Orange |
-| `dead` | No seeds, not downloading | Red |
+| `dead` | Confirmed 0 seeds, not downloading | Red |
+
+qBittorrent reports the seed count as -1 (unknown) until the first announce completes.
+During that window the badge stays `ok` and the ETA shows "Calculating…". A confirmed
+0-seed count on a torrent that is not downloading is flagged `dead`, because the
+release most likely has no active seeders.
 
 ## Prep Countdown
 

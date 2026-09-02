@@ -7,6 +7,7 @@ import { getFreshUser } from '#server/utils/user'
 import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { normalizeEta } from '#server/utils/torrents/eta'
+import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { parseTorrentTitle } from '#server/utils/torrents/torrent-ranker'
 import { computeTorrentInfoHash } from '#server/utils/torrents/info-hash'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
@@ -384,6 +385,9 @@ export default defineEventHandler(async (event) => {
         uploadSpeed: torrent?.upspeed ?? 0,
         sizeBytes: torrent?.size ?? 0,
         downloadedBytes: torrent?.downloaded ?? 0,
+        // -1 = seed count unknown until qBittorrent's first announce completes
+        numSeeds: torrent !== null ? swarmSeedCount(torrent) : -1,
+        numLeechs: torrent?.num_leechs ?? -1,
         createdAt: new Date().toISOString(),
         tmdbId,
         mediaType,

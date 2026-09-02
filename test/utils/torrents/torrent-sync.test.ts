@@ -496,6 +496,33 @@ describe('syncTorrentStatus', () => {
     expect(mockLog.warn).not.toHaveBeenCalled()
   })
 
+  it('stores -1 when qBittorrent has not reported a seed count yet', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ num_seeds: -1, num_complete: -1, dlspeed: 0, dlspeed_avg: 0 })])
+
+    await syncTorrentStatus()
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ numSeeds: -1 }))
+  })
+
+  it('falls back to num_complete when num_seeds is unknown but peers completed', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ num_seeds: -1, num_complete: 3 })])
+
+    await syncTorrentStatus()
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ numSeeds: 3 }))
+  })
+
+  it('does not warn for an unknown seed count while downloading', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ num_seeds: -1, num_complete: -1 })])
+
+    await syncTorrentStatus()
+
+    expect(mockLog.warn).not.toHaveBeenCalled()
+  })
+
   it('logs when seeders return after a zero-seeder episode', async () => {
     mockActiveAll.mockReturnValue([makeDl()])
     mockGetAllTorrents.mockReturnValue([makeQbit({ num_seeds: 0, num_complete: 0, dlspeed: 5_000_000 })])

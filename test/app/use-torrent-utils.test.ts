@@ -45,13 +45,13 @@ describe('formatDateTime', () => {
 })
 
 describe('getEtaState', () => {
-  const base = { etaSeconds: 120, numSeeds: 5, downloadSpeed: 500_000, progress: 10 }
+  const base = { etaSeconds: 120, numSeeds: 5, downloadSpeed: 500_000 }
 
-  it('is calculating for a fresh torrent with no seeders and no progress', () => {
-    expect(getEtaState({ etaSeconds: 0, numSeeds: 0, downloadSpeed: 0, progress: 0 })).toBe('calculating')
+  it('is calculating when the seed count is unknown (first announce pending)', () => {
+    expect(getEtaState({ etaSeconds: 0, numSeeds: -1, downloadSpeed: 0 })).toBe('calculating')
   })
 
-  it('is waiting-seeders once the download has started with no seeders', () => {
+  it('is waiting-seeders when zero seeders are confirmed and the speed is zero', () => {
     expect(getEtaState({ ...base, numSeeds: 0, downloadSpeed: 0 })).toBe('waiting-seeders')
   })
 
@@ -73,31 +73,31 @@ describe('getEtaState', () => {
 })
 
 describe('getTorrentQuality', () => {
-  it('is ok for a fresh torrent before its first announce', () => {
-    expect(getTorrentQuality({ numSeeds: 0, downloadSpeed: 0, progress: 0 })).toBe('ok')
+  it('is ok when the seed count is unknown (first announce pending)', () => {
+    expect(getTorrentQuality({ numSeeds: -1, downloadSpeed: 0 })).toBe('ok')
   })
 
-  it('is dead once the download has started with zero seeders', () => {
-    expect(getTorrentQuality({ numSeeds: 0, downloadSpeed: 0, progress: 30 })).toBe('dead')
+  it('is dead when zero seeders are confirmed and not downloading', () => {
+    expect(getTorrentQuality({ numSeeds: 0, downloadSpeed: 0 })).toBe('dead')
   })
 
   it('is ok when downloading with seeders', () => {
-    expect(getTorrentQuality({ numSeeds: 10, downloadSpeed: 500_000, progress: 50 })).toBe('ok')
+    expect(getTorrentQuality({ numSeeds: 10, downloadSpeed: 500_000 })).toBe('ok')
   })
 
   it('is slow when downloading without seeders', () => {
-    expect(getTorrentQuality({ numSeeds: 0, downloadSpeed: 100_000, progress: 50 })).toBe('slow')
+    expect(getTorrentQuality({ numSeeds: 0, downloadSpeed: 100_000 })).toBe('slow')
   })
 
   it('is poor with fewer than 5 idle seeders', () => {
-    expect(getTorrentQuality({ numSeeds: 3, downloadSpeed: 0, progress: 0 })).toBe('poor')
+    expect(getTorrentQuality({ numSeeds: 3, downloadSpeed: 0 })).toBe('poor')
   })
 
   it('is slow with fewer than 20 idle seeders', () => {
-    expect(getTorrentQuality({ numSeeds: 10, downloadSpeed: 0, progress: 0 })).toBe('slow')
+    expect(getTorrentQuality({ numSeeds: 10, downloadSpeed: 0 })).toBe('slow')
   })
 
   it('is ok with 20 or more idle seeders', () => {
-    expect(getTorrentQuality({ numSeeds: 25, downloadSpeed: 0, progress: 0 })).toBe('ok')
+    expect(getTorrentQuality({ numSeeds: 25, downloadSpeed: 0 })).toBe('ok')
   })
 })
