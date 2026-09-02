@@ -55,6 +55,19 @@ export function formatDate(dateStr: string, locale?: string): string {
   return d.toLocaleDateString(locale, { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 
+export function formatDateTime(dateStr: string, locale?: string): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return '-'
+  return d.toLocaleString(locale, {
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 export function getTorrentQuality(dl: { numSeeds: number; downloadSpeed: number; progress: number }): TorrentQuality {
   const seeds = dl.numSeeds
   const speed = dl.downloadSpeed

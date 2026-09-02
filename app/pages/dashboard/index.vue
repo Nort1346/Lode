@@ -277,6 +277,12 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                 <p class="text-sm font-medium text-zinc-900 dark:text-white truncate">
                   {{ getDisplayName(dl) }}
                 </p>
+                <p
+                  v-if="dl.torrentName && dl.torrentName !== dl.label"
+                  class="text-xs text-zinc-400 dark:text-zinc-500 truncate"
+                >
+                  {{ dl.torrentName }}
+                </p>
                 <div class="flex items-center gap-2 mt-1.5 flex-wrap">
                   <span
                     v-if="dl.username"

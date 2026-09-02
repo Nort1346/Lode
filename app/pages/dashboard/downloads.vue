@@ -3,7 +3,7 @@ import type { Download } from '~/types/downloads'
 import {
   formatSpeed,
   formatSize,
-  formatDate,
+  formatDateTime,
   getTorrentQuality,
   useQualityConfig,
   useEtaLabel
@@ -206,6 +206,12 @@ const savePathLabels = computed<Record<string, string>>(() => ({
               <p class="font-medium text-zinc-900 dark:text-white truncate">
                 {{ getDisplayName(dl) }}
               </p>
+              <p
+                v-if="dl.torrentName && dl.torrentName !== dl.label"
+                class="text-xs text-zinc-400 dark:text-zinc-500 truncate"
+              >
+                {{ dl.torrentName }}
+              </p>
               <div class="flex items-center gap-2 mt-1.5 flex-wrap">
                 <span
                   v-if="dl.username"
@@ -235,7 +241,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   {{ qualityConfig[getTorrentQuality(dl)].badgeText }}
                 </span>
                 <span class="text-xs text-zinc-400 dark:text-zinc-500">
-                  {{ formatDate(dl.createdAt, locale) }}
+                  {{ formatDateTime(dl.createdAt, locale) }}
                 </span>
               </div>
             </div>
