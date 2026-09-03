@@ -17,11 +17,11 @@
 </p>
 
 <p align="center">
-  Self-hosted streaming hub for managing torrent downloads. Browse movies and TV shows from TMDB, find torrents via Prowlarr, and download with one click.
+  Self-hosted media hub - browse movies and TV shows from TMDB and download the best torrents with one click, straight to your media server. No Radarr or Sonarr required.
 </p>
 
 <p align="center">
-  A self-hosted alternative to Seerr (Overseerr/Jellyseerr) and the Radarr/Sonarr stack.
+  A self-hosted alternative to Seerr (Overseerr/Jellyseerr).
 </p>
 
 ## Get started
