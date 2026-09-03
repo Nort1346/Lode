@@ -216,7 +216,7 @@ async function changePassword() {
                 v-for="item in section.previews"
                 :key="item.seed"
                 :disabled="saving"
-                class="shrink-0 rounded-full ring-2 ring-transparent hover:ring-amber-400 dark:hover:ring-amber-500 transition-all cursor-pointer disabled:opacity-50 focus:outline-none focus:ring-amber-400"
+                class="shrink-0 rounded-full ring-2 ring-transparent hover:ring-amber-400 dark:hover:ring-amber-500 transition-all disabled:opacity-50 focus:outline-none focus:ring-amber-400"
                 @click="selectAvatar(section.name, item.seed, item.bgColor)"
               >
                 <img :src="item.dataUri" :alt="item.seed" class="size-20 rounded-full" loading="lazy" />

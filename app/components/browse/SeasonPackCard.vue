@@ -21,7 +21,6 @@
       :color="limitExceeded ? 'error' : 'warning'"
       icon="i-lucide-download"
       size="sm"
-      class="cursor-pointer"
       :loading="loading"
       :disabled="disabled || limitExceeded"
       @click="$emit('download')"

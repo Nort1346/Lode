@@ -198,7 +198,7 @@ onUnmounted(() => {
           :label="t('dashboard.heroCTA')"
           icon="i-lucide-play"
           size="lg"
-          class="cursor-pointer font-bold"
+          class="font-bold"
           @click.stop="goToItem(heroCurrent)"
         />
       </div>

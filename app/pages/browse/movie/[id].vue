@@ -122,7 +122,6 @@
             color="primary"
             variant="soft"
             icon="i-lucide-message-square-plus"
-            class="cursor-pointer"
             :loading="requesting"
             @click="openRequestModal"
           >
@@ -149,7 +148,6 @@
           <UButton
             color="error"
             variant="soft"
-            class="cursor-pointer"
             :icon="wishlisted ? 'i-lucide-heart-off' : 'i-lucide-heart'"
             @click="toggleWishlist"
           >
@@ -265,7 +263,6 @@
             <UButton
               :color="isPrivateLimitExceeded(torrent) ? 'error' : 'warning'"
               icon="i-lucide-download"
-              class="cursor-pointer"
               :loading="downloadingIdx === idx"
               :disabled="
                 downloadActive ||

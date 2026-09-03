@@ -16,7 +16,7 @@
       <button
         v-if="hasOverflow && !isAtStart"
         :aria-label="t('common.scrollLeft')"
-        class="absolute top-1/2 left-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-2 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800 cursor-pointer"
+        class="absolute top-1/2 left-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-2 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800"
         @click="scroll(-1)"
       >
         <UIcon name="i-lucide-chevron-left" class="size-6 text-zinc-700 dark:text-zinc-300" />
@@ -41,7 +41,7 @@
       <button
         v-if="hasOverflow && !isAtEnd"
         :aria-label="t('common.scrollRight')"
-        class="absolute top-1/2 right-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-2 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800 cursor-pointer"
+        class="absolute top-1/2 right-0 z-30 -translate-y-1/2 flex items-center justify-center rounded-full bg-white/90 p-2 shadow-md opacity-0 transition-opacity hover:bg-white group-hover/carousel:opacity-100 dark:bg-zinc-800/90 dark:hover:bg-zinc-800"
         @click="scroll(1)"
       >
         <UIcon name="i-lucide-chevron-right" class="size-6 text-zinc-700 dark:text-zinc-300" />
