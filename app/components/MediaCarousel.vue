@@ -6,11 +6,9 @@
 
     <div v-if="loading" class="flex gap-4 overflow-hidden py-4">
       <div v-for="n in 6" :key="`skeleton-${n}`" class="w-36 flex-none sm:w-44 md:w-48 lg:w-52">
-        <div class="animate-pulse">
-          <div class="aspect-2/3 rounded-xl bg-zinc-200 dark:bg-white/10" />
-          <div class="mt-2 h-4 w-3/4 rounded bg-zinc-200 dark:bg-white/10" />
-          <div class="mt-1 h-3 w-1/2 rounded bg-zinc-200 dark:bg-white/10" />
-        </div>
+        <USkeleton class="aspect-2/3 w-full rounded-xl" />
+        <USkeleton class="mt-2 h-4 w-3/4 rounded" />
+        <USkeleton class="mt-1 h-3 w-1/2 rounded" />
       </div>
     </div>
 
