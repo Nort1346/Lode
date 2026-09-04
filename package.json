@@ -63,7 +63,7 @@
     "@node-rs/bcrypt": "^1.10.8",
     "@nuxt/hints": "1.1.4",
     "@nuxt/image": "2.1.0",
-    "@nuxt/ui": "^4.10.0",
+    "@nuxt/ui": "^4.11.0",
     "@nuxtjs/i18n": "^10.6.0",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
