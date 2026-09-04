@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CustomTracker } from '~/types/admin'
+import type { SkeletonColumn } from '~/types/skeleton'
 import { formatDate } from '~/composables/useTorrentUtils'
 
 definePageMeta({
@@ -40,6 +41,15 @@ async function fetchTrackers() {
 }
 
 onMounted(fetchTrackers)
+
+const SKELETON_COLUMNS: SkeletonColumn[] = [
+  { type: 'text', width: 'w-32' },
+  { type: 'badge', width: 'w-16', hidden: 'hidden lg:table-cell' },
+  { type: 'text', width: 'w-28', hidden: 'hidden md:table-cell' },
+  { type: 'toggle' },
+  { type: 'text', width: 'w-24', hidden: 'hidden md:table-cell' },
+  { type: 'actions', actionsCount: 2 }
+]
 
 function openCreate() {
   editTracker.value = null
@@ -222,9 +232,7 @@ function getMethodLabel(tracker: CustomTracker): string {
       <UButton icon="i-lucide-plus" :label="t('trackers.addTracker')" size="sm" @click="openCreate" />
     </div>
 
-    <div v-if="loading" class="flex justify-center py-16">
-      <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
-    </div>
+    <AdminTableSkeleton v-if="loading" :columns="SKELETON_COLUMNS" />
 
     <div v-else-if="trackers.length === 0" v-reveal="'fade'" class="card p-12 text-center">
       <UIcon name="i-lucide-satellite-dish" class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />

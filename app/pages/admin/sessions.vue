@@ -110,8 +110,36 @@ function revokeAllGroup(group: SessionGroup) {
       <UButton icon="i-lucide-refresh-cw" variant="outline" :label="t('admin.refresh')" @click="fetchSessions" />
     </div>
 
-    <div v-if="loading" class="flex justify-center py-16">
-      <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
+    <div v-if="loading" role="status" aria-busy="true" class="space-y-8">
+      <div v-for="g in 2" :key="g" class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <USkeleton class="h-8 w-8 rounded-full" />
+            <USkeleton class="h-4 w-32 rounded" />
+          </div>
+          <USkeleton class="h-7 w-24 rounded-lg" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div
+            v-for="s in 3"
+            :key="s"
+            class="rounded-lg border border-zinc-200 dark:border-white/10 p-4 space-y-3"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-2">
+                <USkeleton class="h-4 w-4 rounded" />
+                <USkeleton class="h-4 w-28 rounded" />
+              </div>
+              <USkeleton class="h-6 w-6 rounded-md" />
+            </div>
+            <div class="space-y-1.5">
+              <USkeleton class="h-3 w-24 rounded" />
+              <USkeleton class="h-3 w-32 rounded" />
+              <USkeleton class="h-3 w-28 rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="groupedSessions.length === 0" class="text-center py-16 text-zinc-400">

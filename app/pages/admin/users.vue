@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AdminUser } from '~/types/admin'
+import type { SkeletonColumn } from '~/types/skeleton'
 import { formatDate } from '~/composables/useTorrentUtils'
 
 definePageMeta({
@@ -66,6 +67,20 @@ async function fetchUsers() {
 }
 
 onMounted(fetchUsers)
+
+const SKELETON_COLUMNS: SkeletonColumn[] = [
+  { type: 'avatar', width: 'w-24' },
+  { type: 'badge', width: 'w-12', hidden: 'hidden sm:table-cell' },
+  { type: 'text', width: 'w-6', align: 'center', hidden: 'hidden md:table-cell' },
+  { type: 'text', width: 'w-6', align: 'center', hidden: 'hidden md:table-cell' },
+  { type: 'text', width: 'w-10', align: 'center', hidden: 'hidden lg:table-cell' },
+  { type: 'text', width: 'w-8', align: 'center', hidden: 'hidden lg:table-cell' },
+  { type: 'badge', width: 'w-12', align: 'center', hidden: 'hidden xl:table-cell' },
+  { type: 'badge', width: 'w-16', align: 'center', hidden: 'hidden xl:table-cell' },
+  { type: 'dot', align: 'center' },
+  { type: 'text', width: 'w-20', hidden: 'hidden xl:table-cell' },
+  { type: 'actions', align: 'right', actionsCount: 3 }
+]
 
 function resetForm() {
   form.username = ''
@@ -382,9 +397,7 @@ function onExpiresAtInput(event: Event) {
       <UButton icon="i-lucide-plus" :label="t('admin.addUser')" @click="openCreate" />
     </div>
 
-    <div v-if="loading" class="flex justify-center py-16">
-      <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
-    </div>
+    <AdminTableSkeleton v-if="loading" :columns="SKELETON_COLUMNS" :rows="10" />
 
     <div v-else v-reveal="'fade'" class="card overflow-hidden">
       <div class="overflow-x-auto">

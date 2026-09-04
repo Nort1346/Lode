@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ActivityLog } from '~/types/admin'
+import type { SkeletonColumn } from '~/types/skeleton'
 
 definePageMeta({
   middleware: ['auth', 'admin'],
@@ -17,6 +18,15 @@ const filterAction = ref('all')
 const filterUserId = ref('all')
 const limit = 50
 const users = ref<{ id: string; username: string }[]>([])
+
+const SKELETON_COLUMNS: SkeletonColumn[] = [
+  { type: 'text', width: 'w-36' },
+  { type: 'text', width: 'w-16' },
+  { type: 'badge', width: 'w-20' },
+  { type: 'text', width: 'w-40', hidden: 'hidden lg:table-cell' },
+  { type: 'text', width: 'w-24', hidden: 'hidden md:table-cell' },
+  { type: 'text', width: 'w-48', hidden: 'hidden xl:table-cell' }
+]
 
 const ACTION_KEYS: Record<string, string> = {
   login: 'action_login',
@@ -198,9 +208,7 @@ const { copyToClipboard } = useCopyToClipboard()
       </div>
     </div>
 
-    <div v-if="loading" class="flex justify-center py-16">
-      <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
-    </div>
+    <AdminTableSkeleton v-if="loading" :columns="SKELETON_COLUMNS" />
 
     <div v-else-if="logs.length === 0" v-reveal="'fade'" class="card p-12 text-center">
       <UIcon name="i-lucide-inbox" class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
