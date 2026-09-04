@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Request } from '~/types/requests'
+import type { SkeletonColumn } from '~/types/skeleton'
 import { formatDate } from '~/composables/useTorrentUtils'
 
 definePageMeta({
@@ -17,6 +18,16 @@ const totalPages = ref(1)
 const total = ref(0)
 const filterStatus = ref('all')
 const PAGE_SIZE = 25
+
+const SKELETON_COLUMNS: SkeletonColumn[] = [
+  { type: 'text', width: 'w-16' },
+  { type: 'poster', width: 'w-32' },
+  { type: 'text', width: 'w-12' },
+  { type: 'text', width: 'w-32' },
+  { type: 'badge', width: 'w-16' },
+  { type: 'text', width: 'w-24' },
+  { type: 'actions', align: 'right', actionsCount: 2, actionsWidth: 'w-20' }
+]
 
 const STATUS_OPTIONS = computed(() => [
   { value: 'all', label: t('requests.filterAll') },
@@ -150,9 +161,7 @@ async function confirmAction() {
       </div>
     </div>
 
-    <div v-if="loading" class="flex justify-center py-16">
-      <UIcon name="i-lucide-loader-2" class="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" />
-    </div>
+    <AdminTableSkeleton v-if="loading" :columns="SKELETON_COLUMNS" />
 
     <div v-else-if="items.length === 0" v-reveal="'fade'" class="card p-12 text-center">
       <UIcon name="i-lucide-inbox" class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
