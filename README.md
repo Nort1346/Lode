@@ -61,7 +61,7 @@ The script checks Docker, pulls the full stack, generates secrets, and walks you
 ## Preview
 
 <p align="center">
-  <img src="./public/preview.png" alt="Lode preview" />
+  <img src="./public/preview.webp" alt="Lode preview" />
 </p>
 
 ## Quick Start
