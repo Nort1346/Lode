@@ -57,7 +57,10 @@ async function handleLogin() {
 
     <div class="w-full max-w-md px-4">
       <div class="text-center mb-6 sm:mb-8 pt-safe">
-        <h1 class="text-3xl sm:text-4xl font-bold text-gradient mb-2">Lode</h1>
+        <div class="flex items-center justify-center gap-3 sm:gap-4 mb-2">
+          <img src="/logo.svg" alt="" class="h-14 w-14 sm:h-16 sm:w-16" />
+          <h1 class="text-5xl sm:text-6xl font-black text-gradient">Lode</h1>
+        </div>
         <p class="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base">{{ t('login.subtitle') }}</p>
       </div>
 

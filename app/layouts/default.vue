@@ -114,7 +114,7 @@ watch(
 
       <NuxtLink
         to="/dashboard"
-        class="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-gradient truncate max-w-[calc(100%-140px)]"
+        class="absolute left-1/2 -translate-x-1/2 text-3xl font-black text-gradient truncate max-w-[calc(100%-140px)]"
       >
         Lode
       </NuxtLink>
@@ -136,8 +136,8 @@ watch(
     <!-- Mobile sidebar -->
     <div class="mobile-sidebar sidebar lg:hidden" :class="{ open: mobileOpen }">
       <div class="p-4 flex flex-col h-full">
-        <div class="flex items-center justify-between mb-6">
-          <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">Lode</NuxtLink>
+        <div class="flex items-center justify-between mb-4">
+          <NuxtLink to="/dashboard" class="ps-2 text-4xl font-black text-gradient">Lode</NuxtLink>
           <button
             class="flex items-center justify-center p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-500"
             @click="mobileOpen = false"
@@ -201,8 +201,8 @@ watch(
 
     <!-- Desktop sidebar -->
     <aside class="lg:flex max-lg:hidden sidebar w-64 p-4 flex-col fixed h-full z-20 overflow-y-auto min-h-0">
-      <div class="mb-6 px-2">
-        <NuxtLink to="/dashboard" class="text-2xl font-bold text-gradient">Lode</NuxtLink>
+      <div class="mb-4 px-2">
+        <NuxtLink to="/dashboard" class="text-4xl font-black text-gradient">Lode</NuxtLink>
       </div>
 
       <nav class="flex-1 space-y-1">

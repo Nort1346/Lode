@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="440" height="100" viewBox="0 0 440 100" role="img" aria-label="Lode">
   <text
     x="220"
-    y="74"
+    y="80"
     text-anchor="middle"
     fill="#f7aa14"
     font-family="Inter, 'Public Sans', Helvetica, Arial, sans-serif"
-    font-size="85"
-    font-weight="700"
+    font-size="90"
+    font-weight="800"
   >
     Lode
   </text>
