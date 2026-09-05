@@ -1,0 +1,34 @@
+<svg width="100%" viewBox="180 65 320 320" role="img" xmlns="http://www.w3.org/2000/svg">
+  <metadata>
+    <author>Nort</author>
+    <copyright>© 2026 Nort</copyright>
+  </metadata>
+  <title>Lode gold crystal logo</title>
+  <desc>
+    A bold, geometric, low-poly style gold crystal chunk in amber and gold tones, cropped to a square canvas for use as
+    an app icon or favicon.
+  </desc>
+  <g>
+    <polygon points="340,90 260,150 240,220 280,300 340,360 400,320 440,240 420,150" fill="#f7aa14" />
+    <polygon points="340,90 260,150 240,220 300,190" fill="#ffd668" />
+    <polygon points="340,90 420,150 440,240 380,180 300,190" fill="#f0980a" />
+    <polygon points="240,220 280,300 340,360 300,280" fill="#c97a05" />
+    <polygon points="440,240 400,320 340,360 380,270" fill="#a85f04" />
+    <polygon points="300,190 380,180 380,270 300,280" fill="#ffc94d" />
+    <polygon
+      points="340,90 260,150 240,220 280,300 340,360 400,320 440,240 420,150"
+      fill="none"
+      stroke="#8a5203"
+      stroke-width="4"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M 340 90 L 300 190 M 300 190 L 240 220 M 300 190 L 380 180 M 420 150 L 380 180 M 380 180 L 380 270 M 380 270 L 440 240 M 380 270 L 400 320 M 380 270 L 340 360 M 300 190 L 300 280 M 300 280 L 280 300 M 300 280 L 340 360 M 440 240 L 380 180 M 300 280 L 380 270"
+      fill="none"
+      stroke="#8a5203"
+      stroke-width="2.5"
+      stroke-linejoin="round"
+      opacity="0.8"
+    />
+  </g>
+</svg>

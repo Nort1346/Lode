@@ -138,6 +138,9 @@ export default defineNuxtConfig({
     },
     devOptions: {
       enabled: import.meta.dev
+    },
+    pwaAssets: {
+      config: true
     }
   }
 })
