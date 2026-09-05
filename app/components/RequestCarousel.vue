@@ -71,7 +71,10 @@ async function goToRequest(req: Request) {
         <UIcon name="i-lucide-chevron-left" class="size-6 text-zinc-700 dark:text-zinc-300" />
       </button>
 
-      <div ref="scrollRef" class="-mx-1 flex gap-4 overflow-x-auto overflow-y-hidden px-1 py-4 pb-2 scrollbar-hide">
+      <div
+        ref="scrollRef"
+        class="-mx-1 flex snap-x snap-mandatory scroll-px-1 overflow-x-auto overflow-y-hidden px-1 py-4 pb-2 scrollbar-hide"
+      >
         <div
           v-for="(req, idx) in activeRequests"
           :key="req.id"
@@ -80,7 +83,7 @@ async function goToRequest(req: Request) {
               if (el) cardRefs[idx] = el as HTMLElement
             }
           "
-          class="shrink-0 w-36 sm:w-44 md:w-48 lg:w-52 cursor-pointer group"
+          class="shrink-0 w-[calc(100%/2.1)] pr-4 snap-start sm:w-[calc(100%/3.1)] md:w-[calc(100%/4.1)] xl:w-[calc(100%/5.1)] 2xl:w-[calc(100%/7.1)] cursor-pointer group"
           style="
             transform-style: preserve-3d;
             will-change: transform;
