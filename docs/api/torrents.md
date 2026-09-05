@@ -121,7 +121,7 @@ Single torrent object with full details.
 
 ## Delete Torrent
 
-Remove a torrent from qBittorrent and StreamHub.
+Remove a torrent from qBittorrent and Lode.
 
 ```
 DELETE /api/torrents/[id]

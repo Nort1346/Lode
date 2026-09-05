@@ -2,7 +2,7 @@ self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
 
 self.addEventListener('push', (event) => {
-  let payload = { title: 'StreamHub', body: '', icon: '/pwa-192x192.png', tag: '', data: {}, lang: 'en' }
+  let payload = { title: 'Lode', body: '', icon: '/pwa-192x192.png', tag: '', data: {}, lang: 'en' }
 
   try {
     const data = event.data?.json()

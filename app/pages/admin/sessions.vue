@@ -120,11 +120,7 @@ function revokeAllGroup(group: SessionGroup) {
           <USkeleton class="h-7 w-24 rounded-lg" />
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div
-            v-for="s in 3"
-            :key="s"
-            class="rounded-lg border border-zinc-200 dark:border-white/10 p-4 space-y-3"
-          >
+          <div v-for="s in 3" :key="s" class="rounded-lg border border-zinc-200 dark:border-white/10 p-4 space-y-3">
             <div class="flex items-start justify-between">
               <div class="flex items-center gap-2">
                 <USkeleton class="h-4 w-4 rounded" />

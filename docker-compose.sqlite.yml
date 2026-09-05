@@ -1,9 +1,9 @@
-name: streamhub
+name: lode
 
 services:
   redis:
     image: redis:7-alpine
-    container_name: streamhub-redis
+    container_name: lode-redis
     restart: unless-stopped
     ports:
       - '6379:6379'
@@ -13,7 +13,7 @@ services:
 
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
-    container_name: streamhub-qbittorrent
+    container_name: lode-qbittorrent
     restart: unless-stopped
     ports:
       - '8080:8080'
@@ -30,7 +30,7 @@ services:
 
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
-    container_name: streamhub-prowlarr
+    container_name: lode-prowlarr
     restart: unless-stopped
     ports:
       - '9900:9696'
@@ -39,20 +39,20 @@ services:
 
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
-    container_name: streamhub-flaresolverr
+    container_name: lode-flaresolverr
     restart: unless-stopped
     ports:
       - '8191:8191'
 
-  streamhub:
+  lode:
     #build: .
-    image: ghcr.io/nort1346/streamhub:latest
-    container_name: streamhub
+    image: ghcr.io/nort1346/lode:latest
+    container_name: lode
     ports:
       - '5757:5757'
     volumes:
       - ./data:/app/.data
-      - streamhub-avatars:/app/.output/public/avatars
+      - lode-avatars:/app/.output/public/avatars
       - ./media:/media
     env_file:
       - .env
@@ -80,7 +80,7 @@ services:
 
   jellyfin:
     image: jellyfin/jellyfin:latest
-    container_name: streamhub-jellyfin
+    container_name: lode-jellyfin
     restart: unless-stopped
     ports:
       - '8096:8096'
@@ -93,18 +93,18 @@ services:
 
   dozzle:
     image: amir20/dozzle:latest
-    container_name: streamhub-dozzle
+    container_name: lode-dozzle
     restart: unless-stopped
     ports:
       - '8082:8080'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      - DOZZLE_FILTER=label=com.docker.compose.project=streamhub
+      - DOZZLE_FILTER=label=com.docker.compose.project=lode
 
 volumes:
   redis-data:
-  streamhub-avatars:
+  lode-avatars:
   qbittorrent-config:
   prowlarr-config:
   jellyfin-config:

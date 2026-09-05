@@ -1,4 +1,4 @@
-# StreamHub Documentation
+# Lode Documentation
 
 Self-hosted streaming hub for managing torrent downloads. Browse movies and TV shows from TMDB, find torrents via Prowlarr, and download with one click.
 

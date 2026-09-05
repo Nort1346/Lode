@@ -16,7 +16,7 @@ export default defineConfig({
   ...(isPostgres
     ? {
         dbCredentials: {
-          url: process.env.DATABASE_URL ?? 'postgresql://localhost:5432/streamhub'
+          url: process.env.DATABASE_URL ?? 'postgresql://localhost:5432/lode'
         }
       }
     : {

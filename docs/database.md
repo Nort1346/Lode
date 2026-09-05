@@ -2,7 +2,7 @@
 
 ## Overview
 
-StreamHub uses **Drizzle ORM** with dual database support:
+Lode uses **Drizzle ORM** with dual database support:
 - **SQLite** (default) - file-based, zero config, stored at `.data/app.db`
 - **PostgreSQL** - for production scale, configured via `DATABASE_URL`
 
@@ -235,7 +235,7 @@ Set `DB_DRIVER=postgres` in `.env` and provide `DATABASE_URL`:
 
 ```env
 DB_DRIVER=postgres
-DATABASE_URL=postgresql://streamhub:changeme@localhost:5432/streamhub
+DATABASE_URL=postgresql://lode:changeme@localhost:5432/lode
 ```
 
 ### Migration Script

@@ -286,11 +286,11 @@
     "syncPending": "Oczekuje",
     "syncFailed": "Błąd sync",
     "forceSync": "Wymuś sync",
-    "forceSyncConfirm": "Zsynchronizować tego użytkownika z Jellyfin? Jeśli konto w Jellyfin nie istnieje, zostanie wygenerowane nowe hasło dla StreamHub i Jellyfin.",
+    "forceSyncConfirm": "Zsynchronizować tego użytkownika z Jellyfin? Jeśli konto w Jellyfin nie istnieje, zostanie wygenerowane nowe hasło dla Lode i Jellyfin.",
     "forceSyncCreated": "Użytkownik utworzony w Jellyfin",
     "forceSyncSynced": "Ustawienia zsynchronizowane",
     "forceSyncPassword": "Nowe hasło (przekaż użytkownikowi)",
-    "forceSyncPasswordDesc": "Nowe hasło zostało ustawione dla tego użytkownika w StreamHub i Jellyfin. Przekaż je użytkownikowi.",
+    "forceSyncPasswordDesc": "Nowe hasło zostało ustawione dla tego użytkownika w Lode i Jellyfin. Przekaż je użytkownikowi.",
     "forceSyncError": "Błąd synchronizacji",
     "loading": "Ładowanie",
     "unknownError": "Nieznany błąd"
@@ -364,7 +364,7 @@
     "prepCountdownSaved": "Zapisano ustawienia odliczania",
     "prepCountdownError": "Błąd zapisu ustawień odliczania",
     "qbittorrentTitle": "qBittorrent",
-    "qbittorrentDesc": "Jak StreamHub interpretuje zdarzenia związane z pobieraniem w qBittorrent.",
+    "qbittorrentDesc": "Jak Lode interpretuje zdarzenia związane z pobieraniem w qBittorrent.",
     "qbitAutoRemove": "Automatyczne usuwanie ukończonych torrentów",
     "qbitAutoRemoveHint": "Włącz to, jeśli qBittorrent usuwa torrenty z listy tuż po zakończeniu pobierania (bez seedowania). Pobranie, którego torrent zniknął, ale było ukończone w co najmniej 90%, zostanie oznaczone jako ukończone zamiast nieudane.",
     "qbittorrentSaved": "Zapisano ustawienia qBittorrent",
@@ -649,7 +649,7 @@
     }
   },
   "pwa": {
-    "installTitle": "Zainstaluj StreamHub",
+    "installTitle": "Zainstaluj Lode",
     "installDescription": "Dodaj do ekranu głównego, aby uzyskać szybszy dostęp i lepsze wrażenia.",
     "installButton": "Zainstaluj",
     "iosTitle": "Dodaj do ekranu głównego",
@@ -680,7 +680,7 @@
     "passwordSame": "Nowe hasło musi się różnić od aktualnego"
   },
   "seo": {
-    "title": "StreamHub",
+    "title": "Lode",
     "description": "Przeglądaj, requestuj i pobieraj filmy oraz seriale"
   }
 }

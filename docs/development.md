@@ -100,7 +100,7 @@ putSetting('prep_speed_mb', '15')
 
 - Cookie-based sessions via `nuxt-auth-utils`
 - Session cookie must set `secure: false` for HTTP development
-- Password order is critical: plain text to Jellyfin FIRST, then bcrypt hash for StreamHub
+- Password order is critical: plain text to Jellyfin FIRST, then bcrypt hash for Lode
 
 ### Conventional Commits
 

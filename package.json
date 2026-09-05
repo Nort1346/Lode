@@ -1,15 +1,15 @@
 {
-  "name": "streamhub",
+  "name": "lode",
   "version": "1.0.0",
   "private": false,
   "description": "Self-hosted streaming hub for managing torrent downloads. Browse movies and TV shows via TMDB, rank torrents, and download with one click.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Nort1346/StreamHub.git"
+    "url": "https://github.com/Nort1346/Lode.git"
   },
-  "homepage": "https://github.com/Nort1346/StreamHub#readme",
+  "homepage": "https://github.com/Nort1346/Lode#readme",
   "bugs": {
-    "url": "https://github.com/Nort1346/StreamHub/issues"
+    "url": "https://github.com/Nort1346/Lode/issues"
   },
   "keywords": [
     "streaming",

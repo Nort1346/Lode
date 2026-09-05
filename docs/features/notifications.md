@@ -2,7 +2,7 @@
 
 ## Overview
 
-StreamHub provides real-time notifications through two channels: SSE (Server-Sent Events) for in-app notifications and Web Push (VAPID) for browser push notifications.
+Lode provides real-time notifications through two channels: SSE (Server-Sent Events) for in-app notifications and Web Push (VAPID) for browser push notifications.
 
 ## In-App Notifications (SSE)
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-StreamHub is a Progressive Web App (PWA) with offline support, install prompts, and native-like experience.
+Lode is a Progressive Web App (PWA) with offline support, install prompts, and native-like experience.
 
 ## Configuration
 
@@ -12,8 +12,8 @@ Via `@vite-pwa/nuxt` in `nuxt.config.ts`:
 pwa: {
   registerType: 'autoUpdate',
   manifest: {
-    name: 'StreamHub',
-    short_name: 'StreamHub',
+    name: 'Lode',
+    short_name: 'Lode',
     description: 'Browse, request, and download movies & TV shows',
     theme_color: '#f59e0b',
     background_color: '#09090b',

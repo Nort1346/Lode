@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-    StreamHub Auto-Setup Script for Windows
+    Lode Auto-Setup Script for Windows
 .DESCRIPTION
     Sets up the full self-hosted stack: Redis, qBittorrent, Prowlarr,
-    Jellyfin, and StreamHub with guided manual configuration.
+    Jellyfin, and Lode with guided manual configuration.
 .EXAMPLE
     .\setup.ps1
 #>
@@ -335,7 +335,7 @@ function Select-GumMenu {
 
 # -- Self-update check --------------------------------------------------
 
-$REPO_RAW = "https://raw.githubusercontent.com/Nort1346/StreamHub/main"
+$REPO_RAW = "https://raw.githubusercontent.com/Nort1346/Lode/main"
 $SETUP_URL = "$REPO_RAW/setup.ps1"
 $SETUP_NEW = Join-Path $env:TEMP "setup.ps1.new"
 $SETUP_SELF = $MyInvocation.MyCommand.Path
@@ -385,10 +385,10 @@ try {
 
 # -- Banner -----------------------------------------------------------
 
-Write-Header "StreamHub Auto-Setup v1.0"
+Write-Header "Lode Auto-Setup v1.0"
 
 Write-Host ""
-Write-Dim "This will set up StreamHub and all required services."
+Write-Dim "This will set up Lode and all required services."
 Write-Dim "All data will be stored in Docker volumes."
 Write-Host ""
 
@@ -547,12 +547,12 @@ if ($DB_DRIVER_CHOICE -eq "postgres") {
 }
 
 # -- 5. Download docker-compose if needed ------------------------------
-# The streamhub image tag is written by the version step below - mask it
+# The lode image tag is written by the version step below - mask it
 # when comparing, so tag-only differences never trigger a replace prompt.
 
 function Get-ComposeTagMasked {
     param([string]$Path)
-    (Get-Content $Path) -replace '(?m)^(\s*(#\s*)?)(image:\s*ghcr\.io/nort1346/streamhub:)\S+$', '$1$3<version>'
+    (Get-Content $Path) -replace '(?m)^(\s*(#\s*)?)(image:\s*ghcr\.io/nort1346/lode:)\S+$', '$1$3<version>'
 }
 
 Write-Step "[5/14] Downloading $COMPOSE_FILE"
@@ -634,17 +634,17 @@ if (Test-Path $COMPOSE_FILE) {
 
 if (Test-Path $COMPOSE_TMP) { Remove-Item $COMPOSE_TMP -Force -ErrorAction SilentlyContinue }
 
-# -- 6. StreamHub version choice --------------------------------------
+# -- 6. Lode version choice --------------------------------------
 # The version choice is the single source of truth for the image tag:
 # it is written into the compose file here, after the download step.
 
-Write-Step "[6/14] StreamHub version"
+Write-Step "[6/14] Lode version"
 
-$STREAMHUB_TAG = "latest"
+$LODE_TAG = "latest"
 
 if (-not $script:HAS_GUM) {
     Write-Host ""
-    Write-Host "Which StreamHub image do you want to use?" -ForegroundColor White
+    Write-Host "Which Lode image do you want to use?" -ForegroundColor White
     Write-Dim "  latest  - Stable release (recommended)"
     Write-Dim "  nightly - Latest dev build from main (may be unstable)"
     Write-Host ""
@@ -653,20 +653,20 @@ if (-not $script:HAS_GUM) {
 $versionChoice = Select-GumMenu -Prompt "Select version:" -Options @("latest (recommended)", "nightly")
 
 if ($versionChoice -match "nightly") {
-    $STREAMHUB_TAG = "nightly"
+    $LODE_TAG = "nightly"
 } else {
-    $STREAMHUB_TAG = "latest"
+    $LODE_TAG = "latest"
 }
 
 $composeContent = Get-Content $COMPOSE_FILE -Raw
-if ($composeContent -match '(?m)^\s*image:\s*ghcr\.io/nort1346/streamhub:') {
-    $composeContent = $composeContent -replace '(?m)^(\s*image:\s*ghcr\.io/nort1346/streamhub:)\S+', ('$1' + $STREAMHUB_TAG)
+if ($composeContent -match '(?m)^\s*image:\s*ghcr\.io/nort1346/lode:') {
+    $composeContent = $composeContent -replace '(?m)^(\s*image:\s*ghcr\.io/nort1346/lode:)\S+', ('$1' + $LODE_TAG)
     Set-Content -Path $COMPOSE_FILE -Value $composeContent -NoNewline
-    Write-Ok "StreamHub version: $STREAMHUB_TAG (image: ghcr.io/nort1346/streamhub:$STREAMHUB_TAG)"
-} elseif ($composeContent -match '(?m)^\s*#\s*image:.*ghcr\.io/nort1346/streamhub:') {
-    Write-Warn "$COMPOSE_FILE builds from source (image line commented out) - the $STREAMHUB_TAG tag does not apply"
+    Write-Ok "Lode version: $LODE_TAG (image: ghcr.io/nort1346/lode:$LODE_TAG)"
+} elseif ($composeContent -match '(?m)^\s*#\s*image:.*ghcr\.io/nort1346/lode:') {
+    Write-Warn "$COMPOSE_FILE builds from source (image line commented out) - the $LODE_TAG tag does not apply"
 } else {
-    Write-Warn "No streamhub image line found in $COMPOSE_FILE - check the image tag manually"
+    Write-Warn "No lode image line found in $COMPOSE_FILE - check the image tag manually"
 }
 
 # -- 7. Start infrastructure services --------------------------------
@@ -757,7 +757,7 @@ Write-Host "Follow these steps to get your Jellyfin API key:" -ForegroundColor W
 Write-Dim "  1. Open http://localhost:8096 in your browser"
 Write-Dim "  2. Complete the setup wizard (create your admin account)"
 Write-Dim "  3. Go to Dashboard (gear icon) > API Keys"
-Write-Dim '  4. Click the + button, name it StreamHub, click OK'
+Write-Dim '  4. Click the + button, name it Lode, click OK'
 Write-Dim "  5. Copy the generated API key"
 Write-Host ""
 
@@ -815,7 +815,7 @@ Write-Dim "  2. Go to Settings > General"
 Write-Dim "  3. Find the API Key field"
 Write-Dim "  4. Copy the API key"
 Write-Host ""
-Write-Callout "IMPORTANT: Prowlarr needs indexers before StreamHub can find anything." (@(
+Write-Callout "IMPORTANT: Prowlarr needs indexers before Lode can find anything." (@(
     "  1. Add at least one indexer (e.g. YTS): Settings > Indexers > Add",
     "  2. For private trackers: Settings > Indexers > Add > FlareSolverr",
     "     Set URL: http://flaresolverr:8191"
@@ -841,7 +841,7 @@ Write-Dim "  1. Go to https://www.themoviedb.org/settings/api"
 Write-Dim "  2. Create a free account (or log in)"
 Write-Dim '  3. Click the link to generate an API key'
 Write-Dim "  4. Fill in the form:"
-Write-Dim "       Application Name:  StreamHub"
+Write-Dim "       Application Name:  Lode"
 Write-Dim "       Application URL:   http://localhost:5757"
 Write-Dim "  5. Copy your API Key (v3 auth)"
 Write-Host ""
@@ -879,24 +879,24 @@ if ($discordKey) {
     Write-Warn "Skipping Discord webhook -- set it later in .env"
 }
 
-# -- 13. Pull StreamHub ------------------------------------------------
+# -- 13. Pull Lode ------------------------------------------------
 
-Write-Step "[13/14] Pulling StreamHub"
+Write-Step "[13/14] Pulling Lode"
 
-Write-Info "Pulling StreamHub image..."
-docker compose -f $COMPOSE_FILE pull streamhub
+Write-Info "Pulling Lode image..."
+docker compose -f $COMPOSE_FILE pull lode
 
-if (-not (docker image inspect "ghcr.io/nort1346/streamhub:$STREAMHUB_TAG" 2>$null)) {
-    Write-Err "Failed to pull StreamHub image. Check your network."
-    Write-Err "You can also try manually: docker compose -f $COMPOSE_FILE pull streamhub"
+if (-not (docker image inspect "ghcr.io/nort1346/lode:$LODE_TAG" 2>$null)) {
+    Write-Err "Failed to pull Lode image. Check your network."
+    Write-Err "You can also try manually: docker compose -f $COMPOSE_FILE pull lode"
     Stop-Setup 1
 }
 
-Write-Ok "StreamHub image pulled"
+Write-Ok "Lode image pulled"
 
-# -- 14. Start StreamHub -----------------------------------------------
+# -- 14. Start Lode -----------------------------------------------
 
-Write-Step "[14/14] Starting StreamHub"
+Write-Step "[14/14] Starting Lode"
 
 try {
     Update-EnvFile "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
@@ -905,34 +905,34 @@ try {
     Update-EnvFile "DB_DRIVER" $DB_DRIVER_CHOICE
 
     if ($DB_DRIVER_CHOICE -eq "postgres") {
-        Update-EnvFile "DATABASE_URL" "postgresql://streamhub:${POSTGRES_PASSWORD}@postgres:5432/streamhub"
+        Update-EnvFile "DATABASE_URL" "postgresql://lode:${POSTGRES_PASSWORD}@postgres:5432/lode"
     }
 
-    $upOutput = (docker compose -f $COMPOSE_FILE up -d streamhub 2>&1 | Out-String).Trim()
+    $upOutput = (docker compose -f $COMPOSE_FILE up -d lode 2>&1 | Out-String).Trim()
 
     Start-Sleep -Seconds 3
-    $streamhubId = docker compose -f $COMPOSE_FILE ps -q streamhub 2>$null
-    if (-not $streamhubId) {
+    $lodeId = docker compose -f $COMPOSE_FILE ps -q lode 2>$null
+    if (-not $lodeId) {
         if ($upOutput) {
-            throw "StreamHub container did not start:`n$upOutput"
+            throw "Lode container did not start:`n$upOutput"
         }
-        throw "StreamHub container did not start."
+        throw "Lode container did not start."
     }
 
-    Write-Info "Waiting for StreamHub to start (first start may take 1-2 minutes)..."
+    Write-Info "Waiting for Lode to start (first start may take 1-2 minutes)..."
     if (-not (Test-Port -Host_ "localhost" -Port 5757 -Timeout 120 -Interval 4)) {
-        throw "StreamHub did not open http://localhost:5757 within 120s."
+        throw "Lode did not open http://localhost:5757 within 120s."
     }
 
-    Write-Ok "StreamHub is running at http://localhost:5757"
+    Write-Ok "Lode is running at http://localhost:5757"
 }
 catch {
-    Write-Err "Could not start StreamHub: $_"
+    Write-Err "Could not start Lode: $_"
     Write-Host ""
     Write-Host "  The other containers are left running. To see what went wrong:" -ForegroundColor Yellow
-    Write-Host "    docker compose -f $COMPOSE_FILE logs streamhub" -ForegroundColor Yellow
+    Write-Host "    docker compose -f $COMPOSE_FILE logs lode" -ForegroundColor Yellow
     Write-Host "  To retry:" -ForegroundColor Yellow
-    Write-Host "    docker compose -f $COMPOSE_FILE up -d streamhub" -ForegroundColor Yellow
+    Write-Host "    docker compose -f $COMPOSE_FILE up -d lode" -ForegroundColor Yellow
     Write-Host ""
     Stop-Setup 1
 }
@@ -941,7 +941,7 @@ catch {
 
 $adminPass = $null
 for ($retry = 1; $retry -le 5; $retry++) {
-    $adminPass = docker compose -f $COMPOSE_FILE logs --no-color --tail 200 streamhub 2>&1 |
+    $adminPass = docker compose -f $COMPOSE_FILE logs --no-color --tail 200 lode 2>&1 |
         Select-String 'Admin password:' |
         ForEach-Object { if ($_ -match 'Admin password: ([^"]+)') { $matches[1].Trim() } } |
         Select-Object -First 1
@@ -954,12 +954,12 @@ for ($retry = 1; $retry -le 5; $retry++) {
 $hasDozzle = [bool](docker compose -f $COMPOSE_FILE ps -q dozzle 2>$null)
 
 Write-Host ""
-Write-Host "StreamHub is ready!" -ForegroundColor Green
+Write-Host "Lode is ready!" -ForegroundColor Green
 Write-Host ""
 
 # -- Services table
 $services = @(
-    (Get-SummaryRow "StreamHub" "http://localhost:5757"),
+    (Get-SummaryRow "Lode" "http://localhost:5757"),
     (Get-SummaryRow "qBittorrent" "http://localhost:8080"),
     (Get-SummaryRow "Prowlarr" "http://localhost:9900"),
     (Get-SummaryRow "Jellyfin" "http://localhost:8096"),
@@ -967,7 +967,7 @@ $services = @(
     (Get-SummaryRow "Database" $DB_DRIVER_CHOICE)
 )
 if ($DB_DRIVER_CHOICE -eq "postgres") {
-    $services += (Get-SummaryRow "PostgreSQL" "localhost:5432 / streamhub")
+    $services += (Get-SummaryRow "PostgreSQL" "localhost:5432 / lode")
 }
 if ($hasDozzle) {
     $services += (Get-SummaryRow "Dozzle" "http://localhost:8082")
@@ -984,7 +984,7 @@ if ($adminPass) {
     $credsPass = if ($script:HAS_GUM) { gum style --bold --foreground 11 $adminPass } else { $adminPass }
     Write-Host "Password: $credsPass"
 } else {
-    Write-Dim "Password: check 'docker compose -f $COMPOSE_FILE logs streamhub'"
+    Write-Dim "Password: check 'docker compose -f $COMPOSE_FILE logs lode'"
 }
 Write-Dim "Change this password after first login."
 
@@ -992,7 +992,7 @@ Write-Host ""
 
 # -- Required before first use
 Write-Callout "Required before first use:" (@(
-    "  Prowlarr has no indexers yet - StreamHub cannot find torrents until you add them.",
+    "  Prowlarr has no indexers yet - Lode cannot find torrents until you add them.",
     "  Open http://localhost:9900 and add at least one indexer (e.g. YTS).",
     "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"
 ) -join "`n")

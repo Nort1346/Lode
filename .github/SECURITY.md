@@ -1,6 +1,6 @@
 # Security Policy
 
-StreamHub is a self-hosted application that handles sensitive data: media-server
+Lode is a self-hosted application that handles sensitive data: media-server
 credentials, private tracker cookies/tokens, API keys, and user accounts. We take
 disclosure seriously.
 

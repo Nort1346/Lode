@@ -11,13 +11,13 @@ docker compose -f docker-compose.sqlite.yml up -d              # SQLite
 docker compose -f docker-compose.sqlite.yml logs -f            # view logs
 ```
 
-The `streamhub` service uses the prebuilt `ghcr.io/nort1346/streamhub:latest` image (a `:nightly` tag with the latest dev build is also published daily). To build from source instead, uncomment the `#build: .` line in the compose file (requires Docker Desktop with >=4GB memory).
+The `lode` service uses the prebuilt `ghcr.io/nort1346/lode:latest` image (a `:nightly` tag with the latest dev build is also published daily). To build from source instead, uncomment the `#build: .` line in the compose file (requires Docker Desktop with >=4GB memory).
 
 ### Services
 
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
-| `streamhub` | `ghcr.io/nort1346/streamhub:latest` | 5757 | Main application |
+| `lode` | `ghcr.io/nort1346/lode:latest` | 5757 | Main application |
 | `redis` | `redis:7-alpine` | 6379 | Caching (optional) |
 | `qbittorrent` | `lscr.io/linuxserver/qbittorrent` | 8080 | Torrent client |
 | `prowlarr` | `lscr.io/linuxserver/prowlarr` | 9900 | Indexer manager |
@@ -32,7 +32,7 @@ The `streamhub` service uses the prebuilt `ghcr.io/nort1346/streamhub:latest` im
 |--------|-------|---------|
 | `./data` | `/app/.data` | SQLite database + app data persistence |
 | `./media` | `/media` | Media storage |
-| `streamhub-avatars` | `/app/.output/public/avatars` | User avatar images |
+| `lode-avatars` | `/app/.output/public/avatars` | User avatar images |
 | `redis-data` | Redis data | Cache persistence |
 | `qbittorrent-config` | qBittorrent config | Torrent client state |
 | `prowlarr-config` | Prowlarr config | Indexer manager state |
@@ -93,6 +93,6 @@ See [Configuration](./configuration.md) for the full list of environment variabl
 
 ## Logs
 
-- **Docker logs**: `docker compose -f docker-compose.sqlite.yml logs -f streamhub`
+- **Docker logs**: `docker compose -f docker-compose.sqlite.yml logs -f lode`
 - **Dozzle UI**: `http://localhost:8082`
 - **Live logs**: Admin → Settings → Live Logs (SSE stream)

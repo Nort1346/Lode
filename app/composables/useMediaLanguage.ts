@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'streamhub-media-language'
+const STORAGE_KEY = 'lode-media-language'
 
 export const MEDIA_LANGUAGE_OPTIONS: Array<{ label: string; value: string; icon?: string }> = [
   { label: 'Original', value: 'original', icon: 'i-lucide-languages' },

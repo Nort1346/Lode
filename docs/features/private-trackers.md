@@ -2,7 +2,7 @@
 
 ## Overview
 
-StreamHub supports private trackers through cookie-based or login-based authentication. Private trackers are managed in the admin panel and support both GUID (direct torrent file) and counting (magnet link) tracker types.
+Lode supports private trackers through cookie-based or login-based authentication. Private trackers are managed in the admin panel and support both GUID (direct torrent file) and counting (magnet link) tracker types.
 
 ## Tracker Types
 
@@ -28,7 +28,7 @@ StreamHub supports private trackers through cookie-based or login-based authenti
 ### Login-Based
 - Admin provides login URL, username, and password
 - Password encrypted with AES-256-GCM
-- StreamHub performs web scraping login
+- Lode performs web scraping login
 - Cookies cached in memory
 - Automatic retry on session expiry
 
@@ -82,7 +82,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ## Download Flow for Private Trackers
 
 1. User selects a torrent from Prowlarr results
-2. StreamHub detects `isPrivate` from indexer name
+2. Lode detects `isPrivate` from indexer name
 3. Fetches tracker config from `custom_trackers` table
 4. For GUID trackers:
    - Downloads torrent file via `got-scraping`

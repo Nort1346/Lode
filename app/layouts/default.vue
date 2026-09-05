@@ -116,7 +116,7 @@ watch(
         to="/dashboard"
         class="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-gradient truncate max-w-[calc(100%-140px)]"
       >
-        StreamHub
+        Lode
       </NuxtLink>
 
       <div class="flex items-center gap-1 z-10">
@@ -137,7 +137,7 @@ watch(
     <div class="mobile-sidebar sidebar lg:hidden" :class="{ open: mobileOpen }">
       <div class="p-4 flex flex-col h-full">
         <div class="flex items-center justify-between mb-6">
-          <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">StreamHub</NuxtLink>
+          <NuxtLink to="/dashboard" class="text-lg font-bold text-gradient">Lode</NuxtLink>
           <button
             class="flex items-center justify-center p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-500"
             @click="mobileOpen = false"
@@ -202,7 +202,7 @@ watch(
     <!-- Desktop sidebar -->
     <aside class="lg:flex max-lg:hidden sidebar w-64 p-4 flex-col fixed h-full z-20 overflow-y-auto min-h-0">
       <div class="mb-6 px-2">
-        <NuxtLink to="/dashboard" class="text-2xl font-bold text-gradient">StreamHub</NuxtLink>
+        <NuxtLink to="/dashboard" class="text-2xl font-bold text-gradient">Lode</NuxtLink>
       </div>
 
       <nav class="flex-1 space-y-1">
@@ -276,9 +276,9 @@ watch(
 
     <!-- Footer -->
     <footer class="footer py-4 text-center text-xs text-zinc-400 dark:text-zinc-600">
-      StreamHub v{{ appVersion }} · &copy;
+      Lode v{{ appVersion }} · &copy;
       <NuxtLink
-        to="https://github.com/Nort1346/StreamHub"
+        to="https://github.com/Nort1346/Lode"
         target="_blank"
         rel="noopener"
         class="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors"

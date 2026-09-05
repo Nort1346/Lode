@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/logo_full.svg" alt="StreamHub" style="margin: 20px 0;">
+  <img src="./public/logo_full.svg" alt="Lode" style="margin: 20px 0;">
 </p>
 
 <p align="center">
@@ -9,9 +9,9 @@
   <img src="https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white" alt="SQLite">
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/License-AGPL--3.0-orange" alt="License">
-  <img src="https://github.com/Nort1346/StreamHub/actions/workflows/ci.yml/badge.svg" alt="CI">
-  <a href="https://github.com/Nort1346/StreamHub/pkgs/container/streamhub">
-    <img src="https://img.shields.io/badge/GHCR-nort1346%2Fstreamhub-2496ED?logo=docker&logoColor=white" alt="GHCR image">
+  <img src="https://github.com/Nort1346/Lode/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <a href="https://github.com/Nort1346/Lode/pkgs/container/lode">
+    <img src="https://img.shields.io/badge/GHCR-nort1346%2Flode-2496ED?logo=docker&logoColor=white" alt="GHCR image">
   </a>
   <img src="https://img.shields.io/badge/i18n-en%20%7C%20pl%20%7C%20de%20%7C%20fr%20%7C%20es%20%7C%20pt--BR-3178C6" alt="i18n">
 </p>
@@ -31,13 +31,13 @@ Paste this into your terminal and follow the guided setup:
 **Linux / macOS**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Nort1346/Lode/main/setup.sh | bash
 ```
 
 **Windows (PowerShell)**
 
 ```powershell
-irm https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.ps1 | iex
+irm https://raw.githubusercontent.com/Nort1346/Lode/main/setup.ps1 | iex
 ```
 
 The script checks Docker, pulls the full stack, generates secrets, and walks you through each API key - unlike Seerr, which ships with a built-in TMDB key. Prefer manual setup? See [Quick Start](#quick-start) below.
@@ -61,7 +61,7 @@ The script checks Docker, pulls the full stack, generates secrets, and walks you
 ## Preview
 
 <p align="center">
-  <img src="./public/preview.png" alt="StreamHub preview" />
+  <img src="./public/preview.png" alt="Lode preview" />
 </p>
 
 ## Quick Start
@@ -74,17 +74,17 @@ Run the one-line command from [Get started](#get-started), then the guided scrip
 3. Generate secrets (session password, tracker encryption key)
 4. Choose database driver (SQLite or PostgreSQL)
 5. Download the appropriate `docker-compose` file (`docker-compose.sqlite.yml` or `docker-compose.postgres.yml`)
-6. Choose StreamHub image tag (`latest` or `nightly`)
+6. Choose Lode image tag (`latest` or `nightly`)
 7. Start infrastructure services (Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle)
 8. Get your **Jellyfin API key** (guided instructions)
 9. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
 10. Get your **Prowlarr API key** (guided instructions)
 11. Get your **TMDB API key** (guided instructions)
 12. Set **Discord webhook** (optional)
-13. Pull StreamHub Docker image
-14. Start StreamHub with health check
+13. Pull Lode Docker image
+14. Start Lode with health check
 
-After setup, open **http://localhost:5757** and login with `admin`. The auto-generated password is shown in `docker compose -f <compose_file> logs streamhub`. Create users in Admin > Users.
+After setup, open **http://localhost:5757** and login with `admin`. The auto-generated password is shown in `docker compose -f <compose_file> logs lode`. Create users in Admin > Users.
 
 ### Option 2: Manual Setup
 
@@ -95,8 +95,8 @@ After setup, open **http://localhost:5757** and login with `admin`. The auto-gen
 - qBittorrent with WebUI API key enabled
 
 ```bash
-git clone https://github.com/Nort1346/StreamHub.git
-cd StreamHub
+git clone https://github.com/Nort1346/Lode.git
+cd Lode
 pnpm install
 cp .env.example .env    # then edit with your settings
 pnpm dev                # opens at http://localhost:5757
@@ -114,13 +114,13 @@ docker compose -f docker-compose.sqlite.yml up -d     # SQLite (default)
 docker compose -f docker-compose.sqlite.yml logs -f   # view logs
 ```
 
-The compose files use the prebuilt `ghcr.io/nort1346/streamhub:latest` image. To build from source instead, uncomment the `#build: .` line in the `streamhub` service.
+The compose files use the prebuilt `ghcr.io/nort1346/lode:latest` image. To build from source instead, uncomment the `#build: .` line in the `lode` service.
 
-StreamHub replaces Radarr and Sonarr entirely - it pulls candidate torrents from Prowlarr and sends the selected one straight to qBittorrent, which is why no *arr download services appear in the stack.
+Lode replaces Radarr and Sonarr entirely - it pulls candidate torrents from Prowlarr and sends the selected one straight to qBittorrent, which is why no *arr download services appear in the stack.
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| `streamhub` | 5757 | Application |
+| `lode` | 5757 | Application |
 | `qbittorrent` | 8080 | Torrent client |
 | `prowlarr` | 9900 | Indexer manager |
 | `flaresolverr` | 8191 | CAPTCHA solver (optional) |
@@ -151,9 +151,9 @@ Full documentation lives in [`docs/`](./docs/):
 - **[Features](./docs/features/)** - 13 feature guides (browse, torrents, users, Jellyfin, etc.)
 - **[API Reference](./docs/api/)** - Complete endpoint documentation
 
-## Why StreamHub
+## Why Lode
 
-Unlike request-only tools (Overseerr, Seerr) that stop at "request and forget", StreamHub owns the full loop:
+Unlike request-only tools (Overseerr, Seerr) that stop at "request and forget", Lode owns the full loop:
 
 - **One-click download** - picks the best torrent via a configurable ranking engine and sends it straight to qBittorrent.
 - **Private tracker support** - cookie/login auth with auto-retry on session expiry, not just public indexers.
@@ -162,15 +162,15 @@ Unlike request-only tools (Overseerr, Seerr) that stop at "request and forget", 
 - **Real-time everything** - SSE live logs, browser push (VAPID), and Discord notifications.
 - **Self-hosted first** - Docker Compose stack, SQLite by default (PostgreSQL optional), no cloud dependency.
 
-## StreamHub vs Seerr
+## Lode vs Seerr
 
-[Seerr](https://github.com/seerr-team/seerr) (formerly Overseerr / Jellyseerr) is a request management layer that sits on top of Radarr and Sonarr plus Jellyfin/Emby/Plex. Users request media, and the *arr apps fetch it automatically. StreamHub replaces Radarr, Sonarr, and the request layer with a single app that gives you direct control over torrent selection.
+[Seerr](https://github.com/seerr-team/seerr) (formerly Overseerr / Jellyseerr) is a request management layer that sits on top of Radarr and Sonarr plus Jellyfin/Emby/Plex. Users request media, and the *arr apps fetch it automatically. Lode replaces Radarr, Sonarr, and the request layer with a single app that gives you direct control over torrent selection.
 
 The key difference is *who controls the download*:
 
 Comparison based on Seerr's public docs as of August 2026 - open an issue if anything is outdated or inaccurate.
 
-| | StreamHub | [Seerr](https://github.com/seerr-team/seerr) |
+| | Lode | [Seerr](https://github.com/seerr-team/seerr) |
 |---|---|---|
 | **Primary flow** | Browse TMDB → rank torrents → send to qBittorrent | Request → *arr (Radarr/Sonarr) fetches |
 | **Torrent control** | Direct qBittorrent, one-click, manual pick | Delegated to *arr, no manual torrent pick |
@@ -187,15 +187,15 @@ Comparison based on Seerr's public docs as of August 2026 - open an issue if any
 | **Translations** | EN, PL, DE, FR, ES, PT-BR (community) | Crowdsourced via Weblate (25+ languages) |
 | **Best for** | Owning the full download loop + custom user tiers | *arr users wanting request management on top |
 
-StreamHub gives your users the ability to browse and download content themselves -- no admin intervention needed. Each user gets their own limits, session control, and a torrent ranking engine that picks the best source automatically.
+Lode gives your users the ability to browse and download content themselves -- no admin intervention needed. Each user gets their own limits, session control, and a torrent ranking engine that picks the best source automatically.
 
 ## Roadmap
 
 - [ ] Emby support (additional media server)
-- [ ] Prowlarr indexer management (add/configure indexers from StreamHub admin)
+- [ ] Prowlarr indexer management (add/configure indexers from Lode admin)
 - [ ] Home Assistant integration (webhook, sensors, automations)
 
-Got an idea? [Open a feature request](https://github.com/Nort1346/StreamHub/issues/new?template=feature_request.yml).
+Got an idea? [Open a feature request](https://github.com/Nort1346/Lode/issues/new?template=feature_request.yml).
 
 ## Contributing
 
@@ -207,4 +207,4 @@ Contributions are welcome! See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for se
 
 ## Support
 
-If you find StreamHub useful, consider giving the repo a star - it helps the project get discovered.
+If you find Lode useful, consider giving the repo a star - it helps the project get discovered.

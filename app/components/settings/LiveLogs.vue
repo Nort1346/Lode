@@ -71,7 +71,7 @@ function downloadLogs() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `streamhub-logs-${new Date().toISOString().slice(0, 10)}.txt`
+  a.download = `lode-logs-${new Date().toISOString().slice(0, 10)}.txt`
   a.click()
   URL.revokeObjectURL(url)
 }

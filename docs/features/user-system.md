@@ -2,7 +2,7 @@
 
 ## Overview
 
-StreamHub has a role-based user system with configurable limits, session management, brute force protection, and automatic account expiration.
+Lode has a role-based user system with configurable limits, session management, brute force protection, and automatic account expiration.
 
 ## Roles
 
@@ -22,8 +22,8 @@ StreamHub has a role-based user system with configurable limits, session managem
 6. Logs activity + login attempt
 
 ### Password Storage
-- **StreamHub**: bcrypt hash (12 rounds)
-- **Jellyfin**: Plain text sent first, then bcrypt for StreamHub
+- **Lode**: bcrypt hash (12 rounds)
+- **Jellyfin**: Plain text sent first, then bcrypt for Lode
 - Password order is critical for sync to work
 
 ### Session Management
@@ -110,7 +110,7 @@ const user = await requireUser(event)  // always current
 
 ## Jellyfin Sync
 
-When a user is created/updated/deleted in StreamHub:
+When a user is created/updated/deleted in Lode:
 1. Local DB operation completes first
 2. Jellyfin user created/updated/disabled/deleted
 3. Sync status tracked per provider (`synced`, `pending`, `failed`)

@@ -1,6 +1,6 @@
-# Contributing to StreamHub
+# Contributing to Lode
 
-Thanks for your interest in improving StreamHub! This guide covers local setup, the development workflow, and how to open a pull request.
+Thanks for your interest in improving Lode! This guide covers local setup, the development workflow, and how to open a pull request.
 
 ## Prerequisites
 
@@ -11,8 +11,8 @@ Thanks for your interest in improving StreamHub! This guide covers local setup, 
 ## Local setup
 
 ```bash
-git clone https://github.com/Nort1346/StreamHub.git
-cd StreamHub
+git clone https://github.com/Nort1346/Lode.git
+cd Lode
 pnpm install
 cp .env.example .env   # fill in your API keys
 pnpm dev               # runs migrations, then starts on http://localhost:5757

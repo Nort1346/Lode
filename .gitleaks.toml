@@ -1,4 +1,4 @@
-title = "StreamHub gitleaks config"
+title = "Lode gitleaks config"
 
 [extend]
 useDefault = true

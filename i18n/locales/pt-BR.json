@@ -286,11 +286,11 @@
     "syncPending": "Pendente",
     "syncFailed": "Falha na sincronização",
     "forceSync": "Forçar sincronização",
-    "forceSyncConfirm": "Sincronizar este usuário com o Jellyfin? Se não houver conta no Jellyfin, uma nova senha será gerada para o StreamHub e o Jellyfin.",
+    "forceSyncConfirm": "Sincronizar este usuário com o Jellyfin? Se não houver conta no Jellyfin, uma nova senha será gerada para o Lode e o Jellyfin.",
     "forceSyncCreated": "Usuário criado no Jellyfin",
     "forceSyncSynced": "Configurações sincronizadas",
     "forceSyncPassword": "Nova senha (compartilhe com o usuário)",
-    "forceSyncPasswordDesc": "Uma nova senha foi definida para este usuário no StreamHub e no Jellyfin. Compartilhe-a com o usuário.",
+    "forceSyncPasswordDesc": "Uma nova senha foi definida para este usuário no Lode e no Jellyfin. Compartilhe-a com o usuário.",
     "forceSyncError": "Falha na sincronização",
     "loading": "Carregando",
     "unknownError": "Erro desconhecido"
@@ -364,7 +364,7 @@
     "prepCountdownSaved": "Configurações de preparo salvas",
     "prepCountdownError": "Falha ao salvar as configurações de preparo",
     "qbittorrentTitle": "qBittorrent",
-    "qbittorrentDesc": "Como o StreamHub interpreta o que acontece com os downloads no qBittorrent.",
+    "qbittorrentDesc": "Como o Lode interpreta o que acontece com os downloads no qBittorrent.",
     "qbitAutoRemove": "Remover automaticamente torrents concluídos",
     "qbitAutoRemoveHint": "Ative isso se o qBittorrent remover os torrents da lista logo após terminarem (sem seeding). Um download cujo torrent desapareceu, mas estava com pelo menos 90% de conclusão, é marcado como concluído em vez de falho.",
     "qbittorrentSaved": "Configurações do qBittorrent salvas",
@@ -649,7 +649,7 @@
     }
   },
   "pwa": {
-    "installTitle": "Instalar StreamHub",
+    "installTitle": "Instalar Lode",
     "installDescription": "Adicione à sua tela inicial para acesso mais rápido e uma melhor experiência.",
     "installButton": "Instalar",
     "iosTitle": "Adicionar à Tela Inicial",
@@ -680,7 +680,7 @@
     "passwordSame": "A nova senha deve ser diferente da atual"
   },
   "seo": {
-    "title": "StreamHub",
+    "title": "Lode",
     "description": "Explore, requeira e baixe filmes e séries"
   }
 }

@@ -72,7 +72,7 @@ The repo uses **husky** + **gitleaks**: `pnpm install` runs `husky` (via the `pr
 
 ## Environment Variables
 
-StreamHub is configured entirely through env vars (see `.env.example`). Nuxt maps `NUXT_*` vars into `runtimeConfig` by lowercasing and stripping the prefix: `NUXT_TMDB_API_KEY` → `useRuntimeConfig().tmdbApiKey`, `NUXT_QBITTORRENT_URL` → `runtimeConfig.qbittorrentUrl`. Public vars need the `NUXT_PUBLIC_` prefix (e.g. `NUXT_PUBLIC_VAPID_PUBLIC_KEY`). `DB_DRIVER` (sqlite/postgres) selects the DB driver and is NOT a `NUXT_` var.
+Lode is configured entirely through env vars (see `.env.example`). Nuxt maps `NUXT_*` vars into `runtimeConfig` by lowercasing and stripping the prefix: `NUXT_TMDB_API_KEY` → `useRuntimeConfig().tmdbApiKey`, `NUXT_QBITTORRENT_URL` → `runtimeConfig.qbittorrentUrl`. Public vars need the `NUXT_PUBLIC_` prefix (e.g. `NUXT_PUBLIC_VAPID_PUBLIC_KEY`). `DB_DRIVER` (sqlite/postgres) selects the DB driver and is NOT a `NUXT_` var.
 
 Required for a working instance: `NUXT_SESSION_PASSWORD`, `NUXT_TMDB_API_KEY`, `NUXT_PROWLARR_URL` + `NUXT_PROWLARR_API_KEY`, `NUXT_QBITTORRENT_URL` + `NUXT_QBITTORRENT_API_KEY`, `NUXT_TRACKER_ENCRYPTION_KEY`. Optional: Jellyfin, Redis, Discord webhook, FlareSolverr, VAPID keys, disk monitoring.
 
@@ -164,7 +164,7 @@ server/utils/
 - Session validation middleware on every `/api/` request
 - Middleware checks `is_active` - disabled users get session cleared + 401
 - `requireUser()` queries DB for fresh user data (not stale cookie) - fixes role staleness
-- Password order for Jellyfin sync: plain text to Jellyfin FIRST, then bcrypt for StreamHub
+- Password order for Jellyfin sync: plain text to Jellyfin FIRST, then bcrypt for Lode
 
 ### Database
 - Drizzle ORM with SQLite (default) or PostgreSQL

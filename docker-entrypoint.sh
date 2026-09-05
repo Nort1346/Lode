@@ -19,5 +19,5 @@ echo "[entrypoint] Setting up Jellyfin libraries..."
 gosu appuser node scripts/setup-jellyfin.mjs
 
 # Drop privileges and exec the CMD (allows override via docker-compose)
-echo "[entrypoint] Starting StreamHub..."
+echo "[entrypoint] Starting Lode..."
 exec gosu appuser "$@"

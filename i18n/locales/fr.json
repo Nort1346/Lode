@@ -286,11 +286,11 @@
     "syncPending": "En attente",
     "syncFailed": "Erreur sync",
     "forceSync": "Forcer la sync",
-    "forceSyncConfirm": "Synchroniser cet utilisateur avec Jellyfin ? Si aucun compte Jellyfin n'existe, un nouveau mot de passe sera généré pour StreamHub et Jellyfin.",
+    "forceSyncConfirm": "Synchroniser cet utilisateur avec Jellyfin ? Si aucun compte Jellyfin n'existe, un nouveau mot de passe sera généré pour Lode et Jellyfin.",
     "forceSyncCreated": "Utilisateur créé dans Jellyfin",
     "forceSyncSynced": "Paramètres synchronisés",
     "forceSyncPassword": "Nouveau mot de passe (à partager avec l'utilisateur)",
-    "forceSyncPasswordDesc": "Un nouveau mot de passe a été défini pour cet utilisateur dans StreamHub et Jellyfin. Partagez-le avec l'utilisateur.",
+    "forceSyncPasswordDesc": "Un nouveau mot de passe a été défini pour cet utilisateur dans Lode et Jellyfin. Partagez-le avec l'utilisateur.",
     "forceSyncError": "Échec de la synchronisation",
     "loading": "Chargement",
     "unknownError": "Erreur inconnue"
@@ -364,7 +364,7 @@
     "prepCountdownSaved": "Paramètres de décompte enregistrés",
     "prepCountdownError": "Erreur d'enregistrement des paramètres de décompte",
     "qbittorrentTitle": "qBittorrent",
-    "qbittorrentDesc": "Comment StreamHub interprète ce qui arrive aux téléchargements dans qBittorrent.",
+    "qbittorrentDesc": "Comment Lode interprète ce qui arrive aux téléchargements dans qBittorrent.",
     "qbitAutoRemove": "Suppression automatique des torrents terminés",
     "qbitAutoRemoveHint": "Activez cette option si qBittorrent retire les torrents de la liste dès leur achèvement (sans seed). Un téléchargement dont le torrent a disparu mais qui était à au moins 90 % sera marqué comme terminé au lieu d'échoué.",
     "qbittorrentSaved": "Paramètres de qBittorrent enregistrés",
@@ -649,7 +649,7 @@
     }
   },
   "pwa": {
-    "installTitle": "Installer StreamHub",
+    "installTitle": "Installer Lode",
     "installDescription": "Ajoutez à l'écran d'accueil pour un accès plus rapide et une meilleure expérience.",
     "installButton": "Installer",
     "iosTitle": "Ajouter à l'écran d'accueil",
@@ -680,7 +680,7 @@
     "passwordSame": "Le nouveau mot de passe doit différer de l'actuel"
   },
   "seo": {
-    "title": "StreamHub",
+    "title": "Lode",
     "description": "Recherchez, demandez et téléchargez des films et séries"
   }
 }

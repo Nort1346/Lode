@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a problem with StreamHub
+description: Report a problem with Lode
 title: '[Bug] '
 labels: ['bug']
 body:
@@ -35,7 +35,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: StreamHub version
+      label: Lode version
       description: Commit hash, tag, or Docker image tag you are running.
     validations:
       required: true

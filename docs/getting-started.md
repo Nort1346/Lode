@@ -9,8 +9,8 @@
 ## Install
 
 ```bash
-git clone https://github.com/Nort1346/StreamHub.git
-cd StreamHub
+git clone https://github.com/Nort1346/Lode.git
+cd Lode
 pnpm install
 ```
 
@@ -44,7 +44,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 pnpm dev
 ```
 
-Open `http://localhost:5757`. Login with `admin` - the password is auto-generated on first start. Check `docker compose logs streamhub` for the password.
+Open `http://localhost:5757`. Login with `admin` - the password is auto-generated on first start. Check `docker compose logs lode` for the password.
 
 > There is no public registration. Login as admin and create users in Admin > Users.
 

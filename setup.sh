@@ -1,18 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
-# -- StreamHub Auto-Setup Script --------------------------------------
+# -- Lode Auto-Setup Script --------------------------------------
 # Sets up the full self-hosted stack: Redis, qBittorrent, Prowlarr,
-# Jellyfin, and StreamHub with guided manual configuration.
+# Jellyfin, and Lode with guided manual configuration.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/Nort1346/StreamHub/main/setup.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Nort1346/Lode/main/setup.sh | bash
 #   ./setup.sh
 # ----------------------------------------------------------------------
 
 # -- Constants ---------------------------------------------------------
 
-REPO_RAW="https://raw.githubusercontent.com/Nort1346/StreamHub/main"
+REPO_RAW="https://raw.githubusercontent.com/Nort1346/Lode/main"
 SETUP_URL="${REPO_RAW}/setup.sh"
 SETUP_SELF="$0"
 SETUP_NEW="$(mktemp)"
@@ -80,11 +80,11 @@ step()   { echo -e "\n${CYAN}${BOLD}$1${NC}"; }
 # When piped, the script text arrives on stdin, so interactive prompts
 # would read the consumed pipe. Re-exec the freshly downloaded copy with
 # the controlling terminal as stdin so the guided prompts work.
-if [ ! -t 0 ] && [ -z "${STREAMHUB_SETUP_REEXEC:-}" ]; then
+if [ ! -t 0 ] && [ -z "${LODE_SETUP_REEXEC:-}" ]; then
   # Note: `[ -r /dev/tty ]` is unreliable here (access() succeeds even
   # without a controlling terminal) - actually opening it is the real test.
   if { : < /dev/tty; } 2>/dev/null && curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
-    export STREAMHUB_SETUP_REEXEC=1
+    export LODE_SETUP_REEXEC=1
     chmod +x "$SETUP_NEW"
     exec bash "$SETUP_NEW" < /dev/tty "$@"
   fi
@@ -379,10 +379,10 @@ fi
 
 # -- Banner ------------------------------------------------------------
 
-header "StreamHub Auto-Setup v1.0"
+header "Lode Auto-Setup v1.0"
 
 echo ""
-dim "This will set up StreamHub and all required services."
+dim "This will set up Lode and all required services."
 dim "All data will be stored in Docker volumes."
 echo ""
 
@@ -650,11 +650,11 @@ if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
 fi
 
 # -- 5. Download docker-compose if needed -------------------------------
-# The streamhub image tag is written by the version step below - mask it
+# The lode image tag is written by the version step below - mask it
 # when comparing, so tag-only differences never trigger a replace prompt.
 
 normalize_compose_tag() {
-  sed -E 's|^([[:space:]]*(#[[:space:]]*)?)(image:[[:space:]]*ghcr\.io/nort1346/streamhub:)[^[:space:]]+|\1\3<version>|' "$1"
+  sed -E 's|^([[:space:]]*(#[[:space:]]*)?)(image:[[:space:]]*ghcr\.io/nort1346/lode:)[^[:space:]]+|\1\3<version>|' "$1"
 }
 
 step "[5/14] Downloading $COMPOSE_FILE"
@@ -718,37 +718,37 @@ else
   ok "$COMPOSE_FILE downloaded"
 fi
 
-# -- 6. StreamHub version choice --------------------------------------
+# -- 6. Lode version choice --------------------------------------
 # The version choice is the single source of truth for the image tag:
 # it is written into the compose file here, after the download step.
 
-step "[6/14] StreamHub version"
+step "[6/14] Lode version"
 
-STREAMHUB_TAG="latest"
+LODE_TAG="latest"
 
 if [ "$HAS_GUM" != true ]; then
   echo ""
-  echo "Which StreamHub image do you want to use?"
+  echo "Which Lode image do you want to use?"
   echo "  latest  - Stable release (recommended)"
   echo "  nightly - Latest dev build from main (may be unstable)"
   echo ""
 fi
 
-STREAMHUB_TAG_CHOICE=$(gum_menu "Select version:" "latest (recommended)" "nightly")
+LODE_TAG_CHOICE=$(gum_menu "Select version:" "latest (recommended)" "nightly")
 
-if [[ "$STREAMHUB_TAG_CHOICE" == *"nightly"* ]]; then
-  STREAMHUB_TAG="nightly"
+if [[ "$LODE_TAG_CHOICE" == *"nightly"* ]]; then
+  LODE_TAG="nightly"
 else
-  STREAMHUB_TAG="latest"
+  LODE_TAG="latest"
 fi
 
-if grep -qE '^[[:space:]]*image:[[:space:]]*ghcr\.io/nort1346/streamhub:' "$COMPOSE_FILE"; then
-  sed -i.bak -E "s|^([[:space:]]*image:[[:space:]]*ghcr\.io/nort1346/streamhub:)[^[:space:]]+|\1${STREAMHUB_TAG}|" "$COMPOSE_FILE" && rm -f "${COMPOSE_FILE}.bak"
-  ok "StreamHub version: $STREAMHUB_TAG (image: ghcr.io/nort1346/streamhub:${STREAMHUB_TAG})"
-elif grep -qE '^[[:space:]]*#[[:space:]]*image:.*ghcr\.io/nort1346/streamhub:' "$COMPOSE_FILE"; then
-  warn "$COMPOSE_FILE builds from source (image line commented out) - the $STREAMHUB_TAG tag does not apply"
+if grep -qE '^[[:space:]]*image:[[:space:]]*ghcr\.io/nort1346/lode:' "$COMPOSE_FILE"; then
+  sed -i.bak -E "s|^([[:space:]]*image:[[:space:]]*ghcr\.io/nort1346/lode:)[^[:space:]]+|\1${LODE_TAG}|" "$COMPOSE_FILE" && rm -f "${COMPOSE_FILE}.bak"
+  ok "Lode version: $LODE_TAG (image: ghcr.io/nort1346/lode:${LODE_TAG})"
+elif grep -qE '^[[:space:]]*#[[:space:]]*image:.*ghcr\.io/nort1346/lode:' "$COMPOSE_FILE"; then
+  warn "$COMPOSE_FILE builds from source (image line commented out) - the $LODE_TAG tag does not apply"
 else
-  warn "No streamhub image line found in $COMPOSE_FILE - check the image tag manually"
+  warn "No lode image line found in $COMPOSE_FILE - check the image tag manually"
 fi
 
 # -- 7. Start infrastructure services ---------------------------------
@@ -833,7 +833,7 @@ echo "Follow these steps to get your Jellyfin API key:"
 dim "  1. Open http://localhost:8096 in your browser"
 dim "  2. Complete the setup wizard (create your admin account)"
 dim "  3. Go to Dashboard (gear icon) > API Keys"
-dim '  4. Click the + button, name it StreamHub, click OK'
+dim '  4. Click the + button, name it Lode, click OK'
 dim "  5. Copy the generated API key"
 echo ""
 
@@ -891,7 +891,7 @@ dim "  2. Go to Settings > General"
 dim "  3. Find the API Key field"
 dim "  4. Copy the API key"
 echo ""
-echo -e "${BOLD}${YELLOW}IMPORTANT: Prowlarr needs indexers before StreamHub can find anything.${NC}"
+echo -e "${BOLD}${YELLOW}IMPORTANT: Prowlarr needs indexers before Lode can find anything.${NC}"
 dim "  1. Add at least one indexer (e.g. YTS): Settings > Indexers > Add"
 dim "  2. For private trackers: Settings > Indexers > Add > FlareSolverr"
 dim "     Set URL: http://flaresolverr:8191"
@@ -916,7 +916,7 @@ dim "  1. Go to https://www.themoviedb.org/settings/api"
 dim "  2. Create a free account (or log in)"
 dim '  3. Click the link to generate an API key'
 dim "  4. Fill in the form:"
-dim "       Application Name:  StreamHub"
+dim "       Application Name:  Lode"
 dim "       Application URL:   http://localhost:5757"
 dim "  5. Copy your API Key (v3 auth)"
 echo ""
@@ -954,24 +954,24 @@ else
   warn "Skipping Discord webhook -- set it later in .env"
 fi
 
-# -- 13. Pull StreamHub -------------------------------------------------
+# -- 13. Pull Lode -------------------------------------------------
 
-step "[13/14] Pulling StreamHub"
+step "[13/14] Pulling Lode"
 
-info "Pulling StreamHub image..."
-docker compose -f "$COMPOSE_FILE" pull streamhub || true
+info "Pulling Lode image..."
+docker compose -f "$COMPOSE_FILE" pull lode || true
 
-if ! docker image inspect "ghcr.io/nort1346/streamhub:${STREAMHUB_TAG}" &> /dev/null; then
-  err "Failed to pull StreamHub image. Check your network and try again."
-  err "You can also try manually: docker compose -f $COMPOSE_FILE pull streamhub"
+if ! docker image inspect "ghcr.io/nort1346/lode:${LODE_TAG}" &> /dev/null; then
+  err "Failed to pull Lode image. Check your network and try again."
+  err "You can also try manually: docker compose -f $COMPOSE_FILE pull lode"
   exit 1
 fi
 
-ok "StreamHub image pulled"
+ok "Lode image pulled"
 
-# -- 14. Start StreamHub ----------------------------------------------
+# -- 14. Start Lode ----------------------------------------------
 
-step "[14/14] Starting StreamHub"
+step "[14/14] Starting Lode"
 
 update_env "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 update_env "NUXT_REDIS_URL" "redis://redis:6379"
@@ -979,28 +979,28 @@ update_env "NUXT_PROWLARR_URL" "http://prowlarr:9696"
 update_env "DB_DRIVER" "$DB_DRIVER_CHOICE"
 
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
-  update_env "DATABASE_URL" "postgresql://streamhub:${POSTGRES_PASSWORD}@postgres:5432/streamhub"
+  update_env "DATABASE_URL" "postgresql://lode:${POSTGRES_PASSWORD}@postgres:5432/lode"
 fi
 
-info "Starting StreamHub..."
-docker compose -f "$COMPOSE_FILE" up -d streamhub || true
+info "Starting Lode..."
+docker compose -f "$COMPOSE_FILE" up -d lode || true
 
-if ! service_running streamhub; then
-  err "StreamHub container failed to start. Check logs:"
-  err "  docker compose -f $COMPOSE_FILE logs streamhub"
+if ! service_running lode; then
+  err "Lode container failed to start. Check logs:"
+  err "  docker compose -f $COMPOSE_FILE logs lode"
   exit 1
 fi
 
-info "Waiting for StreamHub to start (first start may take 1-2 minutes)..."
+info "Waiting for Lode to start (first start may take 1-2 minutes)..."
 wait_for_port "localhost" "5757" 120 || true
 
-ok "StreamHub is running at http://localhost:5757"
+ok "Lode is running at http://localhost:5757"
 
 # -- Extract admin password from logs ---------------------------------
 
 ADMIN_PASS=""
 for _retry in 1 2 3 4 5; do
-  ADMIN_PASS=$(docker compose -f "$COMPOSE_FILE" logs --no-color --tail 200 streamhub 2>&1 \
+  ADMIN_PASS=$(docker compose -f "$COMPOSE_FILE" logs --no-color --tail 200 lode 2>&1 \
     | grep 'Admin password:' \
     | sed 's/.*Admin password: //' | sed 's/".*//' | head -1) || true
   if [ -n "$ADMIN_PASS" ]; then break; fi
@@ -1015,12 +1015,12 @@ if service_running dozzle; then
 fi
 
 echo ""
-echo -e "${BOLD}${GREEN}StreamHub is ready!${NC}"
+echo -e "${BOLD}${GREEN}Lode is ready!${NC}"
 echo ""
 
 # -- Services table
 SERVICES_TABLE=$(cat <<TABLE
-$(summary_row "StreamHub" "http://localhost:5757")
+$(summary_row "Lode" "http://localhost:5757")
 $(summary_row "qBittorrent" "http://localhost:8080")
 $(summary_row "Prowlarr" "http://localhost:9900")
 $(summary_row "Jellyfin" "http://localhost:8096")
@@ -1031,7 +1031,7 @@ TABLE
 
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
   SERVICES_TABLE="$SERVICES_TABLE
-$(summary_row "PostgreSQL" "localhost:5432 / streamhub")"
+$(summary_row "PostgreSQL" "localhost:5432 / lode")"
 fi
 
 if [ "$HAS_DOZZLE" = true ]; then
@@ -1048,7 +1048,7 @@ echo "Username: $(bold admin)"
 if [ -n "$ADMIN_PASS" ]; then
   echo "Password: $(bold "$ADMIN_PASS")"
 else
-  dim "Password: check 'docker compose -f $COMPOSE_FILE logs streamhub'"
+  dim "Password: check 'docker compose -f $COMPOSE_FILE logs lode'"
 fi
 dim "Change this password after first login."
 
@@ -1056,6 +1056,6 @@ echo ""
 
 # -- Required before first use
 echo -e "${BOLD}${YELLOW}Required before first use:${NC}"
-dim "  Prowlarr has no indexers yet - StreamHub cannot find torrents until you add them."
+dim "  Prowlarr has no indexers yet - Lode cannot find torrents until you add them."
 dim "  Open http://localhost:9900 and add at least one indexer (e.g. YTS)."
 dim "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"

@@ -96,8 +96,8 @@ export default defineNuxtConfig({
   pwa: {
     registerType: 'autoUpdate',
     manifest: {
-      name: 'StreamHub',
-      short_name: 'StreamHub',
+      name: 'Lode',
+      short_name: 'Lode',
       description: 'Browse, request, and download movies & TV shows',
       theme_color: '#f59e0b',
       background_color: '#09090b',

@@ -27,7 +27,7 @@ jobs:
             found { print }
           ' CHANGELOG.md > release-notes.md
           if [ ! -s release-notes.md ]; then
-            echo "StreamHub ${GITHUB_REF_NAME}" > release-notes.md
+            echo "Lode ${GITHUB_REF_NAME}" > release-notes.md
           fi
 
       - name: Create GitHub release
@@ -35,5 +35,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" \
-            --title "StreamHub ${GITHUB_REF_NAME}" \
+            --title "Lode ${GITHUB_REF_NAME}" \
             --notes-file release-notes.md

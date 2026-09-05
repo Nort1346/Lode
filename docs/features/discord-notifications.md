@@ -2,7 +2,7 @@
 
 ## Overview
 
-StreamHub sends rich Discord webhook notifications for download completions and new (pending) media requests.
+Lode sends rich Discord webhook notifications for download completions and new (pending) media requests.
 
 ## Configuration
 
@@ -34,7 +34,7 @@ Accepted/rejected request outcomes do NOT send a Discord webhook - they only pro
 Notifications use Discord's Components V2 format with:
 - **Media embed**: TMDB poster image
 - **Fields**: Media type, size, save path
-- **Footer**: StreamHub branding
+- **Footer**: Lode branding
 - **Rich formatting**: Markdown text with locale support
 
 ## Locale Support

@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: nort1346/streamhub
+  IMAGE_NAME: nort1346/lode
 
 jobs:
   build:

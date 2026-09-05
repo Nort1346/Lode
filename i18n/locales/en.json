@@ -286,11 +286,11 @@
     "syncPending": "Pending",
     "syncFailed": "Sync failed",
     "forceSync": "Force sync",
-    "forceSyncConfirm": "Synchronize this user with Jellyfin? If no Jellyfin account exists, a new password will be generated for both StreamHub and Jellyfin.",
+    "forceSyncConfirm": "Synchronize this user with Jellyfin? If no Jellyfin account exists, a new password will be generated for both Lode and Jellyfin.",
     "forceSyncCreated": "User created in Jellyfin",
     "forceSyncSynced": "Settings synced",
     "forceSyncPassword": "New password (share with user)",
-    "forceSyncPasswordDesc": "A new password has been set for this user in both StreamHub and Jellyfin. Share it with the user.",
+    "forceSyncPasswordDesc": "A new password has been set for this user in both Lode and Jellyfin. Share it with the user.",
     "forceSyncError": "Sync failed",
     "loading": "Loading",
     "unknownError": "Unknown error"
@@ -364,7 +364,7 @@
     "prepCountdownSaved": "Prep countdown settings saved",
     "prepCountdownError": "Failed to save prep countdown settings",
     "qbittorrentTitle": "qBittorrent",
-    "qbittorrentDesc": "How StreamHub interprets what happens to downloads in qBittorrent.",
+    "qbittorrentDesc": "How Lode interprets what happens to downloads in qBittorrent.",
     "qbitAutoRemove": "Auto-remove completed torrents",
     "qbitAutoRemoveHint": "Enable this if qBittorrent removes torrents from the list right after they finish (no seeding). A download whose torrent has disappeared but was at least 90% complete is marked as completed instead of failed.",
     "qbittorrentSaved": "qBittorrent settings saved",
@@ -649,7 +649,7 @@
     }
   },
   "pwa": {
-    "installTitle": "Install StreamHub",
+    "installTitle": "Install Lode",
     "installDescription": "Add to your home screen for faster access and a better experience.",
     "installButton": "Install",
     "iosTitle": "Add to Home Screen",
@@ -680,7 +680,7 @@
     "passwordSame": "New password must differ from current"
   },
   "seo": {
-    "title": "StreamHub",
+    "title": "Lode",
     "description": "Browse, request, and download movies & TV shows"
   }
 }

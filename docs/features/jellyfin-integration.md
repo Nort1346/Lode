@@ -2,7 +2,7 @@
 
 ## Overview
 
-StreamHub integrates with Jellyfin media server for library detection, user synchronization, avatar management, and Live TV configuration.
+Lode integrates with Jellyfin media server for library detection, user synchronization, avatar management, and Live TV configuration.
 
 ## Configuration
 
@@ -16,7 +16,7 @@ NUXT_JELLYFIN_API_KEY=your-api-key
 ## Library Detection
 
 ### How It Works
-1. On browse requests, StreamHub fetches all TMDB IDs from Jellyfin libraries
+1. On browse requests, Lode fetches all TMDB IDs from Jellyfin libraries
 2. Results are cached in-memory with an in-flight promise cache to prevent race conditions
 3. Each browse item is checked against the cached set
 4. Items in the library show an "In Library" badge
@@ -68,7 +68,7 @@ interface SyncProvider {
 
 **User Deletion**:
 1. Jellyfin delete FIRST (prevents orphan)
-2. If Jellyfin delete fails, StreamHub delete is ABORTED
+2. If Jellyfin delete fails, Lode delete is ABORTED
 3. Local DB delete only on success
 
 ### Sync Status

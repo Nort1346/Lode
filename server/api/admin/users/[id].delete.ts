@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Cannot delete admin users' })
   }
 
-  // CRITICAL: Delete from Jellyfin FIRST, then from StreamHub
+  // CRITICAL: Delete from Jellyfin FIRST, then from Lode
   try {
     await syncUserDelete(id)
   } catch (error) {

@@ -57,7 +57,7 @@ async function handleLogin() {
 
     <div class="w-full max-w-md px-4">
       <div class="text-center mb-6 sm:mb-8 pt-safe">
-        <h1 class="text-3xl sm:text-4xl font-bold text-gradient mb-2">StreamHub</h1>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gradient mb-2">Lode</h1>
         <p class="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base">{{ t('login.subtitle') }}</p>
       </div>
 
