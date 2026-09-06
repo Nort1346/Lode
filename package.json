@@ -58,7 +58,7 @@
     "@discordjs/builders": "^1.14.1",
     "@discordjs/formatters": "^0.6.2",
     "@discordjs/rest": "^2.6.3",
-    "@iconify-json/lucide": "^1.2.121",
+    "@iconify-json/lucide": "^1.2.129",
     "@iconify-json/simple-icons": "^1.2.93",
     "@node-rs/bcrypt": "^1.10.8",
     "@nuxt/hints": "1.1.4",
