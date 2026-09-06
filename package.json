@@ -59,7 +59,7 @@
     "@discordjs/formatters": "^0.6.2",
     "@discordjs/rest": "^2.6.3",
     "@iconify-json/lucide": "^1.2.121",
-    "@iconify-json/simple-icons": "^1.2.93",
+    "@iconify-json/simple-icons": "^1.2.94",
     "@node-rs/bcrypt": "^1.10.8",
     "@nuxt/hints": "1.1.4",
     "@nuxt/image": "2.1.0",
