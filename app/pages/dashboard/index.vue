@@ -101,6 +101,14 @@ function goToItem(item: { id: number; type: 'movie' | 'tv' }) {
   void navigateTo(item.type === 'movie' ? `/browse/movie/${item.id}` : `/browse/tv/${item.id}`)
 }
 
+function goToDownloads() {
+  void navigateTo('/dashboard/downloads')
+}
+
+function scrollToActiveDownloads() {
+  document.getElementById('active-downloads')?.scrollIntoView({ behavior: 'smooth' })
+}
+
 async function cancelTorrent(dl: Download) {
   const confirmed = await confirm({
     title: t('download.confirmTitle'),
@@ -160,7 +168,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
     </div>
 
     <div v-reveal class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-      <div class="card p-5 reveal-delay-1">
+      <div class="card p-5 reveal-delay-1 cursor-pointer" @click="scrollToActiveDownloads">
         <div class="flex items-center gap-4">
           <div
             class="w-11 h-11 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center shrink-0"
@@ -181,7 +189,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
         </div>
       </div>
 
-      <div class="card p-5 reveal-delay-2">
+      <div class="card p-5 reveal-delay-2 cursor-pointer" @click="goToDownloads">
         <div class="flex items-center gap-4">
           <div
             class="w-11 h-11 rounded-xl bg-cyan-500/10 dark:bg-cyan-500/15 flex items-center justify-center shrink-0"
@@ -202,7 +210,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
         </div>
       </div>
 
-      <div class="card p-5 reveal-delay-3">
+      <div class="card p-5 reveal-delay-3 cursor-pointer" @click="goToDownloads">
         <div class="flex items-center gap-4">
           <div
             class="w-11 h-11 rounded-xl bg-green-500/10 dark:bg-green-500/15 flex items-center justify-center shrink-0"
@@ -228,7 +236,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
       <HeroSection :trending-items="trendingItems" />
     </div>
 
-    <div v-reveal class="card p-5 md:p-6 mb-8">
+    <div id="active-downloads" v-reveal class="card p-5 md:p-6 mb-8 scroll-mt-16">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('dashboard.activeTorrents') }}</h2>
         <UButton to="/browse" icon="i-lucide-search" :label="t('dashboard.browse')" size="sm" />
