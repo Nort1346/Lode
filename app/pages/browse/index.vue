@@ -88,12 +88,12 @@
       <div v-reveal>
         <MediaCarousel
           :title="t('browse.trending')"
-          :items="trendingItems"
+          :items="filteredTrending"
           :loading="trendingPending"
           @item-click="goToItem"
         />
       </div>
-      <div v-reveal="1">
+      <div v-if="!isTvOnly" v-reveal="1">
         <MediaCarousel
           :title="t('browse.popularMovies')"
           :items="popularMoviesTyped"
@@ -102,7 +102,7 @@
         />
       </div>
 
-      <InviewSection @visible="popularTvVisible = true">
+      <InviewSection v-if="!isMovieOnly" @visible="popularTvVisible = true">
         <MediaCarousel
           :title="t('browse.popularTv')"
           :items="popularTvShowsTyped"
@@ -112,10 +112,14 @@
       </InviewSection>
 
       <div v-reveal>
-        <BrowseSpotlight v-if="spotlights[0]" :item="spotlights[0]" />
+        <BrowseSpotlight v-if="visibleSpotlights[0]" :item="visibleSpotlights[0]" />
       </div>
 
-      <InviewSection v-for="g in movieGenres" :key="`movie-${g.id}`" @visible="genreVisible[`movie-${g.id}`] = true">
+      <InviewSection
+        v-for="g in visibleMovieGenres"
+        :key="`movie-${g.id}`"
+        @visible="genreVisible[`movie-${g.id}`] = true"
+      >
         <MediaCarousel
           :title="t(g.key)"
           :items="genreMovieItems[g.id] ?? []"
@@ -125,10 +129,10 @@
       </InviewSection>
 
       <div v-reveal>
-        <BrowseSpotlight v-if="spotlights[1]" :item="spotlights[1]" />
+        <BrowseSpotlight v-if="searchParams.type === 'all' && visibleSpotlights[1]" :item="visibleSpotlights[1]" />
       </div>
 
-      <InviewSection v-for="g in tvGenres" :key="`tv-${g.id}`" @visible="genreVisible[`tv-${g.id}`] = true">
+      <InviewSection v-for="g in visibleTvGenres" :key="`tv-${g.id}`" @visible="genreVisible[`tv-${g.id}`] = true">
         <MediaCarousel
           :title="t(g.key)"
           :items="genreTvItems[g.id] ?? []"
@@ -138,10 +142,10 @@
       </InviewSection>
 
       <div v-reveal>
-        <BrowseSpotlight v-if="spotlights[2]" :item="spotlights[2]" />
+        <BrowseSpotlight v-if="visibleSpotlights[2]" :item="visibleSpotlights[2]" />
       </div>
 
-      <InviewSection @visible="topRatedVisible = true">
+      <InviewSection v-if="!isTvOnly" @visible="topRatedVisible = true">
         <MediaCarousel
           :title="t('browse.topRated')"
           :items="topRatedMoviesTyped"
@@ -400,11 +404,22 @@ const { data: trendingData, pending: trendingPending } = await useFetch('/api/br
 
 const trendingItems = computed(() => trendingData.value?.items ?? [])
 
+const isMovieOnly = computed(() => searchParams.type === 'movie')
+const isTvOnly = computed(() => searchParams.type === 'tv')
+
+const filteredTrending = computed(() =>
+  searchParams.type === 'all' ? trendingItems.value : trendingItems.value.filter((i) => i.type === searchParams.type)
+)
+
 const { data: spotlightsData } = await useFetch('/api/browse/spotlights', {
   query: computed(() => ({ locale: locale.value })),
   watch: [locale]
 })
 const spotlights = computed(() => spotlightsData.value?.items ?? [])
+
+const visibleSpotlights = computed(() =>
+  searchParams.type === 'all' ? spotlights.value : spotlights.value.filter((s) => s.type === searchParams.type)
+)
 
 const { data: topRatedData, pending: topRatedPending } = await useFetch('/api/browse/top-rated', {
   query: computed(() => ({ locale: locale.value })),
@@ -442,6 +457,9 @@ const tvGenres = [
   { id: 80, key: 'browse.crime' },
   { id: 10762, key: 'browse.animation' }
 ]
+
+const visibleMovieGenres = computed(() => (isTvOnly.value ? [] : movieGenres))
+const visibleTvGenres = computed(() => (isMovieOnly.value ? [] : tvGenres))
 
 const genreMovieItems = reactive<Record<number, MediaCarouselItem[]>>({})
 const genreMoviePending = reactive<Record<number, boolean>>({})
