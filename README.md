@@ -24,6 +24,10 @@
   A self-hosted alternative to Seerr (Overseerr/Jellyseerr).
 </p>
 
+<p align="center">
+  <img src="./public/demo.webp" alt="Lode demo" width="1000" />
+</p>
+
 ## Get started
 
 Paste this into your terminal and follow the guided setup:
@@ -59,10 +63,6 @@ The script checks Docker, pulls the full stack, generates secrets, and walks you
 | **PWA** | Installable app with offline support and push notifications |
 
 ## Preview
-
-<p align="center">
-  <img src="./public/demo.gif" alt="Lode demo" width="1000" />
-</p>
 
 <p align="center">
   <img src="./public/preview.webp" alt="Lode preview" />
