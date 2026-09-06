@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <video src="./public/demo.mp4" width="1080" autoplay loop muted playsinline></video>
+  <img src="./public/demo.gif" alt="Lode demo" width="1000" />
 </p>
 
 ## Get started
