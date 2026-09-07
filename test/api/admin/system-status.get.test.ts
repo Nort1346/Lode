@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { stubAdminAuth } from '../helpers'
+import { getLogBuffer } from '#server/utils/logger'
 
 const mockGetUserSession = vi.fn()
 
@@ -307,6 +308,79 @@ describe('admin/system-status.get', () => {
     const result = await handler(mockEvent)
     const jellyfin = result.services.find((s: { name: string }) => s.name === 'Jellyfin')
     expect(jellyfin).toEqual(expect.objectContaining({ status: 'up', details: '10.9.0' }))
+  })
+
+  it('returns not_configured when the Jellyfin API key is missing', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubConfig({ jellyfinApiKey: '' })
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(''),
+      json: () => Promise.resolve({})
+    } as Response)
+
+    const result = await handler(mockEvent)
+    const jellyfin = result.services.find((s: { name: string }) => s.name === 'Jellyfin')
+    expect(jellyfin).toEqual(expect.objectContaining({ status: 'not_configured', configured: false }))
+    const jellyfinCalls = vi.mocked(global.fetch).mock.calls.filter(([url]) => String(url).includes('jellyfin'))
+    expect(jellyfinCalls).toHaveLength(0)
+  })
+
+  it('detects invalid Jellyfin API key (403)', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      if (String(url).includes('jellyfin')) {
+        return { ok: false, status: 403, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const jellyfin = result.services.find((s: { name: string }) => s.name === 'Jellyfin')
+    expect(jellyfin).toEqual(
+      expect.objectContaining({ status: 'invalid', configured: true, details: 'API key rejected' })
+    )
+  })
+
+  it('returns error status for Jellyfin 5xx responses', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      if (String(url).includes('jellyfin')) {
+        return {
+          ok: false,
+          status: 500,
+          text: () => Promise.resolve('Internal Server Error'),
+          json: () => Promise.resolve({})
+        } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const jellyfin = result.services.find((s: { name: string }) => s.name === 'Jellyfin')
+    expect(jellyfin).toEqual(expect.objectContaining({ status: 'error', configured: true, details: 'HTTP 500' }))
+    expect(getLogBuffer().some((line) => line.includes('Jellyfin status check failed with HTTP 500'))).toBe(true)
+  })
+
+  it('returns error status for malformed Jellyfin responses', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      if (String(url).includes('jellyfin')) {
+        return {
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve('<html>not json</html>'),
+          json: () => Promise.reject(new Error('Unexpected token <'))
+        } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const jellyfin = result.services.find((s: { name: string }) => s.name === 'Jellyfin')
+    expect(jellyfin).toEqual(
+      expect.objectContaining({ status: 'error', configured: true, details: 'Malformed response' })
+    )
   })
 
   it('returns qBittorrent version when up', async () => {
