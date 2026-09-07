@@ -1,4 +1,5 @@
 import { getActiveSyncProviders } from '#server/utils/sync'
+import { useJellyfin } from '#server/utils/clients/jellyfin'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -7,6 +8,8 @@ export default defineEventHandler(async (event) => {
 
   return {
     providers: providers.map((p) => ({ name: p.name, enabled: true })),
-    jellyfinConfigured: providers.some((p) => p.name === 'jellyfin')
+    // "Configured" means the connection is set (URL + API key), independent of
+    // whether Jellyfin sync is currently enabled.
+    jellyfinConfigured: useJellyfin() !== null
   }
 })

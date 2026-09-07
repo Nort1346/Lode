@@ -1,6 +1,9 @@
+import type { ServiceStatus } from '#server/types/admin'
 import type { JellyfinItemDto } from '#server/types/jellyfin'
+import { createLogger } from '#server/utils/logger'
 import { normalizeUrl } from '#server/utils/url'
 
+const log = createLogger('Jellyfin')
 const JELLYFIN_AUTH_HEADER_PREFIX = 'MediaBrowser Token'
 const LIBRARY_CACHE_TTL = 5 * 60 * 1000
 
@@ -265,4 +268,71 @@ export function useJellyfin(): JellyfinClient | null {
   }
 
   return _client
+}
+
+export async function checkJellyfinStatus(): Promise<ServiceStatus> {
+  const config = useRuntimeConfig()
+  const url = config.jellyfinUrl as string
+  const apiKey = (config.jellyfinApiKey as string) || ''
+  if (!url || !apiKey) {
+    return { name: 'Jellyfin', configured: false, status: 'not_configured' }
+  }
+
+  const start = Date.now()
+  try {
+    // System/Info requires the API key and verifies it; the response body
+    // carries the server version. Uses the supported MediaBrowser auth header
+    // (X-Emby-Token is deprecated upstream).
+    const res = await fetch(`${normalizeUrl(url)}/System/Info`, {
+      headers: { Authorization: `${JELLYFIN_AUTH_HEADER_PREFIX}="${apiKey}"` },
+      signal: AbortSignal.timeout(5000)
+    })
+    if (res.status === 401 || res.status === 403) {
+      return {
+        name: 'Jellyfin',
+        configured: true,
+        status: 'invalid',
+        latencyMs: Date.now() - start,
+        details: 'API key rejected'
+      }
+    }
+    if (!res.ok) {
+      const raw = await res.text().catch(() => '')
+      log.error(`Jellyfin status check failed with HTTP ${res.status}${raw ? `: ${raw}` : ''}`)
+      return {
+        name: 'Jellyfin',
+        configured: true,
+        status: 'error',
+        latencyMs: Date.now() - start,
+        details: `HTTP ${res.status}`
+      }
+    }
+    let data: { Version?: string }
+    try {
+      data = (await res.json()) as { Version?: string }
+    } catch {
+      log.error('Jellyfin status check returned an unreadable response body')
+      return {
+        name: 'Jellyfin',
+        configured: true,
+        status: 'error',
+        latencyMs: Date.now() - start,
+        details: 'Malformed response'
+      }
+    }
+    return {
+      name: 'Jellyfin',
+      configured: true,
+      status: 'up',
+      latencyMs: Date.now() - start,
+      details: data.Version ?? undefined
+    }
+  } catch {
+    return {
+      name: 'Jellyfin',
+      configured: true,
+      status: 'down',
+      latencyMs: Date.now() - start
+    }
+  }
 }

@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm'
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import Redis from 'ioredis'
 import type { ServiceStatus } from '#server/types/admin'
+import { checkJellyfinStatus } from '#server/utils/clients/jellyfin'
 import { useDbAsync } from '#server/utils/db'
 import { createLogger } from '#server/utils/logger'
 import { normalizeUrl } from '#server/utils/url'
@@ -94,53 +95,6 @@ async function checkProwlarr(config: ReturnType<typeof useRuntimeConfig>): Promi
   } catch {
     return {
       name: 'Prowlarr',
-      configured: true,
-      status: 'down',
-      latencyMs: Date.now() - start
-    }
-  }
-}
-
-async function checkJellyfin(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
-  const url = config.jellyfinUrl as string
-  const apiKey = (config.jellyfinApiKey as string) || ''
-  if (!url) {
-    return { name: 'Jellyfin', configured: false, status: 'not_configured' }
-  }
-
-  const start = Date.now()
-  try {
-    // With an API key, System/Info verifies it; without one, fall back
-    // to the public endpoint (reachability only)
-    const res = apiKey
-      ? await fetch(`${normalizeUrl(url)}/System/Info`, {
-          headers: { 'X-Emby-Token': apiKey },
-          signal: AbortSignal.timeout(5000)
-        })
-      : await fetch(`${normalizeUrl(url)}/System/Info/Public`, {
-          signal: AbortSignal.timeout(5000)
-        })
-    if (res.status === 401) {
-      return {
-        name: 'Jellyfin',
-        configured: true,
-        status: 'invalid',
-        latencyMs: Date.now() - start,
-        details: 'API key rejected'
-      }
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = (await res.json()) as { Version?: string }
-    return {
-      name: 'Jellyfin',
-      configured: true,
-      status: 'up',
-      latencyMs: Date.now() - start,
-      details: data.Version ?? undefined
-    }
-  } catch {
-    return {
-      name: 'Jellyfin',
       configured: true,
       status: 'down',
       latencyMs: Date.now() - start
@@ -315,7 +269,7 @@ export default defineEventHandler(async (event: H3Event) => {
   const services = await Promise.all([
     checkQbittorrent(config),
     checkProwlarr(config),
-    checkJellyfin(config),
+    checkJellyfinStatus(),
     checkTmdb(config),
     checkRedis(config),
     checkDiscord(config),
