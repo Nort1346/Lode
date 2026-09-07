@@ -13,11 +13,13 @@ const props = withDefaults(
     editing?: boolean
     avatarUrl?: string | null
     username?: string
+    jellyfinConfigured?: boolean
   }>(),
   {
     editing: false,
     avatarUrl: null,
-    username: ''
+    username: '',
+    jellyfinConfigured: true
   }
 )
 
@@ -34,6 +36,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { status: jellyfinStatus, refresh: refreshJellyfinStatus } = useJellyfinStatus()
 
 const libraries = ref<JellyfinLibrary[]>([])
 const librariesLoading = ref(true)
@@ -129,7 +132,14 @@ function removeAvatar() {
   }
 }
 
-onMounted(fetchLibraries)
+onMounted(() => {
+  if (props.jellyfinConfigured) {
+    void fetchLibraries()
+    void refreshJellyfinStatus()
+  } else {
+    librariesLoading.value = false
+  }
+})
 </script>
 
 <template>
@@ -139,7 +149,9 @@ onMounted(fetchLibraries)
       Jellyfin
     </h3>
 
-    <div class="grid grid-cols-1 lg:grid-cols-[auto_1fr_1fr] gap-4">
+    <JellyfinStatusBanner v-if="jellyfinConfigured" :status="jellyfinStatus" />
+
+    <div v-if="jellyfinConfigured" class="grid grid-cols-1 lg:grid-cols-[auto_1fr_1fr] gap-4">
       <div class="flex flex-col items-center gap-3 lg:w-45 lg:self-center">
         <button
           type="button"
@@ -311,5 +323,15 @@ onMounted(fetchLibraries)
         </div>
       </div>
     </div>
+
+    <UAlert
+      v-else
+      color="neutral"
+      variant="subtle"
+      icon="i-lucide-circle-alert"
+      :title="t('admin.jellyfinNotConfigured')"
+      :description="t('admin.jellyfinNotConfiguredDesc')"
+      class="mt-1"
+    />
   </div>
 </template>

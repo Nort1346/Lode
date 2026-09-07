@@ -12,6 +12,7 @@ const { t, locale } = useI18n()
 const toast = useToast()
 const { confirm } = useConfirmDialog()
 const { copyToClipboard } = useCopyToClipboard()
+const { configured: jellyfinConfigured } = useJellyfinConfigured()
 const users = ref<AdminUser[]>([])
 const loading = ref(true)
 const showModal = ref(false)
@@ -550,6 +551,7 @@ function onExpiresAtInput(event: Event) {
                     variant="ghost"
                     size="xs"
                     :loading="syncingUserId === u.id"
+                    :disabled="!jellyfinConfigured"
                     :title="t('admin.forceSync')"
                     @click="forceSync(u)"
                   />
@@ -676,6 +678,7 @@ function onExpiresAtInput(event: Event) {
             :editing="!!editingUser"
             :avatar-url="editingUser?.avatarUrl"
             :username="form.username"
+            :jellyfin-configured="jellyfinConfigured"
             @update:avatar="pendingAvatarFile = $event"
             @update:avatar-removed="pendingAvatarRemoved = $event"
           />

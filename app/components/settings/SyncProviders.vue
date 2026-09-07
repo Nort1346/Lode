@@ -4,6 +4,9 @@ import type { JellyfinLibrary } from '~/types/admin'
 const { t } = useI18n()
 const toast = useToast()
 
+const { configured: jellyfinConfigured, loading: jellyfinConfigLoading } = useJellyfinConfigured()
+const { status: jellyfinStatus, refresh: refreshJellyfinStatus } = useJellyfinStatus()
+
 const loading = ref(true)
 const saving = ref(false)
 const libraries = ref<JellyfinLibrary[]>([])
@@ -105,9 +108,16 @@ async function savePresets() {
   }
 }
 
-onMounted(() => {
-  void fetchPresets()
-  void fetchLibraries()
+watch(jellyfinConfigured, (configured) => {
+  if (configured) {
+    void fetchPresets()
+    void fetchLibraries()
+    void refreshJellyfinStatus()
+  } else {
+    loading.value = false
+    libraries.value = []
+    librariesLoading.value = false
+  }
 })
 </script>
 
@@ -118,10 +128,12 @@ onMounted(() => {
         <UIcon name="i-simple-icons-jellyfin" class="w-5 h-5 text-blue-500" />
         <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('admin.jellyfinPresets') }}</h3>
       </div>
-      <USwitch v-model="presets.syncEnabled" />
+      <USwitch v-model="presets.syncEnabled" :disabled="jellyfinConfigLoading || !jellyfinConfigured" />
     </div>
 
-    <div v-if="loading" class="space-y-4">
+    <JellyfinStatusBanner v-if="jellyfinConfigured" :status="jellyfinStatus" />
+
+    <div v-if="jellyfinConfigLoading || (jellyfinConfigured && loading)" class="space-y-4">
       <div class="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div
@@ -137,6 +149,15 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <UAlert
+      v-else-if="!jellyfinConfigured"
+      color="neutral"
+      variant="subtle"
+      icon="i-lucide-circle-alert"
+      :title="t('admin.jellyfinNotConfigured')"
+      :description="t('admin.jellyfinNotConfiguredDesc')"
+    />
 
     <div v-else-if="presets.syncEnabled" class="space-y-4">
       <div>

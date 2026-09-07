@@ -10,3 +10,7 @@ export interface JellyfinUserFieldsProps {
   avatarUrl?: string | null
   username?: string
 }
+
+export interface SyncProvidersResponse {
+  jellyfinConfigured: boolean
+}
