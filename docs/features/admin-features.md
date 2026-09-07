@@ -63,12 +63,26 @@ Health checks for all integrated services:
 |---------|-------|
 | qBittorrent | GET `/api/v2/app/version` with Bearer auth |
 | Prowlarr | GET `/api/v1/health` |
-| Jellyfin | GET `/System/Info/Public` |
+| Jellyfin | GET `/System/Info` (authenticated) |
 | Redis | PING command |
 | Discord | GET webhook URL |
 | FlareSolverr | GET root URL |
 
-Each check returns: `configured`, `status` (up/down/not_configured), `latencyMs`, `details`.
+Each check returns: `configured`, `status` (up/down/invalid/not_configured/error), `latencyMs`, `details`.
+
+### Jellyfin health
+
+Jellyfin health has two independent axes, so a "configured" Jellyfin can still be broken:
+
+- **Configured** (`jellyfinConfigured`): whether a Jellyfin *configuration* exists (both `NUXT_JELLYFIN_URL` and `NUXT_JELLYFIN_API_KEY` set). It answers "is Jellyfin set up?", never "is it reachable or healthy now". A revoked API key or an offline server keeps this `true`.
+- **Healthy** (`status`): live reachability/auth state - `up`, `down`, `invalid`, or `error`.
+
+The Jellyfin check is exposed as `checkJellyfinStatus()` in `server/utils/clients/jellyfin.ts` and served by two endpoints:
+
+- `GET /api/admin/system-status` - includes Jellyfin among all service checks
+- `GET /api/admin/jellyfin/status` - Jellyfin-only, cheap (no other network calls)
+
+When a configured Jellyfin is `invalid` (rejected API key), `down` (unreachable), or `error`, the Settings > Sync Providers panel and the per-user Jellyfin fields show a warning banner (`JellyfinStatusBanner`) so a broken setup is visually separated from "not configured at all".
 
 ## Click-to-Copy
 
