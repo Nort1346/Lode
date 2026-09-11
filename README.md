@@ -72,23 +72,24 @@ The script checks Docker, pulls the full stack, generates secrets, and walks you
 
 ### Option 1: Auto-Setup (Recommended)
 
-Run the one-line command from [Get started](#get-started), then the guided script walks you through 14 steps:
+Run the one-line command from [Get started](#get-started), then the guided script walks you through 15 steps:
 1. Check prerequisites (Docker, Docker Compose)
 2. Create `.env` from `.env.example`
-3. Generate secrets (session password, tracker encryption key)
-4. Choose database driver (SQLite or PostgreSQL)
-5. Download the appropriate `docker-compose` file (`docker-compose.sqlite.yml` or `docker-compose.postgres.yml`)
-6. Choose Lode image tag (`latest` or `nightly`)
-7. Start infrastructure services (Redis, qBittorrent, Prowlarr, FlareSolverr, Jellyfin, Dozzle)
-8. Get your **Jellyfin API key** (guided instructions)
-9. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
-10. Get your **Prowlarr API key** (guided instructions)
-11. Get your **TMDB API key** (guided instructions)
-12. Set **Discord webhook** (optional)
-13. Pull Lode Docker image
-14. Start Lode with health check
+3. Detect an existing setup (prefills your previous selection, migrates legacy compose files)
+4. Generate secrets (session password, tracker encryption key)
+5. Choose database driver (SQLite or PostgreSQL)
+6. Select components (qBittorrent, Prowlarr, media server, optional add-ons)
+7. Download the base compose file plus the overlays for your selection
+8. Choose Lode image tag (`latest` or `nightly`)
+9. Start the selected services (pulls images, waits for ports, extracts the qBittorrent temp password)
+10. Get your **Jellyfin API key** (guided instructions)
+11. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
+12. Get your **Prowlarr API key** (guided instructions)
+13. Get your **TMDB API key** (guided instructions)
+14. Set **Discord webhook** (optional)
+15. Start Lode with health check
 
-After setup, open **http://localhost:5757** and login with `admin`. The auto-generated password is shown in `docker compose -f <compose_file> logs lode`. Create users in Admin > Users.
+Your selection is saved to `.lode-setup`, so re-running the script prefills the prompts. After setup, open **http://localhost:5757** and login with `admin`. The auto-generated password is shown in the summary (or in `docker compose logs lode`). Create users in Admin > Users.
 
 ### Option 2: Manual Setup
 
@@ -110,27 +111,30 @@ Default admin: `admin` - the password is auto-generated on first start and print
 
 ## Docker
 
+The stack is a base file (`docker-compose.yml` - Lode + Redis) plus per-service overlays. The auto-setup script combines the overlays you selected; manually you pass each with `-f`:
+
 ```bash
-cp .env.example .env        # configure first
-# Choose one:
-docker compose -f docker-compose.sqlite.yml up -d     # SQLite (default)
-# docker compose -f docker-compose.postgres.yml up -d # PostgreSQL
-docker compose -f docker-compose.sqlite.yml logs -f   # view logs
+cp .env.example .env   # configure first
+docker compose -f docker-compose.yml up -d                                          # SQLite (base)
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d           # PostgreSQL
+docker compose -f docker-compose.yml -f docker-compose.qbittorrent.yml -f docker-compose.prowlarr.yml up -d
+docker compose -f docker-compose.yml logs -f lode                                   # view logs
 ```
 
-The compose files use the prebuilt `ghcr.io/nort1346/lode:latest` image. To build from source instead, uncomment the `#build: .` line in the `lode` service.
+The base file uses the prebuilt `ghcr.io/nort1346/lode:latest` image. To build from source instead, uncomment the `#build: .` line in the `lode` service.
 
 Lode replaces Radarr and Sonarr entirely - it pulls candidate torrents from Prowlarr and sends the selected one straight to qBittorrent, which is why no *arr download services appear in the stack.
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| `lode` | 5757 | Application |
-| `qbittorrent` | 8080 | Torrent client |
-| `prowlarr` | 9900 | Indexer manager |
-| `flaresolverr` | 8191 | CAPTCHA solver (optional) |
-| `jellyfin` | 8096 | Media server (optional) |
-| `redis` | 6379 | Caching (optional) |
-| `dozzle` | 8082 | Live log viewer |
+| Service | Overlay | Port | Purpose |
+|---------|---------|------|---------|
+| `lode` | base | 5757 | Application |
+| `redis` | base | 6379 | Caching (optional) |
+| `qbittorrent` | `qbittorrent.yml` | 8080 | Torrent client |
+| `prowlarr` | `prowlarr.yml` | 9900 | Indexer manager |
+| `flaresolverr` | `flaresolverr.yml` | 8191 | CAPTCHA solver (optional) |
+| `jellyfin` | `jellyfin.yml` | 8096 | Media server (optional) |
+| `postgres` | `postgres.yml` | 5432 | Database (optional) |
+| `dozzle` | `dozzle.yml` | 8082 | Live log viewer (optional) |
 
 ## Tech Stack
 
