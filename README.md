@@ -199,6 +199,7 @@ Lode gives your users the ability to browse and download content themselves -- n
 
 ## Roadmap
 
+- [ ] Plex support (additional media server)
 - [ ] Emby support (additional media server)
 - [ ] Prowlarr indexer management (add/configure indexers from Lode admin)
 - [ ] Home Assistant integration (webhook, sensors, automations)
