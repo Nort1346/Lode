@@ -2,8 +2,15 @@
 .SYNOPSIS
     Lode Auto-Setup Script for Windows
 .DESCRIPTION
-    Sets up the full self-hosted stack: Redis, qBittorrent, Prowlarr,
-    Jellyfin, and Lode with guided manual configuration.
+    Sets up Lode with the services you choose. The Docker stack is split
+    into a base compose file (Lode + Redis) plus per-service overlays
+    (postgres, qbittorrent, prowlarr, jellyfin, flaresolverr, dozzle).
+    This script downloads the files that match your selection and starts
+    them with `docker compose -f <base> -f <overlay>...`, so the compose
+    files stay small, readable, and usable manually.
+
+    Your selection is saved in .lode-setup so re-runs can prefill
+    the prompts; .env keeps all secrets and URLs.
 .EXAMPLE
     .\setup.ps1
 #>
@@ -58,6 +65,39 @@ function Stop-Setup {
     exit $Code
 }
 
+# -- Constants --------------------------------------------------------
+
+$REPO_RAW = "https://raw.githubusercontent.com/Nort1346/Lode/main"
+$SETUP_URL = "$REPO_RAW/setup.ps1"
+$SETUP_NEW = Join-Path $env:TEMP "setup.ps1.new"
+$SETUP_SELF = $MyInvocation.MyCommand.Path
+
+$COMPOSE_BASE = "docker-compose.yml"
+$script:STATE_FILE = ".lode-setup"
+# Legacy state file name (pre-rename) - migrate it once on re-run.
+if (-not (Test-Path $script:STATE_FILE) -and (Test-Path ".lode-setup.json")) {
+    Rename-Item ".lode-setup.json" ".lode-setup"
+}
+$script:COMPOSE_FILES = @()
+
+# Option labels (also used for --selected prefill, so keep them stable)
+$QBIT_OPT_LOCAL = "Local qBittorrent container (recommended)"
+$QBIT_OPT_EXTERNAL = "External qBittorrent (you host it)"
+$PROWLARR_OPT_LOCAL = "Local Prowlarr container (recommended)"
+$PROWLARR_OPT_EXTERNAL = "External Prowlarr (you host it)"
+$MEDIA_OPT_JELLYFIN_LOCAL = "Jellyfin (local container)"
+$MEDIA_OPT_JELLYFIN_EXTERNAL = "Jellyfin (external)"
+$MEDIA_OPT_NONE = "No media server"
+$ADDON_OPT_FLARESOLVERR = "FlareSolverr - CAPTCHA bypass for private trackers"
+$ADDON_OPT_DOZZLE = "Dozzle - Docker log viewer"
+
+# Captured before .env is created in step 2: a pre-existing .env without
+# a state file means the old all-or-nothing installer was used.
+$script:LEGACY_INSTALL = $false
+if ((Test-Path ".env") -and -not (Test-Path $script:STATE_FILE)) {
+    $script:LEGACY_INSTALL = $true
+}
+
 # -- gum bootstrap ----------------------------------------------------
 
 $script:HAS_GUM = $false
@@ -93,15 +133,14 @@ function Install-Gum {
         winget install Charmbracelet.Gum --accept-source-agreements --accept-package-agreements 2>$null
     }
     elseif (Get-Command scoop -ErrorAction SilentlyContinue) {
-        scoop install gum
+        scoop install charm-gum
     }
     else {
         # Fallback: official release binary. gum publishes exact-version
-        # assets only (no "latest" alias, no glob), so resolve the tag first.
-        $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
-            "ARM64" { "x86_64" }
-            default { "x86_64" }
-        }
+        # assets only (no "latest" alias, no glob), so resolve the tag
+        # first. Windows assets exist for x86_64 and i386 only - ARM64
+        # runs the x86_64 binary through WoW64 emulation.
+        $arch = "x86_64"
         try {
             $tag = (Invoke-RestMethod -Uri "https://api.github.com/repos/charmbracelet/gum/releases/latest").tag_name
             $url = "https://github.com/charmbracelet/gum/releases/download/$tag/gum_$($tag.TrimStart('v'))_Windows_${arch}.zip"
@@ -126,12 +165,17 @@ function Install-Gum {
         }
     }
 
-    # winget/scoop update the persistent user PATH, but this process still
-    # holds the PATH from startup - re-read it so a fresh gum.exe resolves
-    # on this run, not just the next one.
+    # winget/scoop update the persistent PATH, but this process still
+    # holds the PATH from startup - merge the fresh machine+user values
+    # into the current session PATH (replacing it would drop entries
+    # added by the current shell).
     $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $env:Path = "$machinePath;$userPath"
+    $entries = @()
+    foreach ($entry in (($env:Path + ';' + $machinePath + ';' + $userPath) -split ';')) {
+        if ($entry -and $entries -notcontains $entry) { $entries += $entry }
+    }
+    $env:Path = $entries -join ';'
 
     $gumCmd = Get-Command gum -ErrorAction SilentlyContinue
     if ($gumCmd) {
@@ -230,12 +274,33 @@ function New-SecretHex {
 
 function Test-EnvMinLength {
     param([string]$Key, [int]$MinLength)
-    $line = Select-String -Path ".env" -Pattern "^$Key=(.*)" -ErrorAction SilentlyContinue | Select-Object -First 1
+    $line = Select-String -Path ".env" -Pattern "^$([regex]::Escape($Key))=(.*)" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($line) {
         $value = $line.Matches[0].Groups[1].Value
         return $value.Length -ge $MinLength
     }
     return $false
+}
+
+function Read-EnvValue {
+    param([string]$Key)
+    $line = Select-String -Path ".env" -Pattern "^$([regex]::Escape($Key))=(.*)" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($line) { return $line.Matches[0].Groups[1].Value }
+    return ""
+}
+
+function Test-UrlValue {
+    param([string]$Url)
+    return ($Url -match '^https?://')
+}
+
+# Returns the current .env value unless it is the internal (in-network)
+# URL, which is not a useful default for an external instance.
+function Get-ExternalUrlDefault {
+    param([string]$EnvKey, [string]$InternalUrl)
+    $v = Read-EnvValue $EnvKey
+    if ($v -and $v -ne $InternalUrl) { return $v }
+    return ""
 }
 
 function Test-Port {
@@ -289,7 +354,8 @@ function Update-EnvFile {
 
     $content = Get-Content $envPath -Raw
     $pattern = "(?m)^$([regex]::Escape($Key))=.*"
-    $replacement = "$Key=$Value"
+    # Escape $ so values like "a$b1" survive -replace (where $1 is a group ref)
+    $replacement = ("$Key=$Value").Replace('$', '$$')
 
     if ($content -match $pattern) {
         $content = $content -replace $pattern, $replacement
@@ -304,41 +370,212 @@ function Update-EnvFile {
     Set-Content -Path $envPath -Value $content -NoNewline
 }
 
+# -- State file (selection memory for re-runs) ------------------------
+# Flat key=value file - no JSON parser needed in PowerShell or bash.
+# Only selection state lives here; secrets and URLs stay in .env.
+
+function Get-StateValue {
+    param([string]$Key)
+    if (-not (Test-Path $script:STATE_FILE)) { return $null }
+    $line = Select-String -Path $script:STATE_FILE -Pattern "^$([regex]::Escape($Key))=(.*)" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($line) { return $line.Matches[0].Groups[1].Value }
+    return $null
+}
+
+function Write-StateFile {
+    $lines = @(
+        "version=1",
+        "dbDriver=$DB_DRIVER_CHOICE",
+        "imageTag=$LODE_TAG",
+        "qbittorrent=$QBIT_MODE",
+        "prowlarr=$PROWLARR_MODE",
+        "mediaProvider=$MEDIA_PROVIDER",
+        "mediaMode=$MEDIA_MODE",
+        "flaresolverr=$(if ($USE_FLARESOLVERR) { 'true' } else { 'false' })",
+        "dozzle=$(if ($USE_DOZZLE) { 'true' } else { 'false' })"
+    )
+    Set-Content -Path $script:STATE_FILE -Value (($lines -join "`n") + "`n") -NoNewline
+}
+
+# -- Compose file helpers ---------------------------------------------
+
+# Every docker compose call takes the -f file list built in the
+# selection step, so it stays in one place.
+function Get-DcFileArgs {
+    if (-not $script:COMPOSE_FILES.Count) {
+        Write-Err "No compose files selected - internal error."
+        Stop-Setup 1
+    }
+    $args_ = @()
+    foreach ($f in $script:COMPOSE_FILES) { $args_ += @('-f', $f) }
+    return $args_
+}
+
+function Get-DcCommandPrefix {
+    $parts = @()
+    foreach ($f in $script:COMPOSE_FILES) { $parts += "-f $f" }
+    return "docker compose " + ($parts -join " ")
+}
+
+# Pre-split compose files defined every service inline. The new postgres
+# overlay only defines postgres, so a qbittorrent service block marks a
+# file as a legacy monolith.
+function Test-LegacyMonolith {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return $false }
+    $content = Get-Content $Path -Raw
+    return ($content -match '(?m)^  qbittorrent:\s*$')
+}
+
+# On re-runs, a service that used to be deployed locally but is no longer
+# selected leaves a stopped container behind (we never use
+# --remove-orphans). Confirm, then stop and remove the container; its
+# volume is kept so switching back keeps all data.
+function Remove-DeselectedService {
+    param([string]$Service, [string]$StateKey, [string]$ActiveValue, [string]$CurrentValue)
+    $oldValue = Get-StateValue $StateKey
+    if ($oldValue -ne $ActiveValue) { return }
+    if ($CurrentValue -eq $ActiveValue) { return }
+    $container = "lode-$Service"
+    $running = docker ps -q --filter ('name=^' + $container + '$') 2>$null
+    if (-not $running) { return }
+    $keep = $true
+    $msg = "$container is no longer selected. Stop and remove the container? (its volume is kept)"
+    if ($script:HAS_GUM) {
+        gum confirm --default=true $msg | Out-Null
+        if ($LASTEXITCODE -ne 0) { $keep = $false }
+    } else {
+        $answer = Read-Host "$msg [Y/n]"
+        if ($answer -match '^[Nn]') { $keep = $false }
+    }
+    if ($keep) {
+        docker stop $container 2>$null | Out-Null
+        docker rm $container 2>$null | Out-Null
+        Write-Ok "Removed $container (volume kept)"
+    } else {
+        Write-Warn "Keeping $container - remove it manually with: docker rm $container"
+    }
+}
+
+# -- Prompt helpers (gum-aware) ----------------------------------------
+
 function Read-GumInput {
     param([string]$Placeholder)
     if ($script:HAS_GUM) {
         return gum input --placeholder $Placeholder
-    } else {
-        return Read-Host $Placeholder
     }
+    return Read-Host $Placeholder
+}
+
+function Read-GumInputDefault {
+    param([string]$Placeholder, [string]$Default)
+    if ($script:HAS_GUM) {
+        if ($Default) {
+            return gum input --value $Default --placeholder $Placeholder
+        }
+        return gum input --placeholder $Placeholder
+    }
+    $prompt = $Placeholder
+    if ($Default) { $prompt = "$Placeholder [$Default]" }
+    $result = Read-Host $prompt
+    if (-not $result) { return $Default }
+    return $result
+}
+
+function ConvertFrom-SecureStringPlaintext {
+    param([System.Security.SecureString]$Secure)
+    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Secure)
+    try {
+        return [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    } finally {
+        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    }
+}
+
+# Masked input for API keys (gum --password, SecureString fallback).
+function Read-GumPassword {
+    param([string]$Placeholder)
+    if ($script:HAS_GUM) {
+        return gum input --password --placeholder $Placeholder
+    }
+    $secure = Read-Host $Placeholder -AsSecureString
+    return ConvertFrom-SecureStringPlaintext $secure
 }
 
 function Select-GumMenu {
-    param([string]$Prompt, [string[]]$Options)
+    param([string]$Prompt, [string[]]$Options, [string]$Preselect = "")
     if ($script:HAS_GUM) {
-        return gum choose --header $Prompt $Options
-    } else {
-        Write-Host $Prompt
-        for ($i = 0; $i -lt $Options.Count; $i++) {
-            Write-Host "  $($i + 1)) $($Options[$i])"
+        $gumArgs = @('choose', '--header', $Prompt)
+        if ($Preselect -and ($Options -contains $Preselect)) {
+            $gumArgs += @('--selected', $Preselect)
         }
-        while ($true) {
-            $choice = Read-Host "Enter choice [1-$($Options.Count)]"
+        return gum @gumArgs $Options
+    }
+    # Plain numbered menu; the preselected option is the default answer.
+    $default = 1
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+        if ($Preselect -and $Options[$i] -eq $Preselect) { $default = $i + 1; break }
+    }
+    Write-Host $Prompt
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+        Write-Host "  $($i + 1)) $($Options[$i])"
+    }
+    while ($true) {
+        $choice = Read-Host "Enter choice [1-$($Options.Count)] (default $default)"
+        if (-not $choice) { $choice = "$default" }
+        if ($choice -match '^\d+$') {
             $num = [int]$choice - 1
-            if ($choice -match '^\d+$' -and $num -ge 0 -and $num -lt $Options.Count) {
+            if ($num -ge 0 -and $num -lt $Options.Count) {
                 return $Options[$num]
             }
-            Write-Host "  Invalid choice. Please enter a number between 1 and $($Options.Count)." -ForegroundColor Yellow
         }
+        Write-Host "  Invalid choice. Please enter a number between 1 and $($Options.Count)." -ForegroundColor Yellow
     }
 }
 
-# -- Self-update check --------------------------------------------------
+function Select-GumAddons {
+    param([string[]]$Options, [string[]]$Preselected = @())
+    if ($script:HAS_GUM) {
+        $gumArgs = @('choose', '--no-limit', '--header', 'Select optional add-ons:')
+        foreach ($sel in $Preselected) {
+            if ($Options -contains $sel) { $gumArgs += @('--selected', $sel) }
+        }
+        return @(gum @gumArgs $Options)
+    }
+    # Plain: numbered comma input; Enter keeps the preselection.
+    $preSel = ""
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+        if ($Preselected -contains $Options[$i]) { $preSel += "$($i + 1)," }
+    }
+    $preSel = $preSel.TrimEnd(',')
+    if ($preSel) { $defaultNote = "keep current ($preSel)" } else { $defaultNote = "none" }
+    Write-Host "Select optional add-ons (numbers separated by commas, e.g. 1,2 - Enter for $defaultNote):"
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+        Write-Host "  $($i + 1)) $($Options[$i])"
+    }
+    $result = @()
+    $input = Read-Host "Add-ons"
+    if (-not $input) {
+        $result = @($Preselected)
+    } else {
+        foreach ($part in ($input -split ',')) {
+            $n = $part.Trim()
+            if ($n -match '^\d+$') {
+                $num = [int]$n
+                if ($num -ge 1 -and $num -le $Options.Count) {
+                    $result += $Options[$num - 1]
+                } else {
+                    Write-Host "  Invalid selection: $n" -ForegroundColor Yellow
+                }
+            } elseif ($n) {
+                Write-Host "  Invalid selection: $n" -ForegroundColor Yellow
+            }
+        }
+    }
+    return $result
+}
 
-$REPO_RAW = "https://raw.githubusercontent.com/Nort1346/Lode/main"
-$SETUP_URL = "$REPO_RAW/setup.ps1"
-$SETUP_NEW = Join-Path $env:TEMP "setup.ps1.new"
-$SETUP_SELF = $MyInvocation.MyCommand.Path
+# -- Self-update check --------------------------------------------------
 
 try {
     Invoke-WebRequest -Uri $SETUP_URL -OutFile $SETUP_NEW -UseBasicParsing 2>$null
@@ -388,7 +625,7 @@ try {
 Write-Header "Lode Auto-Setup v1.0"
 
 Write-Host ""
-Write-Dim "This will set up Lode and all required services."
+Write-Dim "This will set up Lode and the services you choose."
 Write-Dim "All data will be stored in Docker volumes."
 Write-Host ""
 
@@ -408,7 +645,7 @@ if ($script:HAS_GUM) {
 
 # -- 1. Prerequisites -------------------------------------------------
 
-Write-Step "[1/14] Checking prerequisites"
+Write-Step "[1/15] Checking prerequisites"
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Err "Docker is not installed."
@@ -452,7 +689,7 @@ Write-Ok "curl available"
 
 # -- 2. Create .env ---------------------------------------------------
 
-Write-Step "[2/14] Setting up .env file"
+Write-Step "[2/15] Setting up .env file"
 
 if (-not (Test-Path .env)) {
     if (-not (Test-Path .env.example)) {
@@ -474,45 +711,88 @@ New-Item -ItemType Directory -Path "media/Movies" -Force | Out-Null
 New-Item -ItemType Directory -Path "media/Series" -Force | Out-Null
 Write-Ok "Created media directories (media/Movies, media/Series)"
 
-# -- 3. Generate secrets ----------------------------------------------
+# -- 3. Detect existing setup ------------------------------------------
 
-Write-Step "[3/14] Generating secrets"
+Write-Step "[3/15] Detecting existing setup"
 
-$SESSION_PASSWORD = New-SecretPassword -Length 32
-$TRACKER_KEY = New-SecretHex -Bytes 32
-
-Update-EnvFile "NUXT_SESSION_PASSWORD" $SESSION_PASSWORD
-Update-EnvFile "NUXT_TRACKER_ENCRYPTION_KEY" $TRACKER_KEY
-
-if (-not (Test-EnvMinLength -Key "NUXT_SESSION_PASSWORD" -MinLength 32)) {
-    Write-Warn "Session password too short, regenerating..."
-    $SESSION_PASSWORD = New-SecretPassword -Length 32
-    Update-EnvFile "NUXT_SESSION_PASSWORD" $SESSION_PASSWORD
+$stateFileFound = Test-Path $script:STATE_FILE
+if ($stateFileFound) {
+    Write-Info "Existing setup found ($($script:STATE_FILE)):"
+    Write-Dim "  Database:    $(Get-StateValue 'dbDriver')"
+    Write-Dim "  qBittorrent: $(Get-StateValue 'qbittorrent')"
+    Write-Dim "  Prowlarr:    $(Get-StateValue 'prowlarr')"
+    Write-Dim "  Media:       $(Get-StateValue 'mediaProvider') ($(Get-StateValue 'mediaMode'))"
+    Write-Dim "  Add-ons:     FlareSolverr=$(Get-StateValue 'flaresolverr') Dozzle=$(Get-StateValue 'dozzle')"
+    Write-Host ""
+    $reconf = $true
+    if ($script:HAS_GUM) {
+        gum confirm --default=true "Reconfigure your existing Lode setup?" | Out-Null
+        $reconf = ($LASTEXITCODE -eq 0)
+    } else {
+        $answer = Read-Host "Reconfigure your existing Lode setup? [Y/n]"
+        $reconf = -not ($answer -match '^[Nn]')
+    }
+    if (-not $reconf) {
+        Write-Ok "Keeping existing setup - no changes made."
+        Stop-Setup 0
+    }
 }
 
-if (-not (Test-EnvMinLength -Key "NUXT_TRACKER_ENCRYPTION_KEY" -MinLength 32)) {
-    Write-Warn "Tracker key too short, regenerating..."
-    $TRACKER_KEY = New-SecretHex -Bytes 32
-    Update-EnvFile "NUXT_TRACKER_ENCRYPTION_KEY" $TRACKER_KEY
+# Legacy installs (old all-or-nothing installer) deployed the full
+# stack, so preselect everything local including Dozzle.
+if ($script:LEGACY_INSTALL) {
+    Write-Info "Existing .env without $($script:STATE_FILE) - assuming a previous full-stack install."
 }
 
-Write-Ok "Session password generated"
-Write-Ok "Tracker encryption key generated"
+# Migrate legacy monolith compose files (they predate the split).
+if (Test-LegacyMonolith "docker-compose.sqlite.yml") {
+    Move-Item "docker-compose.sqlite.yml" "docker-compose.sqlite.yml.legacy" -Force
+    Write-Warn "Moved legacy docker-compose.sqlite.yml to docker-compose.sqlite.yml.legacy"
+}
+if (Test-LegacyMonolith "docker-compose.postgres.yml") {
+    Move-Item "docker-compose.postgres.yml" "docker-compose.postgres.yml.legacy" -Force
+    Write-Warn "Moved legacy docker-compose.postgres.yml to docker-compose.postgres.yml.legacy"
+}
+Write-Ok "Setup detection complete"
 
-# -- 4. Database driver choice ----------------------------------------
+# -- 4. Generate secrets (idempotent) ----------------------------------
+# Secrets are only generated when missing or too short, so re-running
+# the script never invalidates existing sessions or encrypted data.
 
-Write-Step "[4/14] Database driver"
+Write-Step "[4/15] Generating secrets"
+
+if (Test-EnvMinLength -Key "NUXT_SESSION_PASSWORD" -MinLength 32) {
+    Write-Ok "Session password already set - keeping it"
+} else {
+    Update-EnvFile "NUXT_SESSION_PASSWORD" (New-SecretPassword -Length 32)
+    Write-Ok "Session password generated"
+}
+
+if (Test-EnvMinLength -Key "NUXT_TRACKER_ENCRYPTION_KEY" -MinLength 32) {
+    Write-Ok "Tracker encryption key already set - keeping it"
+} else {
+    Update-EnvFile "NUXT_TRACKER_ENCRYPTION_KEY" (New-SecretHex -Bytes 32)
+    Write-Ok "Tracker encryption key generated"
+}
+
+# -- 5. Database driver choice ----------------------------------------
+
+Write-Step "[5/15] Database driver"
 
 $DB_DRIVER_CHOICE = "sqlite"
 
-$dbLine = Select-String -Path ".env" -Pattern "^DB_DRIVER=(.*)" -ErrorAction SilentlyContinue | Select-Object -First 1
-$existingDbDriver = if ($dbLine) { $dbLine.Matches[0].Groups[1].Value } else { "" }
-
-if ($existingDbDriver -and $existingDbDriver -ne "sqlite") {
-    if ($script:HAS_GUM) {
-        gum style --foreground 11 --bold "Existing database driver: $existingDbDriver"
-    } else {
-        Write-Host "  Existing database driver: $existingDbDriver" -ForegroundColor Yellow
+$dbChoicePre = ""
+if ($stateFileFound) {
+    switch (Get-StateValue 'dbDriver') {
+        'postgres' { $dbChoicePre = "PostgreSQL" }
+        'sqlite'   { $dbChoicePre = "SQLite (recommended)" }
+    }
+} else {
+    $existingDbDriver = Read-EnvValue "DB_DRIVER"
+    if ($existingDbDriver -eq "postgres") {
+        $dbChoicePre = "PostgreSQL"
+    } elseif ($existingDbDriver -and $existingDbDriver -ne "sqlite") {
+        Write-Info "Existing database driver: $existingDbDriver"
     }
 }
 
@@ -524,7 +804,7 @@ if (-not $script:HAS_GUM) {
     Write-Host ""
 }
 
-$dbChoice = Select-GumMenu -Prompt "Select database driver:" -Options @("SQLite (recommended)", "PostgreSQL")
+$dbChoice = Select-GumMenu -Prompt "Select database driver:" -Options @("SQLite (recommended)", "PostgreSQL") -Preselect $dbChoicePre
 
 if ($dbChoice -match "PostgreSQL") {
     $DB_DRIVER_CHOICE = "postgres"
@@ -535,18 +815,118 @@ if ($dbChoice -match "PostgreSQL") {
 Write-Ok "Database driver: $DB_DRIVER_CHOICE"
 
 if ($DB_DRIVER_CHOICE -eq "postgres") {
-    $COMPOSE_FILE = "docker-compose.postgres.yml"
+    if (Test-EnvMinLength -Key "POSTGRES_PASSWORD" -MinLength 32) {
+        Write-Ok "PostgreSQL password already set - keeping it"
+    } else {
+        Update-EnvFile "POSTGRES_PASSWORD" (New-SecretPassword -Length 32)
+        Write-Ok "PostgreSQL password generated"
+    }
+}
+
+# -- 6. Component selection ---------------------------------------------
+
+Write-Step "[6/15] Selecting components"
+
+Write-Host ""
+Write-Dim "Lode and Redis are always deployed. Choose the rest:"
+Write-Host ""
+
+# Preselect: state file (re-run) > legacy full-stack install > defaults.
+$qbitPre = $QBIT_OPT_LOCAL
+$prowlarrPre = $PROWLARR_OPT_LOCAL
+$mediaPre = $MEDIA_OPT_JELLYFIN_LOCAL
+$USE_FLARESOLVERR = $false
+$USE_DOZZLE = $false
+
+if ($stateFileFound) {
+    switch (Get-StateValue 'qbittorrent') {
+        'external' { $qbitPre = $QBIT_OPT_EXTERNAL }
+    }
+    switch (Get-StateValue 'prowlarr') {
+        'external' { $prowlarrPre = $PROWLARR_OPT_EXTERNAL }
+    }
+    switch (Get-StateValue 'mediaMode') {
+        'external' { $mediaPre = $MEDIA_OPT_JELLYFIN_EXTERNAL }
+        'none'     { $mediaPre = $MEDIA_OPT_NONE }
+    }
+    $USE_FLARESOLVERR = ((Get-StateValue 'flaresolverr') -eq 'true')
+    $USE_DOZZLE = ((Get-StateValue 'dozzle') -eq 'true')
+} elseif ($script:LEGACY_INSTALL) {
+    # The old installer ran Dozzle as part of the full stack.
+    $USE_DOZZLE = $true
+}
+
+# 6a. Torrent client
+$qbitChoice = Select-GumMenu -Prompt "How should Lode download torrents?" -Options @($QBIT_OPT_LOCAL, $QBIT_OPT_EXTERNAL) -Preselect $qbitPre
+if ($qbitChoice -match "External qBittorrent") {
+    $QBIT_MODE = "external"
+    $QBIT_URL = Read-GumInputDefault "External qBittorrent URL (http://host:8080)" (Get-ExternalUrlDefault "NUXT_QBITTORRENT_URL" "http://qbittorrent:8080")
+    if (-not (Test-UrlValue $QBIT_URL)) {
+        Write-Warn "External qBittorrent URL does not start with http(s):// - Lode will not be able to reach it"
+    }
 } else {
-    $COMPOSE_FILE = "docker-compose.sqlite.yml"
+    $QBIT_MODE = "local"
+    $QBIT_URL = ""
 }
+Write-Ok "qBittorrent: $QBIT_MODE"
 
-if ($DB_DRIVER_CHOICE -eq "postgres") {
-    $POSTGRES_PASSWORD = New-SecretPassword -Length 32
-    Update-EnvFile "POSTGRES_PASSWORD" $POSTGRES_PASSWORD
-    Write-Ok "PostgreSQL password generated"
+# 6b. Indexer
+$prowlarrChoice = Select-GumMenu -Prompt "How should Lode index torrents?" -Options @($PROWLARR_OPT_LOCAL, $PROWLARR_OPT_EXTERNAL) -Preselect $prowlarrPre
+if ($prowlarrChoice -match "External Prowlarr") {
+    $PROWLARR_MODE = "external"
+    $PROWLARR_URL = Read-GumInputDefault "External Prowlarr URL (http://host:9696)" (Get-ExternalUrlDefault "NUXT_PROWLARR_URL" "http://prowlarr:9696")
+} else {
+    $PROWLARR_MODE = "local"
+    $PROWLARR_URL = ""
 }
+if ($PROWLARR_MODE -eq "external" -and -not (Test-UrlValue $PROWLARR_URL)) {
+    Write-Warn "External Prowlarr URL does not start with http(s):// - Lode will not be able to reach it"
+}
+Write-Ok "Prowlarr: $PROWLARR_MODE"
 
-# -- 5. Download docker-compose if needed ------------------------------
+# 6c. Media server
+$mediaChoice = Select-GumMenu -Prompt "Media server (library detection)?" -Options @($MEDIA_OPT_JELLYFIN_LOCAL, $MEDIA_OPT_JELLYFIN_EXTERNAL, $MEDIA_OPT_NONE) -Preselect $mediaPre
+switch -regex ($mediaChoice) {
+    'Jellyfin \(external\)' {
+        $MEDIA_PROVIDER = "jellyfin"
+        $MEDIA_MODE = "external"
+        $JELLYFIN_URL = Read-GumInputDefault "External Jellyfin URL (http://host:8096)" (Get-ExternalUrlDefault "NUXT_JELLYFIN_URL" "http://jellyfin:8096")
+    }
+    'No media server' {
+        $MEDIA_PROVIDER = "none"
+        $MEDIA_MODE = "none"
+        $JELLYFIN_URL = ""
+    }
+    default {
+        $MEDIA_PROVIDER = "jellyfin"
+        $MEDIA_MODE = "local"
+        $JELLYFIN_URL = ""
+    }
+}
+if ($MEDIA_MODE -eq "external" -and -not (Test-UrlValue $JELLYFIN_URL)) {
+    Write-Warn "External Jellyfin URL does not start with http(s):// - Lode will not be able to reach it"
+}
+Write-Ok "Media server: $MEDIA_PROVIDER ($MEDIA_MODE)"
+
+# 6d. Add-ons (multi-select)
+$preselectedAddons = @()
+if ($USE_FLARESOLVERR) { $preselectedAddons += $ADDON_OPT_FLARESOLVERR }
+if ($USE_DOZZLE) { $preselectedAddons += $ADDON_OPT_DOZZLE }
+$chosenAddons = @(Select-GumAddons -Options @($ADDON_OPT_FLARESOLVERR, $ADDON_OPT_DOZZLE) -Preselected $preselectedAddons)
+$USE_FLARESOLVERR = ($chosenAddons -contains $ADDON_OPT_FLARESOLVERR)
+$USE_DOZZLE = ($chosenAddons -contains $ADDON_OPT_DOZZLE)
+Write-Ok "Add-ons: FlareSolverr=$(if ($USE_FLARESOLVERR) { 'true' } else { 'false' }) Dozzle=$(if ($USE_DOZZLE) { 'true' } else { 'false' })"
+
+# Build the compose file list for the selected stack.
+$script:COMPOSE_FILES = @($COMPOSE_BASE)
+if ($DB_DRIVER_CHOICE -eq "postgres") { $script:COMPOSE_FILES += "docker-compose.postgres.yml" }
+if ($QBIT_MODE -eq "local") { $script:COMPOSE_FILES += "docker-compose.qbittorrent.yml" }
+if ($PROWLARR_MODE -eq "local") { $script:COMPOSE_FILES += "docker-compose.prowlarr.yml" }
+if ($MEDIA_MODE -eq "local") { $script:COMPOSE_FILES += "docker-compose.jellyfin.yml" }
+if ($USE_FLARESOLVERR) { $script:COMPOSE_FILES += "docker-compose.flaresolverr.yml" }
+if ($USE_DOZZLE) { $script:COMPOSE_FILES += "docker-compose.dozzle.yml" }
+
+# -- 7. Download compose files ------------------------------------------
 # The lode image tag is written by the version step below - mask it
 # when comparing, so tag-only differences never trigger a replace prompt.
 
@@ -555,92 +935,73 @@ function Get-ComposeTagMasked {
     (Get-Content $Path) -replace '(?m)^(\s*(#\s*)?)(image:\s*ghcr\.io/nort1346/lode:)\S+$', '$1$3<version>'
 }
 
-Write-Step "[5/14] Downloading $COMPOSE_FILE"
+Write-Step "[7/15] Downloading compose files"
 
-$COMPOSE_TMP = Join-Path $env:TEMP "docker-compose.new.yml"
+$COMPOSE_TMP = Join-Path $env:TEMP "lode-compose.new.yml"
 
-if (Test-Path $COMPOSE_FILE) {
-    if ($script:HAS_GUM) {
-        gum confirm --default=false "$COMPOSE_FILE already exists. Download latest version from GitHub?"
-        if ($LASTEXITCODE -eq 0) {
-            Write-Info "Downloading $COMPOSE_FILE..."
-            try {
-                Invoke-WebRequest -Uri "$REPO_RAW/$COMPOSE_FILE" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
-                $composeDiff = Compare-Object (Get-ComposeTagMasked $COMPOSE_FILE) (Get-ComposeTagMasked $COMPOSE_TMP)
-                if ($composeDiff) {
-                    Write-Warn "$COMPOSE_FILE has changed (image tag differences are ignored - the version step sets the tag)"
-                    Write-Host ($composeDiff | ForEach-Object {
-                        $prefix = if ($_.SideIndicator -eq "<=") { "-" } else { "+" }
-                        "$prefix $($_.InputObject)"
-                    }) -ForegroundColor Yellow
-                    Write-Host ""
-                    gum confirm --default=false "Replace $COMPOSE_FILE with latest version?"
-                    if ($LASTEXITCODE -eq 0) {
-                        Copy-Item $COMPOSE_FILE "$COMPOSE_FILE.bak" -Force
-                        Copy-Item $COMPOSE_TMP $COMPOSE_FILE -Force
-                        Write-Ok "$COMPOSE_FILE updated (backup saved as $COMPOSE_FILE.bak)"
-                    } else {
-                        Write-Warn "Keeping existing $COMPOSE_FILE"
-                    }
-                } else {
-                    Write-Ok "$COMPOSE_FILE is already up to date"
-                }
-            } catch {
-                Write-Err "Failed to download $COMPOSE_FILE"
-            }
-        }
-    } else {
-        $answer = Read-Host "$COMPOSE_FILE already exists. Download latest version? (y/N)"
-        if ($answer -match '^[Yy]$') {
-            Write-Info "Downloading $COMPOSE_FILE..."
-            try {
-                Invoke-WebRequest -Uri "$REPO_RAW/$COMPOSE_FILE" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
-                $composeDiff = Compare-Object (Get-ComposeTagMasked $COMPOSE_FILE) (Get-ComposeTagMasked $COMPOSE_TMP)
-                if ($composeDiff) {
-                    Write-Warn "$COMPOSE_FILE has changed (image tag differences are ignored - the version step sets the tag)"
-                    Write-Host ($composeDiff | ForEach-Object {
-                        $prefix = if ($_.SideIndicator -eq "<=") { "-" } else { "+" }
-                        "$prefix $($_.InputObject)"
-                    })
-                    Write-Host ""
-                    $replace = Read-Host "Replace $COMPOSE_FILE with latest version? (y/N)"
-                    if ($replace -match '^[Yy]$') {
-                        Copy-Item $COMPOSE_FILE "$COMPOSE_FILE.bak" -Force
-                        Copy-Item $COMPOSE_TMP $COMPOSE_FILE -Force
-                        Write-Ok "$COMPOSE_FILE updated (backup saved as $COMPOSE_FILE.bak)"
-                    } else {
-                        Write-Warn "Keeping existing $COMPOSE_FILE"
-                    }
-                } else {
-                    Write-Ok "$COMPOSE_FILE is already up to date"
-                }
-            } catch {
-                Write-Err "Failed to download $COMPOSE_FILE"
-            }
-        }
-    }
-    Write-Ok "Using $COMPOSE_FILE"
-} else {
-    Write-Info "Downloading $COMPOSE_FILE..."
+# Split into missing files (downloaded directly, no prompt) and files
+# that already exist (one prompt for the whole group).
+$newFiles = @()
+$existingFiles = @()
+foreach ($composeFile in $script:COMPOSE_FILES) {
+    if (Test-Path $composeFile) { $existingFiles += $composeFile } else { $newFiles += $composeFile }
+}
+
+foreach ($composeFile in $newFiles) {
+    Write-Info "Downloading $composeFile..."
     try {
-        Invoke-WebRequest -Uri "$REPO_RAW/$COMPOSE_FILE" -OutFile $COMPOSE_FILE -UseBasicParsing
+        Invoke-WebRequest -Uri "$REPO_RAW/$composeFile" -OutFile $composeFile -UseBasicParsing
     } catch {
-        Write-Err "Failed to download $COMPOSE_FILE from GitHub."
+        Write-Err "Failed to download $composeFile from GitHub."
         Write-Host "  Check your internet connection and try again." -ForegroundColor Yellow
         Stop-Setup 1
     }
-    Write-Ok "$COMPOSE_FILE downloaded"
+    Write-Ok "$composeFile downloaded"
 }
 
+if ($existingFiles.Count -gt 0) {
+    $doUpdate = $false
+    if ($script:HAS_GUM) {
+        gum confirm --default=false "$($existingFiles.Count) compose file(s) already exist. Download the latest versions from GitHub? (changed files keep a .bak backup)" | Out-Null
+        $doUpdate = ($LASTEXITCODE -eq 0)
+    } else {
+        $answer = Read-Host "$($existingFiles.Count) compose file(s) already exist. Download the latest versions from GitHub? [y/N]"
+        $doUpdate = ($answer -match '^[Yy]$')
+    }
+    foreach ($composeFile in $existingFiles) {
+        if ($doUpdate) {
+            try {
+                Invoke-WebRequest -Uri "$REPO_RAW/$composeFile" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
+                $composeDiff = Compare-Object (Get-ComposeTagMasked $composeFile) (Get-ComposeTagMasked $COMPOSE_TMP)
+                if ($composeDiff) {
+                    Copy-Item $composeFile "$composeFile.bak" -Force
+                    Copy-Item $COMPOSE_TMP $composeFile -Force
+                    Write-Ok "$composeFile updated (backup saved as $composeFile.bak)"
+                } else {
+                    Write-Ok "$composeFile is already up to date"
+                }
+            } catch {
+                Write-Warn "Could not download $composeFile - keeping your local copy"
+            }
+        } else {
+            Write-Ok "Using existing $composeFile"
+        }
+    }
+}
 if (Test-Path $COMPOSE_TMP) { Remove-Item $COMPOSE_TMP -Force -ErrorAction SilentlyContinue }
 
-# -- 6. Lode version choice --------------------------------------
+# -- 8. Lode version choice --------------------------------------
 # The version choice is the single source of truth for the image tag:
-# it is written into the compose file here, after the download step.
+# it is written into the base compose file here, after the download step.
 
-Write-Step "[6/14] Lode version"
+Write-Step "[8/15] Lode version"
 
 $LODE_TAG = "latest"
+
+$versionPre = "latest (recommended)"
+if ($stateFileFound -and (Get-StateValue 'imageTag') -eq "nightly") {
+    $versionPre = "nightly"
+}
 
 if (-not $script:HAS_GUM) {
     Write-Host ""
@@ -650,7 +1011,7 @@ if (-not $script:HAS_GUM) {
     Write-Host ""
 }
 
-$versionChoice = Select-GumMenu -Prompt "Select version:" -Options @("latest (recommended)", "nightly")
+$versionChoice = Select-GumMenu -Prompt "Select version:" -Options @("latest (recommended)", "nightly") -Preselect $versionPre
 
 if ($versionChoice -match "nightly") {
     $LODE_TAG = "nightly"
@@ -658,87 +1019,129 @@ if ($versionChoice -match "nightly") {
     $LODE_TAG = "latest"
 }
 
-$composeContent = Get-Content $COMPOSE_FILE -Raw
-if ($composeContent -match '(?m)^\s*image:\s*ghcr\.io/nort1346/lode:') {
+$composeContent = Get-Content $COMPOSE_BASE -Raw
+if ($composeContent -match '(?m)^\s*image:\s*ghcr.io/nort1346/lode:') {
     $composeContent = $composeContent -replace '(?m)^(\s*image:\s*ghcr\.io/nort1346/lode:)\S+', ('$1' + $LODE_TAG)
-    Set-Content -Path $COMPOSE_FILE -Value $composeContent -NoNewline
+    Set-Content -Path $COMPOSE_BASE -Value $composeContent -NoNewline
     Write-Ok "Lode version: $LODE_TAG (image: ghcr.io/nort1346/lode:$LODE_TAG)"
-} elseif ($composeContent -match '(?m)^\s*#\s*image:.*ghcr\.io/nort1346/lode:') {
-    Write-Warn "$COMPOSE_FILE builds from source (image line commented out) - the $LODE_TAG tag does not apply"
 } else {
-    Write-Warn "No lode image line found in $COMPOSE_FILE - check the image tag manually"
+    Write-Warn "No lode image line found in $COMPOSE_BASE - check the image tag manually"
 }
 
-# -- 7. Start infrastructure services --------------------------------
+# Remember the selection so the next run can prefill the prompts.
+Write-StateFile
+Write-Ok "Selection saved to $($script:STATE_FILE)"
 
-Write-Step "[7/14] Starting infrastructure services"
+# -- 9. Pull and start selected services ------------------------------
 
-$INFRA_SERVICES = @("redis", "qbittorrent", "prowlarr", "flaresolverr", "jellyfin", "dozzle")
-if ($DB_DRIVER_CHOICE -eq "postgres") {
-    $INFRA_SERVICES += "postgres"
+Write-Step "[9/15] Starting selected services"
+
+$dcArgs = Get-DcFileArgs
+
+# Validate the merged configuration before touching the daemon.
+$null = docker compose $dcArgs config -q 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Err "The selected compose files do not merge correctly."
+    Write-Err "Files: $($script:COMPOSE_FILES -join ' ')"
+    Stop-Setup 1
 }
+
+# Remove containers for services that are no longer selected locally.
+if ($stateFileFound) {
+    $fsState = if ($USE_FLARESOLVERR) { "true" } else { "false" }
+    $dozzleState = if ($USE_DOZZLE) { "true" } else { "false" }
+    Remove-DeselectedService -Service "qbittorrent" -StateKey "qbittorrent" -ActiveValue "local" -CurrentValue $QBIT_MODE
+    Remove-DeselectedService -Service "prowlarr" -StateKey "prowlarr" -ActiveValue "local" -CurrentValue $PROWLARR_MODE
+    Remove-DeselectedService -Service "jellyfin" -StateKey "mediaMode" -ActiveValue "local" -CurrentValue $MEDIA_MODE
+    Remove-DeselectedService -Service "flaresolverr" -StateKey "flaresolverr" -ActiveValue "true" -CurrentValue $fsState
+    Remove-DeselectedService -Service "dozzle" -StateKey "dozzle" -ActiveValue "true" -CurrentValue $dozzleState
+    Remove-DeselectedService -Service "postgres" -StateKey "dbDriver" -ActiveValue "postgres" -CurrentValue $DB_DRIVER_CHOICE
+}
+
+$INFRA_SERVICES = @("redis")
+if ($DB_DRIVER_CHOICE -eq "postgres") { $INFRA_SERVICES += "postgres" }
+if ($QBIT_MODE -eq "local") { $INFRA_SERVICES += "qbittorrent" }
+if ($PROWLARR_MODE -eq "local") { $INFRA_SERVICES += "prowlarr" }
+if ($MEDIA_MODE -eq "local") { $INFRA_SERVICES += "jellyfin" }
+if ($USE_FLARESOLVERR) { $INFRA_SERVICES += "flaresolverr" }
+if ($USE_DOZZLE) { $INFRA_SERVICES += "dozzle" }
 
 Write-Info "Pulling images..."
-docker compose -f $COMPOSE_FILE pull $INFRA_SERVICES
+docker compose $dcArgs pull
 
-docker compose -f $COMPOSE_FILE up -d --remove-orphans $INFRA_SERVICES
+if (-not (docker image inspect "ghcr.io/nort1346/lode:$LODE_TAG" 2>$null)) {
+    Write-Err "Failed to pull the Lode image (ghcr.io/nort1346/lode:$LODE_TAG). Check your network and try again."
+    Write-Err "You can also try manually: $(Get-DcCommandPrefix) pull lode"
+    Stop-Setup 1
+}
+
+docker compose $dcArgs up -d $INFRA_SERVICES
 
 # `ps -q` is stable across Compose versions (the JSON output format
 # changed in Compose 2.21, so it is not used for state checks).
 $failedServices = @()
 foreach ($svc in $INFRA_SERVICES) {
-    $svcId = docker compose -f $COMPOSE_FILE ps -q $svc 2>$null
+    $svcId = docker compose $dcArgs ps -q $svc 2>$null
     if (-not $svcId) {
         $failedServices += $svc
-        $lastLog = docker compose -f $COMPOSE_FILE logs $svc --tail 3 2>&1 | Select-Object -Last 1
+        $lastLog = docker compose $dcArgs logs $svc --tail 3 2>&1 | Select-Object -Last 1
         Write-Warn "$svc failed to start: $lastLog"
     }
 }
 
 if ($failedServices -contains 'redis') {
     Write-Err "Redis failed to start. Cannot continue."
-    Write-Host "  Check logs: docker compose -f $COMPOSE_FILE logs redis" -ForegroundColor Yellow
+    Write-Host "  Check logs: $(Get-DcCommandPrefix) logs redis" -ForegroundColor Yellow
     Stop-Setup 1
 }
-if ($failedServices -contains 'qbittorrent') {
-    Write-Err "qBittorrent failed to start. Cannot continue."
-    Write-Host "  Check logs: docker compose -f $COMPOSE_FILE logs qbittorrent" -ForegroundColor Yellow
-    Stop-Setup 1
-}
-if ($failedServices -contains 'postgres') {
+if ($DB_DRIVER_CHOICE -eq "postgres" -and $failedServices -contains 'postgres') {
     Write-Err "PostgreSQL failed to start. Cannot continue."
-    Write-Host "  Check logs: docker compose -f $COMPOSE_FILE logs postgres" -ForegroundColor Yellow
+    Write-Host "  Check logs: $(Get-DcCommandPrefix) logs postgres" -ForegroundColor Yellow
+    Stop-Setup 1
+}
+if ($QBIT_MODE -eq "local" -and $failedServices -contains 'qbittorrent') {
+    Write-Err "qBittorrent failed to start. Cannot continue."
+    Write-Host "  Check logs: $(Get-DcCommandPrefix) logs qbittorrent" -ForegroundColor Yellow
     Stop-Setup 1
 }
 
 Write-Info "Waiting for Redis..."
 Test-Port -Host_ "localhost" -Port 6379 -Timeout 30 | Out-Null
 
-Write-Info "Waiting for qBittorrent..."
-Test-Port -Host_ "localhost" -Port 8080 -Timeout 60 | Out-Null
+if ($QBIT_MODE -eq "local") {
+    Write-Info "Waiting for qBittorrent..."
+    Test-Port -Host_ "localhost" -Port 8080 -Timeout 60 | Out-Null
+}
 
 Start-Sleep -Seconds 3
 
-$QBIT_TEMP_PASS = docker compose -f $COMPOSE_FILE logs qbittorrent 2>&1 |
-    Select-String 'A temporary password is provided for this session:' |
-    ForEach-Object { ($_ -replace '.*A temporary password is provided for this session:\s*', '').Trim() } |
-    Select-Object -First 1
-
-if ($failedServices -notcontains 'prowlarr') {
-    Write-Info "Waiting for Prowlarr..."
-    Test-Port -Host_ "localhost" -Port 9900 -Timeout 60 | Out-Null
-} else {
-    Write-Warn "Prowlarr not running -- you can configure it later (step 10)"
+$QBIT_TEMP_PASS = $null
+if ($QBIT_MODE -eq "local") {
+    $QBIT_TEMP_PASS = docker compose $dcArgs logs qbittorrent 2>&1 |
+        Select-String 'A temporary password is provided for this session:' |
+        ForEach-Object { ($_ -replace '.*A temporary password is provided for this session:\s*', '').Trim() } |
+        Select-Object -First 1
 }
 
-if ($failedServices -notcontains 'jellyfin') {
-    Write-Info "Waiting for Jellyfin..."
-    Test-Port -Host_ "localhost" -Port 8096 -Timeout 90 | Out-Null
-} else {
-    Write-Warn "Jellyfin not running -- you can configure it later (step 8)"
+if ($PROWLARR_MODE -eq "local") {
+    if ($failedServices -contains 'prowlarr') {
+        Write-Warn "Prowlarr not running -- you can configure it later (step 12)"
+    } else {
+        Write-Info "Waiting for Prowlarr..."
+        Test-Port -Host_ "localhost" -Port 9900 -Timeout 60 | Out-Null
+    }
 }
 
-Write-Ok "All infrastructure services are running"
+if ($MEDIA_MODE -eq "local") {
+    if ($failedServices -contains 'jellyfin') {
+        Write-Warn "Jellyfin not running -- you can configure it later (step 10)"
+    } else {
+        Write-Info "Waiting for Jellyfin..."
+        Test-Port -Host_ "localhost" -Port 8096 -Timeout 90 | Out-Null
+    }
+}
+
+Write-Ok "Selected services are running"
 
 if ($DB_DRIVER_CHOICE -eq "postgres") {
     Write-Info "Waiting for PostgreSQL..."
@@ -748,54 +1151,72 @@ if ($DB_DRIVER_CHOICE -eq "postgres") {
 Write-Info "Waiting 10s for services to fully initialize..."
 Start-Sleep -Seconds 10
 
-# -- 8. Jellyfin API Key -----------------------------------------------
+# -- 10. Jellyfin API Key ----------------------------------------------
 
-Write-Step "[8/14] Jellyfin API Key"
+Write-Step "[10/15] Jellyfin API key"
 
-Write-Host ""
-Write-Host "Follow these steps to get your Jellyfin API key:" -ForegroundColor White
-Write-Dim "  1. Open http://localhost:8096 in your browser"
-Write-Dim "  2. Complete the setup wizard (create your admin account)"
-Write-Dim "  3. Go to Dashboard (gear icon) > API Keys"
-Write-Dim '  4. Click the + button, name it Lode, click OK'
-Write-Dim "  5. Copy the generated API key"
-Write-Host ""
-
-$jellyfinKey = Read-GumInput -Placeholder "Paste your Jellyfin API key (Enter to skip)"
-
-if ($jellyfinKey) {
-    Update-EnvFile "NUXT_JELLYFIN_API_KEY" $jellyfinKey
-    Write-Ok "Jellyfin API key saved"
+if ($MEDIA_PROVIDER -eq "none") {
+    Update-EnvFile "NUXT_JELLYFIN_URL" ""
+    Update-EnvFile "NUXT_JELLYFIN_API_KEY" ""
+    Write-Info "No media server selected - NUXT_JELLYFIN_URL and NUXT_JELLYFIN_API_KEY cleared"
 } else {
-    Write-Warn "Skipping Jellyfin API key -- set it later in .env"
+    if ($MEDIA_MODE -eq "local") {
+        Write-Host ""
+        Write-Host "Follow these steps to get your Jellyfin API key:" -ForegroundColor White
+        Write-Dim "  1. Open http://localhost:8096 in your browser"
+        Write-Dim "  2. Complete the setup wizard (create your admin account)"
+        Write-Dim "  3. Go to Dashboard (gear icon) > API Keys"
+        Write-Dim '  4. Click the + button, name it Lode, click OK'
+        Write-Dim "  5. Copy the generated API key"
+    } else {
+        Write-Host ""
+        Write-Host "Your external Jellyfin instance: $JELLYFIN_URL" -ForegroundColor White
+        Write-Dim "Create an API key in Jellyfin: Dashboard (gear icon) > API Keys"
+    }
+    Write-Host ""
+
+    $jellyfinKey = Read-GumPassword "Paste your Jellyfin API key (Enter to skip)"
+
+    if ($jellyfinKey) {
+        Update-EnvFile "NUXT_JELLYFIN_API_KEY" $jellyfinKey
+        Write-Ok "Jellyfin API key saved"
+    } else {
+        Write-Warn "Skipping Jellyfin API key -- set it later in .env"
+    }
 }
 
-# -- 9. qBittorrent WebUI + API Key ------------------------------------
+# -- 11. qBittorrent WebUI + API Key -----------------------------------
 
-Write-Step "[9/14] qBittorrent WebUI + API Key"
+Write-Step "[11/15] qBittorrent WebUI + API key"
 
-if ($QBIT_TEMP_PASS) {
-    Write-Host ""
-    Write-Host "qBittorrent temporary password: $QBIT_TEMP_PASS" -ForegroundColor Yellow
-    Write-Dim "Copy this - you will need it below"
-    Write-Host ""
+if ($QBIT_MODE -eq "local") {
+    if ($QBIT_TEMP_PASS) {
+        Write-Host ""
+        Write-Host "qBittorrent temporary password: $QBIT_TEMP_PASS" -ForegroundColor Yellow
+        Write-Dim "Copy this - you will need it below"
+        Write-Host ""
+    } else {
+        Write-Warn "Could not extract qBittorrent temp password - check: $(Get-DcCommandPrefix) logs qbittorrent"
+    }
+
+    Write-Host "Follow these steps to configure qBittorrent:" -ForegroundColor White
+    Write-Dim "  1. Open http://localhost:8080 in your browser"
+    Write-Dim "  2. Login with:"
+    Write-Dim "       Username: admin"
+    Write-Dim "       Password: [temporary password shown above]"
+    Write-Dim "  3. Go to Tools > Options > Web UI"
+    Write-Dim "  4. Change the password to something you remember"
+    Write-Dim "  5. Save changes"
+    Write-Dim "  6. Go to Tools > Options > Web UI > API Key section"
+    Write-Dim "  7. Copy the API Key"
 } else {
-    Write-Warn "Could not extract qBittorrent temp password - check: docker compose -f $COMPOSE_FILE logs qbittorrent"
+    Write-Host ""
+    Write-Host "Your external qBittorrent instance: $QBIT_URL" -ForegroundColor White
+    Write-Dim "Find the API key in qBittorrent: Tools > Options > Web UI"
 }
-
-Write-Host "Follow these steps to configure qBittorrent:" -ForegroundColor White
-Write-Dim "  1. Open http://localhost:8080 in your browser"
-Write-Dim "  2. Login with:"
-Write-Dim "       Username: admin"
-Write-Dim "       Password: [temporary password shown above]"
-Write-Dim "  3. Go to Tools > Options > Web UI"
-Write-Dim "  4. Change the password to something you remember"
-Write-Dim "  5. Save changes"
-Write-Dim "  6. Go to Tools > Options > Web UI > API Key section"
-Write-Dim "  7. Copy the API Key"
 Write-Host ""
 
-$qbitKey = Read-GumInput -Placeholder "Paste your qBittorrent API Key (Enter to skip)"
+$qbitKey = Read-GumPassword "Paste your qBittorrent API Key (Enter to skip)"
 
 if ($qbitKey) {
     Update-EnvFile "NUXT_QBITTORRENT_API_KEY" $qbitKey
@@ -804,25 +1225,32 @@ if ($qbitKey) {
     Write-Warn "Skipping qBittorrent API key -- set it later in .env"
 }
 
-# -- 10. Prowlarr API Key ---------------------------------------------
+# -- 12. Prowlarr API Key ----------------------------------------------
 
-Write-Step "[10/14] Prowlarr API Key"
+Write-Step "[12/15] Prowlarr API key"
 
-Write-Host ""
-Write-Host "Follow these steps to get your Prowlarr API key:" -ForegroundColor White
-Write-Dim "  1. Open http://localhost:9900 in your browser"
-Write-Dim "  2. Go to Settings > General"
-Write-Dim "  3. Find the API Key field"
-Write-Dim "  4. Copy the API key"
-Write-Host ""
-Write-Callout "IMPORTANT: Prowlarr needs indexers before Lode can find anything." (@(
-    "  1. Add at least one indexer (e.g. YTS): Settings > Indexers > Add",
-    "  2. For private trackers: Settings > Indexers > Add > FlareSolverr",
-    "     Set URL: http://flaresolverr:8191"
-) -join "`n")
-Write-Host ""
+if ($PROWLARR_MODE -eq "local") {
+    Write-Host ""
+    Write-Host "Follow these steps to get your Prowlarr API key:" -ForegroundColor White
+    Write-Dim "  1. Open http://localhost:9900 in your browser"
+    Write-Dim "  2. Go to Settings > General"
+    Write-Dim "  3. Find the API Key field"
+    Write-Dim "  4. Copy the API key"
+    Write-Host ""
+    $indexerLines = @("  1. Add at least one indexer (e.g. YTS): Settings > Indexers > Add")
+    if ($USE_FLARESOLVERR) {
+        $indexerLines += @("  2. For private trackers: Settings > Indexers > Add > FlareSolverr", "     Set URL: http://flaresolverr:8191")
+    }
+    Write-Callout "IMPORTANT: Prowlarr needs indexers before Lode can find anything." ($indexerLines -join "`n")
+    Write-Host ""
+} else {
+    Write-Host ""
+    Write-Host "Your external Prowlarr instance: $PROWLARR_URL" -ForegroundColor White
+    Write-Dim "Find the API key in Prowlarr: Settings > General"
+    Write-Host ""
+}
 
-$prowlarrKey = Read-GumInput -Placeholder "Paste your Prowlarr API key (Enter to skip)"
+$prowlarrKey = Read-GumPassword "Paste your Prowlarr API key (Enter to skip)"
 
 if ($prowlarrKey) {
     Update-EnvFile "NUXT_PROWLARR_API_KEY" $prowlarrKey
@@ -831,9 +1259,9 @@ if ($prowlarrKey) {
     Write-Warn "Skipping Prowlarr API key -- set it later in .env"
 }
 
-# -- 11. TMDB API Key --------------------------------------------------
+# -- 13. TMDB API Key --------------------------------------------------
 
-Write-Step "[11/14] TMDB API Key"
+Write-Step "[13/15] TMDB API key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your TMDB API key:" -ForegroundColor White
@@ -848,7 +1276,7 @@ Write-Host ""
 Write-Dim "This is required for movie/TV metadata."
 Write-Host ""
 
-$tmdbKey = Read-GumInput -Placeholder "Paste your TMDB API key (Enter to skip)"
+$tmdbKey = Read-GumPassword "Paste your TMDB API key (Enter to skip)"
 
 if ($tmdbKey) {
     Update-EnvFile "NUXT_TMDB_API_KEY" $tmdbKey
@@ -857,9 +1285,9 @@ if ($tmdbKey) {
     Write-Warn "Skipping TMDB API key -- set it later in .env"
 }
 
-# -- 12. Discord Webhook (optional) ------------------------------------
+# -- 14. Discord Webhook (optional) ------------------------------------
 
-Write-Step "[12/14] Discord Webhook (optional)"
+Write-Step "[14/15] Discord Webhook (optional)"
 
 Write-Host ""
 Write-Dim "Get notified when downloads complete."
@@ -870,7 +1298,7 @@ Write-Dim '  3. Click New Webhook'
 Write-Dim "  4. Name it, choose a channel, click Copy Webhook URL"
 Write-Host ""
 
-$discordKey = Read-GumInput -Placeholder "Paste your Discord Webhook URL (Enter to skip)"
+$discordKey = Read-GumInput "Paste your Discord Webhook URL (Enter to skip)"
 
 if ($discordKey) {
     Update-EnvFile "NUXT_DISCORD_WEBHOOK_URL" $discordKey
@@ -879,39 +1307,41 @@ if ($discordKey) {
     Write-Warn "Skipping Discord webhook -- set it later in .env"
 }
 
-# -- 13. Pull Lode ------------------------------------------------
+# -- 15. Start Lode ----------------------------------------------------
 
-Write-Step "[13/14] Pulling Lode"
-
-Write-Info "Pulling Lode image..."
-docker compose -f $COMPOSE_FILE pull lode
-
-if (-not (docker image inspect "ghcr.io/nort1346/lode:$LODE_TAG" 2>$null)) {
-    Write-Err "Failed to pull Lode image. Check your network."
-    Write-Err "You can also try manually: docker compose -f $COMPOSE_FILE pull lode"
-    Stop-Setup 1
-}
-
-Write-Ok "Lode image pulled"
-
-# -- 14. Start Lode -----------------------------------------------
-
-Write-Step "[14/14] Starting Lode"
+Write-Step "[15/15] Starting Lode"
 
 try {
-    Update-EnvFile "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
     Update-EnvFile "NUXT_REDIS_URL" "redis://redis:6379"
-    Update-EnvFile "NUXT_PROWLARR_URL" "http://prowlarr:9696"
     Update-EnvFile "DB_DRIVER" $DB_DRIVER_CHOICE
 
-    if ($DB_DRIVER_CHOICE -eq "postgres") {
-        Update-EnvFile "DATABASE_URL" "postgresql://lode:${POSTGRES_PASSWORD}@postgres:5432/lode"
+    switch ($QBIT_MODE) {
+        'local'    { Update-EnvFile "NUXT_QBITTORRENT_URL" "http://qbittorrent:8080" }
+        'external' { Update-EnvFile "NUXT_QBITTORRENT_URL" $QBIT_URL }
+    }
+    switch ($PROWLARR_MODE) {
+        'local'    { Update-EnvFile "NUXT_PROWLARR_URL" "http://prowlarr:9696" }
+        'external' { Update-EnvFile "NUXT_PROWLARR_URL" $PROWLARR_URL }
+    }
+    switch ($MEDIA_MODE) {
+        'local'    { Update-EnvFile "NUXT_JELLYFIN_URL" "http://jellyfin:8096" }
+        'external' { Update-EnvFile "NUXT_JELLYFIN_URL" $JELLYFIN_URL }
+    }
+    if ($USE_FLARESOLVERR) {
+        Update-EnvFile "NUXT_FLARESOLVERR_URL" "http://flaresolverr:8191"
+    } else {
+        Update-EnvFile "NUXT_FLARESOLVERR_URL" ""
     }
 
-    $upOutput = (docker compose -f $COMPOSE_FILE up -d lode 2>&1 | Out-String).Trim()
+    if ($DB_DRIVER_CHOICE -eq "postgres") {
+        $pgPass = Read-EnvValue "POSTGRES_PASSWORD"
+        Update-EnvFile "DATABASE_URL" "postgresql://lode:$pgPass@postgres:5432/lode"
+    }
+
+    $upOutput = (docker compose $dcArgs up -d lode 2>&1 | Out-String).Trim()
 
     Start-Sleep -Seconds 3
-    $lodeId = docker compose -f $COMPOSE_FILE ps -q lode 2>$null
+    $lodeId = docker compose $dcArgs ps -q lode 2>$null
     if (-not $lodeId) {
         if ($upOutput) {
             throw "Lode container did not start:`n$upOutput"
@@ -930,9 +1360,9 @@ catch {
     Write-Err "Could not start Lode: $_"
     Write-Host ""
     Write-Host "  The other containers are left running. To see what went wrong:" -ForegroundColor Yellow
-    Write-Host "    docker compose -f $COMPOSE_FILE logs lode" -ForegroundColor Yellow
+    Write-Host "    $(Get-DcCommandPrefix) logs lode" -ForegroundColor Yellow
     Write-Host "  To retry:" -ForegroundColor Yellow
-    Write-Host "    docker compose -f $COMPOSE_FILE up -d lode" -ForegroundColor Yellow
+    Write-Host "    $(Get-DcCommandPrefix) up -d lode" -ForegroundColor Yellow
     Write-Host ""
     Stop-Setup 1
 }
@@ -941,7 +1371,7 @@ catch {
 
 $adminPass = $null
 for ($retry = 1; $retry -le 5; $retry++) {
-    $adminPass = docker compose -f $COMPOSE_FILE logs --no-color --tail 200 lode 2>&1 |
+    $adminPass = docker compose $dcArgs logs --no-color --tail 200 lode 2>&1 |
         Select-String 'Admin password:' |
         ForEach-Object { if ($_ -match 'Admin password: ([^"]+)') { $matches[1].Trim() } } |
         Select-Object -First 1
@@ -951,25 +1381,33 @@ for ($retry = 1; $retry -le 5; $retry++) {
 
 # -- Summary ----------------------------------------------------------
 
-$hasDozzle = [bool](docker compose -f $COMPOSE_FILE ps -q dozzle 2>$null)
-
 Write-Host ""
 Write-Host "Lode is ready!" -ForegroundColor Green
 Write-Host ""
 
 # -- Services table
-$services = @(
-    (Get-SummaryRow "Lode" "http://localhost:5757"),
-    (Get-SummaryRow "qBittorrent" "http://localhost:8080"),
-    (Get-SummaryRow "Prowlarr" "http://localhost:9900"),
-    (Get-SummaryRow "Jellyfin" "http://localhost:8096"),
-    (Get-SummaryRow "FlareSolverr" "http://localhost:8191"),
-    (Get-SummaryRow "Database" $DB_DRIVER_CHOICE)
-)
+$services = @((Get-SummaryRow "Lode" "http://localhost:5757"))
+switch ($QBIT_MODE) {
+    'local'    { $services += (Get-SummaryRow "qBittorrent" "http://localhost:8080") }
+    'external' { $services += (Get-SummaryRow "qBittorrent" $QBIT_URL) }
+}
+switch ($PROWLARR_MODE) {
+    'local'    { $services += (Get-SummaryRow "Prowlarr" "http://localhost:9900") }
+    'external' { $services += (Get-SummaryRow "Prowlarr" $PROWLARR_URL) }
+}
+switch ($MEDIA_MODE) {
+    'local'    { $services += (Get-SummaryRow "Jellyfin" "http://localhost:8096") }
+    'external' { $services += (Get-SummaryRow "Jellyfin" $JELLYFIN_URL) }
+    'none'     { $services += (Get-SummaryRow "Jellyfin" "(disabled)") }
+}
+if ($USE_FLARESOLVERR) {
+    $services += (Get-SummaryRow "FlareSolverr" "http://localhost:8191")
+}
+$services += (Get-SummaryRow "Database" $DB_DRIVER_CHOICE)
 if ($DB_DRIVER_CHOICE -eq "postgres") {
     $services += (Get-SummaryRow "PostgreSQL" "localhost:5432 / lode")
 }
-if ($hasDozzle) {
+if ($USE_DOZZLE) {
     $services += (Get-SummaryRow "Dozzle" "http://localhost:8082")
 }
 $servicesMsg = $services -join "`n"
@@ -984,17 +1422,24 @@ if ($adminPass) {
     $credsPass = if ($script:HAS_GUM) { gum style --bold --foreground 11 $adminPass } else { $adminPass }
     Write-Host "Password: $credsPass"
 } else {
-    Write-Dim "Password: check 'docker compose -f $COMPOSE_FILE logs lode'"
+    Write-Dim "Password: check '$(Get-DcCommandPrefix) logs lode'"
 }
 Write-Dim "Change this password after first login."
 
 Write-Host ""
 
 # -- Required before first use
-Write-Callout "Required before first use:" (@(
-    "  Prowlarr has no indexers yet - Lode cannot find torrents until you add them.",
-    "  Open http://localhost:9900 and add at least one indexer (e.g. YTS).",
-    "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"
-) -join "`n")
+if ($PROWLARR_MODE -eq "local") {
+    $requiredLines = @(
+        "  Prowlarr has no indexers yet - Lode cannot find torrents until you add them.",
+        "  Open http://localhost:9900 and add at least one indexer (e.g. YTS)."
+    )
+    if ($USE_FLARESOLVERR) {
+        $requiredLines += "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"
+    }
+} else {
+    $requiredLines = @("  Your external Prowlarr needs at least one indexer before Lode can find torrents.")
+}
+Write-Callout "Required before first use:" ($requiredLines -join "`n")
 
 Stop-Setup 0
