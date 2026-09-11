@@ -1,109 +1,7 @@
-name: lode
+# PostgreSQL overlay - combine with the base:
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
 
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: lode-redis
-    restart: unless-stopped
-    ports:
-      - '6379:6379'
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-
-  qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
-    container_name: lode-qbittorrent
-    restart: unless-stopped
-    ports:
-      - '8080:8080'
-      - '6881:6881'
-      - '6881:6881/udp'
-    volumes:
-      - qbittorrent-config:/config
-      - ./media:/media
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=${TZ:-UTC}
-      - WEBUI_PORT=8080
-
-  prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
-    container_name: lode-prowlarr
-    restart: unless-stopped
-    ports:
-      - '9900:9696'
-    volumes:
-      - prowlarr-config:/config
-
-  flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
-    container_name: lode-flaresolverr
-    restart: unless-stopped
-    ports:
-      - '8191:8191'
-
-  lode:
-    #build: .
-    image: ghcr.io/nort1346/lode:latest
-    container_name: lode
-    ports:
-      - '5757:5757'
-    volumes:
-      - ./data:/app/.data
-      - lode-avatars:/app/.output/public/avatars
-      - ./media:/media
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-      - NITRO_PORT=5757
-    depends_on:
-      redis:
-        condition: service_started
-      qbittorrent:
-        condition: service_started
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          'fetch("http://localhost:5757/api/health").then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))'
-        ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-
-  jellyfin:
-    image: jellyfin/jellyfin:latest
-    container_name: lode-jellyfin
-    restart: unless-stopped
-    ports:
-      - '8096:8096'
-    volumes:
-      - jellyfin-config:/config
-      - jellyfin-cache:/cache
-      - ./media:/media
-    environment:
-      - JELLYFIN_PublishedServerUrl=http://localhost:8096
-
-  dozzle:
-    image: amir20/dozzle:latest
-    container_name: lode-dozzle
-    restart: unless-stopped
-    ports:
-      - '8082:8080'
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - DOZZLE_FILTER=label=com.docker.compose.project=lode
-
   postgres:
     image: postgres:16-alpine
     container_name: lode-postgres
@@ -123,11 +21,10 @@ services:
       timeout: 3s
       retries: 5
 
+  lode:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
-  redis-data:
-  lode-avatars:
-  qbittorrent-config:
-  prowlarr-config:
-  jellyfin-config:
-  jellyfin-cache:
   postgres-data:

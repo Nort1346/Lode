@@ -6,12 +6,36 @@
 
 ```bash
 cp .env.example .env   # configure first
-docker compose -f docker-compose.sqlite.yml up -d              # SQLite
-# docker compose -f docker-compose.postgres.yml up -d          # PostgreSQL
-docker compose -f docker-compose.sqlite.yml logs -f            # view logs
+docker compose -f docker-compose.yml up -d                                     # SQLite (base)
+# docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d    # PostgreSQL
+docker compose -f docker-compose.yml logs -f lode                              # view logs
 ```
 
-The `lode` service uses the prebuilt `ghcr.io/nort1346/lode:latest` image (a `:nightly` tag with the latest dev build is also published daily). To build from source instead, uncomment the `#build: .` line in the compose file (requires Docker Desktop with >=4GB memory).
+The `lode` service uses the prebuilt `ghcr.io/nort1346/lode:latest` image (a `:nightly` tag with the latest dev build is also published daily). To build from source instead, uncomment the `#build: .` line in the base compose file (requires Docker Desktop with >=4GB memory).
+
+### Modular compose files
+
+The stack is split into a base file and per-service overlays so you deploy only what you need. Combine the base with any overlays you want using repeated `-f` flags:
+
+| File | Adds |
+|------|------|
+| `docker-compose.yml` | `lode` + `redis` (always) |
+| `docker-compose.postgres.yml` | `postgres` (switches the database driver) |
+| `docker-compose.qbittorrent.yml` | `qbittorrent` |
+| `docker-compose.prowlarr.yml` | `prowlarr` |
+| `docker-compose.jellyfin.yml` | `jellyfin` |
+| `docker-compose.flaresolverr.yml` | `flaresolverr` |
+| `docker-compose.dozzle.yml` | `dozzle` |
+
+Example (full local stack on PostgreSQL):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml \
+  -f docker-compose.qbittorrent.yml -f docker-compose.prowlarr.yml \
+  -f docker-compose.jellyfin.yml up -d
+```
+
+The [auto-setup script](../README.md#quick-start) selects these overlays for you and saves the choice to `.lode-setup` so re-runs prefill the prompts.
 
 ### Services
 
@@ -93,6 +117,6 @@ See [Configuration](./configuration.md) for the full list of environment variabl
 
 ## Logs
 
-- **Docker logs**: `docker compose -f docker-compose.sqlite.yml logs -f lode`
+- **Docker logs**: `docker compose -f docker-compose.yml logs -f lode`
 - **Dozzle UI**: `http://localhost:8082`
 - **Live logs**: Admin → Settings → Live Logs (SSE stream)

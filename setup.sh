@@ -2,8 +2,15 @@
 set -euo pipefail
 
 # -- Lode Auto-Setup Script --------------------------------------
-# Sets up the full self-hosted stack: Redis, qBittorrent, Prowlarr,
-# Jellyfin, and Lode with guided manual configuration.
+# Sets up Lode with the services you choose. The Docker stack is split
+# into a base compose file (Lode + Redis) plus per-service overlays
+# (postgres, qbittorrent, prowlarr, jellyfin, flaresolverr, dozzle).
+# This script downloads the files that match your selection and starts
+# them with `docker compose -f <base> -f <overlay>...`, so the compose
+# files stay small, readable, and usable manually.
+#
+# Your selection is saved in .lode-setup so re-runs can prefill
+# the prompts; .env keeps all secrets and URLs.
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/Nort1346/Lode/main/setup.sh | bash
@@ -18,10 +25,36 @@ SETUP_SELF="$0"
 SETUP_NEW="$(mktemp)"
 COMPOSE_TMP="$(mktemp)"
 
+COMPOSE_BASE="docker-compose.yml"
+STATE_FILE=".lode-setup"
+# Legacy state file name (pre-rename) - migrate it once on re-run.
+if [ ! -f "$STATE_FILE" ] && [ -f ".lode-setup.json" ]; then
+  mv ".lode-setup.json" "$STATE_FILE"
+fi
+COMPOSE_FILES=()
+
 cleanup() {
   rm -f "$SETUP_NEW" "$COMPOSE_TMP"
 }
 trap cleanup EXIT
+
+# Option labels (also used for --selected prefill, so keep them stable)
+QBIT_OPT_LOCAL="Local qBittorrent container (recommended)"
+QBIT_OPT_EXTERNAL="External qBittorrent (you host it)"
+PROWLARR_OPT_LOCAL="Local Prowlarr container (recommended)"
+PROWLARR_OPT_EXTERNAL="External Prowlarr (you host it)"
+MEDIA_OPT_JELLYFIN_LOCAL="Jellyfin (local container)"
+MEDIA_OPT_JELLYFIN_EXTERNAL="Jellyfin (external)"
+MEDIA_OPT_NONE="No media server"
+ADDON_OPT_FLARESOLVERR="FlareSolverr - CAPTCHA bypass for private trackers"
+ADDON_OPT_DOZZLE="Dozzle - Docker log viewer"
+
+# Captured before .env is created in step 2: a pre-existing .env without
+# a state file means the old all-or-nothing installer was used.
+LEGACY_INSTALL=false
+if [ -f .env ] && [ ! -f "$STATE_FILE" ]; then
+  LEGACY_INSTALL=true
+fi
 
 # -- Privilege helper --------------------------------------------------
 # SUDO stays empty when running as root or when no privilege tool exists.
@@ -241,9 +274,31 @@ if [ "$HAS_GUM" = true ]; then
     gum input --placeholder "$1"
   }
 
+  # read_input_default <placeholder> <default>
+  # Prefills the input so Enter accepts the default.
+  read_input_default() {
+    gum input --value "$2" --placeholder "$1"
+  }
+
+  # read_password <placeholder>  (masked input for API keys)
+  read_password() {
+    gum input --password --placeholder "$1"
+  }
+
   gum_menu() {
     local prompt="$1"; shift
     gum choose --header "$prompt" "$@"
+  }
+
+  # gum_menu_selected <prompt> <preselected-option> <options...>
+  # The preselected option starts highlighted; press Enter to accept it.
+  gum_menu_selected() {
+    local prompt="$1" preselect="$2"; shift 2
+    if [ -n "$preselect" ] && printf '%s\n' "$@" | grep -qxF "$preselect"; then
+      gum choose --header "$prompt" --selected "$preselect" "$@"
+    else
+      gum choose --header "$prompt" "$@"
+    fi
   }
 else
   summary_section() { echo -e "${CYAN}$1${NC}"; }
@@ -262,8 +317,49 @@ else
     echo "$result"
   }
 
+  # read_input_default <placeholder> <default>
+  read_input_default() {
+    local placeholder="$1" def="$2" result=""
+    if [ -n "$def" ]; then
+      read -rp "$placeholder [$def]: " result || result=""
+    else
+      read -rp "$placeholder: " result || result=""
+    fi
+    if [ -z "$result" ]; then
+      echo "$def"
+    else
+      echo "$result"
+    fi
+  }
+
+  # read_password <placeholder>  (masked input for API keys)
+  read_password() {
+    local result=""
+    read -rsp "$1: " result || result=""
+    echo ""
+    echo "$result"
+  }
+
   gum_menu() {
     local prompt="$1"; shift
+    plain_menu "$prompt" 1 "$@"
+  }
+
+  # gum_menu_selected <prompt> <preselected-option> <options...>
+  gum_menu_selected() {
+    local prompt="$1" preselect="$2"; shift 2
+    local default=1 i=1 opt
+    for opt in "$@"; do
+      if [ "$opt" = "$preselect" ]; then
+        default=$i
+      fi
+      i=$((i + 1))
+    done
+    plain_menu "$prompt" "$default" "$@"
+  }
+
+  plain_menu() {
+    local prompt="$1" default="$2"; shift 2
     local options=("$@")
     local i=1
     echo "$prompt"
@@ -273,18 +369,14 @@ else
     done
     local choice=""
     while true; do
-      if ! read -rp "Enter choice [1-${#options[@]}] (default 1): " choice; then
-        choice="1"
+      if ! read -rp "Enter choice [1-${#options[@]}] (default $default): " choice; then
+        choice="$default"
         break
       fi
-      if [ -n "$choice" ] && [[ ! "$choice" =~ ^[0-9]+$ ]]; then
-        echo "  Invalid choice. Please enter a number between 1 and ${#options[@]}."
-        continue
-      fi
       if [ -z "$choice" ]; then
-        choice="1"
+        choice="$default"
       fi
-      if [ "$choice" -ge 1 ] && [ "$choice" -le "${#options[@]}" ]; then
+      if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#options[@]}" ]; then
         break
       fi
       echo "  Invalid choice. Please enter a number between 1 and ${#options[@]}."
@@ -308,11 +400,34 @@ generate_hex() {
 validate_env_min_length() {
   local key="$1" min="$2"
   local value
-  value=$(grep "^${key}=" .env 2>/dev/null | cut -d= -f2-)
+  value=$(grep "^${key}=" .env 2>/dev/null | head -n 1 | cut -d= -f2-)
   if [ -z "$value" ] || [ ${#value} -lt "$min" ]; then
     return 1
   fi
   return 0
+}
+
+read_env_value() {
+  local key="$1"
+  grep "^${key}=" .env 2>/dev/null | head -n 1 | cut -d= -f2-
+}
+
+validate_url() {
+  case "$1" in
+    http://* | https://*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# external_url_default <env-key> <internal-url>
+# Returns the current .env value unless it is the internal (in-network)
+# URL, which is not a useful default for an external instance.
+external_url_default() {
+  local v
+  v=$(read_env_value "$1")
+  if [ -n "$v" ] && [ "$v" != "$2" ]; then
+    echo "$v"
+  fi
 }
 
 wait_for_port() {
@@ -327,10 +442,21 @@ wait_for_port() {
   done
 }
 
+# dc <compose args...>
+# Every docker compose call goes through dc() so the -f file list
+# (built in the selection step) stays in one place.
+dc() {
+  if [ ${#COMPOSE_FILES[@]} -eq 0 ]; then
+    err "No compose files selected - internal error."
+    exit 1
+  fi
+  docker compose -f "${COMPOSE_FILES[@]}" "$@"
+}
+
 service_running() {
   # `ps -q` is stable across Compose versions (the JSON output format
   # changed in Compose 2.21, so it is not used for state checks).
-  [ -n "$(docker compose -f "$COMPOSE_FILE" ps -q "$1" 2>/dev/null)" ]
+  [ -n "$(dc ps -q "$1" 2>/dev/null)" ]
 }
 
 update_env() {
@@ -342,6 +468,81 @@ update_env() {
   else
     echo "${key}=${value}" >> .env
   fi
+}
+
+# -- State file (selection memory for re-runs) -------------------------
+# Flat key=value file - no JSON parser needed in bash or PowerShell.
+# Only selection state lives here; secrets and URLs stay in .env.
+
+state_get() {
+  local key="$1"
+  if [ ! -f "$STATE_FILE" ]; then
+    return 0
+  fi
+  grep "^${key}=" "$STATE_FILE" 2>/dev/null | head -n 1 | cut -d= -f2-
+}
+
+write_state() {
+  {
+    echo "version=1"
+    echo "dbDriver=${DB_DRIVER_CHOICE}"
+    echo "imageTag=${LODE_TAG}"
+    echo "qbittorrent=${QBIT_MODE}"
+    echo "prowlarr=${PROWLARR_MODE}"
+    echo "mediaProvider=${MEDIA_PROVIDER}"
+    echo "mediaMode=${MEDIA_MODE}"
+    echo "flaresolverr=${USE_FLARESOLVERR}"
+    echo "dozzle=${USE_DOZZLE}"
+  } > "$STATE_FILE"
+}
+
+# is_legacy_monolith <file>
+# Pre-split compose files defined every service inline. The new postgres
+# overlay only defines postgres, so a qbittorrent service block marks a
+# file as a legacy monolith.
+is_legacy_monolith() {
+  [ -f "$1" ] && grep -qE '^  qbittorrent:[[:space:]]*$' "$1"
+}
+
+# stop_service_if_deselected <service> <state-key> <active-value> <current-value>
+# On re-runs, a service that used to be deployed locally but is no longer
+# selected leaves a stopped container behind (we never use
+# --remove-orphans). Confirm, then stop and remove the container; its
+# volume is kept so switching back keeps all data.
+stop_service_if_deselected() {
+  local svc="$1" key="$2" active_value="$3" current_value="$4"
+  local old_value
+  old_value=$(state_get "$key")
+  if [ "$old_value" != "$active_value" ]; then
+    return 0
+  fi
+  if [ "$current_value" = "$active_value" ]; then
+    return 0
+  fi
+  local container="lode-${svc}"
+  if ! docker ps -q --filter "name=^${container}\$" 2>/dev/null | grep -q .; then
+    return 0
+  fi
+  local keep=true
+  if [ "$HAS_GUM" = true ]; then
+    if ! gum confirm --default=true "$container is no longer selected. Stop and remove the container? (its volume is kept)"; then
+      keep=false
+    fi
+  else
+    local answer
+    read -rp "$container is no longer selected. Stop and remove the container? (its volume is kept) [Y/n] " answer || answer="y"
+    if [[ "$answer" =~ ^[Nn] ]]; then
+      keep=false
+    fi
+  fi
+  if [ "$keep" = true ]; then
+    docker stop "$container" >/dev/null 2>&1 || true
+    docker rm "$container" >/dev/null 2>&1 || true
+    ok "Removed $container (volume kept)"
+  else
+    warn "Keeping $container - remove it manually with: docker rm $container"
+  fi
+  return 0
 }
 
 # -- Self-update check (continue with local copy on failure) -----------
@@ -382,7 +583,7 @@ fi
 header "Lode Auto-Setup v1.0"
 
 echo ""
-dim "This will set up Lode and all required services."
+dim "This will set up Lode and the services you choose."
 dim "All data will be stored in Docker volumes."
 echo ""
 
@@ -395,7 +596,7 @@ fi
 
 # -- 1. Prerequisites --------------------------------------------------
 
-step "[1/14] Checking prerequisites"
+step "[1/15] Checking prerequisites"
 
 if ! command -v docker &> /dev/null; then
   err "Docker is not installed."
@@ -558,7 +759,7 @@ ok "nc available"
 
 # -- 2. Create .env ----------------------------------------------------
 
-step "[2/14] Setting up .env file"
+step "[2/15] Setting up .env file"
 
 if [ ! -f .env ]; then
   if [ ! -f .env.example ]; then
@@ -578,44 +779,91 @@ fi
 mkdir -p media/Movies media/Series
 ok "Created media directories (media/Movies, media/Series)"
 
-# -- 3. Generate secrets -----------------------------------------------
+# -- 3. Detect existing setup ------------------------------------------
 
-step "[3/14] Generating secrets"
+step "[3/15] Detecting existing setup"
 
-SESSION_PASSWORD=$(generate_password 32)
-TRACKER_KEY=$(generate_hex 32)
+state_file_found=false
+if [ -f "$STATE_FILE" ]; then
+  state_file_found=true
+  info "Existing setup found ($STATE_FILE):"
+  dim "  Database:    $(state_get dbDriver)"
+  dim "  qBittorrent: $(state_get qbittorrent)"
+  dim "  Prowlarr:    $(state_get prowlarr)"
+  dim "  Media:       $(state_get mediaProvider) ($(state_get mediaMode))"
+  dim "  Add-ons:     FlareSolverr=$(state_get flaresolverr) Dozzle=$(state_get dozzle)"
+  echo ""
+  if [ "$HAS_GUM" = true ]; then
+    gum confirm --default=true "Reconfigure your existing Lode setup?" || {
+      ok "Keeping existing setup - no changes made."
+      exit 0
+    }
+  else
+    read -rp "Reconfigure your existing Lode setup? [Y/n] " reconf || reconf="y"
+    if [[ "$reconf" =~ ^[Nn] ]]; then
+      ok "Keeping existing setup - no changes made."
+      exit 0
+    fi
+  fi
+fi
 
-update_env "NUXT_SESSION_PASSWORD" "$SESSION_PASSWORD"
-update_env "NUXT_TRACKER_ENCRYPTION_KEY" "$TRACKER_KEY"
+# Legacy installs (old all-or-nothing installer) deployed the full
+# stack, so preselect everything local including Dozzle.
+if [ "$LEGACY_INSTALL" = true ]; then
+  info "Existing .env without $STATE_FILE - assuming a previous full-stack install."
+fi
 
-if ! validate_env_min_length "NUXT_SESSION_PASSWORD" 32; then
-  warn "Session password too short, regenerating..."
+# Migrate legacy monolith compose files (they predate the split).
+if is_legacy_monolith "docker-compose.sqlite.yml"; then
+  mv "docker-compose.sqlite.yml" "docker-compose.sqlite.yml.legacy"
+  warn "Moved legacy docker-compose.sqlite.yml to docker-compose.sqlite.yml.legacy"
+fi
+if is_legacy_monolith "docker-compose.postgres.yml"; then
+  mv "docker-compose.postgres.yml" "docker-compose.postgres.yml.legacy"
+  warn "Moved legacy docker-compose.postgres.yml to docker-compose.postgres.yml.legacy"
+fi
+ok "Setup detection complete"
+
+# -- 4. Generate secrets (idempotent) ----------------------------------
+# Secrets are only generated when missing or too short, so re-running
+# the script never invalidates existing sessions or encrypted data.
+
+step "[4/15] Generating secrets"
+
+if validate_env_min_length "NUXT_SESSION_PASSWORD" 32; then
+  ok "Session password already set - keeping it"
+else
   SESSION_PASSWORD=$(generate_password 32)
   update_env "NUXT_SESSION_PASSWORD" "$SESSION_PASSWORD"
+  ok "Session password generated"
 fi
 
-if ! validate_env_min_length "NUXT_TRACKER_ENCRYPTION_KEY" 32; then
-  warn "Tracker key too short, regenerating..."
+if validate_env_min_length "NUXT_TRACKER_ENCRYPTION_KEY" 32; then
+  ok "Tracker encryption key already set - keeping it"
+else
   TRACKER_KEY=$(generate_hex 32)
   update_env "NUXT_TRACKER_ENCRYPTION_KEY" "$TRACKER_KEY"
+  ok "Tracker encryption key generated"
 fi
 
-ok "Session password generated"
-ok "Tracker encryption key generated"
+# -- 5. Database driver choice ----------------------------------------
 
-# -- 4. Database driver choice ----------------------------------------
-
-step "[4/14] Database driver"
+step "[5/15] Database driver"
 
 DB_DRIVER_CHOICE="sqlite"
 
-existing_db_driver=$(grep "^DB_DRIVER=" .env 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')
-
-if [ -n "$existing_db_driver" ] && [ "$existing_db_driver" != "sqlite" ]; then
-  if [ "$HAS_GUM" = true ]; then
-    gum style --foreground 11 --bold "Existing database driver: $existing_db_driver"
-  else
-    echo -e "${YELLOW}${BOLD}  Existing database driver: ${existing_db_driver}${NC}"
+DB_CHOICE_PRE=""
+if [ "$state_file_found" = true ]; then
+  case "$(state_get dbDriver)" in
+    postgres) DB_CHOICE_PRE="PostgreSQL" ;;
+    sqlite) DB_CHOICE_PRE="SQLite (recommended)" ;;
+  esac
+else
+  existing_db_driver=$(read_env_value "DB_DRIVER")
+  if [ "$existing_db_driver" = "postgres" ]; then
+    DB_CHOICE_PRE="PostgreSQL"
+  elif [ -n "$existing_db_driver" ] && [ "$existing_db_driver" != "sqlite" ]; then
+    info "Existing database driver: $existing_db_driver"
   fi
 fi
 
@@ -627,9 +875,9 @@ if [ "$HAS_GUM" != true ]; then
   echo ""
 fi
 
-DB_DRIVER_CHOICE=$(gum_menu "Select database driver:" "SQLite (recommended)" "PostgreSQL")
+DB_CHOICE=$(gum_menu_selected "Select database driver:" "$DB_CHOICE_PRE" "SQLite (recommended)" "PostgreSQL")
 
-if [[ "$DB_DRIVER_CHOICE" == *"PostgreSQL"* ]]; then
+if [[ "$DB_CHOICE" == *"PostgreSQL"* ]]; then
   DB_DRIVER_CHOICE="postgres"
 else
   DB_DRIVER_CHOICE="sqlite"
@@ -638,18 +886,205 @@ fi
 ok "Database driver: $DB_DRIVER_CHOICE"
 
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
-  COMPOSE_FILE="docker-compose.postgres.yml"
+  if validate_env_min_length "POSTGRES_PASSWORD" 32; then
+    ok "PostgreSQL password already set - keeping it"
+  else
+    POSTGRES_PASSWORD=$(generate_password 32)
+    update_env "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
+    ok "PostgreSQL password generated"
+  fi
+fi
+
+# -- 6. Component selection ---------------------------------------------
+
+step "[6/15] Selecting components"
+
+echo ""
+dim "Lode and Redis are always deployed. Choose the rest:"
+echo ""
+
+# Preselect: state file (re-run) > legacy full-stack install > defaults.
+QBIT_PRE="$QBIT_OPT_LOCAL"
+PROWLARR_PRE="$PROWLARR_OPT_LOCAL"
+MEDIA_PRE="$MEDIA_OPT_JELLYFIN_LOCAL"
+USE_FLARESOLVERR=false
+USE_DOZZLE=false
+
+if [ "$state_file_found" = true ]; then
+  case "$(state_get qbittorrent)" in
+    external) QBIT_PRE="$QBIT_OPT_EXTERNAL" ;;
+  esac
+  case "$(state_get prowlarr)" in
+    external) PROWLARR_PRE="$PROWLARR_OPT_EXTERNAL" ;;
+  esac
+  case "$(state_get mediaMode)" in
+    external) MEDIA_PRE="$MEDIA_OPT_JELLYFIN_EXTERNAL" ;;
+    none) MEDIA_PRE="$MEDIA_OPT_NONE" ;;
+  esac
+  if [ "$(state_get flaresolverr)" = "true" ]; then
+    USE_FLARESOLVERR=true
+  else
+    USE_FLARESOLVERR=false
+  fi
+  if [ "$(state_get dozzle)" = "true" ]; then
+    USE_DOZZLE=true
+  else
+    USE_DOZZLE=false
+  fi
+elif [ "$LEGACY_INSTALL" = true ]; then
+  # The old installer ran Dozzle as part of the full stack.
+  USE_DOZZLE=true
+fi
+
+# 6a. Torrent client
+QBIT_CHOICE=$(gum_menu_selected "How should Lode download torrents?" "$QBIT_PRE" "$QBIT_OPT_LOCAL" "$QBIT_OPT_EXTERNAL")
+case "$QBIT_CHOICE" in
+  *"External qBittorrent"*)
+    QBIT_MODE="external"
+    QBIT_URL=$(read_input_default "External qBittorrent URL (http://host:8080)" "$(external_url_default NUXT_QBITTORRENT_URL http://qbittorrent:8080)")
+    if ! validate_url "$QBIT_URL"; then
+      warn "External qBittorrent URL does not start with http(s):// - Lode will not be able to reach it"
+    fi
+    ;;
+  *)
+    QBIT_MODE="local"
+    QBIT_URL=""
+    ;;
+esac
+ok "qBittorrent: $QBIT_MODE"
+
+# 6b. Indexer
+PROWLARR_CHOICE=$(gum_menu_selected "How should Lode index torrents?" "$PROWLARR_PRE" "$PROWLARR_OPT_LOCAL" "$PROWLARR_OPT_EXTERNAL")
+case "$PROWLARR_CHOICE" in
+  *"External Prowlarr"*)
+    PROWLARR_MODE="external"
+    PROWLARR_URL=$(read_input_default "External Prowlarr URL (http://host:9696)" "$(external_url_default NUXT_PROWLARR_URL http://prowlarr:9696)")
+    ;;
+  *)
+    PROWLARR_MODE="local"
+    PROWLARR_URL=""
+    ;;
+esac
+if [ "$PROWLARR_MODE" = "external" ]; then
+  if ! validate_url "$PROWLARR_URL"; then
+    warn "External Prowlarr URL does not start with http(s):// - Lode will not be able to reach it"
+  fi
+fi
+ok "Prowlarr: $PROWLARR_MODE"
+
+# 6c. Media server
+MEDIA_CHOICE=$(gum_menu_selected "Media server (library detection)?" "$MEDIA_PRE" "$MEDIA_OPT_JELLYFIN_LOCAL" "$MEDIA_OPT_JELLYFIN_EXTERNAL" "$MEDIA_OPT_NONE")
+case "$MEDIA_CHOICE" in
+  *"Jellyfin (external)"*)
+    MEDIA_PROVIDER="jellyfin"
+    MEDIA_MODE="external"
+    JELLYFIN_URL=$(read_input_default "External Jellyfin URL (http://host:8096)" "$(external_url_default NUXT_JELLYFIN_URL http://jellyfin:8096)")
+    ;;
+  *"No media server"*)
+    MEDIA_PROVIDER="none"
+    MEDIA_MODE="none"
+    JELLYFIN_URL=""
+    ;;
+  *)
+    MEDIA_PROVIDER="jellyfin"
+    MEDIA_MODE="local"
+    JELLYFIN_URL=""
+    ;;
+esac
+if [ "$MEDIA_MODE" = "external" ]; then
+  if ! validate_url "$JELLYFIN_URL"; then
+    warn "External Jellyfin URL does not start with http(s):// - Lode will not be able to reach it"
+  fi
+fi
+ok "Media server: ${MEDIA_PROVIDER} (${MEDIA_MODE})"
+
+# 6d. Add-ons (multi-select)
+if [ "$HAS_GUM" = true ]; then
+  sel_args=()
+  if [ "$USE_FLARESOLVERR" = true ]; then
+    sel_args+=(--selected "$ADDON_OPT_FLARESOLVERR")
+  fi
+  if [ "$USE_DOZZLE" = true ]; then
+    sel_args+=(--selected "$ADDON_OPT_DOZZLE")
+  fi
+  if [ ${#sel_args[@]} -gt 0 ]; then
+    choices=$(gum choose --no-limit --header "Select optional add-ons:" "${sel_args[@]}" "$ADDON_OPT_FLARESOLVERR" "$ADDON_OPT_DOZZLE") || choices=""
+  else
+    choices=$(gum choose --no-limit --header "Select optional add-ons:" "$ADDON_OPT_FLARESOLVERR" "$ADDON_OPT_DOZZLE") || choices=""
+  fi
 else
-  COMPOSE_FILE="docker-compose.sqlite.yml"
+  # Enter keeps the prefilled selection (state file / legacy / defaults).
+  pre_sel=""
+  if [ "$USE_FLARESOLVERR" = true ]; then
+    pre_sel="${pre_sel}1,"
+  fi
+  if [ "$USE_DOZZLE" = true ]; then
+    pre_sel="${pre_sel}2,"
+  fi
+  pre_sel="${pre_sel%,}"
+  if [ -n "$pre_sel" ]; then
+    default_note="keep current ($pre_sel)"
+  else
+    default_note="none"
+  fi
+  echo "Select optional add-ons (numbers separated by commas, e.g. 1,2 - Enter for $default_note):"
+  echo "  1) $ADDON_OPT_FLARESOLVERR"
+  echo "  2) $ADDON_OPT_DOZZLE"
+  choices=""
+  addon_input=""
+  read -rp "Add-ons: " addon_input || addon_input=""
+  if [ -z "$addon_input" ]; then
+    if [ "$USE_FLARESOLVERR" = true ]; then
+      choices="${choices}${ADDON_OPT_FLARESOLVERR}"$'\n'
+    fi
+    if [ "$USE_DOZZLE" = true ]; then
+      choices="${choices}${ADDON_OPT_DOZZLE}"$'\n'
+    fi
+  else
+    IFS=',' read -ra addon_parts <<< "$addon_input"
+    for part in "${addon_parts[@]}"; do
+      part="${part// /}"
+      case "$part" in
+        1) choices="${choices}${ADDON_OPT_FLARESOLVERR}"$'\n' ;;
+        2) choices="${choices}${ADDON_OPT_DOZZLE}"$'\n' ;;
+        "") : ;;
+        *) echo "  Invalid selection: $part" ;;
+      esac
+    done
+  fi
 fi
+USE_FLARESOLVERR=false
+USE_DOZZLE=false
+while IFS= read -r choice_line; do
+  case "$choice_line" in
+    FlareSolverr*) USE_FLARESOLVERR=true ;;
+    Dozzle*) USE_DOZZLE=true ;;
+  esac
+done <<< "$choices"
+ok "Add-ons: FlareSolverr=$USE_FLARESOLVERR Dozzle=$USE_DOZZLE"
 
+# Build the compose file list for the selected stack.
+COMPOSE_FILES=("$COMPOSE_BASE")
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
-  POSTGRES_PASSWORD=$(generate_password 32)
-  update_env "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
-  ok "PostgreSQL password generated"
+  COMPOSE_FILES+=("docker-compose.postgres.yml")
+fi
+if [ "$QBIT_MODE" = "local" ]; then
+  COMPOSE_FILES+=("docker-compose.qbittorrent.yml")
+fi
+if [ "$PROWLARR_MODE" = "local" ]; then
+  COMPOSE_FILES+=("docker-compose.prowlarr.yml")
+fi
+if [ "$MEDIA_MODE" = "local" ]; then
+  COMPOSE_FILES+=("docker-compose.jellyfin.yml")
+fi
+if [ "$USE_FLARESOLVERR" = true ]; then
+  COMPOSE_FILES+=("docker-compose.flaresolverr.yml")
+fi
+if [ "$USE_DOZZLE" = true ]; then
+  COMPOSE_FILES+=("docker-compose.dozzle.yml")
 fi
 
-# -- 5. Download docker-compose if needed -------------------------------
+# -- 7. Download compose files ------------------------------------------
 # The lode image tag is written by the version step below - mask it
 # when comparing, so tag-only differences never trigger a replace prompt.
 
@@ -657,74 +1092,72 @@ normalize_compose_tag() {
   sed -E 's|^([[:space:]]*(#[[:space:]]*)?)(image:[[:space:]]*ghcr\.io/nort1346/lode:)[^[:space:]]+|\1\3<version>|' "$1"
 }
 
-step "[5/14] Downloading $COMPOSE_FILE"
+step "[7/15] Downloading compose files"
 
-if [ -f "$COMPOSE_FILE" ]; then
-  if [ "$HAS_GUM" = true ]; then
-    gum confirm --default=false "$COMPOSE_FILE already exists. Download latest version from GitHub?" && {
-      info "Downloading $COMPOSE_FILE..."
-      if curl -fsSL "${REPO_RAW}/${COMPOSE_FILE}" -o "$COMPOSE_TMP" 2>/dev/null; then
-        if ! diff -q <(normalize_compose_tag "$COMPOSE_FILE") <(normalize_compose_tag "$COMPOSE_TMP") &>/dev/null; then
-          warn "$COMPOSE_FILE has changed (image tag differences are ignored - the version step sets the tag)"
-          diff --color=auto <(normalize_compose_tag "$COMPOSE_FILE") <(normalize_compose_tag "$COMPOSE_TMP") || true
-          echo ""
-          gum confirm --default=false "Replace $COMPOSE_FILE with latest version?" && {
-            cp "$COMPOSE_FILE" "${COMPOSE_FILE}.bak"
-            cp "$COMPOSE_TMP" "$COMPOSE_FILE"
-            ok "$COMPOSE_FILE updated (backup saved as ${COMPOSE_FILE}.bak)"
-          } || {
-            warn "Keeping existing $COMPOSE_FILE"
-          }
-        else
-          ok "$COMPOSE_FILE is already up to date"
-        fi
-      else
-        err "Failed to download $COMPOSE_FILE"
-      fi
+# Missing files are downloaded directly - no prompt needed.
+for compose_file in "${COMPOSE_FILES[@]}"; do
+  if [ ! -f "$compose_file" ]; then
+    info "Downloading ${compose_file}..."
+    curl -fsSL "${REPO_RAW}/${compose_file}" -o "$compose_file" || {
+      err "Failed to download ${compose_file} from GitHub."
+      echo "  Check your internet connection and try again."
+      exit 1
     }
+    ok "${compose_file} downloaded"
+  fi
+done
+
+# Existing files: one prompt for the whole group.
+EXISTING_COMPOSE_FILES=()
+for compose_file in "${COMPOSE_FILES[@]}"; do
+  if [ -f "$compose_file" ]; then
+    EXISTING_COMPOSE_FILES+=("$compose_file")
+  fi
+done
+
+if [ ${#EXISTING_COMPOSE_FILES[@]} -gt 0 ]; then
+  do_update=false
+  if [ "$HAS_GUM" = true ]; then
+    if gum confirm --default=false "${#EXISTING_COMPOSE_FILES[@]} compose file(s) already exist. Download the latest versions from GitHub? (changed files keep a .bak backup)"; then
+      do_update=true
+    fi
   else
-    read -rp "$COMPOSE_FILE already exists. Download latest version? [y/N] " answer || answer=""
+    read -rp "${#EXISTING_COMPOSE_FILES[@]} compose file(s) already exist. Download the latest versions from GitHub? [y/N] " answer || answer=""
     if [[ "$answer" =~ ^[Yy]$ ]]; then
-      info "Downloading $COMPOSE_FILE..."
-      if curl -fsSL "${REPO_RAW}/${COMPOSE_FILE}" -o "$COMPOSE_TMP" 2>/dev/null; then
-        if ! diff -q <(normalize_compose_tag "$COMPOSE_FILE") <(normalize_compose_tag "$COMPOSE_TMP") &>/dev/null; then
-          warn "$COMPOSE_FILE has changed (image tag differences are ignored - the version step sets the tag)"
-          diff <(normalize_compose_tag "$COMPOSE_FILE") <(normalize_compose_tag "$COMPOSE_TMP") || true
-          echo ""
-          read -rp "Replace $COMPOSE_FILE with latest version? [y/N] " replace || replace=""
-          if [[ "$replace" =~ ^[Yy]$ ]]; then
-            cp "$COMPOSE_FILE" "${COMPOSE_FILE}.bak"
-            cp "$COMPOSE_TMP" "$COMPOSE_FILE"
-            ok "$COMPOSE_FILE updated (backup saved as ${COMPOSE_FILE}.bak)"
-          else
-            warn "Keeping existing $COMPOSE_FILE"
-          fi
-        else
-          ok "$COMPOSE_FILE is already up to date"
-        fi
-      else
-        err "Failed to download $COMPOSE_FILE"
-      fi
+      do_update=true
     fi
   fi
-  ok "Using $COMPOSE_FILE"
-else
-  info "Downloading $COMPOSE_FILE..."
-  curl -fsSL "${REPO_RAW}/${COMPOSE_FILE}" -o "$COMPOSE_FILE" || {
-    err "Failed to download $COMPOSE_FILE from GitHub."
-    echo "  Check your internet connection and try again."
-    exit 1
-  }
-  ok "$COMPOSE_FILE downloaded"
+  for compose_file in "${EXISTING_COMPOSE_FILES[@]}"; do
+    if [ "$do_update" = true ]; then
+      if curl -fsSL "${REPO_RAW}/${compose_file}" -o "$COMPOSE_TMP" 2>/dev/null; then
+        if ! diff -q <(normalize_compose_tag "$compose_file") <(normalize_compose_tag "$COMPOSE_TMP") &>/dev/null; then
+          cp "$compose_file" "${compose_file}.bak"
+          cp "$COMPOSE_TMP" "$compose_file"
+          ok "${compose_file} updated (backup saved as ${compose_file}.bak)"
+        else
+          ok "${compose_file} is already up to date"
+        fi
+      else
+        warn "Could not download ${compose_file} - keeping your local copy"
+      fi
+    else
+      ok "Using existing ${compose_file}"
+    fi
+  done
 fi
 
-# -- 6. Lode version choice --------------------------------------
+# -- 8. Lode version choice --------------------------------------
 # The version choice is the single source of truth for the image tag:
-# it is written into the compose file here, after the download step.
+# it is written into the base compose file here, after the download step.
 
-step "[6/14] Lode version"
+step "[8/15] Lode version"
 
 LODE_TAG="latest"
+
+VERSION_PRE="latest (recommended)"
+if [ "$state_file_found" = true ] && [ "$(state_get imageTag)" = "nightly" ]; then
+  VERSION_PRE="nightly"
+fi
 
 if [ "$HAS_GUM" != true ]; then
   echo ""
@@ -734,7 +1167,7 @@ if [ "$HAS_GUM" != true ]; then
   echo ""
 fi
 
-LODE_TAG_CHOICE=$(gum_menu "Select version:" "latest (recommended)" "nightly")
+LODE_TAG_CHOICE=$(gum_menu_selected "Select version:" "$VERSION_PRE" "latest (recommended)" "nightly")
 
 if [[ "$LODE_TAG_CHOICE" == *"nightly"* ]]; then
   LODE_TAG="nightly"
@@ -742,79 +1175,128 @@ else
   LODE_TAG="latest"
 fi
 
-if grep -qE '^[[:space:]]*image:[[:space:]]*ghcr\.io/nort1346/lode:' "$COMPOSE_FILE"; then
-  sed -i.bak -E "s|^([[:space:]]*image:[[:space:]]*ghcr\.io/nort1346/lode:)[^[:space:]]+|\1${LODE_TAG}|" "$COMPOSE_FILE" && rm -f "${COMPOSE_FILE}.bak"
+if grep -qE '^[[:space:]]*image:[[:space:]]*ghcr\.io/nort1346/lode:' "$COMPOSE_BASE"; then
+  sed -i.bak -E "s|^([[:space:]]*image:[[:space:]]*ghcr\.io/nort1346/lode:)[^[:space:]]+|\1${LODE_TAG}|" "$COMPOSE_BASE" && rm -f "${COMPOSE_BASE}.bak"
   ok "Lode version: $LODE_TAG (image: ghcr.io/nort1346/lode:${LODE_TAG})"
-elif grep -qE '^[[:space:]]*#[[:space:]]*image:.*ghcr\.io/nort1346/lode:' "$COMPOSE_FILE"; then
-  warn "$COMPOSE_FILE builds from source (image line commented out) - the $LODE_TAG tag does not apply"
 else
-  warn "No lode image line found in $COMPOSE_FILE - check the image tag manually"
+  warn "No lode image line found in $COMPOSE_BASE - check the image tag manually"
 fi
 
-# -- 7. Start infrastructure services ---------------------------------
+# Remember the selection so the next run can prefill the prompts.
+write_state
+ok "Selection saved to $STATE_FILE"
 
-step "[7/14] Starting infrastructure services"
+# -- 9. Pull and start selected services ------------------------------
 
-INFRA_SERVICES=(redis qbittorrent prowlarr flaresolverr jellyfin dozzle)
+step "[9/15] Starting selected services"
+
+# Validate the merged configuration before touching the daemon.
+if ! dc config -q 2>/dev/null; then
+  err "The selected compose files do not merge correctly."
+  err "Files: ${COMPOSE_FILES[*]}"
+  exit 1
+fi
+
+# Remove containers for services that are no longer selected locally.
+if [ "$state_file_found" = true ]; then
+  stop_service_if_deselected "qbittorrent" "qbittorrent" "local" "$QBIT_MODE"
+  stop_service_if_deselected "prowlarr" "prowlarr" "local" "$PROWLARR_MODE"
+  stop_service_if_deselected "jellyfin" "mediaMode" "local" "$MEDIA_MODE"
+  stop_service_if_deselected "flaresolverr" "flaresolverr" "true" "$USE_FLARESOLVERR"
+  stop_service_if_deselected "dozzle" "dozzle" "true" "$USE_DOZZLE"
+  stop_service_if_deselected "postgres" "dbDriver" "postgres" "$DB_DRIVER_CHOICE"
+fi
+
+INFRA_SERVICES=(redis)
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
   INFRA_SERVICES+=(postgres)
 fi
+if [ "$QBIT_MODE" = "local" ]; then
+  INFRA_SERVICES+=(qbittorrent)
+fi
+if [ "$PROWLARR_MODE" = "local" ]; then
+  INFRA_SERVICES+=(prowlarr)
+fi
+if [ "$MEDIA_MODE" = "local" ]; then
+  INFRA_SERVICES+=(jellyfin)
+fi
+if [ "$USE_FLARESOLVERR" = true ]; then
+  INFRA_SERVICES+=(flaresolverr)
+fi
+if [ "$USE_DOZZLE" = true ]; then
+  INFRA_SERVICES+=(dozzle)
+fi
 
 info "Pulling images..."
-docker compose -f "$COMPOSE_FILE" pull "${INFRA_SERVICES[@]}" || true
+dc pull || true
 
-docker compose -f "$COMPOSE_FILE" up -d --remove-orphans "${INFRA_SERVICES[@]}"
+if ! docker image inspect "ghcr.io/nort1346/lode:${LODE_TAG}" &> /dev/null; then
+  err "Failed to pull the Lode image (ghcr.io/nort1346/lode:${LODE_TAG}). Check your network and try again."
+  err "You can also try manually: docker compose -f ${COMPOSE_FILES[*]} pull lode"
+  exit 1
+fi
+
+dc up -d "${INFRA_SERVICES[@]}"
 
 failed_services=""
 for svc in "${INFRA_SERVICES[@]}"; do
   if ! service_running "$svc"; then
     failed_services="$failed_services $svc"
-    last_log=$(docker compose -f "$COMPOSE_FILE" logs "$svc" --tail 3 2>&1 | tail -1)
+    last_log=$(dc logs "$svc" --tail 3 2>&1 | tail -1)
     warn "$svc failed to start: $last_log"
   fi
 done
 
 if [[ " $failed_services " =~ " redis " ]]; then
   err "Redis failed to start. Cannot continue."
-  echo "  Check logs: docker compose -f $COMPOSE_FILE logs redis"
+  echo "  Check logs: docker compose -f ${COMPOSE_FILES[*]} logs redis"
   exit 1
 fi
-if [[ " $failed_services " =~ " qbittorrent " ]]; then
-  err "qBittorrent failed to start. Cannot continue."
-  echo "  Check logs: docker compose -f $COMPOSE_FILE logs qbittorrent"
-  exit 1
-fi
-if [[ " $failed_services " =~ " postgres " ]]; then
+if [ "$DB_DRIVER_CHOICE" = "postgres" ] && [[ " $failed_services " =~ " postgres " ]]; then
   err "PostgreSQL failed to start. Cannot continue."
-  echo "  Check logs: docker compose -f $COMPOSE_FILE logs postgres"
+  echo "  Check logs: docker compose -f ${COMPOSE_FILES[*]} logs postgres"
+  exit 1
+fi
+if [ "$QBIT_MODE" = "local" ] && [[ " $failed_services " =~ " qbittorrent " ]]; then
+  err "qBittorrent failed to start. Cannot continue."
+  echo "  Check logs: docker compose -f ${COMPOSE_FILES[*]} logs qbittorrent"
   exit 1
 fi
 
 info "Waiting for Redis..."
 wait_for_port "localhost" "6379" 30 || true
 
-info "Waiting for qBittorrent..."
-wait_for_port "localhost" "8080" 60 || true
+if [ "$QBIT_MODE" = "local" ]; then
+  info "Waiting for qBittorrent..."
+  wait_for_port "localhost" "8080" 60 || true
+fi
 
 sleep 3
 
-QBIT_TEMP_PASS=$(docker compose -f "$COMPOSE_FILE" logs qbittorrent 2>&1 | sed -n 's/.*A temporary password is provided for this session: *//p' | tail -1) || true
-
-if [[ " $failed_services " =~ " prowlarr " ]]; then
-  warn "Prowlarr not running -- you can configure it later (step 10)"
-else
-  info "Waiting for Prowlarr..."
-  wait_for_port "localhost" "9900" 60 || true
+QBIT_TEMP_PASS=""
+if [ "$QBIT_MODE" = "local" ]; then
+  QBIT_TEMP_PASS=$(dc logs qbittorrent 2>&1 | sed -n 's/.*A temporary password is provided for this session: *//p' | tail -1) || true
 fi
 
-if [[ " $failed_services " =~ " jellyfin " ]]; then
-  warn "Jellyfin not running -- you can configure it later (step 8)"
-else
-  info "Waiting for Jellyfin..."
-  wait_for_port "localhost" "8096" 90 || true
+if [ "$PROWLARR_MODE" = "local" ]; then
+  if [[ " $failed_services " =~ " prowlarr " ]]; then
+    warn "Prowlarr not running -- you can configure it later (step 12)"
+  else
+    info "Waiting for Prowlarr..."
+    wait_for_port "localhost" "9900" 60 || true
+  fi
 fi
 
-ok "All infrastructure services are running"
+if [ "$MEDIA_MODE" = "local" ]; then
+  if [[ " $failed_services " =~ " jellyfin " ]]; then
+    warn "Jellyfin not running -- you can configure it later (step 10)"
+  else
+    info "Waiting for Jellyfin..."
+    wait_for_port "localhost" "8096" 90 || true
+  fi
+fi
+
+ok "Selected services are running"
 
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
   info "Waiting for PostgreSQL..."
@@ -824,80 +1306,118 @@ fi
 info "Waiting 10s for services to fully initialize..."
 sleep 10
 
-# -- 8. Jellyfin API Key -----------------------------------------------
+# -- 10. Jellyfin API Key ----------------------------------------------
 
-step "[8/14] Jellyfin API Key"
+step "[10/15] Jellyfin API key"
 
-echo ""
-echo "Follow these steps to get your Jellyfin API key:"
-dim "  1. Open http://localhost:8096 in your browser"
-dim "  2. Complete the setup wizard (create your admin account)"
-dim "  3. Go to Dashboard (gear icon) > API Keys"
-dim '  4. Click the + button, name it Lode, click OK'
-dim "  5. Copy the generated API key"
-echo ""
-
-jellyfinKey=$(read_input "Paste your Jellyfin API key (Enter to skip)")
-
-if [ -n "$jellyfinKey" ]; then
-  update_env "NUXT_JELLYFIN_API_KEY" "$jellyfinKey"
-  ok "Jellyfin API key saved"
-else
-  warn "Skipping Jellyfin API key -- set it later in .env"
-fi
-
-# -- 9. qBittorrent WebUI + API Key -----------------------------------
-
-step "[9/14] qBittorrent WebUI + API Key"
-
-if [ -n "${QBIT_TEMP_PASS:-}" ]; then
+if [ "$MEDIA_PROVIDER" = "none" ]; then
+  update_env "NUXT_JELLYFIN_URL" ""
+  update_env "NUXT_JELLYFIN_API_KEY" ""
+  info "No media server selected - NUXT_JELLYFIN_URL and NUXT_JELLYFIN_API_KEY cleared"
+elif [ "$MEDIA_MODE" = "local" ]; then
   echo ""
-  echo -e "${BOLD}${YELLOW}qBittorrent temporary password: ${QBIT_TEMP_PASS}${NC}"
-  dim "Copy this - you will need it below"
+  echo "Follow these steps to get your Jellyfin API key:"
+  dim "  1. Open http://localhost:8096 in your browser"
+  dim "  2. Complete the setup wizard (create your admin account)"
+  dim "  3. Go to Dashboard (gear icon) > API Keys"
+  dim '  4. Click the + button, name it Lode, click OK'
+  dim "  5. Copy the generated API key"
+  echo ""
+  jellyfinKey=$(read_password "Paste your Jellyfin API key (Enter to skip)")
+  if [ -n "$jellyfinKey" ]; then
+    update_env "NUXT_JELLYFIN_API_KEY" "$jellyfinKey"
+    ok "Jellyfin API key saved"
+  else
+    warn "Skipping Jellyfin API key -- set it later in .env"
+  fi
+else
+  echo ""
+  echo "Your external Jellyfin instance: $JELLYFIN_URL"
+  dim "Create an API key in Jellyfin: Dashboard (gear icon) > API Keys"
+  echo ""
+  jellyfinKey=$(read_password "Paste your Jellyfin API key (Enter to skip)")
+  if [ -n "$jellyfinKey" ]; then
+    update_env "NUXT_JELLYFIN_API_KEY" "$jellyfinKey"
+    ok "Jellyfin API key saved"
+  else
+    warn "Skipping Jellyfin API key -- set it later in .env"
+  fi
+fi
+
+# -- 11. qBittorrent WebUI + API Key -----------------------------------
+
+step "[11/15] qBittorrent WebUI + API key"
+
+if [ "$QBIT_MODE" = "local" ]; then
+  if [ -n "${QBIT_TEMP_PASS:-}" ]; then
+    echo ""
+    echo -e "${BOLD}${YELLOW}qBittorrent temporary password: ${QBIT_TEMP_PASS}${NC}"
+    dim "Copy this - you will need it below"
+    echo ""
+  else
+    warn "Could not extract qBittorrent temp password - check: docker compose -f ${COMPOSE_FILES[*]} logs qbittorrent"
+  fi
+
+  echo "Follow these steps to configure qBittorrent:"
+  dim "  1. Open http://localhost:8080 in your browser"
+  dim "  2. Login with:"
+  dim "       Username: admin"
+  dim "       Password: [temporary password shown above]"
+  dim "  3. Go to Tools > Options > Web UI"
+  dim "  4. Change the password to something you remember"
+  dim "  5. Save changes"
+  dim "  6. Go to Tools > Options > Web UI > API Key section"
+  dim "  7. Copy the API Key"
+  echo ""
+
+  qbitKey=$(read_password "Paste your qBittorrent API Key (Enter to skip)")
+  if [ -n "$qbitKey" ]; then
+    update_env "NUXT_QBITTORRENT_API_KEY" "$qbitKey"
+    ok "qBittorrent API key saved"
+  else
+    warn "Skipping qBittorrent API key -- set it later in .env"
+  fi
+else
+  echo ""
+  echo "Your external qBittorrent instance: $QBIT_URL"
+  dim "Find the API key in qBittorrent: Tools > Options > Web UI"
+  echo ""
+  qbitKey=$(read_password "Paste your qBittorrent API Key (Enter to skip)")
+  if [ -n "$qbitKey" ]; then
+    update_env "NUXT_QBITTORRENT_API_KEY" "$qbitKey"
+    ok "qBittorrent API key saved"
+  else
+    warn "Skipping qBittorrent API key -- set it later in .env"
+  fi
+fi
+
+# -- 12. Prowlarr API Key ----------------------------------------------
+
+step "[12/15] Prowlarr API key"
+
+if [ "$PROWLARR_MODE" = "local" ]; then
+  echo ""
+  echo "Follow these steps to get your Prowlarr API key:"
+  dim "  1. Open http://localhost:9900 in your browser"
+  dim "  2. Go to Settings > General"
+  dim "  3. Find the API Key field"
+  dim "  4. Copy the API key"
+  echo ""
+  echo -e "${BOLD}${YELLOW}IMPORTANT: Prowlarr needs indexers before Lode can find anything.${NC}"
+  dim "  1. Add at least one indexer (e.g. YTS): Settings > Indexers > Add"
+  if [ "$USE_FLARESOLVERR" = true ]; then
+    dim "  2. For private trackers: Settings > Indexers > Add > FlareSolverr"
+    dim "     Set URL: http://flaresolverr:8191"
+  fi
   echo ""
 else
-  warn "Could not extract qBittorrent temp password - check: docker compose -f $COMPOSE_FILE logs qbittorrent"
+  echo ""
+  echo "Your external Prowlarr instance: $PROWLARR_URL"
+  dim "Find the API key in Prowlarr: Settings > General"
+  echo ""
 fi
 
-echo "Follow these steps to configure qBittorrent:"
-dim "  1. Open http://localhost:8080 in your browser"
-dim "  2. Login with:"
-dim "       Username: admin"
-dim "       Password: [temporary password shown above]"
-dim "  3. Go to Tools > Options > Web UI"
-dim "  4. Change the password to something you remember"
-dim "  5. Save changes"
-dim "  6. Go to Tools > Options > Web UI > API Key section"
-dim "  7. Copy the API Key"
-echo ""
-
-qbitKey=$(read_input "Paste your qBittorrent API Key (Enter to skip)")
-
-if [ -n "$qbitKey" ]; then
-  update_env "NUXT_QBITTORRENT_API_KEY" "$qbitKey"
-  ok "qBittorrent API key saved"
-else
-  warn "Skipping qBittorrent API key -- set it later in .env"
-fi
-
-# -- 10. Prowlarr API Key ----------------------------------------------
-
-step "[10/14] Prowlarr API Key"
-
-echo ""
-echo "Follow these steps to get your Prowlarr API key:"
-dim "  1. Open http://localhost:9900 in your browser"
-dim "  2. Go to Settings > General"
-dim "  3. Find the API Key field"
-dim "  4. Copy the API key"
-echo ""
-echo -e "${BOLD}${YELLOW}IMPORTANT: Prowlarr needs indexers before Lode can find anything.${NC}"
-dim "  1. Add at least one indexer (e.g. YTS): Settings > Indexers > Add"
-dim "  2. For private trackers: Settings > Indexers > Add > FlareSolverr"
-dim "     Set URL: http://flaresolverr:8191"
-echo ""
-
-prowlarrKey=$(read_input "Paste your Prowlarr API key (Enter to skip)")
+prowlarrKey=$(read_password "Paste your Prowlarr API key (Enter to skip)")
 
 if [ -n "$prowlarrKey" ]; then
   update_env "NUXT_PROWLARR_API_KEY" "$prowlarrKey"
@@ -906,9 +1426,9 @@ else
   warn "Skipping Prowlarr API key -- set it later in .env"
 fi
 
-# -- 11. TMDB API Key --------------------------------------------------
+# -- 13. TMDB API Key --------------------------------------------------
 
-step "[11/14] TMDB API Key"
+step "[13/15] TMDB API key"
 
 echo ""
 echo "Follow these steps to get your TMDB API key:"
@@ -923,7 +1443,7 @@ echo ""
 dim "This is required for movie/TV metadata."
 echo ""
 
-tmdbKey=$(read_input "Paste your TMDB API key (Enter to skip)")
+tmdbKey=$(read_password "Paste your TMDB API key (Enter to skip)")
 
 if [ -n "$tmdbKey" ]; then
   update_env "NUXT_TMDB_API_KEY" "$tmdbKey"
@@ -932,9 +1452,9 @@ else
   warn "Skipping TMDB API key -- set it later in .env"
 fi
 
-# -- 12. Discord Webhook (optional) -----------------------------------
+# -- 14. Discord Webhook (optional) -----------------------------------
 
-step "[12/14] Discord Webhook (optional)"
+step "[14/15] Discord Webhook (optional)"
 
 echo ""
 dim "Get notified when downloads complete."
@@ -954,40 +1474,42 @@ else
   warn "Skipping Discord webhook -- set it later in .env"
 fi
 
-# -- 13. Pull Lode -------------------------------------------------
+# -- 15. Start Lode ----------------------------------------------------
 
-step "[13/14] Pulling Lode"
+step "[15/15] Starting Lode"
 
-info "Pulling Lode image..."
-docker compose -f "$COMPOSE_FILE" pull lode || true
-
-if ! docker image inspect "ghcr.io/nort1346/lode:${LODE_TAG}" &> /dev/null; then
-  err "Failed to pull Lode image. Check your network and try again."
-  err "You can also try manually: docker compose -f $COMPOSE_FILE pull lode"
-  exit 1
-fi
-
-ok "Lode image pulled"
-
-# -- 14. Start Lode ----------------------------------------------
-
-step "[14/14] Starting Lode"
-
-update_env "NUXT_JELLYFIN_URL" "http://jellyfin:8096"
 update_env "NUXT_REDIS_URL" "redis://redis:6379"
-update_env "NUXT_PROWLARR_URL" "http://prowlarr:9696"
 update_env "DB_DRIVER" "$DB_DRIVER_CHOICE"
 
+case "$QBIT_MODE" in
+  local) update_env "NUXT_QBITTORRENT_URL" "http://qbittorrent:8080" ;;
+  external) update_env "NUXT_QBITTORRENT_URL" "$QBIT_URL" ;;
+esac
+case "$PROWLARR_MODE" in
+  local) update_env "NUXT_PROWLARR_URL" "http://prowlarr:9696" ;;
+  external) update_env "NUXT_PROWLARR_URL" "$PROWLARR_URL" ;;
+esac
+case "$MEDIA_MODE" in
+  local) update_env "NUXT_JELLYFIN_URL" "http://jellyfin:8096" ;;
+  external) update_env "NUXT_JELLYFIN_URL" "$JELLYFIN_URL" ;;
+esac
+if [ "$USE_FLARESOLVERR" = true ]; then
+  update_env "NUXT_FLARESOLVERR_URL" "http://flaresolverr:8191"
+else
+  update_env "NUXT_FLARESOLVERR_URL" ""
+fi
+
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
-  update_env "DATABASE_URL" "postgresql://lode:${POSTGRES_PASSWORD}@postgres:5432/lode"
+  PG_PASS=$(read_env_value "POSTGRES_PASSWORD")
+  update_env "DATABASE_URL" "postgresql://lode:${PG_PASS}@postgres:5432/lode"
 fi
 
 info "Starting Lode..."
-docker compose -f "$COMPOSE_FILE" up -d lode || true
+dc up -d lode || true
 
 if ! service_running lode; then
   err "Lode container failed to start. Check logs:"
-  err "  docker compose -f $COMPOSE_FILE logs lode"
+  err "  docker compose -f ${COMPOSE_FILES[*]} logs lode"
   exit 1
 fi
 
@@ -1000,7 +1522,7 @@ ok "Lode is running at http://localhost:5757"
 
 ADMIN_PASS=""
 for _retry in 1 2 3 4 5; do
-  ADMIN_PASS=$(docker compose -f "$COMPOSE_FILE" logs --no-color --tail 200 lode 2>&1 \
+  ADMIN_PASS=$(dc logs --no-color --tail 200 lode 2>&1 \
     | grep 'Admin password:' \
     | sed 's/.*Admin password: //' | sed 's/".*//' | head -1) || true
   if [ -n "$ADMIN_PASS" ]; then break; fi
@@ -1009,37 +1531,36 @@ done
 
 # -- Summary -----------------------------------------------------------
 
-HAS_DOZZLE=false
-if service_running dozzle; then
-  HAS_DOZZLE=true
-fi
-
 echo ""
 echo -e "${BOLD}${GREEN}Lode is ready!${NC}"
 echo ""
 
 # -- Services table
-SERVICES_TABLE=$(cat <<TABLE
-$(summary_row "Lode" "http://localhost:5757")
-$(summary_row "qBittorrent" "http://localhost:8080")
-$(summary_row "Prowlarr" "http://localhost:9900")
-$(summary_row "Jellyfin" "http://localhost:8096")
-$(summary_row "FlareSolverr" "http://localhost:8191")
-$(summary_row "Database" "$DB_DRIVER_CHOICE")
-TABLE
-)
-
+ROWS=("$(summary_row "Lode" "http://localhost:5757")")
+case "$QBIT_MODE" in
+  local) ROWS+=("$(summary_row "qBittorrent" "http://localhost:8080")") ;;
+  external) ROWS+=("$(summary_row "qBittorrent" "$QBIT_URL")") ;;
+esac
+case "$PROWLARR_MODE" in
+  local) ROWS+=("$(summary_row "Prowlarr" "http://localhost:9900")") ;;
+  external) ROWS+=("$(summary_row "Prowlarr" "$PROWLARR_URL")") ;;
+esac
+case "$MEDIA_MODE" in
+  local) ROWS+=("$(summary_row "Jellyfin" "http://localhost:8096")") ;;
+  external) ROWS+=("$(summary_row "Jellyfin" "$JELLYFIN_URL")") ;;
+  none) ROWS+=("$(summary_row "Jellyfin" "(disabled)")") ;;
+esac
+if [ "$USE_FLARESOLVERR" = true ]; then
+  ROWS+=("$(summary_row "FlareSolverr" "http://localhost:8191")")
+fi
+ROWS+=("$(summary_row "Database" "$DB_DRIVER_CHOICE")")
 if [ "$DB_DRIVER_CHOICE" = "postgres" ]; then
-  SERVICES_TABLE="$SERVICES_TABLE
-$(summary_row "PostgreSQL" "localhost:5432 / lode")"
+  ROWS+=("$(summary_row "PostgreSQL" "localhost:5432 / lode")")
 fi
-
-if [ "$HAS_DOZZLE" = true ]; then
-  SERVICES_TABLE="$SERVICES_TABLE
-$(summary_row "Dozzle" "http://localhost:8082")"
+if [ "$USE_DOZZLE" = true ]; then
+  ROWS+=("$(summary_row "Dozzle" "http://localhost:8082")")
 fi
-
-summary_section "$SERVICES_TABLE"
+summary_section "$(printf '%s\n' "${ROWS[@]}")"
 
 echo ""
 
@@ -1048,7 +1569,7 @@ echo "Username: $(bold admin)"
 if [ -n "$ADMIN_PASS" ]; then
   echo "Password: $(bold "$ADMIN_PASS")"
 else
-  dim "Password: check 'docker compose -f $COMPOSE_FILE logs lode'"
+  dim "Password: check 'docker compose -f ${COMPOSE_FILES[*]} logs lode'"
 fi
 dim "Change this password after first login."
 
@@ -1056,6 +1577,14 @@ echo ""
 
 # -- Required before first use
 echo -e "${BOLD}${YELLOW}Required before first use:${NC}"
-dim "  Prowlarr has no indexers yet - Lode cannot find torrents until you add them."
-dim "  Open http://localhost:9900 and add at least one indexer (e.g. YTS)."
-dim "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"
+if [ "$PROWLARR_MODE" = "local" ]; then
+  dim "  Prowlarr has no indexers yet - Lode cannot find torrents until you add them."
+  dim "  Open http://localhost:9900 and add at least one indexer (e.g. YTS)."
+  if [ "$USE_FLARESOLVERR" = true ]; then
+    dim "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"
+  fi
+else
+  dim "  Your external Prowlarr needs at least one indexer before Lode can find torrents."
+fi
+
+exit 0

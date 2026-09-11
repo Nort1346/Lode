@@ -1,0 +1,52 @@
+name: lode
+
+# Base stack: Lode + Redis. Combine with per-service overlay files:
+#   docker compose -f docker-compose.yml -f docker-compose.qbittorrent.yml up -d
+# Available overlays: postgres, qbittorrent, prowlarr, jellyfin,
+# flaresolverr, dozzle (see docs/deployment.md).
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: lode-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  lode:
+    image: ghcr.io/nort1346/lode:nightly
+    container_name: lode
+    ports:
+      - '5757:5757'
+    volumes:
+      - ./data:/app/.data
+      - lode-avatars:/app/.output/public/avatars
+      - ./media:/media
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - NITRO_PORT=5757
+    depends_on:
+      redis:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          'fetch("http://localhost:5757/api/health").then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))'
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  lode-avatars:

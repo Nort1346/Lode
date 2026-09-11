@@ -1,0 +1,20 @@
+# Jellyfin overlay - combine with the base:
+#   docker compose -f docker-compose.yml -f docker-compose.jellyfin.yml up -d
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: lode-jellyfin
+    restart: unless-stopped
+    ports:
+      - '8096:8096'
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      - ./media:/media
+    environment:
+      - JELLYFIN_PublishedServerUrl=http://localhost:8096
+
+volumes:
+  jellyfin-config:
+  jellyfin-cache:

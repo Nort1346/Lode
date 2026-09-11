@@ -120,4 +120,4 @@ Config is validated at startup using Zod schemas (`server/utils/config-schema.ts
 
 ## Docker Environment
 
-For Docker deployments, set environment variables in `.env` or the compose file (`docker-compose.sqlite.yml` / `docker-compose.postgres.yml`). The entrypoint script runs migrations automatically before starting the application.
+For Docker deployments, set environment variables in `.env` or the base compose file (`docker-compose.yml` plus the per-service overlays you need). The entrypoint script runs migrations automatically before starting the application.

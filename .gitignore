@@ -27,6 +27,10 @@ coverage
 .env
 .env.*
 !.env.example
+
+# Installer state file
+.lode-setup
+.lode-setup.json
 public/avatars
 prowlarr-config
 data

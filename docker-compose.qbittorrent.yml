@@ -1,0 +1,28 @@
+# qBittorrent overlay - combine with the base:
+#   docker compose -f docker-compose.yml -f docker-compose.qbittorrent.yml up -d
+
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: lode-qbittorrent
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+      - '6881:6881'
+      - '6881:6881/udp'
+    volumes:
+      - qbittorrent-config:/config
+      - ./media:/media
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-UTC}
+      - WEBUI_PORT=8080
+
+  lode:
+    depends_on:
+      qbittorrent:
+        condition: service_started
+
+volumes:
+  qbittorrent-config:
