@@ -450,7 +450,23 @@ dc() {
     err "No compose files selected - internal error."
     exit 1
   fi
-  docker compose -f "${COMPOSE_FILES[@]}" "$@"
+  # Compose needs one -f per file; a single -f with bare filenames after it
+  # makes compose dump its usage and fail with "unknown docker command".
+  local -a file_args=()
+  local f
+  for f in "${COMPOSE_FILES[@]}"; do
+    file_args+=("-f" "$f")
+  done
+  docker compose "${file_args[@]}" "$@"
+}
+
+# Renders the copy-pasteable `docker compose -f a -f b ...` prefix for hints.
+dc_cmd_prefix() {
+  local out="" f
+  for f in "${COMPOSE_FILES[@]}"; do
+    out+="-f $f "
+  done
+  printf 'docker compose %s' "${out% }"
 }
 
 service_running() {
@@ -1094,6 +1110,15 @@ normalize_compose_tag() {
 
 step "[7/15] Downloading compose files"
 
+# Only files that existed before this step can be out of date -
+# freshly downloaded files never get an update prompt.
+EXISTING_COMPOSE_FILES=()
+for compose_file in "${COMPOSE_FILES[@]}"; do
+  if [ -f "$compose_file" ]; then
+    EXISTING_COMPOSE_FILES+=("$compose_file")
+  fi
+done
+
 # Missing files are downloaded directly - no prompt needed.
 for compose_file in "${COMPOSE_FILES[@]}"; do
   if [ ! -f "$compose_file" ]; then
@@ -1104,14 +1129,6 @@ for compose_file in "${COMPOSE_FILES[@]}"; do
       exit 1
     }
     ok "${compose_file} downloaded"
-  fi
-done
-
-# Existing files: one prompt for the whole group.
-EXISTING_COMPOSE_FILES=()
-for compose_file in "${COMPOSE_FILES[@]}"; do
-  if [ -f "$compose_file" ]; then
-    EXISTING_COMPOSE_FILES+=("$compose_file")
   fi
 done
 
@@ -1232,7 +1249,7 @@ dc pull || true
 
 if ! docker image inspect "ghcr.io/nort1346/lode:${LODE_TAG}" &> /dev/null; then
   err "Failed to pull the Lode image (ghcr.io/nort1346/lode:${LODE_TAG}). Check your network and try again."
-  err "You can also try manually: docker compose -f ${COMPOSE_FILES[*]} pull lode"
+  err "You can also try manually: $(dc_cmd_prefix) pull lode"
   exit 1
 fi
 
@@ -1249,17 +1266,17 @@ done
 
 if [[ " $failed_services " =~ " redis " ]]; then
   err "Redis failed to start. Cannot continue."
-  echo "  Check logs: docker compose -f ${COMPOSE_FILES[*]} logs redis"
+  echo "  Check logs: $(dc_cmd_prefix) logs redis"
   exit 1
 fi
 if [ "$DB_DRIVER_CHOICE" = "postgres" ] && [[ " $failed_services " =~ " postgres " ]]; then
   err "PostgreSQL failed to start. Cannot continue."
-  echo "  Check logs: docker compose -f ${COMPOSE_FILES[*]} logs postgres"
+  echo "  Check logs: $(dc_cmd_prefix) logs postgres"
   exit 1
 fi
 if [ "$QBIT_MODE" = "local" ] && [[ " $failed_services " =~ " qbittorrent " ]]; then
   err "qBittorrent failed to start. Cannot continue."
-  echo "  Check logs: docker compose -f ${COMPOSE_FILES[*]} logs qbittorrent"
+  echo "  Check logs: $(dc_cmd_prefix) logs qbittorrent"
   exit 1
 fi
 
@@ -1355,7 +1372,7 @@ if [ "$QBIT_MODE" = "local" ]; then
     dim "Copy this - you will need it below"
     echo ""
   else
-    warn "Could not extract qBittorrent temp password - check: docker compose -f ${COMPOSE_FILES[*]} logs qbittorrent"
+    warn "Could not extract qBittorrent temp password - check: $(dc_cmd_prefix) logs qbittorrent"
   fi
 
   echo "Follow these steps to configure qBittorrent:"
@@ -1509,7 +1526,7 @@ dc up -d lode || true
 
 if ! service_running lode; then
   err "Lode container failed to start. Check logs:"
-  err "  docker compose -f ${COMPOSE_FILES[*]} logs lode"
+  err "  $(dc_cmd_prefix) logs lode"
   exit 1
 fi
 
@@ -1569,7 +1586,7 @@ echo "Username: $(bold admin)"
 if [ -n "$ADMIN_PASS" ]; then
   echo "Password: $(bold "$ADMIN_PASS")"
 else
-  dim "Password: check 'docker compose -f ${COMPOSE_FILES[*]} logs lode'"
+  dim "Password: check '$(dc_cmd_prefix) logs lode'"
 fi
 dim "Change this password after first login."
 
