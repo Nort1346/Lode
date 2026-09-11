@@ -1,0 +1,15 @@
+# Prowlarr overlay - combine with the base:
+#   docker compose -f docker-compose.yml -f docker-compose.prowlarr.yml up -d
+
+services:
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: lode-prowlarr
+    restart: unless-stopped
+    ports:
+      - '9900:9696'
+    volumes:
+      - prowlarr-config:/config
+
+volumes:
+  prowlarr-config:
