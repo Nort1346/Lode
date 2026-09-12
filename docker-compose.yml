@@ -17,7 +17,8 @@ services:
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
 
   lode:
-    image: ghcr.io/nort1346/lode:nightly
+    #build: .
+    image: ghcr.io/nort1346/lode:latest
     container_name: lode
     ports:
       - '5757:5757'
