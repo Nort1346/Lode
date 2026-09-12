@@ -23,7 +23,6 @@ REPO_RAW="https://raw.githubusercontent.com/Nort1346/Lode/main"
 SETUP_URL="${REPO_RAW}/setup.sh"
 SETUP_SELF="$0"
 SETUP_NEW="$(mktemp)"
-COMPOSE_TMP="$(mktemp)"
 
 COMPOSE_BASE="docker-compose.yml"
 STATE_FILE=".lode-setup"
@@ -34,7 +33,8 @@ fi
 COMPOSE_FILES=()
 
 cleanup() {
-  rm -f "$SETUP_NEW" "$COMPOSE_TMP"
+  rm -f "$SETUP_NEW" "${SETUP_SELF}.tmp"
+  rm -f .env.example.tmp .env.tmp "${STATE_FILE}.tmp" docker-compose*.tmp
 }
 trap cleanup EXIT
 
@@ -499,6 +499,7 @@ state_get() {
 }
 
 write_state() {
+  # Temp file + rename: an interrupted run (Ctrl+C, kill, closed terminal) can never leave a corrupt state file behind.
   {
     echo "version=1"
     echo "dbDriver=${DB_DRIVER_CHOICE}"
@@ -509,7 +510,7 @@ write_state() {
     echo "mediaMode=${MEDIA_MODE}"
     echo "flaresolverr=${USE_FLARESOLVERR}"
     echo "dozzle=${USE_DOZZLE}"
-  } > "$STATE_FILE"
+  } > "${STATE_FILE}.tmp" && mv -f "${STATE_FILE}.tmp" "$STATE_FILE"
 }
 
 # is_legacy_monolith <file>
@@ -575,7 +576,7 @@ if curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
     if [ "$HAS_GUM" = true ]; then
       gum confirm --default=false "Update setup.sh and restart?" && {
         cp "$SETUP_SELF" "${SETUP_SELF}.bak"
-        cp "$SETUP_NEW" "$SETUP_SELF"
+        cp "$SETUP_NEW" "${SETUP_SELF}.tmp" && mv -f "${SETUP_SELF}.tmp" "$SETUP_SELF"
         chmod +x "$SETUP_SELF"
         ok "Updated setup.sh. Restarting..."
         exec "$SETUP_SELF" "$@"
@@ -584,7 +585,7 @@ if curl -fsSL "$SETUP_URL" -o "$SETUP_NEW" 2>/dev/null; then
       read -rp "Update setup.sh and restart? [y/N] " answer || answer=""
       if [[ "$answer" =~ ^[Yy]$ ]]; then
         cp "$SETUP_SELF" "${SETUP_SELF}.bak"
-        cp "$SETUP_NEW" "$SETUP_SELF"
+        cp "$SETUP_NEW" "${SETUP_SELF}.tmp" && mv -f "${SETUP_SELF}.tmp" "$SETUP_SELF"
         chmod +x "$SETUP_SELF"
         ok "Updated setup.sh. Restarting..."
         exec "$SETUP_SELF" "$@"
@@ -780,13 +781,14 @@ step "[2/15] Setting up .env file"
 if [ ! -f .env ]; then
   if [ ! -f .env.example ]; then
     info "Downloading .env.example from GitHub..."
-    curl -fsSL "${REPO_RAW}/.env.example" -o .env.example || {
+    curl -fsSL "${REPO_RAW}/.env.example" -o .env.example.tmp || {
       err "Failed to download .env.example from GitHub."
       echo "  Check your internet connection and try again."
       exit 1
     }
+    mv -f .env.example.tmp .env.example
   fi
-  cp .env.example .env
+  cp .env.example .env.tmp && mv -f .env.tmp .env
   ok "Created .env from .env.example"
 else
   warn ".env exists -- keeping existing config"
@@ -1120,14 +1122,16 @@ for compose_file in "${COMPOSE_FILES[@]}"; do
 done
 
 # Missing files are downloaded directly - no prompt needed.
+# Downloads land in a temp file first so an interrupted run never leaves a truncated compose file behind.
 for compose_file in "${COMPOSE_FILES[@]}"; do
   if [ ! -f "$compose_file" ]; then
     info "Downloading ${compose_file}..."
-    curl -fsSL "${REPO_RAW}/${compose_file}" -o "$compose_file" || {
+    curl -fsSL "${REPO_RAW}/${compose_file}" -o "${compose_file}.tmp" || {
       err "Failed to download ${compose_file} from GitHub."
       echo "  Check your internet connection and try again."
       exit 1
     }
+    mv -f "${compose_file}.tmp" "$compose_file"
     ok "${compose_file} downloaded"
   fi
 done
@@ -1146,15 +1150,17 @@ if [ ${#EXISTING_COMPOSE_FILES[@]} -gt 0 ]; then
   fi
   for compose_file in "${EXISTING_COMPOSE_FILES[@]}"; do
     if [ "$do_update" = true ]; then
-      if curl -fsSL "${REPO_RAW}/${compose_file}" -o "$COMPOSE_TMP" 2>/dev/null; then
-        if ! diff -q <(normalize_compose_tag "$compose_file") <(normalize_compose_tag "$COMPOSE_TMP") &>/dev/null; then
+      if curl -fsSL "${REPO_RAW}/${compose_file}" -o "${compose_file}.tmp" 2>/dev/null; then
+        if ! diff -q <(normalize_compose_tag "$compose_file") <(normalize_compose_tag "${compose_file}.tmp") &>/dev/null; then
           cp "$compose_file" "${compose_file}.bak"
-          cp "$COMPOSE_TMP" "$compose_file"
+          mv -f "${compose_file}.tmp" "$compose_file"
           ok "${compose_file} updated (backup saved as ${compose_file}.bak)"
         else
+          rm -f "${compose_file}.tmp"
           ok "${compose_file} is already up to date"
         fi
       else
+        rm -f "${compose_file}.tmp"
         warn "Could not download ${compose_file} - keeping your local copy"
       fi
     else
