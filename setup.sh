@@ -336,7 +336,7 @@ else
   read_password() {
     local result=""
     read -rsp "$1: " result || result=""
-    echo ""
+    echo "" >&2
     echo "$result"
   }
 
@@ -1329,6 +1329,84 @@ fi
 info "Waiting 10s for services to fully initialize..."
 sleep 10
 
+# -- Clipboard read (primary secret entry) -----------------------------
+# Secrets are entered by copying the value in the browser and pressing
+# Enter here - the script reads it from the clipboard. Type m at the
+# gate to paste manually for that one field. Without a clipboard tool
+# (headless server), the manual prompt is used directly.
+
+CLIPBOARD_CMD=""
+
+detect_clipboard() {
+  case "$(uname -s)" in
+    Darwin)
+      command -v pbpaste >/dev/null 2>&1 && CLIPBOARD_CMD="pbpaste"
+      ;;
+    Linux)
+      if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+        command -v wl-paste >/dev/null 2>&1 && CLIPBOARD_CMD="wl-paste"
+      elif command -v xclip >/dev/null 2>&1; then
+        CLIPBOARD_CMD="xclip"
+      elif command -v xsel >/dev/null 2>&1; then
+        CLIPBOARD_CMD="xsel"
+      fi
+      ;;
+  esac
+}
+
+# Prints the clipboard content to stdout (exact content, no extras).
+read_clipboard() {
+  case "$CLIPBOARD_CMD" in
+    pbpaste) pbpaste ;;
+    xclip) xclip -selection clipboard -o ;;
+    xsel) xsel --clipboard --output ;;
+    wl-paste) wl-paste --no-newline ;;
+  esac
+}
+
+# read_secret <Name>
+# Prints the value to stdout (captured by the caller); every user-facing
+# line goes to stderr so command substitution captures only the value.
+read_secret() {
+  local name="$1" answer="" value=""
+  if [ -z "$CLIPBOARD_CMD" ]; then
+    dim "No clipboard tool available - paste manually (right-click or Ctrl+Shift+V, not Ctrl+C)." >&2
+    read_password "Paste your $name (Enter to skip)"
+    return
+  fi
+  while true; do
+    echo "Copy your $name to your clipboard, then press Enter" >&2
+    dim "Type m and press Enter to paste manually instead." >&2
+    read -rp "> " answer || return
+    case "$answer" in
+      m | M)
+        read_password "Paste your $name (Enter to skip)"
+        return
+        ;;
+      "")
+        value=$(read_clipboard 2>/dev/null)
+        value="${value//$'\r'/}"
+        value="${value#"${value%%[![:space:]]*}"}"
+        value="${value%"${value##*[![:space:]]}"}"
+        if [ -n "$value" ]; then
+          ok "Received from clipboard (${#value} characters)" >&2
+          printf '%s' "$value"
+        else
+          warn "Clipboard is empty - paste manually instead." >&2
+          dim "Paste with right-click or Ctrl+Shift+V (not Ctrl+C)." >&2
+          read_password "Paste your $name (Enter to skip)"
+        fi
+        return
+        ;;
+      *)
+        warn "Press Enter to read the clipboard, or m to paste manually." >&2
+        ;;
+    esac
+  done
+}
+
+detect_clipboard
+
 # -- 10. Jellyfin API Key ----------------------------------------------
 
 step "[10/15] Jellyfin API key"
@@ -1346,7 +1424,7 @@ elif [ "$MEDIA_MODE" = "local" ]; then
   dim '  4. Click the + button, name it Lode, click OK'
   dim "  5. Copy the generated API key"
   echo ""
-  jellyfinKey=$(read_password "Paste your Jellyfin API key (Enter to skip)")
+  jellyfinKey=$(read_secret "Jellyfin API key")
   if [ -n "$jellyfinKey" ]; then
     update_env "NUXT_JELLYFIN_API_KEY" "$jellyfinKey"
     ok "Jellyfin API key saved"
@@ -1358,7 +1436,7 @@ else
   echo "Your external Jellyfin instance: $JELLYFIN_URL"
   dim "Create an API key in Jellyfin: Dashboard (gear icon) > API Keys"
   echo ""
-  jellyfinKey=$(read_password "Paste your Jellyfin API key (Enter to skip)")
+  jellyfinKey=$(read_secret "Jellyfin API key")
   if [ -n "$jellyfinKey" ]; then
     update_env "NUXT_JELLYFIN_API_KEY" "$jellyfinKey"
     ok "Jellyfin API key saved"
@@ -1393,7 +1471,7 @@ if [ "$QBIT_MODE" = "local" ]; then
   dim "  7. Copy the API Key"
   echo ""
 
-  qbitKey=$(read_password "Paste your qBittorrent API Key (Enter to skip)")
+  qbitKey=$(read_secret "qBittorrent API key")
   if [ -n "$qbitKey" ]; then
     update_env "NUXT_QBITTORRENT_API_KEY" "$qbitKey"
     ok "qBittorrent API key saved"
@@ -1405,7 +1483,7 @@ else
   echo "Your external qBittorrent instance: $QBIT_URL"
   dim "Find the API key in qBittorrent: Tools > Options > Web UI"
   echo ""
-  qbitKey=$(read_password "Paste your qBittorrent API Key (Enter to skip)")
+  qbitKey=$(read_secret "qBittorrent API key")
   if [ -n "$qbitKey" ]; then
     update_env "NUXT_QBITTORRENT_API_KEY" "$qbitKey"
     ok "qBittorrent API key saved"
@@ -1440,7 +1518,7 @@ else
   echo ""
 fi
 
-prowlarrKey=$(read_password "Paste your Prowlarr API key (Enter to skip)")
+prowlarrKey=$(read_secret "Prowlarr API key")
 
 if [ -n "$prowlarrKey" ]; then
   update_env "NUXT_PROWLARR_API_KEY" "$prowlarrKey"
@@ -1466,7 +1544,7 @@ echo ""
 dim "This is required for movie/TV metadata."
 echo ""
 
-tmdbKey=$(read_password "Paste your TMDB API key (Enter to skip)")
+tmdbKey=$(read_secret "TMDB API key")
 
 if [ -n "$tmdbKey" ]; then
   update_env "NUXT_TMDB_API_KEY" "$tmdbKey"
@@ -1488,7 +1566,7 @@ dim '  3. Click New Webhook'
 dim "  4. Name it, choose a channel, click Copy Webhook URL"
 echo ""
 
-discordKey=$(read_input "Paste your Discord Webhook URL (Enter to skip)")
+discordKey=$(read_secret "Discord Webhook URL")
 
 if [ -n "$discordKey" ]; then
   update_env "NUXT_DISCORD_WEBHOOK_URL" "$discordKey"

@@ -1172,6 +1172,54 @@ if ($DB_DRIVER_CHOICE -eq "postgres") {
 Write-Info "Waiting 10s for services to fully initialize..."
 Start-Sleep -Seconds 10
 
+# -- Clipboard read (primary secret entry) -----------------------------
+# Secrets are entered by copying the value in the browser and pressing
+# Enter here - the script reads it from the clipboard. Type m at the
+# gate to paste manually for that one field. If Get-Clipboard is
+# unavailable (e.g. no interactive desktop), the manual prompt is
+# used directly.
+
+$script:HasClipboard = $false
+try {
+    $null = Get-Clipboard -Raw -ErrorAction Stop
+    $script:HasClipboard = $true
+} catch { }
+
+# Read-SecretValue <Name>
+# Gate: press Enter to read the clipboard, or type m to paste manually.
+# Prompt lines use Write-Host directly: this function runs inside $()
+# capture, and the Write-* helpers emit native gum output (success stream)
+# when gum is installed, which would be captured together with the value.
+function Read-SecretValue {
+    param([string]$Name)
+    if (-not $script:HasClipboard) {
+        Write-Host "No clipboard tool available - paste manually (right-click or Ctrl+Shift+V, not Ctrl+C)." -ForegroundColor DarkGray
+        return Read-GumPassword "Paste your $Name (Enter to skip)"
+    }
+    while ($true) {
+        Write-Host "Copy your $Name to your clipboard, then press Enter" -ForegroundColor White
+        Write-Host "Type m and press Enter to paste manually instead." -ForegroundColor DarkGray
+        $answer = Read-Host ">"
+        if ($answer -match '^[Mm]$') {
+            return Read-GumPassword "Paste your $Name (Enter to skip)"
+        }
+        if ($answer -ne '') {
+            Write-Host "[WARN]  Press Enter to read the clipboard, or m to paste manually." -ForegroundColor Yellow
+            continue
+        }
+        $value = $null
+        try { $value = Get-Clipboard -Raw -ErrorAction Stop } catch { $value = $null }
+        if ($null -ne $value) { $value = $value.Trim() }
+        if ($value) {
+            Write-Host "[ OK ]  Received from clipboard ($($value.Length) characters)" -ForegroundColor Green
+            return $value
+        }
+        Write-Host "[WARN]  Clipboard is empty - paste manually instead." -ForegroundColor Yellow
+        Write-Host "Paste with right-click or Ctrl+Shift+V (not Ctrl+C)." -ForegroundColor DarkGray
+        return Read-GumPassword "Paste your $Name (Enter to skip)"
+    }
+}
+
 # -- 10. Jellyfin API Key ----------------------------------------------
 
 Write-Step "[10/15] Jellyfin API key"
@@ -1196,7 +1244,7 @@ if ($MEDIA_PROVIDER -eq "none") {
     }
     Write-Host ""
 
-    $jellyfinKey = Read-GumPassword "Paste your Jellyfin API key (Enter to skip)"
+    $jellyfinKey = Read-SecretValue "Jellyfin API key"
 
     if ($jellyfinKey) {
         Update-EnvFile "NUXT_JELLYFIN_API_KEY" $jellyfinKey
@@ -1237,7 +1285,7 @@ if ($QBIT_MODE -eq "local") {
 }
 Write-Host ""
 
-$qbitKey = Read-GumPassword "Paste your qBittorrent API Key (Enter to skip)"
+    $qbitKey = Read-SecretValue "qBittorrent API key"
 
 if ($qbitKey) {
     Update-EnvFile "NUXT_QBITTORRENT_API_KEY" $qbitKey
@@ -1271,7 +1319,7 @@ if ($PROWLARR_MODE -eq "local") {
     Write-Host ""
 }
 
-$prowlarrKey = Read-GumPassword "Paste your Prowlarr API key (Enter to skip)"
+$prowlarrKey = Read-SecretValue "Prowlarr API key"
 
 if ($prowlarrKey) {
     Update-EnvFile "NUXT_PROWLARR_API_KEY" $prowlarrKey
@@ -1297,7 +1345,7 @@ Write-Host ""
 Write-Dim "This is required for movie/TV metadata."
 Write-Host ""
 
-$tmdbKey = Read-GumPassword "Paste your TMDB API key (Enter to skip)"
+$tmdbKey = Read-SecretValue "TMDB API key"
 
 if ($tmdbKey) {
     Update-EnvFile "NUXT_TMDB_API_KEY" $tmdbKey
@@ -1319,7 +1367,7 @@ Write-Dim '  3. Click New Webhook'
 Write-Dim "  4. Name it, choose a channel, click Copy Webhook URL"
 Write-Host ""
 
-$discordKey = Read-GumInput "Paste your Discord Webhook URL (Enter to skip)"
+$discordKey = Read-SecretValue "Discord Webhook URL"
 
 if ($discordKey) {
     Update-EnvFile "NUXT_DISCORD_WEBHOOK_URL" $discordKey
