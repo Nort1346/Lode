@@ -1,3 +1,11 @@
+# CVE-2025-68121 (Go < 1.25.7): esbuild < 0.28.0 ships a Go binary built with an affected
+# Go version, and several deps pin old esbuild copies transitively (drizzle-kit,
+# @nuxtjs/i18n, @nuxt/ui). This floor forces every transitive esbuild to a fixed build.
+# Do not remove - a stale transitive esbuild silently reintroduces the CVE.
+# (pnpm >= 12 no longer reads the "pnpm" field of package.json, so overrides live here.)
+overrides:
+  esbuild: '>=0.28.0'
+
 allowBuilds:
   '@parcel/watcher': true
   '@tailwindcss/oxide': true
