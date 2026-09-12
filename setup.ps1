@@ -1358,22 +1358,34 @@ if ($tmdbKey) {
 
 Write-Step "[14/15] Discord Webhook (optional)"
 
-Write-Host ""
-Write-Dim "Get notified when downloads complete."
-Write-Host "To set up a Discord webhook:" -ForegroundColor Gray
-Write-Dim "  1. Open your Discord server"
-Write-Dim "  2. Go to Server Settings > Integrations > Webhooks"
-Write-Dim '  3. Click New Webhook'
-Write-Dim "  4. Name it, choose a channel, click Copy Webhook URL"
-Write-Host ""
-
-$discordKey = Read-SecretValue "Discord Webhook URL"
-
-if ($discordKey) {
-    Update-EnvFile "NUXT_DISCORD_WEBHOOK_URL" $discordKey
-    Write-Ok "Discord webhook URL saved"
+$setWebhook = $false
+if ($script:HAS_GUM) {
+    gum confirm --default=false "Get notified in Discord when downloads complete. Set up a webhook now?" | Out-Null
+    $setWebhook = ($LASTEXITCODE -eq 0)
 } else {
-    Write-Warn "Skipping Discord webhook -- set it later in .env"
+    $answer = Read-Host "Get notified in Discord when downloads complete. Set up a webhook now? [y/N]"
+    $setWebhook = ($answer -match '^[Yy]$')
+}
+
+if ($setWebhook) {
+    Write-Host ""
+    Write-Host "To set up a Discord webhook:" -ForegroundColor Gray
+    Write-Dim "  1. Open your Discord server"
+    Write-Dim "  2. Go to Server Settings > Integrations > Webhooks"
+    Write-Dim '  3. Click New Webhook'
+    Write-Dim "  4. Name it, choose a channel, click Copy Webhook URL"
+    Write-Host ""
+
+    $discordKey = Read-SecretValue "Discord Webhook URL"
+
+    if ($discordKey) {
+        Update-EnvFile "NUXT_DISCORD_WEBHOOK_URL" $discordKey
+        Write-Ok "Discord webhook URL saved"
+    } else {
+        Write-Warn "Skipping Discord webhook -- set it later in .env"
+    }
+} else {
+    Write-Dim "Skipped -- set NUXT_DISCORD_WEBHOOK_URL in .env later if you change your mind."
 }
 
 # -- 15. Start Lode ----------------------------------------------------

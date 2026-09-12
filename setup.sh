@@ -1557,22 +1557,37 @@ fi
 
 step "[14/15] Discord Webhook (optional)"
 
-echo ""
-dim "Get notified when downloads complete."
-echo "To set up a Discord webhook:"
-dim "  1. Open your Discord server"
-dim "  2. Go to Server Settings > Integrations > Webhooks"
-dim '  3. Click New Webhook'
-dim "  4. Name it, choose a channel, click Copy Webhook URL"
-echo ""
-
-discordKey=$(read_secret "Discord Webhook URL")
-
-if [ -n "$discordKey" ]; then
-  update_env "NUXT_DISCORD_WEBHOOK_URL" "$discordKey"
-  ok "Discord webhook URL saved"
+set_webhook=false
+if [ "$HAS_GUM" = true ]; then
+  if gum confirm --default=false "Get notified in Discord when downloads complete. Set up a webhook now?"; then
+    set_webhook=true
+  fi
 else
-  warn "Skipping Discord webhook -- set it later in .env"
+  read -rp "Get notified in Discord when downloads complete. Set up a webhook now? [y/N] " answer || answer=""
+  if [[ "$answer" =~ ^[Yy]$ ]]; then
+    set_webhook=true
+  fi
+fi
+
+if [ "$set_webhook" = true ]; then
+  echo ""
+  echo "To set up a Discord webhook:"
+  dim "  1. Open your Discord server"
+  dim "  2. Go to Server Settings > Integrations > Webhooks"
+  dim '  3. Click New Webhook'
+  dim "  4. Name it, choose a channel, click Copy Webhook URL"
+  echo ""
+
+  discordKey=$(read_secret "Discord Webhook URL")
+
+  if [ -n "$discordKey" ]; then
+    update_env "NUXT_DISCORD_WEBHOOK_URL" "$discordKey"
+    ok "Discord webhook URL saved"
+  else
+    warn "Skipping Discord webhook -- set it later in .env"
+  fi
+else
+  dim "Skipped -- set NUXT_DISCORD_WEBHOOK_URL in .env later if you change your mind."
 fi
 
 # -- 15. Start Lode ----------------------------------------------------
