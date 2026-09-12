@@ -47,6 +47,7 @@
         icon="i-lucide-download"
         :loading="loading"
         :disabled="disabled || limitExceeded"
+        class="font-bold"
         @click="$emit('download')"
       >
         <template v-if="limitExceeded">

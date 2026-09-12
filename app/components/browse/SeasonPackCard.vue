@@ -23,6 +23,7 @@
       size="sm"
       :loading="loading"
       :disabled="disabled || limitExceeded"
+      class="font-bold"
       @click="$emit('download')"
     >
       {{ limitExceeded ? t('tv.limitReached') : t('tv.downloadSeason') }}

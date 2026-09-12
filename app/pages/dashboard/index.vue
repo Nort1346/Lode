@@ -239,7 +239,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
     <div id="active-downloads" v-reveal class="card p-5 md:p-6 mb-8 scroll-mt-16">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('dashboard.activeTorrents') }}</h2>
-        <UButton to="/browse" icon="i-lucide-search" :label="t('dashboard.browse')" size="sm" />
+        <UButton to="/browse" icon="i-lucide-search" class="font-bold" :label="t('dashboard.browse')" size="sm" />
       </div>
 
       <div v-if="loading && activeDownloads.length === 0" class="flex justify-center py-8">

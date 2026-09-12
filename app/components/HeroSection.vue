@@ -280,7 +280,7 @@ onUnmounted(() => {
           :label="t('dashboard.heroCTA')"
           icon="i-lucide-play"
           size="lg"
-          class="font-bold"
+          class="font-extrabold"
           @click.stop="handleHeroClick"
         />
       </div>
