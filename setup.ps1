@@ -394,7 +394,14 @@ function Write-StateFile {
         "flaresolverr=$(if ($USE_FLARESOLVERR) { 'true' } else { 'false' })",
         "dozzle=$(if ($USE_DOZZLE) { 'true' } else { 'false' })"
     )
-    Set-Content -Path $script:STATE_FILE -Value (($lines -join "`n") + "`n") -NoNewline
+    # Temp file + rename: an interrupted run (Ctrl+C, kill, closed terminal) can never leave a corrupt state file behind.
+    $tmp = "$($script:STATE_FILE).tmp"
+    try {
+        Set-Content -Path $tmp -Value (($lines -join "`n") + "`n") -NoNewline
+        Move-Item -Path $tmp -Destination $script:STATE_FILE -Force
+    } finally {
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # -- Compose file helpers ---------------------------------------------
@@ -596,7 +603,8 @@ try {
                 gum confirm --default=false "Update setup.ps1 and restart?"
                 if ($LASTEXITCODE -eq 0) {
                     Copy-Item $SETUP_SELF "$SETUP_SELF.bak" -Force
-                    Copy-Item $SETUP_NEW $SETUP_SELF -Force
+                    Copy-Item $SETUP_NEW "$SETUP_SELF.tmp" -Force
+                    Move-Item -Path "$SETUP_SELF.tmp" -Destination $SETUP_SELF -Force
                     Write-Ok "Updated setup.ps1. Restarting..."
                     & $SETUP_SELF
                     exit $LASTEXITCODE
@@ -605,7 +613,8 @@ try {
                 $answer = Read-Host "Update setup.ps1 and restart? (y/N)"
                 if ($answer -match '^[Yy]$') {
                     Copy-Item $SETUP_SELF "$SETUP_SELF.bak" -Force
-                    Copy-Item $SETUP_NEW $SETUP_SELF -Force
+                    Copy-Item $SETUP_NEW "$SETUP_SELF.tmp" -Force
+                    Move-Item -Path "$SETUP_SELF.tmp" -Destination $SETUP_SELF -Force
                     Write-Ok "Updated setup.ps1. Restarting..."
                     & $SETUP_SELF
                     exit $LASTEXITCODE
@@ -618,6 +627,7 @@ try {
     # Silently continue if update check fails
 } finally {
     if (Test-Path $SETUP_NEW) { Remove-Item $SETUP_NEW -Force -ErrorAction SilentlyContinue }
+    Remove-Item "$SETUP_SELF.tmp" -Force -ErrorAction SilentlyContinue
 }
 
 # -- Banner -----------------------------------------------------------
@@ -695,13 +705,21 @@ if (-not (Test-Path .env)) {
     if (-not (Test-Path .env.example)) {
         Write-Info "Downloading .env.example from GitHub..."
         try {
-            Invoke-WebRequest -Uri "$REPO_RAW/.env.example" -OutFile .env.example -UseBasicParsing 2>$null
+            Invoke-WebRequest -Uri "$REPO_RAW/.env.example" -OutFile ".env.example.tmp" -UseBasicParsing 2>$null
+            Move-Item -Path ".env.example.tmp" -Destination ".env.example" -Force
         } catch {
             Write-Err "Failed to download .env.example"
             Stop-Setup 1
+        } finally {
+            Remove-Item ".env.example.tmp" -Force -ErrorAction SilentlyContinue
         }
     }
-    Copy-Item .env.example .env
+    try {
+        Copy-Item .env.example ".env.tmp"
+        Move-Item -Path ".env.tmp" -Destination ".env" -Force
+    } finally {
+        Remove-Item ".env.tmp" -Force -ErrorAction SilentlyContinue
+    }
     Write-Ok "Created .env from .env.example"
 } else {
     Write-Warn ".env exists - keeping existing config"
@@ -937,10 +955,9 @@ function Get-ComposeTagMasked {
 
 Write-Step "[7/15] Downloading compose files"
 
-$COMPOSE_TMP = Join-Path $env:TEMP "lode-compose.new.yml"
-
 # Split into missing files (downloaded directly, no prompt) and files
 # that already exist (one prompt for the whole group).
+# Downloads land in a temp file first so an interrupted run never leaves a truncated compose file behind.
 $newFiles = @()
 $existingFiles = @()
 foreach ($composeFile in $script:COMPOSE_FILES) {
@@ -950,11 +967,14 @@ foreach ($composeFile in $script:COMPOSE_FILES) {
 foreach ($composeFile in $newFiles) {
     Write-Info "Downloading $composeFile..."
     try {
-        Invoke-WebRequest -Uri "$REPO_RAW/$composeFile" -OutFile $composeFile -UseBasicParsing
+        Invoke-WebRequest -Uri "$REPO_RAW/$composeFile" -OutFile "$composeFile.tmp" -UseBasicParsing
+        Move-Item -Path "$composeFile.tmp" -Destination $composeFile -Force
     } catch {
         Write-Err "Failed to download $composeFile from GitHub."
         Write-Host "  Check your internet connection and try again." -ForegroundColor Yellow
         Stop-Setup 1
+    } finally {
+        Remove-Item "$composeFile.tmp" -Force -ErrorAction SilentlyContinue
     }
     Write-Ok "$composeFile downloaded"
 }
@@ -971,24 +991,25 @@ if ($existingFiles.Count -gt 0) {
     foreach ($composeFile in $existingFiles) {
         if ($doUpdate) {
             try {
-                Invoke-WebRequest -Uri "$REPO_RAW/$composeFile" -OutFile $COMPOSE_TMP -UseBasicParsing 2>$null
-                $composeDiff = Compare-Object (Get-ComposeTagMasked $composeFile) (Get-ComposeTagMasked $COMPOSE_TMP)
+                Invoke-WebRequest -Uri "$REPO_RAW/$composeFile" -OutFile "$composeFile.tmp" -UseBasicParsing 2>$null
+                $composeDiff = Compare-Object (Get-ComposeTagMasked $composeFile) (Get-ComposeTagMasked "$composeFile.tmp")
                 if ($composeDiff) {
                     Copy-Item $composeFile "$composeFile.bak" -Force
-                    Copy-Item $COMPOSE_TMP $composeFile -Force
+                    Move-Item -Path "$composeFile.tmp" -Destination $composeFile -Force
                     Write-Ok "$composeFile updated (backup saved as $composeFile.bak)"
                 } else {
                     Write-Ok "$composeFile is already up to date"
                 }
             } catch {
                 Write-Warn "Could not download $composeFile - keeping your local copy"
+            } finally {
+                Remove-Item "$composeFile.tmp" -Force -ErrorAction SilentlyContinue
             }
         } else {
             Write-Ok "Using existing $composeFile"
         }
     }
 }
-if (Test-Path $COMPOSE_TMP) { Remove-Item $COMPOSE_TMP -Force -ErrorAction SilentlyContinue }
 
 # -- 8. Lode version choice --------------------------------------
 # The version choice is the single source of truth for the image tag:
