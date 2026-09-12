@@ -58,7 +58,7 @@ $script:IsScriptFile = [bool]$MyInvocation.MyCommand.Path
 
 function Stop-Setup {
     param([int]$Code = 0)
-    if ($env:SETUP_PAUSE -or -not $script:IsScriptFile) {
+    if ($env:SETUP_PAUSE) {
         Write-Host ""
         Read-Host "Press Enter to continue" | Out-Null
     }
@@ -626,8 +626,45 @@ try {
 } catch {
     # Silently continue if update check fails
 } finally {
-    if (Test-Path $SETUP_NEW) { Remove-Item $SETUP_NEW -Force -ErrorAction SilentlyContinue }
+    if ($script:IsScriptFile -and (Test-Path $SETUP_NEW)) { Remove-Item $SETUP_NEW -Force -ErrorAction SilentlyContinue }
     Remove-Item "$SETUP_SELF.tmp" -Force -ErrorAction SilentlyContinue
+}
+
+# -- Re-exec as child process (piped mode safety) ----------------------
+# When run via 'irm | iex', the script executes in the user's current
+# PowerShell session. Calling 'exit' anywhere (via Stop-Setup) would
+# close that session. Re-launch as a real file process so exit is safe.
+
+if (-not $script:IsScriptFile) {
+    Write-Host ""
+    Write-Warn "Running via 'irm | iex' - restarting as a standalone process so this terminal isn't affected."
+    $proceed = $true
+    if ($script:HAS_GUM) {
+        gum confirm --default=true "Continue?"
+        $proceed = ($LASTEXITCODE -eq 0)
+    } else {
+        $answer = Read-Host "Continue? [Y/n]"
+        $proceed = -not ($answer -match '^[Nn]')
+    }
+    if (-not $proceed) {
+        Write-Warn "Aborted."
+        return
+    }
+    $childScript = Join-Path $env:TEMP "lode-setup-run.ps1"
+    try {
+        if (Test-Path $SETUP_NEW) {
+            Copy-Item $SETUP_NEW $childScript -Force
+        } else {
+            Invoke-WebRequest -Uri $SETUP_URL -OutFile $childScript -UseBasicParsing
+        }
+    } catch {
+        Write-Err "Could not download setup.ps1 to run as a standalone process. Check your connection and try again."
+        return
+    }
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $childScript
+    Remove-Item $childScript -Force -ErrorAction SilentlyContinue
+    if (Test-Path $SETUP_NEW) { Remove-Item $SETUP_NEW -Force -ErrorAction SilentlyContinue }
+    return
 }
 
 # -- Banner -----------------------------------------------------------
