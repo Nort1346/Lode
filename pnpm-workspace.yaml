@@ -16,3 +16,6 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   vue-demi: true
+
+minimumReleaseAgeExclude:
+  - '@vite-pwa/assets-generator@1.0.4 || 2.0.0'
