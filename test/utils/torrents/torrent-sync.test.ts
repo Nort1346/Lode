@@ -257,6 +257,40 @@ describe('syncTorrentStatus', () => {
     expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
   })
 
+  it('marks torrent checking when qBittorrent reports checkingUP', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([
+      makeQbit({ state: 'checkingUP', dlspeed: 5_000_000, dlspeed_avg: 1_000_000, upspeed: 100 })
+    ])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 1, completed: 0, failed: 0, removed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'checking',
+        progress: 50,
+        etaSeconds: 0,
+        downloadSpeed: 0,
+        uploadSpeed: 0
+      })
+    )
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+  })
+
+  it('does not complete a checking torrent that already has completion_on > 0', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([
+      makeQbit({ state: 'checkingUP', progress: 1, completion_on: 1, downloaded: 1_000_000_000 })
+    ])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 1, completed: 0, failed: 0, removed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'checking', progress: 100 }))
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+  })
+
   it('resumes a paused row when qBittorrent is downloading again', async () => {
     mockActiveAll.mockReturnValue([makeDl({ status: 'paused' })])
     mockGetAllTorrents.mockReturnValue([makeQbit()])

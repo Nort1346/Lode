@@ -82,7 +82,7 @@ export function createDownloadRepo(db: SqliteDb): DownloadRepo {
           db
             .select({ count: count() })
             .from(downloads)
-            .where(where([inArray(downloads.status, ['downloading', 'paused'])]))
+            .where(where([inArray(downloads.status, ['checking', 'downloading', 'paused'])]))
         ),
         dbGet(
           db

@@ -9,7 +9,7 @@ import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
-import { COMPLETED_STATES, PAUSED_DOWNLOAD_STATES, type SyncResult } from '#server/types/torrent'
+import { CHECKING_STATES, COMPLETED_STATES, PAUSED_DOWNLOAD_STATES, type SyncResult } from '#server/types/torrent'
 
 const log = createLogger('TorrentSync')
 
@@ -79,12 +79,12 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
   const db = await useDbAsync()
   const result: SyncResult = { synced: 0, completed: 0, failed: 0, removed: 0 }
 
-  // Paused rows are synced too so external pause/resume in qBittorrent is picked up
+  // Paused and checking rows are synced too so external pause/resume and file verification are picked up
   const activeDownloads = await dbAll(
     db
       .select()
       .from(downloads)
-      .where(inArray(downloads.status, ['downloading', 'paused']))
+      .where(inArray(downloads.status, ['checking', 'downloading', 'paused']))
   )
 
   if (activeDownloads.length === 0) return result
@@ -234,6 +234,36 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     }
 
     const progressPct = qbitTorrent.progress * 100
+    const isChecking = CHECKING_STATES.has(qbitTorrent.state)
+
+    if (isChecking) {
+      const numSeeds = swarmSeedCount(qbitTorrent)
+      if (dl.status !== 'checking') {
+        log.info(
+          `status changed: ${dl.status} -> checking: id=${dl.id} hash=${qbitTorrent.hash} state=${qbitTorrent.state}`
+        )
+      }
+      await dbRun(
+        db
+          .update(downloads)
+          .set({
+            torrentName: qbitTorrent.name || dl.torrentName,
+            progress: progressPct,
+            etaSeconds: 0,
+            downloadSpeed: 0,
+            uploadSpeed: 0,
+            sizeBytes: qbitTorrent.size,
+            downloadedBytes: qbitTorrent.downloaded,
+            numSeeds,
+            numLeechs: qbitTorrent.num_leechs,
+            status: 'checking'
+          })
+          .where(eq(downloads.id, dl.id))
+      )
+      result.synced++
+      continue
+    }
+
     const isComplete =
       qbitTorrent.size > 0 &&
       (qbitTorrent.completion_on > 0 ||

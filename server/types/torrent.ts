@@ -4,15 +4,29 @@ import type { downloads } from '#server/database/schema'
 
 export type DownloadRow = InferSelectModel<typeof downloads> & { username?: string }
 
-export const DOWNLOAD_STATUS_VALUES = ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed'] as const
+export const DOWNLOAD_STATUS_VALUES = [
+  'pending',
+  'checking',
+  'downloading',
+  'completed',
+  'failed',
+  'paused',
+  'removed'
+] as const
 export type SupportedStatus = (typeof DOWNLOAD_STATUS_VALUES)[number]
 
 // In-progress downloads that should be pinned to the top of the list
-export const ACTIVE_DOWNLOAD_STATUSES: readonly SupportedStatus[] = ['pending', 'downloading', 'paused']
+export const ACTIVE_DOWNLOAD_STATUSES: readonly SupportedStatus[] = ['pending', 'checking', 'downloading', 'paused']
 
 // Statuses that block re-adding the same torrent (hash or link) for a user.
 // removed/failed/disk_full rows are dead - they must not block a fresh re-add.
-export const DEDUP_MATCH_STATUSES: readonly SupportedStatus[] = ['pending', 'downloading', 'completed', 'paused']
+export const DEDUP_MATCH_STATUSES: readonly SupportedStatus[] = [
+  'pending',
+  'checking',
+  'downloading',
+  'completed',
+  'paused'
+]
 
 export interface TorrentFile {
   index: number
@@ -47,6 +61,10 @@ export interface QBitTorrent {
 // v5.0 renamed pausedDL/pausedUP to stoppedDL/stoppedUP, so both spellings are accepted
 // to keep working with 4.x and 5.x instances.
 export const PAUSED_DOWNLOAD_STATES = new Set(['pausedDL', 'stoppedDL'])
+
+// qBittorrent states while files are being allocated or verified. Seeders, ETA,
+// and transfer speed are not meaningful in these states.
+export const CHECKING_STATES = new Set(['checkingDL', 'checkingUP', 'checkingResumeData', 'allocating'])
 
 // qBittorrent states for a torrent that has finished downloading.
 export const COMPLETED_STATES = new Set(['uploading', 'stalledUP', 'pausedUP', 'stoppedUP', 'queuedUP', 'forcedUP'])

@@ -470,6 +470,7 @@
     "status_pending": "Pending",
     "status_failed": "Failed",
     "status_paused": "Paused",
+    "status_checking": "Checking",
     "status_disk_full": "Disk full",
     "status_removed": "Removed",
     "eta": "ETA",

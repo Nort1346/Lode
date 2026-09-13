@@ -35,7 +35,7 @@ export const downloads = sqliteTable(
     magnetLink: text('magnet_link').notNull(),
     savePath: text('save_path', { enum: ['movies', 'series', 'games', 'books', 'music'] }).notNull(),
     status: text('status', {
-      enum: ['pending', 'downloading', 'completed', 'failed', 'paused', 'removed', 'disk_full']
+      enum: ['pending', 'checking', 'downloading', 'completed', 'failed', 'paused', 'removed', 'disk_full']
     })
       .notNull()
       .default('pending'),

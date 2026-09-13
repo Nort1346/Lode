@@ -216,14 +216,14 @@ describe('torrents/list.get', () => {
 
   it('applies a comma-separated status list with inArray', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'admin1', role: 'admin', username: 'admin' } })
-    vi.mocked(getQuery).mockReturnValue({ status: 'downloading,paused' })
+    vi.mocked(getQuery).mockReturnValue({ status: 'checking,downloading,paused' })
     mockCountGet.mockReturnValue({ count: 1 })
-    mockAll.mockReturnValue([{ id: 'dl-1', userId: 'u1', status: 'paused' }])
+    mockAll.mockReturnValue([{ id: 'dl-1', userId: 'u1', status: 'checking' }])
     mockAllUsers.mockReturnValue([{ id: 'u1', username: 'user1' }])
 
     await handler(mockEvent)
     const inArrayCalls = (vi.mocked(inArray) as unknown as { mock: { calls: unknown[][] } }).mock.calls
-    expect(inArrayCalls).toContainEqual(['status', ['downloading', 'paused']])
+    expect(inArrayCalls).toContainEqual(['status', ['checking', 'downloading', 'paused']])
   })
 
   it('rejects an invalid status token with 400', async () => {

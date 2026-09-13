@@ -31,6 +31,7 @@ export type EtaState = 'waiting-seeders' | 'calculating' | 'ready'
 export type EtaInput = Pick<Download, 'etaSeconds' | 'numSeeds' | 'downloadSpeed'>
 
 export const STATUS_COLORS: Record<string, string> = {
+  checking: 'text-teal-500',
   downloading: 'text-blue-500',
   seeding: 'text-green-500',
   paused: 'text-yellow-500',

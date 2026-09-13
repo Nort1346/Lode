@@ -1,7 +1,7 @@
 import { downloads } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
-import { COMPLETED_STATES, PAUSED_DOWNLOAD_STATES } from '#server/types/torrent'
+import { CHECKING_STATES, COMPLETED_STATES, PAUSED_DOWNLOAD_STATES } from '#server/types/torrent'
 import { normalizeEta } from '#server/utils/torrents/eta'
 
 export default defineEventHandler(async (event) => {
@@ -33,23 +33,27 @@ export default defineEventHandler(async (event) => {
 
       if (torrent !== undefined) {
         const progressPct = torrent.progress * 100
+        const isChecking = CHECKING_STATES.has(torrent.state)
         const isComplete =
-          torrent.completion_on > 0 ||
-          torrent.downloaded >= torrent.size ||
-          progressPct >= 99.9 ||
-          COMPLETED_STATES.has(torrent.state)
-        const isPaused = !isComplete && PAUSED_DOWNLOAD_STATES.has(torrent.state)
+          !isChecking &&
+          (torrent.completion_on > 0 ||
+            torrent.downloaded >= torrent.size ||
+            progressPct >= 99.9 ||
+            COMPLETED_STATES.has(torrent.state))
+        const isPaused = !isComplete && !isChecking && PAUSED_DOWNLOAD_STATES.has(torrent.state)
+        const inactive = isComplete || isPaused || isChecking
+        const status = isComplete ? 'completed' : isChecking ? 'checking' : isPaused ? 'paused' : 'downloading'
 
         await dbRun(
           db
             .update(downloads)
             .set({
               progress: isComplete ? 100 : progressPct,
-              etaSeconds: isComplete || isPaused ? 0 : normalizeEta(torrent.eta),
-              downloadSpeed: isComplete || isPaused ? 0 : torrent.dlspeed,
-              uploadSpeed: isComplete || isPaused ? 0 : torrent.upspeed,
+              etaSeconds: inactive ? 0 : normalizeEta(torrent.eta),
+              downloadSpeed: inactive ? 0 : torrent.dlspeed,
+              uploadSpeed: inactive ? 0 : torrent.upspeed,
               downloadedBytes: torrent.downloaded,
-              status: isComplete ? 'completed' : isPaused ? 'paused' : 'downloading',
+              status,
               completedAt: isComplete ? new Date().toISOString() : null
             })
             .where(eq(downloads.id, id))
@@ -58,11 +62,11 @@ export default defineEventHandler(async (event) => {
         return {
           ...download,
           progress: isComplete ? 100 : progressPct,
-          etaSeconds: isComplete || isPaused ? 0 : normalizeEta(torrent.eta),
-          downloadSpeed: isComplete || isPaused ? 0 : torrent.dlspeed,
-          uploadSpeed: isComplete || isPaused ? 0 : torrent.upspeed,
+          etaSeconds: inactive ? 0 : normalizeEta(torrent.eta),
+          downloadSpeed: inactive ? 0 : torrent.dlspeed,
+          uploadSpeed: inactive ? 0 : torrent.upspeed,
           downloadedBytes: torrent.downloaded,
-          status: isComplete ? 'completed' : isPaused ? 'paused' : 'downloading'
+          status
         }
       }
     } catch {

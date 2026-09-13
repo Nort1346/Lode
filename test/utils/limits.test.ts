@@ -59,7 +59,10 @@ describe('checkDailyLimit', () => {
     expect(result.activeCount).toBe(2)
     expect(result.todayCount).toBe(2)
     expect(result.limit).toBe(5)
-    expect(mockCountFiltered).toHaveBeenCalledWith({ userId: 'user1', statuses: ['downloading', 'paused'] })
+    expect(mockCountFiltered).toHaveBeenCalledWith({
+      userId: 'user1',
+      statuses: ['checking', 'downloading', 'paused']
+    })
   })
 
   it('returns reached: true when today count hits limit', async () => {

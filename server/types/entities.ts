@@ -30,7 +30,7 @@ export interface Download {
   torrentName: string
   magnetLink: string
   savePath: 'movies' | 'series' | 'games' | 'books' | 'music'
-  status: 'pending' | 'downloading' | 'completed' | 'failed' | 'paused' | 'removed' | 'disk_full'
+  status: 'pending' | 'checking' | 'downloading' | 'completed' | 'failed' | 'paused' | 'removed' | 'disk_full'
   torrentHash: string | null
   progress: number
   etaSeconds: number

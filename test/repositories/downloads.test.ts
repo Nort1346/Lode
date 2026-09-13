@@ -103,4 +103,22 @@ describe('downloads repo stats', () => {
     expect((await repo.stats({ userId: 'u1' }, sinceIso)).completedSince).toBe(1)
     expect((await repo.stats({}, sinceIso)).completedSince).toBe(2)
   })
+
+  it('counts checking downloads as active', async () => {
+    const db = createDb()
+    const repo = createDownloadRepo(db)
+    const sinceIso = todayStartIso()
+    const now = new Date().toISOString()
+
+    await db.insert(downloads).values({
+      id: 'dl-1',
+      userId: 'u1',
+      magnetLink: 'magnet:?xt=urn:btih:test',
+      savePath: 'movies',
+      status: 'checking',
+      createdAt: now
+    })
+
+    expect((await repo.stats({ userId: 'u1' }, sinceIso)).active).toBe(1)
+  })
 })

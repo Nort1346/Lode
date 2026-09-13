@@ -125,6 +125,7 @@ function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
 }
 
 const statusColors: Record<string, string> = {
+  checking: 'bg-teal-500/15 text-teal-700 dark:text-teal-400',
   downloading: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400',
   completed: 'bg-green-500/15 text-green-700 dark:text-green-400',
   pending: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
@@ -247,7 +248,12 @@ const savePathLabels = computed<Record<string, string>>(() => ({
             </div>
 
             <UButton
-              v-if="dl.status === 'downloading' || dl.status === 'pending' || dl.status === 'paused'"
+              v-if="
+                dl.status === 'downloading' ||
+                dl.status === 'pending' ||
+                dl.status === 'paused' ||
+                dl.status === 'checking'
+              "
               icon="i-lucide-trash-2"
               color="error"
               :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
@@ -258,7 +264,12 @@ const savePathLabels = computed<Record<string, string>>(() => ({
               @click="cancelTorrent(dl)"
             />
             <UButton
-              v-if="dl.status === 'downloading' || dl.status === 'pending' || dl.status === 'paused'"
+              v-if="
+                dl.status === 'downloading' ||
+                dl.status === 'pending' ||
+                dl.status === 'paused' ||
+                dl.status === 'checking'
+              "
               icon="i-lucide-trash-2"
               color="error"
               :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
@@ -269,17 +280,20 @@ const savePathLabels = computed<Record<string, string>>(() => ({
             />
           </div>
 
-          <div v-if="dl.status === 'downloading' || dl.status === 'paused'" class="space-y-2">
+          <div
+            v-if="dl.status === 'downloading' || dl.status === 'paused' || dl.status === 'checking'"
+            class="space-y-2"
+          >
             <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
               <span class="font-medium text-zinc-900 dark:text-white">{{ dl.progress.toFixed(1) }}%</span>
               <div class="flex items-center gap-3">
-                <span v-if="dl.numSeeds > 0" class="text-zinc-500 dark:text-zinc-400">
+                <span v-if="dl.numSeeds > 0 && dl.status !== 'checking'" class="text-zinc-500 dark:text-zinc-400">
                   <UIcon name="i-lucide-arrow-up" class="inline size-3" />{{ dl.numSeeds }}
                 </span>
-                <span v-if="dl.numLeechs > 0" class="text-zinc-400 dark:text-zinc-500">
+                <span v-if="dl.numLeechs > 0 && dl.status !== 'checking'" class="text-zinc-400 dark:text-zinc-500">
                   <UIcon name="i-lucide-arrow-down" class="inline size-3" />{{ dl.numLeechs }}
                 </span>
-                <span v-if="dl.status !== 'paused'"
+                <span v-if="dl.status !== 'paused' && dl.status !== 'checking'"
                   >{{ t('common.eta') }}:
                   <span class="text-zinc-900 dark:text-white font-medium">{{ etaLabel(dl) }}</span></span
                 >
@@ -292,7 +306,10 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                 :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
               />
             </div>
-            <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+            <div
+              v-if="dl.status !== 'checking'"
+              class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500"
+            >
               <span>↓ {{ formatSpeed(dl.downloadSpeed) }} · ↑ {{ formatSpeed(dl.uploadSpeed) }}</span>
               <span>{{ formatSize(dl.downloadedBytes) }} / {{ formatSize(dl.sizeBytes) }}</span>
             </div>

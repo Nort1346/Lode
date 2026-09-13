@@ -39,7 +39,7 @@ async function fetchData() {
   try {
     const [statsRes, listRes] = await Promise.all([
       $fetch<{ active: number; createdSince: number; completedSince: number }>('/api/torrents/stats'),
-      $fetch<{ downloads: Download[] }>('/api/torrents/list?status=downloading,paused&limit=50')
+      $fetch<{ downloads: Download[] }>('/api/torrents/list?status=checking,downloading,paused&limit=50')
     ])
     stats.value = {
       activeTorrents: statsRes.active,
@@ -137,6 +137,7 @@ const { qualityConfig } = useQualityConfig()
 const etaLabel = useEtaLabel()
 
 const statusColors: Record<string, string> = {
+  checking: 'bg-teal-500/15 text-teal-700 dark:text-teal-400',
   downloading: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400',
   completed: 'bg-green-500/15 text-green-700 dark:text-green-400',
   pending: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
@@ -344,10 +345,10 @@ const savePathLabels = computed<Record<string, string>>(() => ({
               <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
                 <span class="font-medium text-zinc-900 dark:text-white">{{ dl.progress.toFixed(1) }}%</span>
                 <div class="flex items-center gap-3">
-                  <span v-if="dl.numSeeds > 0" class="text-zinc-500 dark:text-zinc-400">
+                  <span v-if="dl.numSeeds > 0 && dl.status !== 'checking'" class="text-zinc-500 dark:text-zinc-400">
                     <UIcon name="i-lucide-arrow-up" class="inline size-3" />{{ dl.numSeeds }}
                   </span>
-                  <span v-if="dl.status !== 'paused'"
+                  <span v-if="dl.status !== 'paused' && dl.status !== 'checking'"
                     >{{ t('common.eta') }}:
                     <span class="text-zinc-900 dark:text-white">
                       {{ etaLabel(dl) }}
@@ -362,7 +363,10 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
                 />
               </div>
-              <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+              <div
+                v-if="dl.status !== 'checking'"
+                class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500"
+              >
                 <span>↓ {{ formatSpeed(dl.downloadSpeed) }} · ↑ {{ formatSpeed(dl.uploadSpeed) }}</span>
                 <span>{{ formatSize(dl.downloadedBytes) }} / {{ formatSize(dl.sizeBytes) }}</span>
               </div>
