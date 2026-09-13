@@ -188,12 +188,121 @@ function Install-Gum {
 
 Install-Gum
 
+# -- Hyperlinks (OSC 8) ------------------------------------------------
+# OSC 8 is emitted unconditionally for http(s) URLs. ECMA-48-compliant
+# terminals ignore unknown OSC sequences. This is deliberately separate
+# from SGR color support: NO_COLOR / TERM=dumb affect colors only.
+
+$script:VT_ENABLED = $false
+$script:ConsoleNative = $null
+
+function Enable-VirtualTerminalProcessing {
+    if ($script:VT_ENABLED) { return $true }
+
+    if ($env:OS -eq "Windows_NT") {
+        if (-not $script:ConsoleNative) {
+            try {
+                Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class LodeSetupConsoleNative
+{
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr GetStdHandle(int nStdHandle);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
+}
+'@ -ErrorAction Stop
+                $script:ConsoleNative = [LodeSetupConsoleNative]
+            } catch {
+                return $false
+            }
+        }
+
+        try {
+            $handle = $script:ConsoleNative::GetStdHandle(-11)
+            $mode = [uint32]0
+            if ($script:ConsoleNative::GetConsoleMode($handle, [ref]$mode)) {
+                [void]$script:ConsoleNative::SetConsoleMode($handle, $mode -bor 0x4)
+                $script:VT_ENABLED = $true
+            }
+        } catch {
+            # Leave VT disabled; hyperlink output falls back to plain text.
+        }
+    } else {
+        $script:VT_ENABLED = $true
+    }
+
+    return $script:VT_ENABLED
+}
+
+function Get-Hyperlink {
+    param([string]$Url, [string]$Label = '')
+    $urlOnly = [string]::IsNullOrWhiteSpace($Label) -or $Label -eq $Url
+    if ($urlOnly) { $Label = $Url }
+
+    if ($Url -match '^https?://') {
+        $esc = [char]27
+        $bs = [char]92
+        return "${esc}]8;;${Url}${esc}${bs}${Label}${esc}]8;;${esc}${bs}"
+    }
+
+    if ($urlOnly) { return $Url }
+    return "${Label}: ${Url}"
+}
+
+function Write-RawLine {
+    param([string]$Msg)
+    [void](Enable-VirtualTerminalProcessing)
+    [Console]::Out.Write("${Msg}`n")
+}
+
 # -- Output helpers ---------------------------------------------------
 
-function Write-Info    { param([string]$Msg) if ($script:HAS_GUM) { gum log --level info $Msg } else { Write-Host "[INFO]  $Msg" -ForegroundColor Blue } }
-function Write-Ok      { param([string]$Msg) if ($script:HAS_GUM) { gum log --level info $Msg } else { Write-Host "[ OK ]  $Msg" -ForegroundColor Green } }
-function Write-Warn    { param([string]$Msg) if ($script:HAS_GUM) { gum log --level warn $Msg } else { Write-Host "[WARN]  $Msg" -ForegroundColor Yellow } }
-function Write-Err     { param([string]$Msg) if ($script:HAS_GUM) { gum log --level error $Msg } else { Write-Host "[ERR ]  $Msg" -ForegroundColor Red } }
+function Write-Info {
+    param([string]$Msg)
+    $esc = [char]27
+    if ($Msg.Contains("${esc}]8")) {
+        Write-RawLine "[INFO]  $Msg"
+        return
+    }
+    if ($script:HAS_GUM) { gum log --level info $Msg } else { Write-Host "[INFO]  $Msg" -ForegroundColor Blue }
+}
+
+function Write-Ok {
+    param([string]$Msg)
+    $esc = [char]27
+    if ($Msg.Contains("${esc}]8")) {
+        Write-RawLine "[ OK ]  $Msg"
+        return
+    }
+    if ($script:HAS_GUM) { gum log --level info $Msg } else { Write-Host "[ OK ]  $Msg" -ForegroundColor Green }
+}
+
+function Write-Warn {
+    param([string]$Msg)
+    $esc = [char]27
+    if ($Msg.Contains("${esc}]8")) {
+        Write-RawLine "[WARN]  $Msg"
+        return
+    }
+    if ($script:HAS_GUM) { gum log --level warn $Msg } else { Write-Host "[WARN]  $Msg" -ForegroundColor Yellow }
+}
+
+function Write-Err {
+    param([string]$Msg)
+    $esc = [char]27
+    if ($Msg.Contains("${esc}]8")) {
+        Write-RawLine "[ERR ]  $Msg"
+        return
+    }
+    if ($script:HAS_GUM) { gum log --level error $Msg } else { Write-Host "[ERR ]  $Msg" -ForegroundColor Red }
+}
 
 function Write-Header {
     param([string]$Msg)
@@ -220,6 +329,11 @@ function Write-Step {
 
 function Write-Dim {
     param([string]$Msg)
+    $esc = [char]27
+    if ($Msg.Contains("${esc}]8")) {
+        Write-RawLine $Msg
+        return
+    }
     if ($script:HAS_GUM) {
         gum style --foreground 14 $Msg
     } else {
@@ -229,6 +343,12 @@ function Write-Dim {
 
 function Write-Callout {
     param([string]$Title, [string]$Body)
+    $esc = [char]27
+    if ($Body.Contains("${esc}]8")) {
+        Write-RawLine $Title
+        Write-RawLine $Body
+        return
+    }
     if ($script:HAS_GUM) {
         gum style --bold --foreground 11 $Title
         gum style --foreground 14 $Body
@@ -240,6 +360,11 @@ function Write-Callout {
 
 function Write-SummarySection {
     param([string]$Msg)
+    $esc = [char]27
+    if ($Msg.Contains("${esc}]8")) {
+        Write-RawLine $Msg
+        return
+    }
     if ($script:HAS_GUM) {
         gum style --border normal --border-foreground 240 --padding "0 2" $Msg
     } else {
@@ -249,7 +374,7 @@ function Write-SummarySection {
 
 function Get-SummaryRow {
     param([string]$Label, [string]$Url)
-    return ("  {0,-18} {1}" -f $Label, $Url)
+    return ("  {0,-18} {1}" -f $Label, (Get-Hyperlink $Url))
 }
 
 # -- Helpers ----------------------------------------------------------
@@ -697,7 +822,7 @@ Write-Step "[1/15] Checking prerequisites"
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Err "Docker is not installed."
     Write-Host "  Install Docker Desktop for Windows:" -ForegroundColor Yellow
-    Write-Host "    https://docs.docker.com/desktop/windows-install/" -ForegroundColor Cyan
+    Write-RawLine "    $(Get-Hyperlink 'https://docs.docker.com/desktop/windows-install/')"
     Stop-Setup 1
 }
 Write-Ok "Docker $((docker --version) -replace '.*version ([^ ,]+).*', '$1')"
@@ -721,7 +846,7 @@ try {
 } catch {
     Write-Err "Docker Compose plugin is not installed."
     Write-Host "  Install or update Docker Desktop (includes Compose):" -ForegroundColor Yellow
-    Write-Host "    https://docs.docker.com/get-docker/" -ForegroundColor Cyan
+    Write-RawLine "    $(Get-Hyperlink 'https://docs.docker.com/get-docker/')"
     Stop-Setup 1
 }
 Write-Ok "Docker Compose available"
@@ -729,7 +854,7 @@ Write-Ok "Docker Compose available"
 if (-not (Get-Command curl -ErrorAction SilentlyContinue)) {
     Write-Err "curl is not installed."
     Write-Host "  On Windows 10+ curl is built-in." -ForegroundColor Yellow
-    Write-Host "  If missing, download from: https://curl.se/windows/" -ForegroundColor Yellow
+    Write-RawLine "  If missing, download from: $(Get-Hyperlink 'https://curl.se/windows/')"
     Stop-Setup 1
 }
 Write-Ok "curl available"
@@ -1269,14 +1394,14 @@ if ($MEDIA_PROVIDER -eq "none") {
     if ($MEDIA_MODE -eq "local") {
         Write-Host ""
         Write-Host "Follow these steps to get your Jellyfin API key:" -ForegroundColor White
-        Write-Dim "  1. Open http://localhost:8096 in your browser"
+        Write-Dim "  1. Open $(Get-Hyperlink 'http://localhost:8096') in your browser"
         Write-Dim "  2. Complete the setup wizard (create your admin account)"
         Write-Dim "  3. Go to Dashboard (gear icon) > API Keys"
         Write-Dim '  4. Click the + button, name it Lode, click OK'
         Write-Dim "  5. Copy the generated API key"
     } else {
         Write-Host ""
-        Write-Host "Your external Jellyfin instance: $JELLYFIN_URL" -ForegroundColor White
+        Write-RawLine "Your external Jellyfin instance: $(Get-Hyperlink $JELLYFIN_URL)"
         Write-Dim "Create an API key in Jellyfin: Dashboard (gear icon) > API Keys"
     }
     Write-Host ""
@@ -1306,7 +1431,7 @@ if ($QBIT_MODE -eq "local") {
     }
 
     Write-Host "Follow these steps to configure qBittorrent:" -ForegroundColor White
-    Write-Dim "  1. Open http://localhost:8080 in your browser"
+    Write-Dim "  1. Open $(Get-Hyperlink 'http://localhost:8080') in your browser"
     Write-Dim "  2. Login with:"
     Write-Dim "       Username: admin"
     Write-Dim "       Password: [temporary password shown above]"
@@ -1317,7 +1442,7 @@ if ($QBIT_MODE -eq "local") {
     Write-Dim "  7. Copy the API Key"
 } else {
     Write-Host ""
-    Write-Host "Your external qBittorrent instance: $QBIT_URL" -ForegroundColor White
+    Write-RawLine "Your external qBittorrent instance: $(Get-Hyperlink $QBIT_URL)"
     Write-Dim "Find the API key in qBittorrent: Tools > Options > Web UI"
 }
 Write-Host ""
@@ -1338,7 +1463,7 @@ Write-Step "[12/15] Prowlarr API key"
 if ($PROWLARR_MODE -eq "local") {
     Write-Host ""
     Write-Host "Follow these steps to get your Prowlarr API key:" -ForegroundColor White
-    Write-Dim "  1. Open http://localhost:9900 in your browser"
+    Write-Dim "  1. Open $(Get-Hyperlink 'http://localhost:9900') in your browser"
     Write-Dim "  2. Go to Settings > General"
     Write-Dim "  3. Find the API Key field"
     Write-Dim "  4. Copy the API key"
@@ -1351,7 +1476,7 @@ if ($PROWLARR_MODE -eq "local") {
     Write-Host ""
 } else {
     Write-Host ""
-    Write-Host "Your external Prowlarr instance: $PROWLARR_URL" -ForegroundColor White
+    Write-RawLine "Your external Prowlarr instance: $(Get-Hyperlink $PROWLARR_URL)"
     Write-Dim "Find the API key in Prowlarr: Settings > General"
     Write-Host ""
 }
@@ -1371,12 +1496,12 @@ Write-Step "[13/15] TMDB API key"
 
 Write-Host ""
 Write-Host "Follow these steps to get your TMDB API key:" -ForegroundColor White
-Write-Dim "  1. Go to https://www.themoviedb.org/settings/api"
+Write-Dim "  1. Go to $(Get-Hyperlink 'https://www.themoviedb.org/settings/api')"
 Write-Dim "  2. Create a free account (or log in)"
 Write-Dim '  3. Click the link to generate an API key'
 Write-Dim "  4. Fill in the form:"
 Write-Dim "       Application Name:  Lode"
-Write-Dim "       Application URL:   http://localhost:5757"
+Write-Dim "       Application URL:   $(Get-Hyperlink 'http://localhost:5757')"
 Write-Dim "  5. Copy your API Key (v3 auth)"
 Write-Host ""
 Write-Dim "This is required for movie/TV metadata."
@@ -1469,10 +1594,10 @@ try {
 
     Write-Info "Waiting for Lode to start (first start may take 1-2 minutes)..."
     if (-not (Test-Port -Host_ "localhost" -Port 5757 -Timeout 120 -Interval 4)) {
-        throw "Lode did not open http://localhost:5757 within 120s."
+        throw "Lode did not open $(Get-Hyperlink 'http://localhost:5757') within 120s."
     }
 
-    Write-Ok "Lode is running at http://localhost:5757"
+    Write-Ok "Lode is running at $(Get-Hyperlink 'http://localhost:5757')"
 }
 catch {
     Write-Err "Could not start Lode: $_"
@@ -1550,7 +1675,7 @@ Write-Host ""
 if ($PROWLARR_MODE -eq "local") {
     $requiredLines = @(
         "  Prowlarr has no indexers yet - Lode cannot find torrents until you add them.",
-        "  Open http://localhost:9900 and add at least one indexer (e.g. YTS)."
+        "  Open $(Get-Hyperlink 'http://localhost:9900') and add at least one indexer (e.g. YTS)."
     )
     if ($USE_FLARESOLVERR) {
         $requiredLines += "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"

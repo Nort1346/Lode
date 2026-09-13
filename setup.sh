@@ -101,6 +101,37 @@ else
   NC='\033[0m'
 fi
 
+# -- Hyperlinks (OSC 8) ------------------------------------------------
+# OSC 8 is emitted unconditionally for http(s) URLs. ECMA-48-compliant
+# terminals ignore unknown OSC sequences; NO_COLOR only affects SGR
+# colors above and never disables hyperlinks.
+
+hyperlink() {
+  local url=$1
+  local label=${2-}
+  local url_only=false
+
+  if [ -z "$label" ] || [ "$label" = "$url" ]; then
+    url_only=true
+    label=$url
+  fi
+
+  if [[ "$url" =~ ^https?:// ]]; then
+    printf '\033]8;;%s\033\\%s\033]8;;\033\\' "$url" "$label"
+  elif [ "$url_only" = true ]; then
+    printf '%s' "$url"
+  else
+    printf '%s: %s' "$label" "$url"
+  fi
+}
+
+message_has_osc8() {
+  case "$1" in
+    *$'\e]8'*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
 ok()   { echo -e "${GREEN}[ OK ]${NC}  $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
@@ -251,24 +282,68 @@ fi
 # -- Prompt & summary helpers (gum-aware) ------------------------------
 
 if [ "$HAS_GUM" = true ]; then
-  info() { gum log --level info "$*"; }
-  ok()   { gum log --level info "$*"; }
-  warn() { gum log --level warn "$*"; }
-  err()  { gum log --level error "$*"; }
+  info() {
+    local msg="$*"
+    if message_has_osc8 "$msg"; then
+      echo -e "${BLUE}[INFO]${NC}  ${msg}"
+    else
+      gum log --level info "$msg"
+    fi
+  }
+  ok() {
+    local msg="$*"
+    if message_has_osc8 "$msg"; then
+      echo -e "${GREEN}[ OK ]${NC}  ${msg}"
+    else
+      gum log --level info "$msg"
+    fi
+  }
+  warn() {
+    local msg="$*"
+    if message_has_osc8 "$msg"; then
+      echo -e "${YELLOW}[WARN]${NC}  ${msg}"
+    else
+      gum log --level warn "$msg"
+    fi
+  }
+  err() {
+    local msg="$*"
+    if message_has_osc8 "$msg"; then
+      echo -e "${RED}[ERR ]${NC}  ${msg}"
+    else
+      gum log --level error "$msg"
+    fi
+  }
 
   summary_section() {
-    gum style \
-      --border normal --border-foreground 240 \
-      --padding "0 2" "$1"
+    if message_has_osc8 "$1"; then
+      echo -e "${CYAN}$1${NC}"
+    else
+      gum style \
+        --border normal --border-foreground 240 \
+        --padding "0 2" "$1"
+    fi
   }
 
   summary_row() {
     local label="$1" url="$2"
-    printf "  %-18s %s\n" "$label" "$url"
+    printf "  %-18s %s\n" "$label" "$(hyperlink "$url")"
   }
 
-  bold() { gum style --bold --foreground 11 "$1"; }
-  dim()  { gum style --foreground 14 "$1"; }
+  bold() {
+    if message_has_osc8 "$1"; then
+      echo -e "${BOLD}$1${NC}"
+    else
+      gum style --bold --foreground 11 "$1"
+    fi
+  }
+  dim() {
+    if message_has_osc8 "$1"; then
+      echo -e "${GRAY}$1${NC}"
+    else
+      gum style --foreground 14 "$1"
+    fi
+  }
 
   read_input() {
     gum input --placeholder "$1"
@@ -305,7 +380,7 @@ else
 
   summary_row() {
     local label="$1" url="$2"
-    printf "  %-18s %s\n" "$label" "$url"
+    printf "  %-18s %s\n" "$label" "$(hyperlink "$url")"
   }
 
   bold() { echo -e "${BOLD}$1${NC}"; }
@@ -620,20 +695,20 @@ if ! command -v docker &> /dev/null; then
   case "$(uname -s)" in
     Darwin)
       echo "  Install Docker Desktop for macOS:"
-      echo "    https://docs.docker.com/desktop/install/mac-install/"
+      echo "    $(hyperlink 'https://docs.docker.com/desktop/install/mac-install/')"
       ;;
     Linux)
       if grep -qi microsoft /proc/version 2>/dev/null; then
         echo "  Install Docker Desktop for Windows (WSL2):"
-        echo "    https://docs.docker.com/desktop/wsl/"
+        echo "    $(hyperlink 'https://docs.docker.com/desktop/wsl/')"
       else
         echo "  Install Docker Engine for Linux:"
-        echo "    https://docs.docker.com/engine/install/"
+        echo "    $(hyperlink 'https://docs.docker.com/engine/install/')"
       fi
       ;;
     *)
       echo "  Install Docker:"
-      echo "    https://docs.docker.com/get-docker/"
+      echo "    $(hyperlink 'https://docs.docker.com/get-docker/')"
       ;;
   esac
   exit 1
@@ -683,9 +758,9 @@ if ! docker compose version &> /dev/null 2>&1; then
   err "Docker Compose plugin is not installed."
   echo "  Install Docker Compose:"
   echo "    macOS/Windows: Install or update Docker Desktop"
-  echo "      https://docs.docker.com/get-docker/"
+  echo "      $(hyperlink 'https://docs.docker.com/get-docker/')"
   echo "    Linux: Install the Docker Compose plugin"
-  echo "      https://docs.docker.com/compose/install/linux/"
+  echo "      $(hyperlink 'https://docs.docker.com/compose/install/linux/')"
   exit 1
 fi
 ok "Docker Compose $(docker compose version --short 2>/dev/null || echo 'available')"
@@ -713,7 +788,7 @@ if ! command -v curl &> /dev/null; then
       fi
       ;;
     *)
-      echo "  Download from: https://curl.se/download.html"
+      echo "  Download from: $(hyperlink 'https://curl.se/download.html')"
       ;;
   esac
   exit 1
@@ -1418,7 +1493,7 @@ if [ "$MEDIA_PROVIDER" = "none" ]; then
 elif [ "$MEDIA_MODE" = "local" ]; then
   echo ""
   echo "Follow these steps to get your Jellyfin API key:"
-  dim "  1. Open http://localhost:8096 in your browser"
+  dim "  1. Open $(hyperlink 'http://localhost:8096') in your browser"
   dim "  2. Complete the setup wizard (create your admin account)"
   dim "  3. Go to Dashboard (gear icon) > API Keys"
   dim '  4. Click the + button, name it Lode, click OK'
@@ -1433,7 +1508,7 @@ elif [ "$MEDIA_MODE" = "local" ]; then
   fi
 else
   echo ""
-  echo "Your external Jellyfin instance: $JELLYFIN_URL"
+  echo "Your external Jellyfin instance: $(hyperlink "$JELLYFIN_URL")"
   dim "Create an API key in Jellyfin: Dashboard (gear icon) > API Keys"
   echo ""
   jellyfinKey=$(read_secret "Jellyfin API key")
@@ -1460,7 +1535,7 @@ if [ "$QBIT_MODE" = "local" ]; then
   fi
 
   echo "Follow these steps to configure qBittorrent:"
-  dim "  1. Open http://localhost:8080 in your browser"
+  dim "  1. Open $(hyperlink 'http://localhost:8080') in your browser"
   dim "  2. Login with:"
   dim "       Username: admin"
   dim "       Password: [temporary password shown above]"
@@ -1480,7 +1555,7 @@ if [ "$QBIT_MODE" = "local" ]; then
   fi
 else
   echo ""
-  echo "Your external qBittorrent instance: $QBIT_URL"
+  echo "Your external qBittorrent instance: $(hyperlink "$QBIT_URL")"
   dim "Find the API key in qBittorrent: Tools > Options > Web UI"
   echo ""
   qbitKey=$(read_secret "qBittorrent API key")
@@ -1499,7 +1574,7 @@ step "[12/15] Prowlarr API key"
 if [ "$PROWLARR_MODE" = "local" ]; then
   echo ""
   echo "Follow these steps to get your Prowlarr API key:"
-  dim "  1. Open http://localhost:9900 in your browser"
+  dim "  1. Open $(hyperlink 'http://localhost:9900') in your browser"
   dim "  2. Go to Settings > General"
   dim "  3. Find the API Key field"
   dim "  4. Copy the API key"
@@ -1513,7 +1588,7 @@ if [ "$PROWLARR_MODE" = "local" ]; then
   echo ""
 else
   echo ""
-  echo "Your external Prowlarr instance: $PROWLARR_URL"
+  echo "Your external Prowlarr instance: $(hyperlink "$PROWLARR_URL")"
   dim "Find the API key in Prowlarr: Settings > General"
   echo ""
 fi
@@ -1533,12 +1608,12 @@ step "[13/15] TMDB API key"
 
 echo ""
 echo "Follow these steps to get your TMDB API key:"
-dim "  1. Go to https://www.themoviedb.org/settings/api"
+dim "  1. Go to $(hyperlink 'https://www.themoviedb.org/settings/api')"
 dim "  2. Create a free account (or log in)"
 dim '  3. Click the link to generate an API key'
 dim "  4. Fill in the form:"
 dim "       Application Name:  Lode"
-dim "       Application URL:   http://localhost:5757"
+dim "       Application URL:   $(hyperlink 'http://localhost:5757')"
 dim "  5. Copy your API Key (v3 auth)"
 echo ""
 dim "This is required for movie/TV metadata."
@@ -1632,7 +1707,7 @@ fi
 info "Waiting for Lode to start (first start may take 1-2 minutes)..."
 wait_for_port "localhost" "5757" 120 || true
 
-ok "Lode is running at http://localhost:5757"
+ok "Lode is running at $(hyperlink 'http://localhost:5757')"
 
 # -- Extract admin password from logs ---------------------------------
 
@@ -1695,7 +1770,7 @@ echo ""
 echo -e "${BOLD}${YELLOW}Required before first use:${NC}"
 if [ "$PROWLARR_MODE" = "local" ]; then
   dim "  Prowlarr has no indexers yet - Lode cannot find torrents until you add them."
-  dim "  Open http://localhost:9900 and add at least one indexer (e.g. YTS)."
+  dim "  Open $(hyperlink 'http://localhost:9900') and add at least one indexer (e.g. YTS)."
   if [ "$USE_FLARESOLVERR" = true ]; then
     dim "  For private trackers: Settings > Indexers > Add > FlareSolverr, URL: http://flaresolverr:8191"
   fi
