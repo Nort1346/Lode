@@ -763,18 +763,6 @@ try {
 if (-not $script:IsScriptFile) {
     Write-Host ""
     Write-Warn "Running via 'irm | iex' - restarting as a standalone process so this terminal isn't affected."
-    $proceed = $true
-    if ($script:HAS_GUM) {
-        gum confirm --default=true "Continue?"
-        $proceed = ($LASTEXITCODE -eq 0)
-    } else {
-        $answer = Read-Host "Continue? [Y/n]"
-        $proceed = -not ($answer -match '^[Nn]')
-    }
-    if (-not $proceed) {
-        Write-Warn "Aborted."
-        return
-    }
     $childScript = Join-Path $env:TEMP "lode-setup-run.ps1"
     try {
         if (Test-Path $SETUP_NEW) {
@@ -794,7 +782,7 @@ if (-not $script:IsScriptFile) {
 
 # -- Banner -----------------------------------------------------------
 
-Write-Header "Lode Auto-Setup v1.0"
+Write-Header "Lode Auto-Setup v1.1"
 
 Write-Host ""
 Write-Dim "This will set up Lode and the services you choose."

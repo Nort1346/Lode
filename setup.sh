@@ -672,7 +672,7 @@ fi
 
 # -- Banner ------------------------------------------------------------
 
-header "Lode Auto-Setup v1.0"
+header "Lode Auto-Setup v1.1"
 
 echo ""
 dim "This will set up Lode and the services you choose."
