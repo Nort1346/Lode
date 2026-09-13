@@ -10,7 +10,12 @@ vi.mock('#server/utils/settings', () => ({
   deleteSetting: mockDeleteSetting
 }))
 
-import { getRankingConfig, saveRankingConfig, resetRankingConfig, migrateLanguagesToProfiles } from '#server/utils/torrents/ranking-config'
+import {
+  getRankingConfig,
+  saveRankingConfig,
+  resetRankingConfig,
+  migrateLanguagesToProfiles
+} from '#server/utils/torrents/ranking-config'
 import { RANKING_SIZE_UNLIMITED, DEFAULT_RANKING_CONFIG } from '#shared/ranking'
 
 describe('ranking-config', () => {
@@ -124,9 +129,7 @@ describe('ranking-config', () => {
     })
 
     it('preserves patterns and scores', () => {
-      const oldLanguages = [
-        { code: 'pl-dub', score: 35, patterns: ['pldub', 'pl dubbing'], isFallback: false }
-      ]
+      const oldLanguages = [{ code: 'pl-dub', score: 35, patterns: ['pldub', 'pl dubbing'], isFallback: false }]
       const profiles = migrateLanguagesToProfiles(oldLanguages)
       expect(profiles[0]!.formats[0]!.score).toBe(35)
       expect(profiles[0]!.formats[0]!.patterns).toEqual(['pldub', 'pl dubbing'])

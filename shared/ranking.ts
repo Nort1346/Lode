@@ -195,12 +195,7 @@ export const DEFAULT_RANKING_CONFIG: RankingConfig = {
           code: 'dub',
           label: 'Dubbing',
           score: 30,
-          patterns: [
-            'brazilian[\\s.]?portuguese[\\s.]?dub',
-            'pt[\\s.]?br[\\s.]?dub',
-            'dublagem',
-            'pt[\\s-]?audio'
-          ]
+          patterns: ['brazilian[\\s.]?portuguese[\\s.]?dub', 'pt[\\s.]?br[\\s.]?dub', 'dublagem', 'pt[\\s-]?audio']
         },
         {
           code: 'sub',

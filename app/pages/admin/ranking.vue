@@ -182,7 +182,7 @@ function addFormatToProfile(profileIndex: number) {
   const code = newFormatCode.value[profileIndex]
   if (code === undefined || code.trim() === '') return
   const labelInput = newFormatLabel.value[profileIndex]
-  const label = (labelInput !== undefined && labelInput.trim() !== '' ? labelInput.trim() : code.trim())
+  const label = labelInput !== undefined && labelInput.trim() !== '' ? labelInput.trim() : code.trim()
   const score = newFormatScore.value[profileIndex] ?? 22
   const patterns = (newFormatPatterns.value[profileIndex] ?? '')
     .split(',')
@@ -463,7 +463,13 @@ onMounted(fetchConfig)
               <span class="text-xs text-zinc-400 dark:text-zinc-500 font-mono">({{ profile.code }})</span>
               <UCheckbox v-model="profile.isPreferred" :label="t('ranking.languages.preferred')" />
               <UCheckbox v-model="profile.isFallback" :label="t('ranking.languages.isFallback')" />
-              <UButton color="error" variant="ghost" icon="i-lucide-x" size="xs" @click="removeLanguageProfile(pIndex)" />
+              <UButton
+                color="error"
+                variant="ghost"
+                icon="i-lucide-x"
+                size="xs"
+                @click="removeLanguageProfile(pIndex)"
+              />
             </div>
             <div v-if="!profile.isFallback" class="space-y-2 ml-1">
               <div
@@ -533,29 +539,21 @@ onMounted(fetchConfig)
             </div>
             <div v-if="!profile.isFallback" class="mt-2 ml-1">
               <div class="flex items-center gap-2">
-                <UInput
-                  v-model="newFormatCode[pIndex]"
-                  :placeholder="t('ranking.formats.code')"
-                  class="w-24"
-                />
-                <UInput
-                  v-model="newFormatLabel[pIndex]"
-                  :placeholder="t('ranking.formats.label')"
-                  class="w-24"
-                />
-                <UInput
-                  v-model.number="newFormatScore[pIndex]"
-                  type="number"
-                  :min="0"
-                  :max="500"
-                  class="w-24"
-                />
+                <UInput v-model="newFormatCode[pIndex]" :placeholder="t('ranking.formats.code')" class="w-24" />
+                <UInput v-model="newFormatLabel[pIndex]" :placeholder="t('ranking.formats.label')" class="w-24" />
+                <UInput v-model.number="newFormatScore[pIndex]" type="number" :min="0" :max="500" class="w-24" />
                 <UInput
                   v-model="newFormatPatterns[pIndex]"
                   :placeholder="t('ranking.formats.patternsHint')"
                   class="flex-1"
                 />
-                <UButton color="primary" variant="soft" icon="i-lucide-plus" size="xs" @click="addFormatToProfile(pIndex)">
+                <UButton
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-plus"
+                  size="xs"
+                  @click="addFormatToProfile(pIndex)"
+                >
                   {{ t('ranking.formats.add') }}
                 </UButton>
               </div>

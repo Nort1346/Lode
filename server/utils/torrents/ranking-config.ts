@@ -1,4 +1,9 @@
-import type { RankingConfig, RankingSizeThreshold, RankingLanguage, RankingLanguageProfile } from '#server/types/ranking'
+import type {
+  RankingConfig,
+  RankingSizeThreshold,
+  RankingLanguage,
+  RankingLanguageProfile
+} from '#server/types/ranking'
 import { DEFAULT_RANKING_CONFIG, RANKING_SIZE_UNLIMITED } from '#shared/ranking'
 import { SETTINGS } from '#server/types/settings'
 import { getSetting, putSetting, deleteSetting } from '#server/utils/settings'
