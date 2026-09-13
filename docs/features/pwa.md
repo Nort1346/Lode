@@ -2,7 +2,7 @@
 
 ## Overview
 
-Lode is a Progressive Web App (PWA) with offline support, install prompts, and native-like experience.
+Lode is a Progressive Web App (PWA) with install prompts, auto-updates, and a native-like (standalone) experience.
 
 ## Configuration
 
@@ -72,9 +72,10 @@ See [Notifications](./notifications.md) for push notification setup.
 - Displays notifications with icon and badge
 - Click handler opens relevant page
 
-## Offline Behavior
+## Connectivity
 
-- Static assets cached by service worker
-- API calls require network (not cached)
-- Login page available offline (cached)
-- Dashboard shows cached content when offline
+Lode requires an active internet connection. It depends on the Lode backend and the connected services (Prowlarr, qBittorrent, Jellyfin, TMDB), none of which work offline.
+
+- The service worker **pre-caches static build assets** (JS, CSS, images, fonts) so repeat loads are fast.
+- There is **no offline data or API caching** and no offline fallback page.
+- The app **does not function offline** - browsing, requests, downloads, and push notifications all require the backend to be reachable.

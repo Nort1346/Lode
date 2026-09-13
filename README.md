@@ -60,7 +60,7 @@ The script checks Docker, pulls the full stack, generates secrets, and walks you
 | **Jellyfin Sync** | Library detection, user CRUD sync, avatar upload, Live TV config |
 | **Notifications** | SSE real-time, Discord webhooks, browser push (VAPID) |
 | **Admin Panel** | Live logs, system status, disk monitoring, ranking config |
-| **PWA** | Installable app with offline support and push notifications |
+| **PWA** | Installable to home screen (standalone, auto-updating service worker) |
 
 ## Preview
 
@@ -189,7 +189,7 @@ Comparison based on Seerr's public docs as of August 2026 - open an issue if any
 | **Wishlist / Watchlist** | Personal save-for-later list | Per-user watchlist, admin blocklist, Plex watchlist auto-request |
 | **Real-time logs** | SSE live logs in admin panel | No in-app log viewer |
 | **Notifications** | SSE + Discord + browser push (VAPID) | 10 agents incl. email, Discord, Slack, Telegram, Web Push |
-| **PWA** | Installable with offline support | Web Push support, mobile-responsive UI |
+| **PWA** | Installable (standalone, auto-update) | Web Push support, mobile-responsive UI |
 | **Media servers** | Jellyfin (Emby planned) | Jellyfin, Emby, Plex |
 | **Auto-setup** | One-command `setup.sh` / `setup.ps1` (Docker + guided keys) | Docker Compose + docs, no guided setup |
 | **Translations** | EN, PL, DE, FR, ES, PT-BR (community) | Crowdsourced via Weblate (25+ languages) |
