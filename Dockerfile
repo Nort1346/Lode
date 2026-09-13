@@ -40,10 +40,13 @@ RUN NODE_OPTIONS=--max-old-space-size=4000 NODE_ENV=production pnpm run build \
 # ── Runtime: minimal image, only what's needed to run the server ─
 FROM node:${NODE_VERSION}-trixie-slim AS runtime
 
+# `apt-get upgrade` pulls the latest OS security patches for packages already
+# present in the base image (e.g. perl-base), so CVEs fixed in Debian don't ship.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends \
-        libssl3 ca-certificates gosu \
+    apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends libssl3 ca-certificates gosu \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 --ingroup nodejs appuser
 
