@@ -9,6 +9,22 @@ export interface RankingSizeThreshold {
   score: number
 }
 
+export interface RankingFormat {
+  code: string
+  label: string
+  score: number
+  patterns: string[]
+}
+
+export interface RankingLanguageProfile {
+  code: string
+  label: string
+  formats: RankingFormat[]
+  isPreferred?: boolean
+  isFallback?: boolean
+}
+
+// Legacy type - kept for migration from old config format
 export interface RankingLanguage {
   code: string
   score: number
@@ -27,7 +43,7 @@ export interface RankingConfig {
   }
   resolutions: Record<string, number>
   sources: Record<string, number>
-  languages: RankingLanguage[]
+  languageProfiles: RankingLanguageProfile[]
   knownGroups: string[]
   sizeThresholds: {
     movie: RankingSizeThreshold[]
@@ -78,40 +94,153 @@ export const DEFAULT_RANKING_CONFIG: RankingConfig = {
     ts: 1,
     tc: 1
   },
-  languages: [
+  languageProfiles: [
     {
-      code: 'pl-dub',
-      score: 30,
-      patterns: ['pldub', 'pl[\\s.]?dub', 'polish[\\s.]?dub', 'dubbing[\\s.]?pl', 'pl[\\s-]?audio']
+      code: 'pl',
+      label: 'Polish',
+      formats: [
+        {
+          code: 'dub',
+          label: 'Dubbing',
+          score: 30,
+          patterns: ['pldub', 'pl[\\s.]?dub', 'polish[\\s.]?dub', 'dubbing[\\s.]?pl', 'pl[\\s-]?audio']
+        },
+        {
+          code: 'lektor',
+          label: 'Lektor',
+          score: 25,
+          patterns: ['lektor[\\s.]?pl', 'pl[\\s.]?lek', 'lektor']
+        },
+        {
+          code: 'sub',
+          label: 'Subtitles',
+          score: 22,
+          patterns: [
+            'plsub',
+            'pl[\\s.]?sub',
+            'polish[\\s.]?sub',
+            'napisy[\\s.]?pl',
+            'pl[\\s.]?napi',
+            'napisypl',
+            'sub[\\s.]?pl'
+          ]
+        }
+      ]
     },
     {
-      code: 'pl-lektor',
-      score: 25,
-      patterns: ['lektor[\\s.]?pl', 'pl[\\s.]?lek', 'lektor']
+      code: 'de',
+      label: 'German',
+      formats: [
+        {
+          code: 'dub',
+          label: 'Dubbing',
+          score: 30,
+          patterns: ['german[\\s.]?dub', 'de[\\s.]?dub', 'deutsch[\\s.]?dub', 'dedub', 'de[\\s-]?audio']
+        },
+        {
+          code: 'sub',
+          label: 'Subtitles',
+          score: 22,
+          patterns: ['german[\\s.]?sub', 'de[\\s.]?sub', 'deutsch[\\s.]?sub']
+        }
+      ]
     },
     {
-      code: 'pl-sub',
-      score: 22,
-      patterns: [
-        'plsub',
-        'pl[\\s.]?sub',
-        'polish[\\s.]?sub',
-        'napisy[\\s.]?pl',
-        'pl[\\s.]?napi',
-        'napisypl',
-        'sub[\\s.]?pl'
+      code: 'fr',
+      label: 'French',
+      formats: [
+        {
+          code: 'dub',
+          label: 'Dubbing',
+          score: 30,
+          patterns: ['french[\\s.]?dub', 'fr[\\s.]?dub', 'vf[\\s.]', 'français[\\s.]?dub', 'fr[\\s-]?audio']
+        },
+        {
+          code: 'vostfr',
+          label: 'VOSTFR',
+          score: 25,
+          patterns: ['vostfr', 'vo[\\s.]?st[\\s.]?fr']
+        },
+        {
+          code: 'sub',
+          label: 'Subtitles',
+          score: 22,
+          patterns: ['french[\\s.]?sub', 'fr[\\s.]?sub', 'français[\\s.]?sub']
+        }
+      ]
+    },
+    {
+      code: 'es',
+      label: 'Spanish',
+      formats: [
+        {
+          code: 'dub',
+          label: 'Dubbing',
+          score: 30,
+          patterns: ['spanish[\\s.]?dub', 'es[\\s.]?dub', 'español[\\s.]?dub', 'es[\\s-]?audio']
+        },
+        {
+          code: 'sub',
+          label: 'Subtitles',
+          score: 22,
+          patterns: ['spanish[\\s.]?sub', 'es[\\s.]?sub', 'español[\\s.]?sub']
+        }
+      ]
+    },
+    {
+      code: 'pt-br',
+      label: 'Portuguese (Brazil)',
+      formats: [
+        {
+          code: 'dub',
+          label: 'Dubbing',
+          score: 30,
+          patterns: [
+            'brazilian[\\s.]?portuguese[\\s.]?dub',
+            'pt[\\s.]?br[\\s.]?dub',
+            'dublagem',
+            'pt[\\s-]?audio'
+          ]
+        },
+        {
+          code: 'sub',
+          label: 'Subtitles',
+          score: 22,
+          patterns: ['brazilian[\\s.]?portuguese[\\s.]?sub', 'pt[\\s.]?br[\\s.]?sub', 'legenda']
+        }
       ]
     },
     {
       code: 'en',
-      score: 15,
-      patterns: ['\\beng(?:lish)?[\\s.]?(?:sub|dub)?', '\\ben[\\s.]?(?:sub|dub)']
+      label: 'English',
+      isPreferred: true,
+      formats: [
+        {
+          code: 'dub',
+          label: 'Dubbing',
+          score: 30,
+          patterns: ['english[\\s.]?dub', 'en[\\s.]?dub', 'en[\\s-]?audio']
+        },
+        {
+          code: 'sub',
+          label: 'Subtitles',
+          score: 22,
+          patterns: ['english[\\s.]?sub', 'en[\\s.]?sub']
+        }
+      ]
     },
     {
       code: 'other',
-      score: 8,
-      patterns: [],
-      isFallback: true
+      label: 'Other',
+      isFallback: true,
+      formats: [
+        {
+          code: 'original',
+          label: 'Original',
+          score: 8,
+          patterns: []
+        }
+      ]
     }
   ],
   knownGroups: [

@@ -1,6 +1,12 @@
 import type { ProwlarrResult } from '#server/types/prowlarr'
 
-export type { RankingConfig, RankingLanguage, RankingSizeThreshold } from '#shared/ranking'
+export type {
+  RankingConfig,
+  RankingLanguage,
+  RankingLanguageProfile,
+  RankingFormat,
+  RankingSizeThreshold
+} from '#shared/ranking'
 export { DEFAULT_RANKING_CONFIG } from '#shared/ranking'
 
 export interface ParsedTitle {

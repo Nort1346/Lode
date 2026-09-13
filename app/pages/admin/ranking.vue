@@ -18,14 +18,17 @@ const saving = ref(false)
 const hasChanges = computed(() => JSON.stringify(config.value) !== originalConfig.value)
 
 const newGroup = ref('')
-const newLangCode = ref('')
-const newLangScore = ref(30)
-const newLangPatterns = ref('')
+const newProfileCode = ref('')
+const newProfileLabel = ref('')
 const newResKey = ref('')
 const newResScore = ref(20)
 const newSourceKey = ref('')
 const newSourceScore = ref(5)
-const newPatternPerLang = ref<Record<number, string>>({})
+const newPatternPerFormat = ref<Record<string, string>>({})
+const newFormatCode = ref<Record<number, string>>({})
+const newFormatLabel = ref<Record<number, string>>({})
+const newFormatScore = ref<Record<number, number>>({})
+const newFormatPatterns = ref<Record<number, string>>({})
 
 const scoreMax = computed(
   () =>
@@ -49,10 +52,12 @@ function validatePattern(pattern: string): boolean {
 }
 
 function hasInvalidPatterns(): boolean {
-  for (const lang of config.value.languages) {
-    if (lang.isFallback === true) continue
-    for (const p of lang.patterns) {
-      if (!validatePattern(p)) return true
+  for (const profile of config.value.languageProfiles) {
+    if (profile.isFallback === true) continue
+    for (const format of profile.formats) {
+      for (const p of format.patterns) {
+        if (!validatePattern(p)) return true
+      }
     }
   }
   return false
@@ -89,7 +94,10 @@ function sanitizeConfig(cfg: RankingConfig): RankingConfig {
     },
     resolutions: record(cfg.resolutions),
     sources: record(cfg.sources),
-    languages: cfg.languages.map((l) => ({ ...l, score: num(l.score) })),
+    languageProfiles: cfg.languageProfiles.map((p) => ({
+      ...p,
+      formats: p.formats.map((f) => ({ ...f, score: num(f.score) }))
+    })),
     knownGroups: cfg.knownGroups,
     sizeThresholds: {
       movie: thresholds(cfg.sizeThresholds.movie),
@@ -149,43 +157,72 @@ function removeGroup(index: number) {
   config.value.knownGroups.splice(index, 1)
 }
 
-function addLanguage() {
-  const code = newLangCode.value.trim().toLowerCase()
+function addLanguageProfile() {
+  const code = newProfileCode.value.trim().toLowerCase()
   if (code === '') return
-  const patterns = newLangPatterns.value
+  const label = newProfileLabel.value.trim() || code
+  config.value.languageProfiles.push({
+    code,
+    label,
+    formats: [
+      { code: 'dub', label: 'Dubbing', score: 30, patterns: [] },
+      { code: 'sub', label: 'Subtitles', score: 22, patterns: [] }
+    ],
+    isFallback: false
+  })
+  newProfileCode.value = ''
+  newProfileLabel.value = ''
+}
+
+function removeLanguageProfile(index: number) {
+  config.value.languageProfiles.splice(index, 1)
+}
+
+function addFormatToProfile(profileIndex: number) {
+  const code = newFormatCode.value[profileIndex]
+  if (code === undefined || code.trim() === '') return
+  const labelInput = newFormatLabel.value[profileIndex]
+  const label = (labelInput !== undefined && labelInput.trim() !== '' ? labelInput.trim() : code.trim())
+  const score = newFormatScore.value[profileIndex] ?? 22
+  const patterns = (newFormatPatterns.value[profileIndex] ?? '')
     .split(',')
     .map((p) => p.trim())
     .filter((p) => p !== '')
-  config.value.languages.push({
-    code,
-    score: newLangScore.value,
-    patterns,
-    isFallback: false
-  })
-  newLangCode.value = ''
-  newLangScore.value = 30
-  newLangPatterns.value = ''
+  const profile = config.value.languageProfiles[profileIndex]
+  if (profile === undefined) return
+  profile.formats.push({ code: code.trim().toLowerCase(), label, score, patterns })
+  newFormatCode.value[profileIndex] = ''
+  newFormatLabel.value[profileIndex] = ''
+  newFormatScore.value[profileIndex] = 22
+  newFormatPatterns.value[profileIndex] = ''
 }
 
-function removeLanguage(index: number) {
-  config.value.languages.splice(index, 1)
+function removeFormatFromProfile(profileIndex: number, formatIndex: number) {
+  const profile = config.value.languageProfiles[profileIndex]
+  if (profile === undefined) return
+  profile.formats.splice(formatIndex, 1)
 }
 
-function addPattern(langIndex: number) {
-  const input = newPatternPerLang.value[langIndex]
+function addPattern(profileIndex: number, formatIndex: number) {
+  const key = `${profileIndex}-${formatIndex}`
+  const input = newPatternPerFormat.value[key]
   if (input === undefined || input.trim() === '') return
   const pattern = input.trim()
   if (!validatePattern(pattern)) return
-  const lang = config.value.languages[langIndex]
-  if (lang === undefined) return
-  lang.patterns.push(pattern)
-  newPatternPerLang.value[langIndex] = ''
+  const profile = config.value.languageProfiles[profileIndex]
+  if (profile === undefined) return
+  const format = profile.formats[formatIndex]
+  if (format === undefined) return
+  format.patterns.push(pattern)
+  newPatternPerFormat.value[key] = ''
 }
 
-function removePattern(langIndex: number, patternIndex: number) {
-  const lang = config.value.languages[langIndex]
-  if (lang === undefined) return
-  lang.patterns.splice(patternIndex, 1)
+function removePattern(profileIndex: number, formatIndex: number, patternIndex: number) {
+  const profile = config.value.languageProfiles[profileIndex]
+  if (profile === undefined) return
+  const format = profile.formats[formatIndex]
+  if (format === undefined) return
+  format.patterns.splice(patternIndex, 1)
 }
 
 function addResolution() {
@@ -291,7 +328,7 @@ onMounted(fetchConfig)
               <UIcon name="i-lucide-globe" class="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <div class="text-2xl font-bold text-zinc-900 dark:text-white">{{ config.languages.length }}</div>
+              <div class="text-2xl font-bold text-zinc-900 dark:text-white">{{ config.languageProfiles.length }}</div>
               <div class="text-xs text-zinc-500 dark:text-zinc-400">{{ t('ranking.languages.title') }}</div>
             </div>
           </div>
@@ -411,83 +448,127 @@ onMounted(fetchConfig)
             variant="ghost"
             size="xs"
             :label="t('ranking.sections.reset')"
-            @click="resetSection('languages')"
+            @click="resetSection('languageProfiles')"
           />
         </div>
         <p class="text-xs text-zinc-400 dark:text-zinc-500 mb-4">{{ t('ranking.languagesHint') }}</p>
         <div class="space-y-3 mb-4">
           <div
-            v-for="(lang, index) in config.languages"
-            :key="index"
+            v-for="(profile, pIndex) in config.languageProfiles"
+            :key="pIndex"
             class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/5"
           >
-            <div class="flex items-center gap-3 mb-2">
-              <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300 w-20">{{ lang.code }}</span>
-              <UInput v-model.number="lang.score" type="number" :min="0" :max="500" class="w-24" />
-              <UCheckbox v-model="lang.isFallback" :label="t('ranking.languages.isFallback')" />
-              <UButton color="error" variant="ghost" icon="i-lucide-x" size="xs" @click="removeLanguage(index)" />
+            <div class="flex items-center gap-3 mb-3">
+              <span class="text-sm font-semibold text-zinc-900 dark:text-white w-28">{{ profile.label }}</span>
+              <span class="text-xs text-zinc-400 dark:text-zinc-500 font-mono">({{ profile.code }})</span>
+              <UCheckbox v-model="profile.isPreferred" :label="t('ranking.languages.preferred')" />
+              <UCheckbox v-model="profile.isFallback" :label="t('ranking.languages.isFallback')" />
+              <UButton color="error" variant="ghost" icon="i-lucide-x" size="xs" @click="removeLanguageProfile(pIndex)" />
             </div>
-            <div v-if="!lang.isFallback">
-              <label class="block text-xs text-zinc-500 dark:text-zinc-400 mb-1">{{
-                t('ranking.languages.patterns')
-              }}</label>
-              <div class="flex flex-wrap gap-1 mb-2">
-                <UBadge
-                  v-for="(pattern, pi) in lang.patterns"
-                  :key="pi"
-                  :color="validatePattern(pattern) ? 'neutral' : 'error'"
-                  variant="soft"
-                  class="cursor-pointer font-mono text-xs"
-                  @click="removePattern(index, pi)"
+            <div v-if="!profile.isFallback" class="space-y-2 ml-1">
+              <div
+                v-for="(format, fIndex) in profile.formats"
+                :key="fIndex"
+                class="p-2 rounded bg-white dark:bg-white/5 border border-zinc-100 dark:border-white/5"
+              >
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300 w-24">{{ format.label }}</span>
+                  <span class="text-xs text-zinc-400 dark:text-zinc-500 font-mono">({{ format.code }})</span>
+                  <UInput v-model.number="format.score" type="number" :min="0" :max="500" class="w-24" />
+                  <UButton
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-x"
+                    size="xs"
+                    @click="removeFormatFromProfile(pIndex, fIndex)"
+                  />
+                </div>
+                <div class="flex flex-wrap gap-1 mb-2">
+                  <UBadge
+                    v-for="(pattern, pi) in format.patterns"
+                    :key="pi"
+                    :color="validatePattern(pattern) ? 'neutral' : 'error'"
+                    variant="soft"
+                    class="cursor-pointer font-mono text-xs"
+                    @click="removePattern(pIndex, fIndex, pi)"
+                  >
+                    {{ pattern }}
+                    <UIcon name="i-lucide-x" class="w-3 h-3 ml-1" />
+                  </UBadge>
+                  <span v-if="format.patterns.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500 italic">
+                    {{ t('ranking.patterns.placeholder') }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <UInput
+                    v-model="newPatternPerFormat[`${pIndex}-${fIndex}`]"
+                    :placeholder="t('ranking.patterns.placeholder')"
+                    class="flex-1"
+                    @keydown.enter="addPattern(pIndex, fIndex)"
+                  />
+                  <UButton
+                    color="primary"
+                    variant="soft"
+                    icon="i-lucide-plus"
+                    size="xs"
+                    :disabled="
+                      (newPatternPerFormat[`${pIndex}-${fIndex}`] ?? '').trim() === '' ||
+                      !validatePattern((newPatternPerFormat[`${pIndex}-${fIndex}`] ?? '').trim())
+                    "
+                    @click="addPattern(pIndex, fIndex)"
+                  >
+                    {{ t('ranking.patterns.add') }}
+                  </UButton>
+                </div>
+                <p
+                  v-if="
+                    (newPatternPerFormat[`${pIndex}-${fIndex}`] ?? '').trim() !== '' &&
+                    !validatePattern((newPatternPerFormat[`${pIndex}-${fIndex}`] ?? '').trim())
+                  "
+                  class="text-xs text-red-500 mt-1"
                 >
-                  {{ pattern }}
-                  <UIcon name="i-lucide-x" class="w-3 h-3 ml-1" />
-                </UBadge>
-                <span v-if="lang.patterns.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500 italic">
-                  {{ t('ranking.patterns.placeholder') }}
-                </span>
+                  {{ t('ranking.patternInvalid') }}
+                </p>
               </div>
+            </div>
+            <div v-if="!profile.isFallback" class="mt-2 ml-1">
               <div class="flex items-center gap-2">
                 <UInput
-                  v-model="newPatternPerLang[index]"
-                  :placeholder="t('ranking.patterns.placeholder')"
-                  class="flex-1"
-                  @keydown.enter="addPattern(index)"
+                  v-model="newFormatCode[pIndex]"
+                  :placeholder="t('ranking.formats.code')"
+                  class="w-24"
                 />
-                <UButton
-                  color="primary"
-                  variant="soft"
-                  icon="i-lucide-plus"
-                  size="xs"
-                  :disabled="
-                    (newPatternPerLang[index] ?? '').trim() === '' ||
-                    !validatePattern((newPatternPerLang[index] ?? '').trim())
-                  "
-                  @click="addPattern(index)"
-                >
-                  {{ t('ranking.patterns.add') }}
+                <UInput
+                  v-model="newFormatLabel[pIndex]"
+                  :placeholder="t('ranking.formats.label')"
+                  class="w-24"
+                />
+                <UInput
+                  v-model.number="newFormatScore[pIndex]"
+                  type="number"
+                  :min="0"
+                  :max="500"
+                  class="w-24"
+                />
+                <UInput
+                  v-model="newFormatPatterns[pIndex]"
+                  :placeholder="t('ranking.formats.patternsHint')"
+                  class="flex-1"
+                />
+                <UButton color="primary" variant="soft" icon="i-lucide-plus" size="xs" @click="addFormatToProfile(pIndex)">
+                  {{ t('ranking.formats.add') }}
                 </UButton>
               </div>
-              <p
-                v-if="
-                  (newPatternPerLang[index] ?? '').trim() !== '' &&
-                  !validatePattern((newPatternPerLang[index] ?? '').trim())
-                "
-                class="text-xs text-red-500 mt-1"
-              >
-                {{ t('ranking.patternInvalid') }}
-              </p>
             </div>
           </div>
         </div>
         <div class="p-3 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600">
-          <div class="flex items-center gap-2 mb-2">
-            <UInput v-model="newLangCode" :placeholder="t('ranking.languages.code')" class="w-24" />
-            <UInput v-model.number="newLangScore" type="number" :min="0" :max="500" class="w-24" />
-          </div>
           <div class="flex items-center gap-2">
-            <UInput v-model="newLangPatterns" :placeholder="t('ranking.languages.patternsHint')" class="flex-1" />
-            <UButton color="primary" variant="soft" icon="i-lucide-plus" size="xs" @click="addLanguage" />
+            <UInput v-model="newProfileCode" :placeholder="t('ranking.languages.code')" class="w-24" />
+            <UInput v-model="newProfileLabel" :placeholder="t('ranking.languages.label')" class="flex-1" />
+            <UButton color="primary" variant="soft" icon="i-lucide-plus" size="xs" @click="addLanguageProfile">
+              {{ t('ranking.languages.addProfile') }}
+            </UButton>
           </div>
         </div>
       </div>

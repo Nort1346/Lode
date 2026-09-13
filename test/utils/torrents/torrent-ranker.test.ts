@@ -56,9 +56,34 @@ describe('parseTorrentTitle', () => {
     expect(parsed.source).toBe('bluray')
   })
 
-  it('parses language patterns', () => {
+  it('parses Polish dubbing language pattern', () => {
     const parsed = parseTorrentTitle('Movie.2024.1080p.PL.Dubbing.GROUP')
     expect(parsed.language).toBe('pl-dub')
+  })
+
+  it('parses Polish lektor language pattern', () => {
+    const parsed = parseTorrentTitle('Movie.2024.1080p.Lektor.PL.GROUP')
+    expect(parsed.language).toBe('pl-lektor')
+  })
+
+  it('parses German dubbing language pattern', () => {
+    const parsed = parseTorrentTitle('Movie.2024.1080p.German.Dubbing.GROUP')
+    expect(parsed.language).toBe('de-dub')
+  })
+
+  it('parses French VOSTFR language pattern', () => {
+    const parsed = parseTorrentTitle('Movie.2024.1080p.VOSTFR.GROUP')
+    expect(parsed.language).toBe('fr-vostfr')
+  })
+
+  it('parses Spanish dubbing language pattern', () => {
+    const parsed = parseTorrentTitle('Movie.2024.1080p.Spanish.Dubbing.GROUP')
+    expect(parsed.language).toBe('es-dub')
+  })
+
+  it('parses Portuguese BR dubbing language pattern', () => {
+    const parsed = parseTorrentTitle('Movie.2024.1080p.Dublagem.GROUP')
+    expect(parsed.language).toBe('pt-br-dub')
   })
 
   it('parses group', () => {
@@ -165,10 +190,32 @@ describe('DEFAULT_RANKING_CONFIG', () => {
     expect(DEFAULT_RANKING_CONFIG.sources.webdl).toBeGreaterThan(0)
   })
 
-  it('has language configs', () => {
-    expect(DEFAULT_RANKING_CONFIG.languages.length).toBeGreaterThan(0)
-    const fallback = DEFAULT_RANKING_CONFIG.languages.find((l) => l.isFallback)
+  it('has language profiles', () => {
+    expect(DEFAULT_RANKING_CONFIG.languageProfiles.length).toBeGreaterThan(0)
+    const fallback = DEFAULT_RANKING_CONFIG.languageProfiles.find((p) => p.isFallback)
     expect(fallback).toBeDefined()
+  })
+
+  it('has Polish profile with lektor format', () => {
+    const pl = DEFAULT_RANKING_CONFIG.languageProfiles.find((p) => p.code === 'pl')
+    expect(pl).toBeDefined()
+    const lektor = pl!.formats.find((f) => f.code === 'lektor')
+    expect(lektor).toBeDefined()
+  })
+
+  it('has French profile with VOSTFR format', () => {
+    const fr = DEFAULT_RANKING_CONFIG.languageProfiles.find((p) => p.code === 'fr')
+    expect(fr).toBeDefined()
+    const vostfr = fr!.formats.find((f) => f.code === 'vostfr')
+    expect(vostfr).toBeDefined()
+  })
+
+  it('has equal default scores across languages', () => {
+    const pl = DEFAULT_RANKING_CONFIG.languageProfiles.find((p) => p.code === 'pl')
+    const de = DEFAULT_RANKING_CONFIG.languageProfiles.find((p) => p.code === 'de')
+    const en = DEFAULT_RANKING_CONFIG.languageProfiles.find((p) => p.code === 'en')
+    expect(pl!.formats.find((f) => f.code === 'dub')?.score).toBe(de!.formats.find((f) => f.code === 'dub')?.score)
+    expect(pl!.formats.find((f) => f.code === 'dub')?.score).toBe(en!.formats.find((f) => f.code === 'dub')?.score)
   })
 
   it('has known groups', () => {

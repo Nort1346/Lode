@@ -28,17 +28,20 @@ export function parseTorrentTitle(title: string, config?: RankingConfig): Parsed
   }
 
   let language: string | null = null
-  for (const lang of cfg.languages) {
-    if (lang.isFallback === true) continue
-    for (const pattern of lang.patterns) {
-      try {
-        if (new RegExp(pattern, 'i').test(title)) {
-          language = lang.code
-          break
+  for (const profile of cfg.languageProfiles) {
+    if (profile.isFallback === true) continue
+    for (const format of profile.formats) {
+      for (const pattern of format.patterns) {
+        try {
+          if (new RegExp(pattern, 'i').test(title)) {
+            language = `${profile.code}-${format.code}`
+            break
+          }
+        } catch {
+          // invalid regex pattern, skip
         }
-      } catch {
-        // invalid regex pattern, skip
       }
+      if (language !== null) break
     }
     if (language !== null) break
   }
@@ -68,13 +71,20 @@ function scoreResolution(parsed: ParsedTitle, config: RankingConfig): number {
 
 function scoreLanguage(parsed: ParsedTitle, config: RankingConfig): number {
   if (parsed.language !== null) {
-    const lang = config.languages.find((l) => l.code === parsed.language)
-    if (lang !== undefined) {
-      return (lang.score / DEFAULT_RANKING_CONFIG.weights.language) * config.weights.language
+    const dashIndex = parsed.language.indexOf('-')
+    const profileCode = dashIndex !== -1 ? parsed.language.slice(0, dashIndex) : parsed.language
+    const formatCode = dashIndex !== -1 ? parsed.language.slice(dashIndex + 1) : 'original'
+
+    const profile = config.languageProfiles.find((p) => p.code === profileCode)
+    if (profile !== undefined) {
+      const format = profile.formats.find((f) => f.code === formatCode)
+      if (format !== undefined) {
+        return (format.score / DEFAULT_RANKING_CONFIG.weights.language) * config.weights.language
+      }
     }
   }
-  const fallback = config.languages.find((l) => l.isFallback === true)
-  const fallbackScore = fallback?.score ?? 0
+  const fallback = config.languageProfiles.find((p) => p.isFallback === true)
+  const fallbackScore = fallback?.formats[0]?.score ?? 0
   return (fallbackScore / DEFAULT_RANKING_CONFIG.weights.language) * config.weights.language
 }
 

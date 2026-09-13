@@ -576,9 +576,21 @@
     "languages": {
       "title": "Languages",
       "code": "Code",
+      "label": "Label",
       "patterns": "Detection patterns",
       "patternsHint": "Regex patterns separated by commas (e.g. pldub, pl[\\\\s.]?dub)",
-      "isFallback": "Default (fallback)"
+      "isFallback": "Default (fallback)",
+      "preferred": "Preferred",
+      "addProfile": "Add Language"
+    },
+    "formats": {
+      "title": "Formats",
+      "add": "Add Format",
+      "code": "Code",
+      "label": "Label",
+      "score": "Score",
+      "patterns": "Patterns",
+      "patternsHint": "Regex patterns separated by commas"
     },
     "groups": {
       "title": "Known Groups",
