@@ -359,7 +359,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
               <div class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10">
                 <div
                   class="h-full min-w-0.5 rounded-full bg-linear-to-r transition-[width] duration-1000 ease-linear"
-                  :class="qualityConfig[getTorrentQuality(dl)].bar"
+                  :class="dl.status === 'checking' ? 'bg-teal-500' : qualityConfig[getTorrentQuality(dl)].bar"
                   :style="{ width: `${Math.max(dl.progress, 0.5)}%` }"
                 />
               </div>
