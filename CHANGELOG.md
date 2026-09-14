@@ -5,6 +5,39 @@ All notable changes to Lode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-09-14
+
+Per-language torrent ranking profiles, a dedicated checking status for qBittorrent verification, Docker/CI hardening, setup script v1.1 with clickable installer URLs and auto-copied credentials, and disk-space enforcement that checks the target disk before and after adding torrents.
+
+### Added
+
+- Torrent ranking: nested per-language profiles with multiple format types (dubbing, subtitles, lektor, VOSTFR, etc.), admin UI management, normalized scores, and transparent migration from flat language configs
+- Download `checking` status for qBittorrent file verification and allocating states; the dashboard shows a teal Checking badge and progress while hiding seeders, leechers, ETA, and speeds
+- Setup scripts (v1.1): user-facing URLs in `setup.sh` and `setup.ps1` are now emitted as OSC 8 hyperlinks, so terminals with hyperlink support render them as clickable links
+- Setup scripts: generated qBittorrent temporary passwords and Lode admin passwords are now auto-copied to the terminal clipboard via OSC 52 where supported, while still printing the value as a fallback
+
+### Changed
+
+- Setup scripts: bumped to v1.1
+- Setup script (PowerShell): `irm ... | iex` runs no longer show a duplicate Continue prompt before re-launching as a standalone process; the main setup confirmation still runs after startup
+- Checking downloads now show a teal progress bar matching the Checking badge instead of a quality-based red bar
+- Active download limits and stats now count `checking` torrents alongside downloading and paused torrents
+- Dedupe now treats `checking` torrents as active, preventing duplicate re-adds during verification
+- Demo animation improved with fade transitions
+- PWA documentation corrected to reflect actual offline support behavior
+- Ranking config and admin ranking page formatting normalized with Prettier
+- Browse download requests can now include an optional torrent size so the server can verify disk space before adding the torrent to qBittorrent
+
+### Fixed
+
+- qBittorrent torrents in `checkingDL`, `checkingUP`, `checkingResumeData`, or `allocating` states no longer report a misleading Downloading state with 0 seeders, bad ETA, or 0 speed
+- Checking torrents with `completion_on`, 100% progress, or full downloaded size no longer complete prematurely during file verification
+- Docker image builds now apply OS security patches at build time
+- Docker images are scanned before pushing, and releases are gated on scan results
+- Disk-space checks now account for the incoming torrent size, using the size from search results, the fetched `.torrent` file, or the uploaded `.torrent` file before adding to qBittorrent
+- Disk-space checks now target only the configured disk matching the download save path, so a full unrelated disk no longer blocks downloads
+- If a post-add disk-space check fails, the torrent is removed from qBittorrent with data, recorded as failed, and the API returns 502 if automatic removal fails
+
 ## [1.0.1] - 2026-09-12
 
 Rebrand from StreamHub to Lode, a rework of the auto-setup scripts into a component-based installer, and a batch of download-pipeline fixes.
