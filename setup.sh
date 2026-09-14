@@ -132,6 +132,17 @@ message_has_osc8() {
   esac
 }
 
+# -- Clipboard (OSC 52) -------------------------------------------------
+# OSC 52 is emitted unconditionally, like OSC 8. Some terminals disable it
+# by default for security; that's fine - the visible password is fallback.
+
+copy_to_clipboard() {
+  local text=$1
+  local encoded
+  encoded=$(printf '%s' "$text" | base64 | tr -d '\n') || return 0
+  printf '\033]52;c;%s\033\\' "$encoded"
+}
+
 info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
 ok()   { echo -e "${GREEN}[ OK ]${NC}  $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
@@ -1526,9 +1537,10 @@ step "[11/15] qBittorrent WebUI + API key"
 
 if [ "$QBIT_MODE" = "local" ]; then
   if [ -n "${QBIT_TEMP_PASS:-}" ]; then
+    copy_to_clipboard "$QBIT_TEMP_PASS"
     echo ""
     echo -e "${BOLD}${YELLOW}qBittorrent temporary password: ${QBIT_TEMP_PASS}${NC}"
-    dim "Copy this - you will need it below"
+    dim "✓ Copied to clipboard (this replaces your previous clipboard contents)"
     echo ""
   else
     warn "Could not extract qBittorrent temp password - check: $(dc_cmd_prefix) logs qbittorrent"
@@ -1758,7 +1770,9 @@ echo ""
 # -- Credentials
 echo "Username: $(bold admin)"
 if [ -n "$ADMIN_PASS" ]; then
+  copy_to_clipboard "$ADMIN_PASS"
   echo "Password: $(bold "$ADMIN_PASS")"
+  dim "✓ Copied to clipboard (this replaces your previous clipboard contents)"
 else
   dim "Password: check '$(dc_cmd_prefix) logs lode'"
 fi

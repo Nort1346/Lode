@@ -262,6 +262,25 @@ function Write-RawLine {
     [Console]::Out.Write("${Msg}`n")
 }
 
+# -- Clipboard (OSC 52) -------------------------------------------------
+# OSC 52 is emitted unconditionally, like OSC 8. The same VirtualTerminal
+# Processing flag used for OSC 8 is enough to pass the sequence to the
+# terminal; the terminal itself decides whether clipboard writes are allowed.
+# Some terminals disable OSC 52 by default for security; that's fine - the
+# visible password is the fallback.
+
+function Set-ClipboardOsc52 {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return }
+
+    [void](Enable-VirtualTerminalProcessing)
+    $encoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($Text))
+    $esc = [char]27
+    [Console]::Out.Write("${esc}]52;c;${encoded}${esc}\")
+    [Console]::Out.Flush()
+}
+
 # -- Output helpers ---------------------------------------------------
 
 function Write-Info {
@@ -1410,9 +1429,10 @@ Write-Step "[11/15] qBittorrent WebUI + API key"
 
 if ($QBIT_MODE -eq "local") {
     if ($QBIT_TEMP_PASS) {
+        Set-ClipboardOsc52 $QBIT_TEMP_PASS
         Write-Host ""
         Write-Host "qBittorrent temporary password: $QBIT_TEMP_PASS" -ForegroundColor Yellow
-        Write-Dim "Copy this - you will need it below"
+        Write-Dim "$([char]0x2713) Copied to clipboard (this replaces your previous clipboard contents)"
         Write-Host ""
     } else {
         Write-Warn "Could not extract qBittorrent temp password - check: $(Get-DcCommandPrefix) logs qbittorrent"
@@ -1650,8 +1670,10 @@ Write-Host ""
 $credsUser = if ($script:HAS_GUM) { gum style --bold --foreground 11 'admin' } else { 'admin' }
 Write-Host "Username: $credsUser"
 if ($adminPass) {
+    Set-ClipboardOsc52 $adminPass
     $credsPass = if ($script:HAS_GUM) { gum style --bold --foreground 11 $adminPass } else { $adminPass }
     Write-Host "Password: $credsPass"
+    Write-Dim "$([char]0x2713) Copied to clipboard (this replaces your previous clipboard contents)"
 } else {
     Write-Dim "Password: check '$(Get-DcCommandPrefix) logs lode'"
 }
