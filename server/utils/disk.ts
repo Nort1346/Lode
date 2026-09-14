@@ -1,7 +1,7 @@
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import { getReposAsync } from '#server/repositories'
-import type { DiskStatus } from '#server/types/disk'
+import type { DiskStatus, TargetDiskCheck } from '#server/types/disk'
 import { formatSize } from '#server/utils/format'
 
 const execAsync = promisify(exec)
@@ -24,7 +24,7 @@ async function getDiskInfo(path: string): Promise<{ totalBytes: number; freeByte
   }
 }
 
-export async function checkDiskSpace(path: string, minFreeGb: number): Promise<DiskStatus> {
+export async function checkDiskSpace(path: string, minFreeGb: number, requiredBytes = 0): Promise<DiskStatus> {
   try {
     const info = await getDiskInfo(path)
     if (!info) throw new Error('Failed to get disk info')
@@ -32,7 +32,7 @@ export async function checkDiskSpace(path: string, minFreeGb: number): Promise<D
     const { totalBytes, freeBytes } = info
     const usedBytes = totalBytes - freeBytes
     const usedPercent = totalBytes > 0 ? Math.round((usedBytes / totalBytes) * 100) : 0
-    const freeGb = freeBytes / 1024 ** 3
+    const minFreeBytes = minFreeGb * 1024 ** 3
 
     return {
       path,
@@ -43,7 +43,7 @@ export async function checkDiskSpace(path: string, minFreeGb: number): Promise<D
       freeFormatted: formatSize(freeBytes),
       usedFormatted: formatSize(usedBytes),
       usedPercent,
-      hasEnoughSpace: freeGb >= minFreeGb,
+      hasEnoughSpace: freeBytes - requiredBytes >= minFreeBytes,
       available: true
     }
   } catch {
@@ -62,28 +62,61 @@ export async function checkDiskSpace(path: string, minFreeGb: number): Promise<D
   }
 }
 
-export async function checkAllDisks(disks: string[], minFreeGb: number): Promise<DiskStatus[]> {
+export async function checkAllDisks(disks: string[], minFreeGb: number, requiredBytes = 0): Promise<DiskStatus[]> {
   const results = await Promise.all(
     disks
       .map((d) => d.trim())
       .filter((d) => d.length > 0)
-      .map((d) => checkDiskSpace(d, minFreeGb))
+      .map((d) => checkDiskSpace(d, minFreeGb, requiredBytes))
   )
   return results
+}
+
+function normalizeDiskPath(path: string): string {
+  const trimmed = path.trim()
+  if (trimmed === '/') return '/'
+  return trimmed.replace(/\/+$/, '')
+}
+
+function matchesTargetPath(disk: string, target: string): boolean {
+  const normalizedDisk = normalizeDiskPath(disk)
+  const normalizedTarget = normalizeDiskPath(target)
+  if (normalizedDisk === '/') return true
+  if (normalizedDisk === normalizedTarget) return true
+  return normalizedTarget.startsWith(normalizedDisk + '/')
 }
 
 export async function findTargetDisk(
   disks: string[],
   targetPath: string,
-  minFreeGb: number
-): Promise<DiskStatus | null> {
-  const trimmed = disks.map((d) => d.trim()).filter((d) => d.length > 0)
-  for (const disk of trimmed) {
-    if (targetPath.startsWith(disk)) {
-      return await checkDiskSpace(disk, minFreeGb)
+  minFreeGb: number,
+  requiredBytes = 0
+): Promise<DiskStatus> {
+  const normalizedTarget = normalizeDiskPath(targetPath)
+  let selected: string | null = null
+  for (const disk of disks.map(normalizeDiskPath).filter((d) => d.length > 0)) {
+    if (matchesTargetPath(disk, normalizedTarget)) {
+      if (selected === null || disk.length > selected.length) selected = disk
     }
   }
-  return null
+  return await checkDiskSpace(selected ?? normalizedTarget, minFreeGb, requiredBytes)
+}
+
+export async function checkTargetDiskForDownload(
+  disks: string[],
+  targetPath: string,
+  requiredBytes: number
+): Promise<TargetDiskCheck | null> {
+  const safeBytes =
+    Number.isFinite(requiredBytes) && requiredBytes > 0
+      ? Math.min(Math.floor(requiredBytes), Number.MAX_SAFE_INTEGER)
+      : 0
+  if (safeBytes === 0) return null
+  if (disks.length === 0) return null
+  if (!(await isDiskCheckEnabled())) return null
+  const minFreeGb = await getDiskMinFreeGb()
+  const status = await findTargetDisk(disks, targetPath, minFreeGb, safeBytes)
+  return { status, minFreeGb }
 }
 
 export async function isDiskCheckEnabled(): Promise<boolean> {

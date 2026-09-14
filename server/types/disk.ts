@@ -10,3 +10,8 @@ export interface DiskStatus {
   hasEnoughSpace: boolean
   available: boolean
 }
+
+export interface TargetDiskCheck {
+  status: DiskStatus
+  minFreeGb: number
+}

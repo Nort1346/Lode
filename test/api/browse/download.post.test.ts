@@ -15,7 +15,8 @@ const mockGotScraping = vi.hoisted(() => vi.fn())
 const mockGetMovieDetails = vi.hoisted(() => vi.fn())
 const mockGetTvShowDetails = vi.hoisted(() => vi.fn())
 const mockGetImageUrl = vi.hoisted(() => vi.fn())
-const mockCheckAllDisks = vi.hoisted(() => vi.fn())
+const mockCheckTargetDiskForDownload = vi.hoisted(() => vi.fn())
+const mockFindTargetDisk = vi.hoisted(() => vi.fn())
 const mockIsDiskCheckEnabled = vi.hoisted(() => vi.fn())
 const mockGetDiskMinFreeGb = vi.hoisted(() => vi.fn())
 const mockCheckForDangerousFiles = vi.hoisted(() => vi.fn())
@@ -56,7 +57,8 @@ vi.mock('#server/utils/tmdb', () => ({
   getImageUrl: mockGetImageUrl
 }))
 vi.mock('#server/utils/disk', () => ({
-  checkAllDisks: mockCheckAllDisks,
+  checkTargetDiskForDownload: mockCheckTargetDiskForDownload,
+  findTargetDisk: mockFindTargetDisk,
   isDiskCheckEnabled: mockIsDiskCheckEnabled,
   getDiskMinFreeGb: mockGetDiskMinFreeGb
 }))
@@ -170,6 +172,14 @@ describe('browse/download.post', () => {
     mockIsPrivateTracker.mockReturnValue(false)
     mockGetTrackerType.mockReturnValue(null)
     mockIsDiskCheckEnabled.mockReturnValue(false)
+    mockCheckTargetDiskForDownload.mockResolvedValue(null)
+    mockFindTargetDisk.mockResolvedValue({
+      path: '/data',
+      available: true,
+      freeBytes: 100 * 1024 ** 3,
+      freeFormatted: '100 GB',
+      hasEnoughSpace: true
+    })
     mockCheckForDangerousFiles.mockReturnValue({ safe: true, dangerousFiles: [] })
     mockGetImageUrl.mockImplementation((path: string | null) => (path ? `https://image.tmdb.org${path}` : null))
     stubConfig()
@@ -788,13 +798,168 @@ describe('browse/download.post', () => {
     stubConfig({ disks: '/data' })
     mockIsDiskCheckEnabled.mockReturnValue(true)
     mockGetDiskMinFreeGb.mockReturnValue(10)
-    mockCheckAllDisks.mockReturnValue([
-      { path: '/data', available: true, freeBytes: 1 * 1024 * 1024 * 1024, freeFormatted: '1.0 GB' }
-    ])
+    mockFindTargetDisk.mockResolvedValue({
+      path: '/data',
+      available: true,
+      freeBytes: 1 * 1024 * 1024 * 1024,
+      freeFormatted: '1.0 GB',
+      hasEnoughSpace: false
+    })
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
 
     await expect(handler(mockEvent)).rejects.toThrow('507')
     expect(mockQbit.deleteTorrent).toHaveBeenCalledWith('abc123', true)
+  })
+
+  it('throws 507 when free space minus torrent size falls below the minimum', async () => {
+    mockQbit.addTorrent.mockResolvedValue({ ...torrentResult, size: 5 * 1024 * 1024 * 1024 })
+    stubConfig({ disks: '/data' })
+    mockIsDiskCheckEnabled.mockReturnValue(true)
+    mockGetDiskMinFreeGb.mockReturnValue(7)
+    mockFindTargetDisk.mockResolvedValue({
+      path: '/data',
+      available: true,
+      freeBytes: 10 * 1024 * 1024 * 1024,
+      freeFormatted: '10.0 GB',
+      hasEnoughSpace: false
+    })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('507')
+    expect(mockQbit.deleteTorrent).toHaveBeenCalledWith('abc123', true)
+  })
+
+  it('allows download when free space minus torrent size meets the minimum', async () => {
+    mockQbit.addTorrent.mockResolvedValue({ ...torrentResult, size: 5 * 1024 * 1024 * 1024 })
+    stubConfig({ disks: '/data' })
+    mockIsDiskCheckEnabled.mockReturnValue(true)
+    mockGetDiskMinFreeGb.mockReturnValue(7)
+    mockFindTargetDisk.mockResolvedValue({
+      path: '/data',
+      available: true,
+      freeBytes: 12 * 1024 * 1024 * 1024,
+      freeFormatted: '12.0 GB',
+      hasEnoughSpace: true
+    })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.deleteTorrent).not.toHaveBeenCalled()
+  })
+
+  it('blocks pre-add when the known torrent size does not fit on the target disk', async () => {
+    stubConfig({ disks: '/media,/data' })
+    mockIsDiskCheckEnabled.mockReturnValue(true)
+    mockCheckTargetDiskForDownload.mockResolvedValue({
+      status: {
+        path: '/data',
+        available: true,
+        freeBytes: 10 * 1024 * 1024 * 1024,
+        freeFormatted: '10.0 GB',
+        hasEnoughSpace: false
+      },
+      minFreeGb: 7
+    })
+    mockReadBody.mockResolvedValue({
+      magnetLink: 'magnet:?xt=urn:btih:abc',
+      savePath: 'movies',
+      label: 'test',
+      torrentSize: 5 * 1024 ** 3
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('507')
+    expect(mockCheckTargetDiskForDownload).toHaveBeenCalledWith(['/media', '/data'], '/data/movies', 5 * 1024 ** 3)
+    expect(mockQbit.addTorrent).not.toHaveBeenCalled()
+    expect(mockSetCooldown).not.toHaveBeenCalled()
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('skips the pre-add block when no known torrent size is available', async () => {
+    stubConfig({ disks: '/data' })
+    mockIsDiskCheckEnabled.mockReturnValue(true)
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toHaveProperty('success', true)
+    expect(mockCheckTargetDiskForDownload).toHaveBeenCalledWith(['/data'], '/data/movies', 0)
+    expect(mockQbit.addTorrent).toHaveBeenCalled()
+  })
+
+  it('blocks pre-add on the guid path using the exact size from the fetched torrent file', async () => {
+    mockIsPrivateTracker.mockReturnValue(true)
+    mockGetTrackerType.mockReturnValue('guid')
+    mockGetTrackerCookieConfig.mockResolvedValue({ enabled: true, cookie: 'session=abc123' })
+    mockGotScraping.mockResolvedValue({
+      statusCode: 200,
+      body: Buffer.from(TORRENT_FIXTURE_HEX, 'hex'),
+      headers: { 'content-type': 'application/x-bittorrent' }
+    })
+    stubConfig({ disks: '/data' })
+    mockIsDiskCheckEnabled.mockReturnValue(true)
+    mockCheckTargetDiskForDownload.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      status: {
+        path: '/data',
+        available: true,
+        freeBytes: 0,
+        freeFormatted: '0 B',
+        hasEnoughSpace: false
+      },
+      minFreeGb: 7
+    })
+    mockReadBody.mockResolvedValue({
+      guid: 'https://tracker.com/dl/123',
+      downloadUrl: 'https://tracker.com/dl/123',
+      indexer: 'Devil-Torrents',
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await expect(handler(mockEvent)).rejects.toThrow('507')
+    expect(mockCheckTargetDiskForDownload).toHaveBeenNthCalledWith(2, ['/data'], '/data/movies', 1_000_000)
+    expect(mockQbit.addTorrentFile).not.toHaveBeenCalled()
+    expect(mockSetCooldown).not.toHaveBeenCalled()
+  })
+
+  it('checks only the target disk post-add and deletes the torrent when it no longer fits', async () => {
+    stubConfig({ disks: '/media,/data' })
+    mockIsDiskCheckEnabled.mockReturnValue(true)
+    mockGetDiskMinFreeGb.mockReturnValue(7)
+    mockQbit.addTorrent.mockResolvedValue({ ...torrentResult, size: 5 * 1024 ** 3 })
+    mockFindTargetDisk.mockResolvedValue({
+      path: '/data',
+      available: true,
+      freeBytes: 10 * 1024 * 1024 * 1024,
+      freeFormatted: '10.0 GB',
+      hasEnoughSpace: false
+    })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('507')
+    expect(mockFindTargetDisk).toHaveBeenCalledTimes(1)
+    expect(mockFindTargetDisk).toHaveBeenCalledWith(['/media', '/data'], '/data/movies', 7, 5 * 1024 ** 3)
+    expect(mockQbit.deleteTorrent).toHaveBeenCalledWith('abc123', true)
+  })
+
+  it('returns 502 when the post-add disk check fails and qBittorrent removal also fails', async () => {
+    stubConfig({ disks: '/data' })
+    mockIsDiskCheckEnabled.mockReturnValue(true)
+    mockGetDiskMinFreeGb.mockReturnValue(7)
+    mockQbit.addTorrent.mockResolvedValue({ ...torrentResult, size: 5 * 1024 ** 3 })
+    mockFindTargetDisk.mockResolvedValue({
+      path: '/data',
+      available: true,
+      freeBytes: 10 * 1024 * 1024 * 1024,
+      freeFormatted: '10.0 GB',
+      hasEnoughSpace: false
+    })
+    mockQbit.deleteTorrent.mockRejectedValue(new Error('removal failed'))
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('502')
+    expect(mockQbit.deleteTorrent).toHaveBeenCalledWith('abc123', true)
+    expect(mockDb.insert).not.toHaveBeenCalled()
   })
 
   it('throws 403 for dangerous files', async () => {

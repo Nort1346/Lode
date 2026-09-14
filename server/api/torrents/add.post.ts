@@ -4,12 +4,12 @@ import { randomUUID } from 'node:crypto'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { getFreshUser } from '#server/utils/user'
-import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
+import { checkTargetDiskForDownload, findTargetDisk, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { parseTorrentTitle } from '#server/utils/torrents/torrent-ranker'
-import { computeTorrentInfoHash } from '#server/utils/torrents/info-hash'
+import { computeTorrentInfoHash, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
@@ -105,6 +105,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: `Category "${savePath}" is not configured` })
   }
 
+  const disks = (config.disks as string)
+    .split(',')
+    .map((d) => d.trim())
+    .filter((d) => d.length > 0)
+
   const userId = session.user.id
   const userRole = session.user.role
   const username = session.user.username
@@ -141,13 +146,16 @@ export default defineEventHandler(async (event) => {
     }
 
     // Duplicate check: reject adding a torrent the user is already downloading
+    const fileBuffer = hasFile && !hasDownloadUrl ? Buffer.from(torrentFileBase64, 'base64') : null
     let infoHash: string | null = null
-    if (hasFile && !hasDownloadUrl) {
+    let preAddSizeBytes = 0
+    if (fileBuffer !== null) {
       try {
-        infoHash = computeTorrentInfoHash(Buffer.from(torrentFileBase64, 'base64'))
+        infoHash = computeTorrentInfoHash(fileBuffer)
       } catch (err) {
         log.warn(`info-hash computation failed: ${err instanceof Error ? err.message : String(err)}`)
       }
+      preAddSizeBytes = computeTorrentTotalSize(fileBuffer) ?? 0
     }
     const preHash = hasMagnet ? extractMagnetHash(magnetLink) : hasFile ? infoHash : null
     if (preHash !== null) {
@@ -186,6 +194,17 @@ export default defineEventHandler(async (event) => {
     if (existingByLink !== undefined) {
       log.info(`already active by link: id=${existingByLink.id}`)
       return { already: true, id: existingByLink.id }
+    }
+
+    const preDisk = await checkTargetDiskForDownload(disks, targetPath, preAddSizeBytes)
+    if (preDisk !== null && (!preDisk.status.available || !preDisk.status.hasEnoughSpace)) {
+      log.warn(
+        `PRE-ADD DISK BLOCK - ${preDisk.status.path}: ${preDisk.status.available ? preDisk.status.freeFormatted + ' free' : 'unavailable'}, required=${formatSize(preAddSizeBytes)}, minFree=${preDisk.minFreeGb}GB`
+      )
+      throw createError({
+        statusCode: 507,
+        statusMessage: `Not enough disk space (${formatSize(preAddSizeBytes)} torrent). Free: ${preDisk.status.freeFormatted}${userRole === 'admin' ? ` on ${preDisk.status.path}` : ''}, minimum after download: ${preDisk.minFreeGb} GB`
+      })
     }
 
     const qbit = useQBittorrent()
@@ -244,8 +263,7 @@ export default defineEventHandler(async (event) => {
         log.error(`qBittorrent error: ${msg}`)
         throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
       }
-    } else if (hasFile) {
-      const fileBuffer = Buffer.from(torrentFileBase64, 'base64')
+    } else if (hasFile && fileBuffer !== null) {
       storedMagnetLink = `file:${fileName}`
       setCooldown(userId)
       try {
@@ -285,21 +303,28 @@ export default defineEventHandler(async (event) => {
         })
       }
 
-      if (torrent.size > 0 && (await isDiskCheckEnabled())) {
-        const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
-        if (disks.length > 0) {
-          const allStatuses = await checkAllDisks(disks, await getDiskMinFreeGb())
-          const lowDisk = allStatuses.find((d) => {
-            if (!d.available) return true
-            return torrent.size > d.freeBytes
-          })
-          if (lowDisk !== undefined) {
-            await qbit.deleteTorrent(torrent.hash, true).catch(() => {})
+      if (torrent.size > 0 && disks.length > 0 && (await isDiskCheckEnabled())) {
+        const minFreeGb = await getDiskMinFreeGb()
+        const targetDisk = await findTargetDisk(disks, targetPath, minFreeGb, torrent.size)
+        if (!targetDisk.available || !targetDisk.hasEnoughSpace) {
+          log.warn(
+            `POST-ADD DISK BLOCK - ${targetDisk.path}: ${targetDisk.available ? targetDisk.freeFormatted + ' free' : 'unavailable'}, torrent=${formatSize(torrent.size)}, minFree=${minFreeGb}GB`
+          )
+          try {
+            await qbit.deleteTorrent(torrent.hash, true)
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            log.error(`POST-ADD DISK DELETE FAILED - ${targetDisk.path}: ${msg}`)
             throw createError({
-              statusCode: 507,
-              statusMessage: `Torrent too large for disk (${formatSize(torrent.size)}). Free: ${lowDisk.freeFormatted}${userRole === 'admin' ? ` on ${lowDisk.path}` : ''}`
+              statusCode: 502,
+              statusMessage:
+                'Not enough disk space and automatic torrent removal failed. Remove the torrent manually from qBittorrent.'
             })
           }
+          throw createError({
+            statusCode: 507,
+            statusMessage: `Not enough disk space (${formatSize(torrent.size)} torrent). Free: ${targetDisk.freeFormatted}${userRole === 'admin' ? ` on ${targetDisk.path}` : ''}, minimum after download: ${minFreeGb} GB`
+          })
         }
       }
     }

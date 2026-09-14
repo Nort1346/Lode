@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeTorrentInfoHash } from '#server/utils/torrents/info-hash'
+import { computeTorrentInfoHash, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
 
 // Hand-built bencoded torrent (see docs: info hash = SHA-1 of the bencoded `info` dict).
 // Outer dict: created by + creation date (i…e integer) + info dict containing a length
@@ -43,5 +43,41 @@ describe('computeTorrentInfoHash', () => {
 
   it('throws on empty input', () => {
     expect(() => computeTorrentInfoHash(Buffer.alloc(0))).toThrow('root is not a bencode dict')
+  })
+})
+
+describe('computeTorrentTotalSize', () => {
+  it('returns the single-file length', () => {
+    expect(computeTorrentTotalSize(Buffer.from(FIXTURE_HEX, 'hex'))).toBe(1_000_000)
+  })
+
+  it('sums multi-file lengths', () => {
+    const multiFile = Buffer.from('d4:infod5:filesld6:lengthi123eed6:lengthi567eee4:name5:test1ee', 'utf-8')
+
+    expect(computeTorrentTotalSize(multiFile)).toBe(690)
+  })
+
+  it('ignores malformed file entries while summing the valid entries', () => {
+    const mixed = Buffer.from('d4:infod5:filesl4:spami123ee6:lengthi567eee4:name5:test1ee', 'utf-8')
+
+    expect(computeTorrentTotalSize(mixed)).toBe(567)
+  })
+
+  it('returns null for an empty buffer', () => {
+    expect(computeTorrentTotalSize(Buffer.alloc(0))).toBeNull()
+  })
+
+  it('returns null when the info dict is missing', () => {
+    expect(computeTorrentTotalSize(Buffer.from('d3:foo3:bare', 'utf-8'))).toBeNull()
+  })
+
+  it('returns null when the info dict has no size metadata', () => {
+    expect(computeTorrentTotalSize(Buffer.from('d4:info4:name5:test1ee', 'utf-8'))).toBeNull()
+  })
+
+  it('returns null when the size is not a safe integer', () => {
+    const oversized = Buffer.from('d4:infod6:lengthi9007199254740993e4:name5:test1ee', 'utf-8')
+
+    expect(computeTorrentTotalSize(oversized)).toBeNull()
   })
 })

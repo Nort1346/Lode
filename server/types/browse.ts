@@ -51,6 +51,7 @@ export interface DownloadBody {
   savePath: string
   tmdbId?: number
   mediaType?: string
+  torrentSize?: number
 }
 
 export interface AutocompleteSuggestion {

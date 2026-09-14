@@ -9,13 +9,13 @@ import { clearSessionCache, performTrackerLogin } from '#server/utils/tracker-au
 import { decryptAES } from '#server/utils/crypto'
 import { gotScraping } from 'got-scraping'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
-import { checkAllDisks, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
+import { checkTargetDiskForDownload, findTargetDisk, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { checkForDangerousFiles } from '#server/utils/torrents/safe-download'
 import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
-import { computeTorrentInfoHash } from '#server/utils/torrents/info-hash'
+import { computeTorrentInfoHash, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
 import type { DownloadBody } from '#server/types/browse'
@@ -57,6 +57,11 @@ export default defineEventHandler(async (event) => {
     const tmdbId = body.tmdbId ?? null
     const rawMediaType = body.mediaType
     const mediaType = rawMediaType === 'movie' || rawMediaType === 'tv' ? rawMediaType : null
+    const rawTorrentSize = Number(body.torrentSize ?? 0)
+    const knownSizeBytes =
+      Number.isFinite(rawTorrentSize) && rawTorrentSize > 0
+        ? Math.min(Math.floor(rawTorrentSize), Number.MAX_SAFE_INTEGER)
+        : 0
 
     const hasMagnet = rawMagnetLink.length > 0
     const hasDownloadUrl = downloadUrl.length > 0
@@ -127,6 +132,11 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 500, statusMessage: 'Save path not configured' })
     }
     log.info(`[Download:4:PATH] savePath=${savePath} → ${targetPath}`)
+
+    const disks = (config.disks as string)
+      .split(',')
+      .map((d) => d.trim())
+      .filter((d) => d.length > 0)
 
     const userId = session.user.id
     const userRole = session.user.role
@@ -229,6 +239,18 @@ export default defineEventHandler(async (event) => {
           `[Download:3c:DUP] already active by link: link=${willStoreLink.substring(0, 80)} id=${existingByLink.id} label="${existingByLink.label}"`
         )
         return { already: true, id: existingByLink.id }
+      }
+
+      // ── 3d: DISK PRE-CHECK (known size from search/indexer) ───
+      const preDisk = await checkTargetDiskForDownload(disks, targetPath, knownSizeBytes)
+      if (preDisk !== null && (!preDisk.status.available || !preDisk.status.hasEnoughSpace)) {
+        log.warn(
+          `[Download:3d:DISK] ✗ PRE-ADD BLOCK - ${preDisk.status.path}: ${preDisk.status.available ? preDisk.status.freeFormatted + ' free' : 'unavailable'}, required=${formatSize(knownSizeBytes)}, minFree=${preDisk.minFreeGb}GB`
+        )
+        throw createError({
+          statusCode: 507,
+          statusMessage: `Not enough disk space (${formatSize(knownSizeBytes)} torrent). Free: ${preDisk.status.freeFormatted}${userRole === 'admin' ? ` on ${preDisk.status.path}` : ''}, minimum after download: ${preDisk.minFreeGb} GB`
+        })
       }
 
       // ── 5: TRACKER (Polish) ───────────────────────────────────
@@ -483,6 +505,19 @@ export default defineEventHandler(async (event) => {
           }
         }
 
+        // ── 7c: DISK PRE-CHECK (exact size from fetched torrent file) ─
+        const exactSizeBytes = computeTorrentTotalSize(fileBuffer) ?? 0
+        const guidPreDisk = await checkTargetDiskForDownload(disks, targetPath, exactSizeBytes || knownSizeBytes)
+        if (guidPreDisk !== null && (!guidPreDisk.status.available || !guidPreDisk.status.hasEnoughSpace)) {
+          log.warn(
+            `[Download:7c:DISK] ✗ PRE-ADD BLOCK - ${guidPreDisk.status.path}: ${guidPreDisk.status.available ? guidPreDisk.status.freeFormatted + ' free' : 'unavailable'}, required=${formatSize(exactSizeBytes || knownSizeBytes)}, minFree=${guidPreDisk.minFreeGb}GB`
+          )
+          throw createError({
+            statusCode: 507,
+            statusMessage: `Not enough disk space (${formatSize(exactSizeBytes || knownSizeBytes)} torrent). Free: ${guidPreDisk.status.freeFormatted}${userRole === 'admin' ? ` on ${guidPreDisk.status.path}` : ''}, minimum after download: ${guidPreDisk.minFreeGb} GB`
+          })
+        }
+
         // ── 8: QBIT addTorrentFile ───────────────────────────────
         const fileName = `${label.replace(/[^a-zA-Z0-9._-]/g, '_')}.torrent`
         storedMagnetLink = `guid:${guidUrl}`
@@ -586,45 +621,49 @@ export default defineEventHandler(async (event) => {
       }
 
       // ── 9b: DISK CHECK POST-ADD ──────────────────────────────
-      if (torrent !== null && torrent.size > 0 && (await isDiskCheckEnabled())) {
-        const disks = (config.disks as string).split(',').filter((d) => d.trim().length > 0)
-        if (disks.length > 0) {
-          const allStatuses = await checkAllDisks(disks, await getDiskMinFreeGb())
-          const lowDisk = allStatuses.find((d) => {
-            if (!d.available) return true
-            return torrent.size > d.freeBytes
-          })
-          if (lowDisk !== undefined) {
-            log.warn(
-              `[Download:9b:DISK] ✗ POST-ADD DELETE - ${lowDisk.path}: ${lowDisk.available ? lowDisk.freeFormatted + ' free' : 'unavailable'}, torrent=${formatSize(torrent.size)}`
-            )
-            await qbit.deleteTorrent(torrent.hash, true).catch(() => {})
-            const id = randomUUID()
-            await dbRun(
-              db.insert(downloads).values({
-                id,
-                userId,
-                label,
-                torrentName: torrent.name,
-                magnetLink: storedMagnetLink,
-                savePath: savePath as SavePathKey,
-                status: 'disk_full',
-                torrentHash: torrent.hash,
-                sizeBytes: torrent.size,
-                posterUrl: null,
-                tmdbId,
-                mediaType: mediaType as 'movie' | 'tv' | null,
-                createdAt: new Date().toISOString(),
-                indexerName: indexer === '' ? null : indexer,
-                resolution,
-                qbitTag: dlTag
-              })
-            )
+      if (torrent !== null && torrent.size > 0 && disks.length > 0 && (await isDiskCheckEnabled())) {
+        const minFreeGb = await getDiskMinFreeGb()
+        const targetDisk = await findTargetDisk(disks, targetPath, minFreeGb, torrent.size)
+        if (!targetDisk.available || !targetDisk.hasEnoughSpace) {
+          log.warn(
+            `[Download:9b:DISK] ✗ POST-ADD DELETE - ${targetDisk.path}: ${targetDisk.available ? targetDisk.freeFormatted + ' free' : 'unavailable'}, torrent=${formatSize(torrent.size)}, minFree=${minFreeGb}GB`
+          )
+          try {
+            await qbit.deleteTorrent(torrent.hash, true)
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            log.error(`[Download:9b:DISK] ✗ failed to remove torrent after disk check: ${msg}`)
             throw createError({
-              statusCode: 507,
-              statusMessage: `Torrent too large for disk (${formatSize(torrent.size)}). Free: ${lowDisk.freeFormatted}${userRole === 'admin' ? ` on ${lowDisk.path}` : ''}`
+              statusCode: 502,
+              statusMessage:
+                'Not enough disk space and automatic torrent removal failed. Remove the torrent manually from qBittorrent.'
             })
           }
+          const id = randomUUID()
+          await dbRun(
+            db.insert(downloads).values({
+              id,
+              userId,
+              label,
+              torrentName: torrent.name,
+              magnetLink: storedMagnetLink,
+              savePath: savePath as SavePathKey,
+              status: 'disk_full',
+              torrentHash: torrent.hash,
+              sizeBytes: torrent.size,
+              posterUrl: null,
+              tmdbId,
+              mediaType: mediaType as 'movie' | 'tv' | null,
+              createdAt: new Date().toISOString(),
+              indexerName: indexer === '' ? null : indexer,
+              resolution,
+              qbitTag: dlTag
+            })
+          )
+          throw createError({
+            statusCode: 507,
+            statusMessage: `Not enough disk space (${formatSize(torrent.size)} torrent). Free: ${targetDisk.freeFormatted}${userRole === 'admin' ? ` on ${targetDisk.path}` : ''}, minimum after download: ${minFreeGb} GB`
+          })
         }
       }
 

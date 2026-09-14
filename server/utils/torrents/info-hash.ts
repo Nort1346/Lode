@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto'
 import type { BencodeValue } from '#server/types/torrent'
 
+function isBencodeDict(value: BencodeValue): value is { [key: string]: BencodeValue } {
+  return typeof value === 'object' && !Array.isArray(value) && !Buffer.isBuffer(value)
+}
+
 class BencodeDecoder {
   private pos = 0
 
@@ -41,6 +45,31 @@ class BencodeDecoder {
     }
     if (found === null) throw new Error('Torrent file has no info dict')
     return found
+  }
+
+  extractInfoDict(): { [key: string]: BencodeValue } {
+    if (this.data.length === 0 || this.data[0] !== 0x64) {
+      throw new Error('Torrent file root is not a bencode dict')
+    }
+    this.pos = 1
+    while (true) {
+      const keyByte = this.data[this.pos]
+      if (keyByte === undefined) throw new Error('Unexpected end of bencode dict')
+      if (keyByte === 0x65) {
+        this.pos++
+        break
+      }
+      const key = this.decodeString().toString('utf-8')
+      const value = this.decodeValue()
+      if (key === 'info') {
+        if (isBencodeDict(value)) return value
+        throw new Error('Torrent file info entry is not a dict')
+      }
+    }
+    if (this.pos !== this.data.length) {
+      throw new Error(`Trailing data after bencode value at byte ${this.pos}`)
+    }
+    throw new Error('Torrent file has no info dict')
   }
 
   private decodeValue(): BencodeValue {
@@ -137,4 +166,35 @@ class BencodeDecoder {
 export function computeTorrentInfoHash(fileBuffer: Buffer): string {
   const range = new BencodeDecoder(fileBuffer).extractInfoDictRange()
   return createHash('sha1').update(fileBuffer.subarray(range.start, range.end)).digest('hex')
+}
+
+export function computeTorrentTotalSize(fileBuffer: Buffer): number | null {
+  try {
+    const info = new BencodeDecoder(fileBuffer).extractInfoDict()
+
+    const singleFileSize = info.length
+    if (typeof singleFileSize === 'string') {
+      const parsed = BigInt(singleFileSize)
+      if (parsed >= 0n && parsed <= BigInt(Number.MAX_SAFE_INTEGER)) return Number(parsed)
+      return null
+    }
+
+    const fileList = info.files
+    if (Array.isArray(fileList)) {
+      let total = 0n
+      for (const file of fileList) {
+        if (!isBencodeDict(file)) continue
+        const fileLength = file.length
+        if (typeof fileLength !== 'string') continue
+        const parsed = BigInt(fileLength)
+        if (parsed < 0n) continue
+        total += parsed
+      }
+      return total <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(total) : null
+    }
+
+    return null
+  } catch {
+    return null
+  }
 }
