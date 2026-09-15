@@ -17,20 +17,29 @@
 </p>
 
 <p align="center">
-  Self-hosted media hub - browse movies and TV shows from TMDB and download the best torrents with one click, straight to your media server. No Radarr or Sonarr required.
+  <strong>A simple self-hosted media hub for Jellyfin, with support for more media servers planned.</strong><br>
+  Find a movie or TV show, compare available releases, choose one, and download it in a few clicks.
 </p>
 
 <p align="center">
-  A self-hosted alternative to Seerr (Overseerr/Jellyseerr).
+  <strong>Set it up in minutes and start using it right away.</strong>
 </p>
 
 <p align="center">
-  <img src="./public/demo.gif" alt="Lode demo" width="1000" />
+  <img src="./public/demo.gif" alt="Lode demo" width="1000">
 </p>
+
+## How it works
+
+1. **Find** a movie or TV show
+2. **Compare** available releases
+3. **Choose** the one you want
+4. **Download** it through qBittorrent
+5. **Watch** it in your media server
 
 ## Get started
 
-Paste this into your terminal and follow the guided setup:
+Run the guided setup:
 
 **Linux / macOS**
 
@@ -44,99 +53,113 @@ curl -fsSL https://raw.githubusercontent.com/Nort1346/Lode/main/setup.sh | bash
 irm https://raw.githubusercontent.com/Nort1346/Lode/main/setup.ps1 | iex
 ```
 
-The script checks Docker, pulls the full stack, generates secrets, and walks you through each API key - unlike Seerr, which ships with a built-in TMDB key. Prefer manual setup? See [Quick Start](#quick-start) below.
+The setup checks Docker, generates the required secrets, and guides you through service configuration and API keys.
+
+## Why Lode
+
+Lode keeps the media workflow simple without requiring the full *arr stack.
+
+- Users can compare and choose releases themselves
+- Discovery, release selection, and downloading in one workflow
+- Guided setup with minimal configuration
 
 ## Features
 
-| | |
+| Feature | Description |
 |---|---|
-| **Browse & Search** | TMDB carousels, spotlights, full-text search with genre filters |
-| **Torrent Ranking** | Configurable weighted scoring engine (max 205 base points) - resolution, language, seeders, size, source, group |
-| **Wishlist** | Save any movie/TV title for later from its detail page - personal list, no active request created |
-| **Requests** | Users request a title when no torrents are available or they've hit a download limit; admin approves/rejects with an optional note; requester gets notified either way |
-| **Manual Torrent Add** | Opt-in per user (admin-granted permission) - add any magnet link, .torrent file, or download URL directly to qBittorrent with a chosen category; not limited to movies/TV, works for any content |
-| **Private Trackers** | Cookie and login-based auth with auto-retry on session expiry |
-| **User Management** | Per-user limits, session control, brute force protection, auto-expiration, password generation |
-| **Jellyfin Sync** | Library detection, user CRUD sync, avatar upload, Live TV config |
-| **Notifications** | SSE real-time, Discord webhooks, browser push (VAPID) |
-| **Admin Panel** | Live logs, system status, disk monitoring, ranking config |
-| **PWA** | Installable to home screen (standalone, auto-updating service worker) |
+| **Browse & Search** | Discover movies and TV shows through TMDB |
+| **Release Ranking** | Compare available releases using configurable scoring |
+| **Direct Download** | Choose a release and send it to qBittorrent |
+| **Requests & Wishlist** | Save titles for later, or request them when no torrents are available or a download limit is reached |
+| **Manual Torrent Add** | Optional direct torrent and magnet support |
+| **Private Trackers** | Support for authenticated indexers |
+| **User Management** | Per-user limits, permissions, sessions, and account expiry |
+| **Media Servers** | Jellyfin support, with more planned |
+| **Notifications** | Real-time updates, Discord, and browser push |
+| **Guided Setup** | One-command setup with Docker and service configuration |
+| **PWA** | Install Lode as a standalone web app |
+
+## Release ranking
+
+Lode ranks available releases using configurable weighted criteria such as resolution, language, seeders, size, source, and release group.
+
+Users can see the score and the factors behind it before choosing a release.
+
+## Who is Lode for?
+
+Lode is for people who want a simple self-hosted media setup without having to learn or maintain the full *arr stack.
+
+If you already rely on advanced Radarr/Sonarr automation, Lode is not a direct replacement. It intentionally offers a simpler workflow.
+
+## Lode vs Seerr
+
+[Seerr](https://github.com/seerr-team/seerr) is a request and media management layer that works with Sonarr and Radarr.
+
+Lode handles media discovery, release selection, and downloading directly in one workflow.
+
+|                            | Lode                   | Seerr                |
+| -------------------------- | ---------------------- | -------------------- |
+| **Media discovery**        | Built in               | Built in             |
+| **Release selection**      | User chooses           | Via *arr             |
+| **Release ranking**        | Built in               | Via *arr             |
+| **Download**               | Direct to qBittorrent  | Via Sonarr/Radarr    |
+| **Radarr/Sonarr required** | No                     | Yes                  |
+| **Media servers**          | Jellyfin, more planned | Jellyfin, Emby, Plex |
+
+The main difference is who controls the release selection and download flow. Lode lets users see the available releases and choose what gets downloaded without adding Radarr or Sonarr to the setup.
 
 ## Preview
 
 <p align="center">
-  <img src="./public/preview.webp" alt="Lode preview" />
+  <img src="./public/preview.webp" alt="Lode preview">
 </p>
 
-## Quick Start
+## Quick start
 
-### Option 1: Auto-Setup (Recommended)
+### Manual setup
 
-Run the one-line command from [Get started](#get-started), then the guided script walks you through 15 steps:
-1. Check prerequisites (Docker, Docker Compose)
-2. Create `.env` from `.env.example`
-3. Detect an existing setup (prefills your previous selection, migrates legacy compose files)
-4. Generate secrets (session password, tracker encryption key)
-5. Choose database driver (SQLite or PostgreSQL)
-6. Select components (qBittorrent, Prowlarr, media server, optional add-ons)
-7. Download the base compose file plus the overlays for your selection
-8. Choose Lode image tag (`latest` or `nightly`)
-9. Start the selected services (pulls images, waits for ports, extracts the qBittorrent temp password)
-10. Get your **Jellyfin API key** (guided instructions)
-11. Configure **qBittorrent WebUI + API key** (shows temp password, step-by-step)
-12. Get your **Prowlarr API key** (guided instructions)
-13. Get your **TMDB API key** (guided instructions)
-14. Set **Discord webhook** (optional)
-15. Start Lode with health check
-
-Your selection is saved to `.lode-setup`, so re-running the script prefills the prompts. After setup, open **http://localhost:5757** and login with `admin`. The auto-generated password is shown in the summary (or in `docker compose logs lode`). Create users in Admin > Users.
-
-### Option 2: Manual Setup
-
-#### Prerequisites
+Requirements:
 
 - Node.js 24+
 - pnpm 11+
 - qBittorrent with WebUI API key enabled
+- Prowlarr
+- TMDB API key
 
 ```bash
 git clone https://github.com/Nort1346/Lode.git
 cd Lode
 pnpm install
-cp .env.example .env    # then edit with your settings
-pnpm dev                # opens at http://localhost:5757
+cp .env.example .env # then edit with your settings
+pnpm dev
 ```
 
-Default admin: `admin` - the password is auto-generated on first start and printed to the terminal (look for `Admin password:`). Create users in Admin > Users.
+Open `http://localhost:5757`.
 
-## Docker
+Default user: `admin`. The auto-generated password is printed in the terminal on first start. Create users in Admin > Users.
 
-The stack is a base file (`docker-compose.yml` - Lode + Redis) plus per-service overlays. The auto-setup script combines the overlays you selected; manually you pass each with `-f`:
+### Docker
 
-```bash
-cp .env.example .env   # configure first
-docker compose -f docker-compose.yml up -d                                          # SQLite (base)
-docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d           # PostgreSQL
-docker compose -f docker-compose.yml -f docker-compose.qbittorrent.yml -f docker-compose.prowlarr.yml up -d
-docker compose -f docker-compose.yml logs -f lode                                   # view logs
+The default image is:
+
+```text
+ghcr.io/nort1346/lode:latest
 ```
 
-The base file uses the prebuilt `ghcr.io/nort1346/lode:latest` image. To build from source instead, uncomment the `#build: .` line in the `lode` service.
-
-Lode replaces Radarr and Sonarr entirely - it pulls candidate torrents from Prowlarr and sends the selected one straight to qBittorrent, which is why no *arr download services appear in the stack.
+Lode supports SQLite and PostgreSQL. The stack uses a base compose file plus optional overlays:
 
 | Service | Overlay | Port | Purpose |
 |---------|---------|------|---------|
 | `lode` | base | 5757 | Application |
 | `redis` | base | 6379 | Caching (optional) |
-| `qbittorrent` | `qbittorrent.yml` | 8080 | Torrent client |
-| `prowlarr` | `prowlarr.yml` | 9900 | Indexer manager |
-| `flaresolverr` | `flaresolverr.yml` | 8191 | CAPTCHA solver (optional) |
-| `jellyfin` | `jellyfin.yml` | 8096 | Media server (optional) |
-| `postgres` | `postgres.yml` | 5432 | Database (optional) |
-| `dozzle` | `dozzle.yml` | 8082 | Live log viewer (optional) |
+| `qbittorrent` | `docker-compose.qbittorrent.yml` | 8080 | Torrent client |
+| `prowlarr` | `docker-compose.prowlarr.yml` | 9900 | Indexer manager |
+| `flaresolverr` | `docker-compose.flaresolverr.yml` | 8191 | CAPTCHA solver (optional) |
+| `jellyfin` | `docker-compose.jellyfin.yml` | 8096 | Media server (optional) |
+| `postgres` | `docker-compose.postgres.yml` | 5432 | Database (optional) |
+| `dozzle` | `docker-compose.dozzle.yml` | 8082 | Live log viewer (optional) |
 
-## Tech Stack
+## Tech stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -151,51 +174,11 @@ Lode replaces Radarr and Sonarr entirely - it pulls candidate torrents from Prow
 
 Full documentation lives in [`docs/`](./docs/):
 
-- **[Getting Started](./docs/getting-started.md)** - Prerequisites, installation, first run
-- **[Configuration](./docs/configuration.md)** - All environment variables and settings
-- **[Architecture](./docs/architecture.md)** - Project structure, tech stack, composables
-- **[Database](./docs/database.md)** - Schema (13 tables), migrations, SQLite vs PostgreSQL
-- **[Deployment](./docs/deployment.md)** - Docker setup, production tips
-- **[Features](./docs/features/)** - 13 feature guides (browse, torrents, users, Jellyfin, etc.)
-- **[API Reference](./docs/api/)** - Complete endpoint documentation
-
-## Why Lode
-
-Unlike request-only tools (Overseerr, Seerr) that stop at "request and forget", Lode owns the full loop:
-
-- **One-click download** - picks the best torrent via a configurable ranking engine and sends it straight to qBittorrent.
-- **Private tracker support** - cookie/login auth with auto-retry on session expiry, not just public indexers.
-- **Built-in user system** - per-user limits, session control, brute-force protection, and auto-expiration. No external auth provider required.
-- **Jellyfin-native** - library detection, user sync, and avatar management out of the box.
-- **Real-time everything** - SSE live logs, browser push (VAPID), and Discord notifications.
-- **Self-hosted first** - Docker Compose stack, SQLite by default (PostgreSQL optional), no cloud dependency.
-
-## Lode vs Seerr
-
-[Seerr](https://github.com/seerr-team/seerr) (formerly Overseerr / Jellyseerr) is a request management layer that sits on top of Radarr and Sonarr plus Jellyfin/Emby/Plex. Users request media, and the *arr apps fetch it automatically. Lode replaces Radarr, Sonarr, and the request layer with a single app that gives you direct control over torrent selection.
-
-The key difference is *who controls the download*:
-
-Comparison based on Seerr's public docs as of August 2026 - open an issue if anything is outdated or inaccurate.
-
-| | Lode | [Seerr](https://github.com/seerr-team/seerr) |
-|---|---|---|
-| **Primary flow** | Browse TMDB → rank torrents → send to qBittorrent | Request → *arr (Radarr/Sonarr) fetches |
-| **Torrent control** | Direct qBittorrent, one-click, manual pick | Delegated to *arr, no manual torrent pick |
-| **Torrent ranking** | Built-in weighted scoring engine (max 205 base points) | Not built-in (delegated to *arr) |
-| **Private trackers** | Cookie/login auth with auto-retry | Handled via *arr indexers |
-| **User management** | Built-in: per-user limits, brute-force, sessions, expiry | Media-server login plus local email/password users |
-| **Request limits** | No quotas, one active request per title per user | Per-user quotas per media type (global defaults + overrides) |
-| **Wishlist / Watchlist** | Personal save-for-later list | Per-user watchlist, admin blocklist, Plex watchlist auto-request |
-| **Real-time logs** | SSE live logs in admin panel | No in-app log viewer |
-| **Notifications** | SSE + Discord + browser push (VAPID) | 10 agents incl. email, Discord, Slack, Telegram, Web Push |
-| **PWA** | Installable (standalone, auto-update) | Web Push support, mobile-responsive UI |
-| **Media servers** | Jellyfin (Emby planned) | Jellyfin, Emby, Plex |
-| **Auto-setup** | One-command `setup.sh` / `setup.ps1` (Docker + guided keys) | Docker Compose + docs, no guided setup |
-| **Translations** | EN, PL, DE, FR, ES, PT-BR (community) | Crowdsourced via Weblate (25+ languages) |
-| **Best for** | Owning the full download loop + custom user tiers | *arr users wanting request management on top |
-
-Lode gives your users the ability to browse and download content themselves -- no admin intervention needed. Each user gets their own limits, session control, and a torrent ranking engine that picks the best source automatically.
+- [Getting Started](./docs/getting-started.md) - setup, prerequisites, first run
+- [Configuration](./docs/configuration.md) - environment variables and settings
+- [Deployment](./docs/deployment.md) - Docker setup and production tips
+- [Architecture](./docs/architecture.md) - project structure and data flow
+- [API Reference](./docs/api/) - endpoint documentation
 
 ## Roadmap
 
@@ -204,16 +187,18 @@ Lode gives your users the ability to browse and download content themselves -- n
 - [ ] Prowlarr indexer management (add/configure indexers from Lode admin)
 - [ ] Home Assistant integration (webhook, sensors, automations)
 
-Got an idea? [Open a feature request](https://github.com/Nort1346/Lode/issues/new?template=feature_request.yml).
+Have an idea? [Open a feature request](https://github.com/Nort1346/Lode/issues/new?template=feature_request.yml).
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for setup, testing, and PR guidelines.
+Contributions are welcome.
+
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for development setup and contribution guidelines.
 
 ## License
 
-[AGPL-3.0](LICENSE) - Copyright (C) 2026 Nort
+[AGPL-3.0](LICENSE) © 2026 Nort1346
 
 ## Support
 
-If you find Lode useful, consider giving the repo a star - it helps the project get discovered.
+If you find Lode useful, consider giving the repository a star.
