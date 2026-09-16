@@ -209,6 +209,17 @@ button:not(:disabled):not([aria-disabled='true']),
   animation: fade-in-up 0.3s ease-in reverse;
 }
 
+/* Browse search branch crossfade */
+.search-fade-enter-active,
+.search-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.search-fade-enter-from,
+.search-fade-leave-to {
+  opacity: 0;
+}
+
 /* Notification animations */
 @keyframes bell-shake {
   0%,

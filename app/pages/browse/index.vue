@@ -48,118 +48,157 @@
       />
     </div>
 
-    <div
-      v-if="searchPending || discoverPending"
-      class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-    >
-      <div v-for="n in 12" :key="`search-skeleton-${n}`">
-        <USkeleton class="aspect-2/3 w-full rounded-xl" />
-        <USkeleton class="mt-2 h-4 w-3/4 rounded" />
-        <USkeleton class="mt-1 h-3 w-1/2 rounded" />
-      </div>
-    </div>
-
-    <TransitionGroup
-      v-else-if="results.length > 0"
-      name="card-list"
-      tag="div"
-      class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-    >
-      <MediaCard
-        v-for="item in results"
-        :id="item.id"
-        :key="`${item.type}-${item.id}`"
-        :type="item.type"
-        :title="item.title"
-        :overview="item.overview"
-        :poster-url="item.posterUrl"
-        :year="item.year"
-        :rating="item.rating"
-        :in-library="item.inLibrary"
-        @click="goToItem(item)"
-      />
-    </TransitionGroup>
-
-    <div v-else-if="hasActiveSearch" class="py-20 text-center text-zinc-500 dark:text-zinc-400">
-      {{ t('browse.noResults') }}
-    </div>
-
-    <template v-else>
-      <div v-reveal>
-        <MediaCarousel
-          :title="t('browse.trending')"
-          :items="filteredTrending"
-          :loading="trendingPending"
-          @item-click="goToItem"
-        />
-      </div>
-      <div v-if="!isTvOnly" v-reveal="1">
-        <MediaCarousel
-          :title="t('browse.popularMovies')"
-          :items="popularMoviesTyped"
-          :loading="popularPending"
-          @item-click="goToItem"
-        />
-      </div>
-
-      <InviewSection v-if="!isMovieOnly" @visible="popularTvVisible = true">
-        <MediaCarousel
-          :title="t('browse.popularTv')"
-          :items="popularTvShowsTyped"
-          :loading="popularPending"
-          @item-click="goToItem"
-        />
-      </InviewSection>
-
-      <div v-reveal>
-        <BrowseSpotlight v-if="visibleSpotlights[0]" :item="visibleSpotlights[0]" />
-      </div>
-
-      <InviewSection
-        v-for="g in visibleMovieGenres"
-        :key="`movie-${g.id}`"
-        @visible="genreVisible[`movie-${g.id}`] = true"
+    <Transition name="search-fade" mode="out-in">
+      <div
+        v-if="showSkeletons"
+        key="search-skeletons"
+        class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
-        <MediaCarousel
-          :title="t(g.key)"
-          :items="genreMovieItems[g.id] ?? []"
-          :loading="genreMoviePending[g.id]"
-          @item-click="goToItem"
-        />
-      </InviewSection>
-
-      <div v-reveal>
-        <BrowseSpotlight v-if="searchParams.type === 'all' && visibleSpotlights[1]" :item="visibleSpotlights[1]" />
+        <div v-for="n in 12" :key="`search-skeleton-${n}`">
+          <USkeleton class="aspect-2/3 w-full rounded-xl" />
+          <USkeleton class="mt-2 h-4 w-3/4 rounded" />
+          <USkeleton class="mt-1 h-3 w-1/2 rounded" />
+        </div>
       </div>
 
-      <InviewSection v-for="g in visibleTvGenres" :key="`tv-${g.id}`" @visible="genreVisible[`tv-${g.id}`] = true">
-        <MediaCarousel
-          :title="t(g.key)"
-          :items="genreTvItems[g.id] ?? []"
-          :loading="genreTvPending[g.id]"
-          @item-click="goToItem"
-        />
-      </InviewSection>
-
-      <div v-reveal>
-        <BrowseSpotlight v-if="visibleSpotlights[2]" :item="visibleSpotlights[2]" />
+      <div v-else-if="results.length > 0" key="search-results" class="relative">
+        <TransitionGroup
+          name="card-list"
+          tag="div"
+          class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 transition-opacity duration-200"
+          :class="dimmed ? 'opacity-50' : 'opacity-100'"
+        >
+          <MediaCard
+            v-for="item in results"
+            :id="item.id"
+            :key="`${item.type}-${item.id}`"
+            :type="item.type"
+            :title="item.title"
+            :overview="item.overview"
+            :poster-url="item.posterUrl"
+            :year="item.year"
+            :rating="item.rating"
+            :in-library="item.inLibrary"
+            @click="goToItem(item)"
+          />
+        </TransitionGroup>
+        <Transition name="search-fade">
+          <div
+            v-if="searchPhase === 'loading' || searchPhase === 'error'"
+            class="pointer-events-none absolute top-1 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 shadow-sm backdrop-blur-sm dark:bg-zinc-800/90"
+          >
+            <UIcon
+              v-if="searchPhase === 'loading'"
+              name="i-lucide-loader-2"
+              class="size-3.5 animate-spin text-zinc-500 dark:text-zinc-400"
+            />
+            <template v-else>
+              <UIcon name="i-lucide-alert-circle" class="size-3.5 text-red-500" />
+              <span class="text-xs font-medium text-red-600 dark:text-red-400">{{ t('browse.searchError') }}</span>
+            </template>
+          </div>
+        </Transition>
       </div>
 
-      <InviewSection v-if="!isTvOnly" @visible="topRatedVisible = true">
-        <MediaCarousel
-          :title="t('browse.topRated')"
-          :items="topRatedMoviesTyped"
-          :loading="topRatedPending"
-          @item-click="goToItem"
-        />
-      </InviewSection>
-    </template>
+      <div
+        v-else-if="searchPhase === 'empty'"
+        key="search-empty"
+        class="py-20 text-center text-zinc-500 dark:text-zinc-400"
+      >
+        <p class="text-sm sm:text-base">
+          {{
+            searchParams.q.trim() ? t(emptyStateKey, { query: searchParams.q.trim() }) : t('browse.noResultsGeneric')
+          }}
+        </p>
+        <p class="mt-2 text-xs text-zinc-400 dark:text-zinc-500">{{ t('browse.noResultsHint') }}</p>
+      </div>
+
+      <div
+        v-else-if="searchPhase === 'error'"
+        key="search-error"
+        class="py-20 text-center text-zinc-500 dark:text-zinc-400"
+      >
+        {{ t('browse.searchError') }}
+      </div>
+
+      <div v-else-if="searchPhase === 'idle'" key="browse-default">
+        <div v-reveal>
+          <MediaCarousel
+            :title="t('browse.trending')"
+            :items="filteredTrending"
+            :loading="trendingPending"
+            @item-click="goToItem"
+          />
+        </div>
+        <div v-if="!isTvOnly" v-reveal="1">
+          <MediaCarousel
+            :title="t('browse.popularMovies')"
+            :items="popularMoviesTyped"
+            :loading="popularPending"
+            @item-click="goToItem"
+          />
+        </div>
+
+        <InviewSection v-if="!isMovieOnly" @visible="popularTvVisible = true">
+          <MediaCarousel
+            :title="t('browse.popularTv')"
+            :items="popularTvShowsTyped"
+            :loading="popularPending"
+            @item-click="goToItem"
+          />
+        </InviewSection>
+
+        <div v-reveal>
+          <BrowseSpotlight v-if="visibleSpotlights[0]" :item="visibleSpotlights[0]" />
+        </div>
+
+        <InviewSection
+          v-for="g in visibleMovieGenres"
+          :key="`movie-${g.id}`"
+          @visible="genreVisible[`movie-${g.id}`] = true"
+        >
+          <MediaCarousel
+            :title="t(g.key)"
+            :items="genreMovieItems[g.id] ?? []"
+            :loading="genreMoviePending[g.id]"
+            @item-click="goToItem"
+          />
+        </InviewSection>
+
+        <div v-reveal>
+          <BrowseSpotlight v-if="searchParams.type === 'all' && visibleSpotlights[1]" :item="visibleSpotlights[1]" />
+        </div>
+
+        <InviewSection v-for="g in visibleTvGenres" :key="`tv-${g.id}`" @visible="genreVisible[`tv-${g.id}`] = true">
+          <MediaCarousel
+            :title="t(g.key)"
+            :items="genreTvItems[g.id] ?? []"
+            :loading="genreTvPending[g.id]"
+            @item-click="goToItem"
+          />
+        </InviewSection>
+
+        <div v-reveal>
+          <BrowseSpotlight v-if="visibleSpotlights[2]" :item="visibleSpotlights[2]" />
+        </div>
+
+        <InviewSection v-if="!isTvOnly" @visible="topRatedVisible = true">
+          <MediaCarousel
+            :title="t('browse.topRated')"
+            :items="topRatedMoviesTyped"
+            :loading="topRatedPending"
+            @item-click="goToItem"
+          />
+        </InviewSection>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { MediaCarouselItem } from '~/types/media'
 import type { AutocompleteSuggestion } from '~/types/autocomplete'
+import type { SearchResultItem } from '~/types/browse'
 import { useGoToItem } from '~/composables/useNavigate'
 
 const { t, locale } = useI18n()
@@ -257,66 +296,6 @@ function buildGenreParams() {
   return { movieGenre: movieIds.join(','), tvGenre: tvIds.join(',') }
 }
 
-const hasActiveSearch = computed(() => searchParams.q.length >= 2 || searchParams.genres.length > 0)
-
-const debouncedQ = ref('')
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
-
-watch(
-  () => searchParams.q,
-  (val) => {
-    if (debounceTimer !== null) clearTimeout(debounceTimer)
-    debounceTimer = setTimeout(() => {
-      debouncedQ.value = val
-    }, 500)
-  }
-)
-
-const {
-  data: searchData,
-  pending: searchPending,
-  execute: executeSearch
-} = useFetch('/api/browse/search', {
-  query: computed(() => ({
-    q: debouncedQ.value,
-    type: searchParams.type,
-    ...buildGenreParams(),
-    locale: locale.value
-  })),
-  watch: [debouncedQ, () => searchParams.type, () => searchParams.genres, locale],
-  immediate: false
-})
-
-const {
-  data: discoverData,
-  pending: discoverPending,
-  execute: executeDiscover
-} = useFetch('/api/browse/discover', {
-  query: computed(() => ({
-    ...buildGenreParams(),
-    type: searchParams.type,
-    locale: locale.value
-  })),
-  watch: false,
-  immediate: false
-})
-
-const isSearching = computed(() => searchParams.q.length >= 2)
-const results = computed(() => {
-  if (isSearching.value) return searchData.value?.results ?? []
-  if (searchParams.genres.length > 0) return discoverData.value?.results ?? []
-  return []
-})
-
-watch([debouncedQ, () => searchParams.type, () => searchParams.genres, locale], () => {
-  if (searchParams.genres.length === 0 && searchParams.q.length < 2) return
-  if (isSearching.value) {
-    void executeSearch()
-  } else if (searchParams.genres.length > 0) {
-    void executeDiscover()
-  }
-})
-
 watch(
   () => route.query,
   (q) => {
@@ -358,13 +337,44 @@ watch(
   { deep: true }
 )
 
-onMounted(() => {
-  if (hasActiveSearch.value) {
-    if (isSearching.value) {
-      void executeSearch()
-    } else if (searchParams.genres.length > 0) {
-      void executeDiscover()
-    }
+function fetchResults(signal: AbortSignal): Promise<SearchResultItem[]> {
+  const genreParams = buildGenreParams()
+  if (searchParams.q.trim().length >= 2) {
+    return $fetch<{ results: SearchResultItem[] }>('/api/browse/search', {
+      query: {
+        q: searchParams.q.trim(),
+        type: searchParams.type,
+        ...genreParams,
+        locale: locale.value
+      },
+      signal
+    }).then((data) => data.results)
+  }
+  return $fetch<{ results: SearchResultItem[] }>('/api/browse/discover', {
+    query: { ...genreParams, type: searchParams.type, locale: locale.value },
+    signal
+  }).then((data) => data.results)
+}
+
+const {
+  phase: searchPhase,
+  results,
+  showSkeletons,
+  dimmed
+} = useBrowseSearch({
+  q: () => searchParams.q,
+  type: () => searchParams.type,
+  genres: () => searchParams.genres,
+  locale: () => locale.value,
+  fetchResults
+})
+
+const emptyStateKeys = ['browse.noResults1', 'browse.noResults2', 'browse.noResults3', 'browse.noResults4']
+const emptyStateKey = ref('browse.noResults1')
+
+watch(searchPhase, (phase) => {
+  if (phase === 'empty') {
+    emptyStateKey.value = emptyStateKeys[Math.floor(Math.random() * emptyStateKeys.length)] ?? 'browse.noResults1'
   }
 })
 

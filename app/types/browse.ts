@@ -1,5 +1,28 @@
 import type { Genre } from './media'
 
+export type SearchPhase = 'idle' | 'debouncing' | 'loading' | 'success' | 'empty' | 'error'
+
+export interface SearchResultItem {
+  id: number
+  type: 'movie' | 'tv'
+  title: string
+  overview: string
+  posterUrl: string | null
+  backdropUrl: string | null
+  year: string
+  rating: number
+  genres: string[]
+  inLibrary: boolean
+}
+
+export interface BrowseSearchSource {
+  q: () => string
+  type: () => string
+  genres: () => number[]
+  locale: () => string
+  fetchResults: (signal: AbortSignal) => Promise<SearchResultItem[]>
+}
+
 export interface MovieData {
   id: number
   title: string
