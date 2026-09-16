@@ -18,11 +18,11 @@
 
 <p align="center">
   <strong>A simple self-hosted media hub for Jellyfin, with support for more media servers planned.</strong><br>
-  Find a movie or TV show, compare available releases, choose one, and download it in a few clicks.
+  Find a movie or TV show, compare available releases, choose one, and track the download in real time.
 </p>
 
 <p align="center">
-  <strong>Set it up in minutes and start using it right away.</strong>
+ <strong>Easy to run. Easy to use.</strong>
 </p>
 
 <p align="center">
@@ -34,12 +34,12 @@
 1. **Find** a movie or TV show
 2. **Compare** available releases
 3. **Choose** the one you want
-4. **Download** it through qBittorrent
+4. **Track** the download in real time
 5. **Watch** it in your media server
 
 ## Get started
 
-Run the guided setup:
+Go from a fresh machine to a working media setup in minutes with the guided setup.
 
 **Linux / macOS**
 
@@ -73,7 +73,8 @@ Lode keeps the media workflow simple without requiring the full *arr stack.
 | **Requests & Wishlist** | Save titles for later, or request them when no torrents are available or a download limit is reached |
 | **Manual Torrent Add** | Optional direct torrent and magnet support |
 | **Private Trackers** | Support for authenticated indexers |
-| **User Management** | Per-user limits, permissions, sessions, and account expiry |
+| **User Management** | Per-user permissions, sessions, and account expiry |
+| **Download Controls** | Limit active downloads, daily downloads, download size, and private tracker usage |
 | **Media Servers** | Jellyfin support, with more planned |
 | **Notifications** | Real-time updates, Discord, and browser push |
 | **Guided Setup** | One-command setup with Docker and service configuration |
@@ -100,7 +101,7 @@ Lode handles media discovery, release selection, and downloading directly in one
 |                            | Lode                   | Seerr                |
 | -------------------------- | ---------------------- | -------------------- |
 | **Media discovery**        | Built in               | Built in             |
-| **Release selection**      | User chooses           | Via *arr             |
+| **Release selection**      | User chooses directly  | Via *arr             |
 | **Release ranking**        | Built in               | Via *arr             |
 | **Download**               | Direct to qBittorrent  | Via Sonarr/Radarr    |
 | **Radarr/Sonarr required** | No                     | Yes                  |
