@@ -11,12 +11,59 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: nort1346/lode
-  # buildx --load only supports a single platform; we scan this one before pushing.
-  SCAN_PLATFORM: linux/amd64
+
+# Each platform builds on its NATIVE runner (no QEMU) to avoid multi-hour
+# emulated arm64 builds. Each platform is built once (load), scanned, then
+# pushed under a "pending-<arch>" tag; the manifest job merges them into
+# the final multi-arch image, avoids rebuilding for push after scan.
+# Nightly cron skips runs where main hasn't changed since the last
+# published nightly (state = SHA tag on the latest GHCR image, since
+# GITHUB_TOKEN can't write Actions variables).
 
 jobs:
-  build:
+  check-nightly:
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+
+    steps:
+      - name: Skip if main is unchanged since the last successful nightly
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # (No stored state: GITHUB_TOKEN cannot read/write environment
+          # variables, so the registry itself is the record.)
+          last="$(gh api "users/${GITHUB_REPOSITORY_OWNER}/packages/container/${IMAGE_NAME##*/}/versions?per_page=100" \
+            --jq '[.[] | select((.metadata.container.tags // []) | any(test("^[0-9a-f]{40}$")))] | max_by(.updated_at) | .metadata.container.tags[] | select(test("^[0-9a-f]{40}$"))' 2>/dev/null | head -n 1 || true)"
+          head="$(gh api "repos/${GITHUB_REPOSITORY}/commits?sha=main&per_page=1" --jq '.[0].sha' 2>/dev/null || true)"
+          if [[ "${last:-}" =~ ^[0-9a-f]{40}$ && "${last}" = "${head:-}" ]]; then
+            echo "nightly already published main at ${last}, skipping"
+            echo "run=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "run=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+  build:
+    needs: check-nightly
+    if: needs.check-nightly.outputs.run != 'false'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
 
     env:
       TRIVY_DISABLE_VEX_NOTICE: '1'
@@ -28,9 +75,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -64,41 +108,39 @@ jobs:
             type=raw,value=nightly
             type=sha,prefix=
 
-      # Build the primary platform locally (no push) so Trivy scans exactly what we
-      # are about to publish. buildx --load is single-platform only; amd64 is present
-      # in the multi-platform push and is representative for the OS/dependency CVEs.
-      - name: Build for scan (release)
+      # Single build for this platform: load into the local daemon so the
+      # scan and the push below operate on the exact same image.
+      - name: Build image (release)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: ${{ env.SCAN_PLATFORM }}
+          platforms: ${{ matrix.platform }}
           push: false
           load: true
-          tags: ${{ steps.meta-release.outputs.tags }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-${{ matrix.arch }}
           labels: ${{ steps.meta-release.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
 
-      - name: Build for scan (nightly)
+      - name: Build image (nightly)
         if: "!startsWith(github.ref, 'refs/tags/v')"
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: ${{ env.SCAN_PLATFORM }}
+          platforms: ${{ matrix.platform }}
           push: false
           load: true
-          tags: ${{ steps.meta-nightly.outputs.tags }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-${{ matrix.arch }}
           labels: ${{ steps.meta-nightly.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
 
-      # Gate: the push steps below only run if this scan passes (exit-code 1).
       - name: Scan image (release)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-${{ matrix.arch }}
           format: table
           exit-code: '1'
           severity: CRITICAL
@@ -108,41 +150,106 @@ jobs:
         if: "!startsWith(github.ref, 'refs/tags/v')"
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:nightly
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-${{ matrix.arch }}
           format: table
           exit-code: '1'
           severity: CRITICAL
           ignore-unfixed: true
 
-      # Publish all platforms only after a clean scan (steps stop on failure).
-      - name: Build and push (release)
+      - name: Push image (release)
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta-release.outputs.tags }}
-          labels: ${{ steps.meta-release.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: docker push "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-${{ matrix.arch }}"
 
-      - name: Build and push (nightly)
+      - name: Push image (nightly)
         if: "!startsWith(github.ref, 'refs/tags/v')"
-        uses: docker/build-push-action@v7
+        run: docker push "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-${{ matrix.arch }}"
+
+  manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
         with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta-nightly.outputs.tags }}
-          labels: ${{ steps.meta-nightly.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (release)
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: meta-release
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest
+
+      - name: Extract metadata (nightly)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        id: meta-nightly
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=nightly
+            type=sha,prefix=
+
+      # Combine the per-platform pending images into the final multi-arch image
+      - name: Create multi-arch manifest (release)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          tags=""
+          while IFS= read -r tag; do
+            tags="${tags} -t ${tag}"
+          done <<< "$(echo '${{ steps.meta-release.outputs.tags }}' | tr ',' '\n')"
+          docker buildx imagetools create ${tags} \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-amd64" \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-arm64"
+
+      - name: Create multi-arch manifest (nightly)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        run: |
+          set -euo pipefail
+          tags=""
+          while IFS= read -r tag; do
+            tags="${tags} -t ${tag}"
+          done <<< "$(echo '${{ steps.meta-nightly.outputs.tags }}' | tr ',' '\n')"
+          docker buildx imagetools create ${tags} \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-amd64" \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-arm64"
+
+      - name: Remove pending tags (release)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          docker buildx imagetools rm "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-amd64"
+          docker buildx imagetools rm "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-arm64"
+
+      - name: Remove pending tags (nightly)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        run: |
+          docker buildx imagetools rm "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-amd64"
+          docker buildx imagetools rm "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pending-arm64"
+
+      # No state to record: the SHA tag published above is what check-nightly
+      # compares against main on the next cron run.
 
   release:
     runs-on: ubuntu-latest
-    needs: build
+    needs: manifest
     if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 10
 
     permissions:
       contents: write
