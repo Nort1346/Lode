@@ -20,6 +20,16 @@ pnpm test:coverage    # Run tests with V8 coverage reporting
 pnpm typecheck:test   # Type-check the test suite (test/tsconfig.json)
 ```
 
+## The `cli/` project (standalone)
+
+`cli/` is the setup CLI (the `lode-setup` binary): a TypeScript + @clack/prompts app that holds all installer logic. The root `setup.sh` / `setup.ps1` are thin bootstraps that download the prebuilt binary for the platform from the latest GitHub release and exec it.
+
+- **Standalone project**: its own `package.json`, `bun.lock`, `tsconfig.json`, `eslint.config.mjs`, `vitest.config.ts`, and a `pnpm-workspace.yaml` (`packages: []`) that keeps it out of the root workspace. Root `pnpm` commands don't touch it, and root ESLint ignores `cli/**`.
+- **Runtime tooling is Bun**: `bun install`, `bun run typecheck|lint|test`; release binaries are built with `bun build --compile --target=bun-<os>-<arch>` (see `.github/workflows/cli.yml`).
+- **Commands** (run from `cli/`): `bun install`, `bun run typecheck`, `bun run lint`, `bun run test` (Vitest, `test/**/*.test.ts` mirrors `src/`).
+- **CI**: `cli.yml` runs check on PRs/pushes touching `cli/**` and, on `v*` tags, builds 6 platform binaries and uploads them to the same GitHub release that `docker.yml` creates.
+- Details: [cli/AGENTS.md](./cli/AGENTS.md)
+
 ## Commit Messages
 
 Use **Conventional Commits** format:

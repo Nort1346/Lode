@@ -21,6 +21,9 @@ logs
 # pnpm local store
 .pnpm-store
 
+# Bun compile cache
+.bun-cache
+
 coverage
 
 # Local env files
