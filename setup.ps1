@@ -103,11 +103,6 @@ function Format-Hyperlink([string]$Url, [string]$Label) {
 if (-not $script:IsScriptFile) {
   Write-Host ''
   Write-Host 'Running via ''irm | iex'' - starting a standalone process so this terminal is not affected.'
-  $answer = Read-Host 'Continue? [Y/n]'
-  if ($answer -match '^[Nn]') {
-    Write-Host 'Aborted.'
-    return
-  }
   $childScript = Join-Path $env:TEMP 'lode-setup-bootstrap.ps1'
   $scriptUrl = "${BaseUrl}/raw/main/setup.ps1"
   try {
