@@ -101,8 +101,6 @@ function Format-Hyperlink([string]$Url, [string]$Label) {
 # file process so neither can happen.
 
 if (-not $script:IsScriptFile) {
-  Write-Host ''
-  Write-Host 'Running via ''irm | iex'' - starting a standalone process so this terminal is not affected.'
   $childScript = Join-Path $env:TEMP 'lode-setup-bootstrap.ps1'
   $scriptUrl = "${BaseUrl}/raw/main/setup.ps1"
   try {
