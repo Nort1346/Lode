@@ -163,8 +163,8 @@ export default withNuxt(
     }
   },
 
-  // Global ignores
+  // Global ignores (cli/ is a standalone project with its own eslint config)
   {
-    ignores: ['dist/**', '.output/**', '.nuxt/**', 'node_modules/**']
+    ignores: ['dist/**', '.output/**', '.nuxt/**', 'node_modules/**', 'cli/**']
   }
 )

@@ -1,0 +1,136 @@
+name: cli
+
+on:
+  push:
+    tags:
+      - 'v*'
+    paths:
+      - 'cli/**'
+      - '.github/workflows/cli.yml'
+  pull_request:
+    paths:
+      - 'cli/**'
+      - '.github/workflows/cli.yml'
+
+# Builds the standalone setup CLI (cli/) as native binaries for 6 targets and
+# publishes them to the same GitHub release that the docker workflow creates.
+# The publish job polls for that release because it lands after the (much
+# slower) docker image build.
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+
+      - name: Install dependencies
+        working-directory: cli
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: cli
+        run: bun run typecheck
+
+      - name: Lint
+        working-directory: cli
+        run: bun run lint
+
+      - name: Test
+        working-directory: cli
+        run: bun run test
+
+  build:
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Cross-compiles from a single Linux runner - Bun embeds the runtime, so
+    # each target is one fast `bun build --compile` with no toolchain needed.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+
+      - name: Install dependencies
+        working-directory: cli
+        run: bun install --frozen-lockfile
+
+      - name: Compile binaries
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          declare -A targets=(
+            [linux-x64]='bun-linux-x64'
+            [linux-arm64]='bun-linux-arm64'
+            [darwin-x64]='bun-darwin-x64'
+            [darwin-arm64]='bun-darwin-arm64'
+            [windows-x64]='bun-windows-x64'
+            [windows-arm64]='bun-windows-arm64'
+          )
+          for name in "${!targets[@]}"; do
+            ext=""
+            [[ "$name" == windows-* ]] && ext=".exe"
+            bun build src/index.ts \
+              --compile --minify \
+              --target="${targets[$name]}" \
+              --define BUILD_VERSION='"${GITHUB_REF_NAME}"' \
+              --outfile "dist/lode-setup-${name}${ext}"
+          done
+          ls -la dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: lode-setup-binaries
+          path: cli/dist
+
+  publish:
+    needs: [check, build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: lode-setup-binaries
+          path: cli/dist
+
+      # The docker workflow creates the release after its image build
+      # finishes, which can outlast this pipeline - poll for it.
+      - name: Wait for the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 450); do
+            if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+              echo "Release ${GITHUB_REF_NAME} found"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "GitHub release ${GITHUB_REF_NAME} was not created within 75 minutes" >&2
+          exit 1
+
+      - name: Upload binaries to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" cli/dist/* --clobber

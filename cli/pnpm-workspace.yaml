@@ -1,0 +1,3 @@
+# Standalone pnpm project root: keeps /cli out of the repo-root workspace so
+# the Nuxt toolchain never resolves or installs its dependencies.
+packages: []
