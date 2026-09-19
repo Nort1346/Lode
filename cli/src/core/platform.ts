@@ -4,7 +4,6 @@ import { run } from './exec'
 // Parents that close their console window when the child exits (double-click,
 // Start Menu, RDP, VS Code integrated terminal).
 const TRANSIENT_PARENTS = new Set(['explorer.exe', 'conhost.exe', 'openconsole.exe', 'windowsterminal.exe', 'code.exe'])
-// Intermediaries to walk through without concluding.
 const PASSTHROUGH_PARENTS = new Set(['cmd.exe', 'conhost.exe', 'openconsole.exe'])
 
 export function isTty(): boolean {

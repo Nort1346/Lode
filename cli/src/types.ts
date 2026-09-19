@@ -1,19 +1,13 @@
-/** Database backend for Lode. */
 export type DbDriver = 'sqlite' | 'postgres'
 
-/** Lode image tag. */
 export type LodeTag = 'latest' | 'nightly'
 
-/** Whether a service runs as a local container or an external instance. */
 export type ServiceMode = 'local' | 'external'
 
-/** Media server backend for library detection. */
 export type MediaProvider = 'jellyfin' | 'none'
 
-/** Deployment mode for the media server. */
 export type MediaMode = 'local' | 'external' | 'none'
 
-/** Compose files shipped with the repo (base + per-service overlays). */
 export type ComposeFileName =
   | 'docker-compose.yml'
   | 'docker-compose.postgres.yml'
@@ -42,7 +36,6 @@ export interface ExternalUrls {
   jellyfin: string
 }
 
-/** Mutable context threaded through every setup step. */
 export interface StepContext {
   /** True when a .lode-setup state file existed before this run. */
   stateFound: boolean
@@ -57,21 +50,18 @@ export interface StepContext {
   adminPass: string
 }
 
-/** An option for select-style prompts. */
 export interface PromptOption<T extends string = string> {
   value: T
   label: string
   hint?: string
 }
 
-/** Result of an external process run. */
 export interface CommandResult {
   code: number
   stdout: string
   stderr: string
 }
 
-/** A row in the final services summary table. */
 export interface SummaryRow {
   label: string
   value: string

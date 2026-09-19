@@ -25,7 +25,6 @@ export function envValueMeetsMinLength(dir: string, file: string, key: string, m
   return value.length >= min
 }
 
-// Replace an active KEY= line, else uncomment a "# KEY=" line, else append.
 // String-based (not sed-style) so values containing & or $ survive intact.
 export function updateEnvFile(content: string, key: string, value: string): string {
   const lines = content.split('\n')
