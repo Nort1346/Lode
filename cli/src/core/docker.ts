@@ -1,5 +1,5 @@
 import { LODE_IMAGE } from '../constants'
-import type { CommandResult, ComposeFileName } from '../types'
+import type { CommandResult, ComposeFileName, DaemonCheck } from '../types'
 import { run } from './exec'
 
 export function composeFileArgs(files: readonly ComposeFileName[]): string[] {
@@ -41,12 +41,6 @@ export async function composeVersion(): Promise<string | null> {
 
 const DAEMON_ERROR_PATTERN =
   /failed to connect|cannot connect|permission denied|connection refused|cannot find|no such file/i
-
-export interface DaemonCheck {
-  reachable: boolean
-  errorLines: string[]
-  permissionDenied: boolean
-}
 
 export async function checkDaemon(): Promise<DaemonCheck> {
   const result = await run('docker', ['info'])

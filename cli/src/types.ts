@@ -84,3 +84,25 @@ export interface ComposeProgress {
   image?: string
   stage?: string
 }
+
+export interface RunOptions {
+  cwd?: string
+  /** Called for each complete line of stdout/stderr as it arrives (raw output stays captured). */
+  onLine?: (line: string) => void
+}
+
+export interface PortWaitOptions {
+  intervalMs?: number
+  onTick?: (attempt: number, maxAttempts: number) => void
+}
+
+export interface DaemonCheck {
+  reachable: boolean
+  errorLines: string[]
+  permissionDenied: boolean
+}
+
+export interface ClipboardReader {
+  command: string
+  args: string[]
+}

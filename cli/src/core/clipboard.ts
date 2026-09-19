@@ -1,3 +1,4 @@
+import type { ClipboardReader } from '../types'
 import { commandExists, run } from './exec'
 
 const ESC = '\u001b'
@@ -8,11 +9,6 @@ export function copyToClipboardOsc52(text: string): void {
   if (!text) return
   const encoded = Buffer.from(text, 'utf8').toString('base64')
   process.stdout.write(`${ESC}]52;c;${encoded}${ESC}\\`)
-}
-
-interface ClipboardReader {
-  command: string
-  args: string[]
 }
 
 async function linuxReaders(): Promise<ClipboardReader[]> {

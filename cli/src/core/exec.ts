@@ -1,11 +1,5 @@
 import { spawn } from 'node:child_process'
-import type { CommandResult } from '../types'
-
-interface RunOptions {
-  cwd?: string
-  /** Called for each complete line of stdout/stderr as it arrives (raw output stays captured). */
-  onLine?: (line: string) => void
-}
+import type { CommandResult, RunOptions } from '../types'
 
 // Never throws: spawn failures (ENOENT, etc.) resolve with code 127 so callers
 // can treat "command missing" uniformly with a non-zero exit.

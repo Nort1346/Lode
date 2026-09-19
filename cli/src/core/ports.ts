@@ -1,4 +1,5 @@
 import net from 'node:net'
+import type { PortWaitOptions } from '../types'
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -24,11 +25,6 @@ function checkPort(host: string, port: number, timeoutMs: number): Promise<boole
       finish(false)
     })
   })
-}
-
-export interface PortWaitOptions {
-  intervalMs?: number
-  onTick?: (attempt: number, maxAttempts: number) => void
 }
 
 export async function waitForPort(
