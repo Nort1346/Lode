@@ -86,7 +86,7 @@ jobs:
             bun build src/index.ts \
               --compile --minify \
               --target="${targets[$name]}" \
-              --define BUILD_VERSION='"${GITHUB_REF_NAME}"' \
+              --define BUILD_VERSION="\"${GITHUB_REF_NAME}\"" \
               --outfile "dist/lode-setup-${name}${ext}"
           done
           ls -la dist
@@ -120,14 +120,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for _ in $(seq 1 450); do
-            if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-              echo "Release ${GITHUB_REF_NAME} found"
+
+          tag="${GITHUB_REF_NAME}"
+          max_attempts=450
+          start="$(date +%s)"
+          for attempt in $(seq 1 "${max_attempts}"); do
+            elapsed=$(( $(date +%s) - start ))
+            # Capture gh's output: a real failure (auth, permission, rate limit)
+            # must surface, not masquerade as "not found yet".
+            if out="$(gh release view "${tag}" 2>&1)"; then
+              echo "Release ${tag} found (attempt ${attempt}, ${elapsed}s elapsed)"
               exit 0
             fi
+            # Log every attempt so a stuck run is diagnosable from the live log.
+            echo "attempt ${attempt}/${max_attempts} (${elapsed}s elapsed): release not ready - ${out}"
             sleep 10
           done
-          echo "GitHub release ${GITHUB_REF_NAME} was not created within 75 minutes" >&2
+          echo "GitHub release ${tag} was not created within 75 minutes" >&2
           exit 1
 
       - name: Upload binaries to the release
