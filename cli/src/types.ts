@@ -65,6 +65,8 @@ export interface CommandResult {
 export interface SummaryRow {
   label: string
   value: string
+  /** http(s) values are rendered as OSC 8 hyperlinks. */
+  url?: string
 }
 
 export interface DeselectionCheck {
