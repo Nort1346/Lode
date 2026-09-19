@@ -22,7 +22,8 @@ function buildRows(ctx: StepContext): SummaryRow[] {
   } else {
     rows.push({ label: 'Jellyfin', value: '(disabled)' })
   }
-  if (selection.flaresolverr) rows.push({ label: 'FlareSolverr', value: 'http://localhost:8191', url: 'http://localhost:8191' })
+  if (selection.flaresolverr)
+    rows.push({ label: 'FlareSolverr', value: 'http://localhost:8191', url: 'http://localhost:8191' })
   rows.push({ label: 'Database', value: selection.dbDriver })
   if (selection.dbDriver === 'postgres') rows.push({ label: 'PostgreSQL', value: 'localhost:5432 / lode' })
   if (selection.dozzle) rows.push({ label: 'Dozzle', value: 'http://localhost:8082', url: 'http://localhost:8082' })

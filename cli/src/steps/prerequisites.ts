@@ -76,12 +76,5 @@ export async function checkPrerequisites(): Promise<void> {
     ])
   }
   s.clear()
-  note(
-    [
-      `Docker: ${version}`,
-      'Docker daemon: running',
-      `Docker Compose: ${compose}`
-    ].join('\n'),
-    'Prerequisites'
-  )
+  note([`Docker: ${version}`, 'Docker daemon: running', `Docker Compose: ${compose}`].join('\n'), 'Prerequisites')
 }

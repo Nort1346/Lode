@@ -106,4 +106,3 @@ export async function askSecret(name: string): Promise<string> {
     return askPassword(`Paste your ${name} (Enter to skip)`)
   }
 }
-
