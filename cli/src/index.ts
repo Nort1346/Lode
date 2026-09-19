@@ -1,3 +1,4 @@
+import { showTitleBanner } from './core/banner'
 import { SetupFailure } from './core/errors'
 import { isTty, pauseBeforeExit } from './core/platform'
 import { log, outro } from './core/prompt'
@@ -27,6 +28,7 @@ async function main(): Promise<void> {
     console.error('Run it from a terminal - `curl | bash` and `irm | iex` are handled by the setup scripts.')
     process.exit(1)
   }
+  await showTitleBanner()
   const ctx: StepContext = {
     stateFound: false,
     previousSelection: null,
@@ -54,6 +56,7 @@ async function main(): Promise<void> {
   await startLode(ctx)
   showSummary(ctx)
   outro('Setup complete - enjoy!')
+  await showTitleBanner()
   await pauseBeforeExit()
 }
 
