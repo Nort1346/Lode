@@ -51,7 +51,7 @@ jobs:
 
   build:
     needs: check-nightly
-    if: needs.check-nightly.outputs.run != 'false'
+    if: always() && needs.check-nightly.outputs.run != 'false'
     strategy:
       fail-fast: false
       matrix:
