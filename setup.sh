@@ -13,6 +13,7 @@ set -euo pipefail
 # ----------------------------------------------------------------------
 
 REPO="Nort1346/Lode"
+BASE_URL="${LODE_BASE_URL:-https://github.com/${REPO}}"
 
 die() {
   echo "error: $*" >&2
@@ -34,7 +35,7 @@ esac
 ASSET="lode-setup-${OS}-${ARCH}"
 # releases/latest/download/<asset> redirects to the asset in the current
 # latest release; the tag is recoverable from the Location header.
-ASSET_URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
+ASSET_URL="${BASE_URL}/releases/latest/download/${ASSET}"
 
 TAG="latest"
 LOCATION="$(curl -fsSI "$ASSET_URL" 2>/dev/null | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }' | head -n 1 || true)"
@@ -46,10 +47,38 @@ fi
 CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/lode-setup/${TAG}"
 BIN="${CACHE_DIR}/${ASSET}"
 
+# -- Terminal helpers --------------------------------------------------
+# SGR colors and the OSC 8 hyperlink are dropped for NO_COLOR,
+# TERM=dumb, and non-terminal output, so logs stay clean.
+
+if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ] || [ ! -t 1 ]; then
+  CYAN=''
+else
+  CYAN='\033[0;36m'
+fi
+
+hyperlink() {
+  if [ -n "$CYAN" ]; then
+    printf '\033]8;;%s\007%s\033]8;;\007' "$1" "${2:-$1}"
+  else
+    printf '%s' "${2:-$1}"
+  fi
+}
+
 if [ ! -x "$BIN" ]; then
-  echo "Downloading ${ASSET} (${TAG})..."
+  if [ -n "$CYAN" ]; then
+    printf 'Downloading \033[0;36m%s\033[0m (%s)...\n' "$(hyperlink "$ASSET_URL" "$ASSET")" "$TAG"
+  else
+    printf 'Downloading %s (%s)...\n' "$ASSET" "$TAG"
+  fi
   mkdir -p "$CACHE_DIR"
-  curl -fsSL -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
+  if [ -t 2 ] && [ "${TERM:-}" != "dumb" ]; then
+    # Single-line progress bar. curl only draws it on a TTY, so CI and
+    # logs see the quiet path below; the bar never throttles the transfer.
+    curl -fsSL --progress-bar -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
+  else
+    curl -fsSL -sS -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
+  fi
   chmod +x "${BIN}.tmp"
   mv -f "${BIN}.tmp" "$BIN"
 fi
