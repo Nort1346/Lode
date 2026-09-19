@@ -3,7 +3,7 @@ import { compose, dcCmdPrefix, logsTail, serviceRunning } from '../core/docker'
 import { SetupFailure } from '../core/errors'
 import { readEnvValue, updateEnv } from '../core/env'
 import { hyperlink } from '../core/hyperlink'
-import { log, stepHeader, withSpinner } from '../core/prompt'
+import { spinner, stepHeader } from '../core/prompt'
 import { sleep, waitForPort } from '../core/ports'
 import type { StepContext } from '../types'
 
@@ -49,26 +49,30 @@ export async function startLode(ctx: StepContext): Promise<void> {
     updateEnv(dir, ENV_FILE, ENV_KEYS.databaseUrl, `postgresql://lode:${pgPass}@postgres:5432/lode`)
   }
 
-  log.info('Starting Lode...')
-  await withSpinner('Starting Lode container...', () => compose(files, 'up', '-d', 'lode'))
+  // One spinner carries start + wait; it stops on the single completion line.
+  const s = spinner()
+  s.start('Starting Lode container...')
+  await compose(files, 'up', '-d', 'lode')
   if (!(await serviceRunning(files, 'lode'))) {
+    s.clear()
     throw new SetupFailure('Lode container failed to start.', [
       `Check logs:  ${dcCmdPrefix(files)} logs lode`,
       `To retry:    ${dcCmdPrefix(files)} up -d lode`
     ])
   }
+  s.message('Waiting for Lode to start (first start may take 1-2 minutes)...')
+  await waitForPort('localhost', PORTS.lode, PORT_TIMEOUTS.lode, {
+    onTick: (attempt, maxAttempts) => s.message(`Waiting for Lode... (${attempt}/${maxAttempts})`)
+  })
+  s.stop(`Lode is running at ${hyperlink('http://localhost:5757')}`)
 
-  log.info('Waiting for Lode to start (first start may take 1-2 minutes)...')
-  await withSpinner('Waiting for Lode on port 5757...', (update) =>
-    waitForPort('localhost', PORTS.lode, PORT_TIMEOUTS.lode, {
-      onTick: (attempt, maxAttempts) => update(`Waiting for Lode... (${attempt}/${maxAttempts})`)
-    })
-  )
-  log.success(`Lode is running at ${hyperlink('http://localhost:5757')}`)
-
+  // The admin password is printed once on first start; poll the logs until it appears.
+  const credentials = spinner()
+  credentials.start('Retrieving admin credentials...')
   for (let retry = 0; retry < 5; retry++) {
     ctx.adminPass = extractAdminPassword(await logsTail(files, 'lode', 200))
     if (ctx.adminPass) break
     await sleep(2000)
   }
+  credentials.stop(ctx.adminPass ? 'Admin credentials ready' : 'Admin password not in logs yet')
 }

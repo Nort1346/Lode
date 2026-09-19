@@ -3,7 +3,7 @@ import { REPO_RAW } from '../constants'
 import { maskLodeImageTag } from '../core/compose'
 import { downloadFile } from '../core/download'
 import { SetupFailure } from '../core/errors'
-import { askConfirm, log, stepHeader, withSpinner } from '../core/prompt'
+import { askConfirm, log, spinner, stepHeader } from '../core/prompt'
 import type { StepContext } from '../types'
 
 export async function downloadComposeFiles(ctx: StepContext): Promise<void> {
@@ -12,14 +12,17 @@ export async function downloadComposeFiles(ctx: StepContext): Promise<void> {
   const missing = ctx.composeFiles.filter((file) => !existsSync(file))
 
   for (const file of missing) {
+    const dl = spinner()
+    dl.start(`Downloading ${file}...`)
     try {
-      await withSpinner(`Downloading ${file}...`, () => downloadFile(`${REPO_RAW}/${file}`, file))
+      await downloadFile(`${REPO_RAW}/${file}`, file)
     } catch {
+      dl.clear()
       throw new SetupFailure(`Failed to download ${file} from GitHub.`, [
         '  Check your internet connection and try again.'
       ])
     }
-    log.success(`${file} downloaded`)
+    dl.stop(`${file} downloaded`)
   }
 
   if (existing.length === 0) return

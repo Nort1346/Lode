@@ -28,7 +28,7 @@ async function main(): Promise<void> {
     console.error('Run it from a terminal - `curl | bash` and `irm | iex` are handled by the setup scripts.')
     process.exit(1)
   }
-  await showTitleBanner()
+  await showTitleBanner(true, true)
   const ctx: StepContext = {
     stateFound: false,
     previousSelection: null,
@@ -54,9 +54,8 @@ async function main(): Promise<void> {
   await tmdbApiKey()
   await discordWebhook()
   await startLode(ctx)
-  showSummary(ctx)
+  await showSummary(ctx)
   outro('Setup complete - enjoy!')
-  await showTitleBanner()
   await pauseBeforeExit()
 }
 

@@ -3,6 +3,8 @@ import type { CommandResult } from '../types'
 
 interface RunOptions {
   cwd?: string
+  /** Called for each complete line of stdout/stderr as it arrives (raw output stays captured). */
+  onLine?: (line: string) => void
 }
 
 // Never throws: spawn failures (ENOENT, etc.) resolve with code 127 so callers
@@ -12,12 +14,24 @@ export function run(command: string, args: readonly string[] = [], options: RunO
     let stdout = ''
     let stderr = ''
     let settled = false
+    const outPending = { text: '' }
+    const errPending = { text: '' }
+    const feed = (pending: { text: string }, text: string) => {
+      pending.text += text
+      const parts = pending.text.split(/[\r\n]+/)
+      pending.text = parts.pop() ?? ''
+      if (options.onLine) for (const line of parts) options.onLine(line)
+    }
     const child = spawn(command, args, { cwd: options.cwd })
     child.stdout.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString()
+      const text = chunk.toString()
+      stdout += text
+      feed(outPending, text)
     })
     child.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString()
+      const text = chunk.toString()
+      stderr += text
+      feed(errPending, text)
     })
     child.on('error', (error: NodeJS.ErrnoException) => {
       if (settled) return
@@ -27,6 +41,10 @@ export function run(command: string, args: readonly string[] = [], options: RunO
     child.on('close', (code) => {
       if (settled) return
       settled = true
+      if (options.onLine) {
+        if (outPending.text) options.onLine(outPending.text)
+        if (errPending.text) options.onLine(errPending.text)
+      }
       resolve({ code: code ?? 1, stdout, stderr })
     })
   })

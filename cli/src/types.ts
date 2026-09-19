@@ -65,6 +65,20 @@ export interface CommandResult {
 export interface SummaryRow {
   label: string
   value: string
-  /** http(s) values are rendered as OSC 8 hyperlinks. */
-  url?: string
+}
+
+export interface DeselectionCheck {
+  service: string
+  stateKey: keyof SetupSelection
+  activeValue: string
+}
+
+export interface WaitPhase {
+  label: string
+  run: (update: (msg: string) => void) => Promise<void>
+}
+
+export interface ComposeProgress {
+  image?: string
+  stage?: string
 }

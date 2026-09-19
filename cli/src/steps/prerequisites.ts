@@ -3,7 +3,7 @@ import { checkDaemon, composeVersion, dockerVersion } from '../core/docker'
 import { SetupFailure } from '../core/errors'
 import { run } from '../core/exec'
 import { hyperlink } from '../core/hyperlink'
-import { log, stepHeader, withSpinner } from '../core/prompt'
+import { note, spinner, stepHeader } from '../core/prompt'
 
 function dockerInstallHints(): string[] {
   switch (process.platform) {
@@ -47,21 +47,27 @@ async function daemonHints(permissionDenied: boolean): Promise<string[]> {
 export async function checkPrerequisites(): Promise<void> {
   stepHeader(1, 'Checking prerequisites')
 
-  const version = await withSpinner('Checking Docker...', dockerVersion)
-  if (version === null) throw new SetupFailure('Docker is not installed.', dockerInstallHints())
-  log.success(`Docker ${version}`)
-
-  const daemon = await withSpinner('Checking Docker daemon...', checkDaemon)
+  // One spinner covers all three checks; results are reported in a single box.
+  const s = spinner()
+  s.start('Checking Docker...')
+  const version = await dockerVersion()
+  if (version === null) {
+    s.clear()
+    throw new SetupFailure('Docker is not installed.', dockerInstallHints())
+  }
+  s.message('Checking Docker daemon...')
+  const daemon = await checkDaemon()
   if (!daemon.reachable) {
+    s.clear()
     throw new SetupFailure('Docker daemon is not running or not reachable from this shell.', [
       ...daemon.errorLines.map((line) => `    ${line}`),
       ...(await daemonHints(daemon.permissionDenied))
     ])
   }
-  log.success('Docker daemon running')
-
-  const compose = await withSpinner('Checking Docker Compose...', composeVersion)
+  s.message('Checking Docker Compose...')
+  const compose = await composeVersion()
   if (compose === null) {
+    s.clear()
     throw new SetupFailure('Docker Compose plugin is not installed.', [
       '  macOS/Windows: install or update Docker Desktop',
       `    ${hyperlink(DOCS_LINKS.dockerGeneric)}`,
@@ -69,5 +75,13 @@ export async function checkPrerequisites(): Promise<void> {
       `    ${hyperlink(DOCS_LINKS.composeLinux)}`
     ])
   }
-  log.success(`Docker Compose ${compose}`)
+  s.clear()
+  note(
+    [
+      `Docker: ${version}`,
+      'Docker daemon: running',
+      `Docker Compose: ${compose}`
+    ].join('\n'),
+    'Prerequisites'
+  )
 }

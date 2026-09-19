@@ -1,5 +1,7 @@
+import { styleText } from 'node:util'
 import {
   CANCEL_SYMBOL,
+  box,
   cancel,
   confirm,
   isCancel,
@@ -7,11 +9,10 @@ import {
   multiselect,
   note,
   password,
+  S_WARN,
   select,
-  spinner,
   text
 } from '@clack/prompts'
-import type { SpinnerResult } from '@clack/prompts'
 import { TOTAL_STEPS } from '../constants'
 import type { PromptOption } from '../types'
 import { clipboardAvailable, readClipboard } from './clipboard'
@@ -24,6 +25,13 @@ export function stepHeader(step: number, title: string): void {
 
 export function instructions(title: string, lines: readonly string[]): void {
   note(lines.join('\n'), title)
+}
+
+// Bordered warning block: yellow border + warning icon. note() has no warning
+// variant, and box() wraps long lines so the border stays aligned.
+export function warningBox(message: string, title: string): void {
+  const yellow = (s: string) => styleText('yellow', s)
+  box(message, yellow(`${S_WARN} ${title}`), { width: 'auto', formatBorder: yellow })
 }
 
 // Esc at any prompt aborts the whole setup (parity with the old scripts: print and exit 0).
@@ -99,15 +107,3 @@ export async function askSecret(name: string): Promise<string> {
   }
 }
 
-export async function withSpinner<T>(
-  message: string,
-  task: (update: (message: string) => void) => Promise<T>
-): Promise<T> {
-  const active: SpinnerResult = spinner()
-  active.start(message)
-  try {
-    return await task((next) => active.message(next))
-  } finally {
-    active.stop('')
-  }
-}

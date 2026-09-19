@@ -1,5 +1,5 @@
 import { LODE_IMAGE } from '../constants'
-import type { ComposeFileName } from '../types'
+import type { CommandResult, ComposeFileName } from '../types'
 import { run } from './exec'
 
 export function composeFileArgs(files: readonly ComposeFileName[]): string[] {
@@ -11,6 +11,15 @@ export function composeFileArgs(files: readonly ComposeFileName[]): string[] {
 
 export function compose(files: readonly ComposeFileName[], ...args: string[]) {
   return run('docker', ['compose', ...composeFileArgs(files), ...args])
+}
+
+// Runs compose and reports each output line to onLine; raw output stays captured.
+export function composeOnLine(
+  files: readonly ComposeFileName[],
+  args: readonly string[],
+  onLine: (line: string) => void
+): Promise<CommandResult> {
+  return run('docker', ['compose', ...composeFileArgs(files), ...args], { onLine })
 }
 
 // Copy-pasteable prefix for manual-command hints.

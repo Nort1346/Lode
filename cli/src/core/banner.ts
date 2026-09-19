@@ -4,7 +4,7 @@ function colorDisabled(): boolean {
   return process.env.NO_COLOR !== undefined || process.env.TERM === 'dumb'
 }
 
-export async function showTitleBanner(): Promise<void> {
+export async function showTitleBanner(leadingBreak = false, trailingBreak = false): Promise<void> {
   if (process.stdout.isTTY !== true) return
   // cfonts bundles every font it ships; defer the cost until it is actually needed.
   const { render } = await import('cfonts')
@@ -15,5 +15,5 @@ export async function showTitleBanner(): Promise<void> {
     ? { font: 'block', align: 'left', spaceless: true }
     : { font: 'block', gradient: [...GRADIENT], transitionGradient: true, align: 'left', spaceless: true }
   const out = render('Lode', settings, false, 0, { width, height: 30 })
-  if (out) process.stdout.write(out.string + '\n')
+  if (out) process.stdout.write((leadingBreak ? '\n' : '') + out.string + '\n' + (trailingBreak ? '\n' : ''))
 }
