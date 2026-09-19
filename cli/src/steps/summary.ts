@@ -1,6 +1,5 @@
 import { copyToClipboardOsc52 } from '../core/clipboard'
 import { showTitleBanner } from '../core/banner'
-import { dcCmdPrefix } from '../core/docker'
 import { hyperlink } from '../core/hyperlink'
 import { note, warningBox } from '../core/prompt'
 import type { StepContext, SummaryRow } from '../types'
@@ -30,8 +29,8 @@ function buildRows(ctx: StepContext): SummaryRow[] {
   return rows
 }
 
-export async function showSummary(ctx: StepContext): Promise<void> {
-  await showTitleBanner(true)
+export function showSummary(ctx: StepContext): void {
+  showTitleBanner(true)
 
   // BEL-terminated hyperlinks measure at their visible width, so the note border stays aligned.
   const rows = buildRows(ctx).map((row) => `  ${row.label.padEnd(18)} ${row.url ? hyperlink(row.value) : row.value}`)
@@ -43,7 +42,7 @@ export async function showSummary(ctx: StepContext): Promise<void> {
     cred.push(`  Password:  ${ctx.adminPass}`)
     cred.push('  (copied to clipboard - this replaces your previous contents)')
   } else {
-    cred.push(`  Password:  check '${dcCmdPrefix(ctx.composeFiles)} logs lode'`)
+    cred.push(`  Password:  check 'docker compose logs lode'`)
   }
   note(cred.join('\n'), 'Login')
   warningBox('Change this password after your first login.', 'Password')

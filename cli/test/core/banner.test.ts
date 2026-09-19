@@ -36,33 +36,33 @@ afterEach(() => {
 })
 
 describe('showTitleBanner', () => {
-  it('prints nothing when stdout is not a TTY', async () => {
+  it('prints nothing when stdout is not a TTY', () => {
     setStdout(false, undefined)
-    await showTitleBanner()
+    showTitleBanner()
     expect(written).toHaveLength(0)
   })
 
-  it('prints the colored block banner on a TTY', async () => {
+  it('prints the colored block banner on a TTY', () => {
     setStdout(true, 100)
-    await showTitleBanner()
+    showTitleBanner()
     const out = firstWritten()
     expect(out).toContain(BLOCK)
     expect(out.includes(ESC)).toBe(true)
   })
 
-  it('prints a monochrome banner when NO_COLOR is set', async () => {
+  it('prints a monochrome banner when NO_COLOR is set', () => {
     process.env.NO_COLOR = ''
     setStdout(true, 100)
-    await showTitleBanner()
+    showTitleBanner()
     const out = firstWritten()
     expect(out).toContain(BLOCK)
     expect(out.includes(ESC)).toBe(false)
   })
 
-  it('prints a monochrome banner when TERM=dumb', async () => {
+  it('prints a monochrome banner when TERM=dumb', () => {
     process.env.TERM = 'dumb'
     setStdout(true, 100)
-    await showTitleBanner()
+    showTitleBanner()
     const out = firstWritten()
     expect(out).toContain(BLOCK)
     expect(out.includes(ESC)).toBe(false)
