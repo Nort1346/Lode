@@ -5,6 +5,27 @@ All notable changes to Lode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.3] - 2026-09-19
+
+A cross-platform TypeScript setup CLI (`lode-setup`) replaces the shell installers, alongside Docker/CI workflow fixes and a browse empty-state refinement.
+
+### Added
+
+- Cross-platform setup CLI (`lode-setup`): a TypeScript + @clack/prompts app compiled to standalone native binaries (Windows, macOS, Linux; x64 + arm64) that replaces the `setup.sh` / `setup.ps1` shell installers. The scripts are now thin bootstraps that download the matching binary from the latest release and run it, so no shell tooling is required on the target machine
+- Lode title banner (amber gradient) at the start and end of setup
+
+### Changed
+
+- Setup: live progress spinners for Docker pull/up, readiness waits, and admin-credential retrieval, with warning callouts for required post-install steps
+- README: repositioned around the simple direct-download workflow; tagline refreshed and download controls documented
+- Browse: "no results" empty state now rotates its phrasing on each search
+
+### Fixed
+
+- Setup: clickable-link summary boxes keep aligned borders (BEL-terminated OSC 8 hyperlinks), and the password hint shows the simpler `docker compose logs lode`
+- CI: dropped invalid `imagetools rm` steps that never existed
+- CI/Docker: rewrote the docker workflow to use a native arm64 runner and add timeouts
+
 ## [1.0.2] - 2026-09-14
 
 Per-language torrent ranking profiles, a dedicated checking status for qBittorrent verification, Docker/CI hardening, setup script v1.1 with clickable installer URLs and auto-copied credentials, and disk-space enforcement that checks the target disk before and after adding torrents.

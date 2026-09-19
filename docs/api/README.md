@@ -80,7 +80,7 @@ GET /api/health
 {
   "status": "healthy",
   "database": "ok",
-  "version": "1.0.2"
+  "version": "1.0.3"
 }
 ```
 

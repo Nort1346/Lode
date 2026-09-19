@@ -1,6 +1,6 @@
 {
   "name": "lode",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": false,
   "description": "Self-hosted streaming hub for managing torrent downloads. Browse movies and TV shows via TMDB, rank torrents, and download with one click.",
   "repository": {
