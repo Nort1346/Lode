@@ -2,7 +2,6 @@ import { ENV_FILE, ENV_KEYS, INTERNAL_URLS, PORTS, PORT_TIMEOUTS } from '../cons
 import { compose, dcCmdPrefix, logsTail, serviceRunning } from '../core/docker'
 import { SetupFailure } from '../core/errors'
 import { readEnvValue, updateEnv } from '../core/env'
-import { hyperlink } from '../core/hyperlink'
 import { spinner, stepHeader } from '../core/prompt'
 import { sleep, waitForPort } from '../core/ports'
 import type { StepContext } from '../types'
@@ -64,7 +63,8 @@ export async function startLode(ctx: StepContext): Promise<void> {
   await waitForPort('localhost', PORTS.lode, PORT_TIMEOUTS.lode, {
     onTick: (attempt, maxAttempts) => s.message(`Waiting for Lode... (${attempt}/${maxAttempts})`)
   })
-  s.stop(`Lode is running at ${hyperlink('http://localhost:5757')}`)
+  // The URL itself goes into the summary table below - no need to repeat it here.
+  s.stop('Lode started')
 
   // The admin password is printed once on first start; poll the logs until it appears.
   const credentials = spinner()

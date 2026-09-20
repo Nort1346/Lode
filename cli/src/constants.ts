@@ -91,6 +91,21 @@ export const OPTION_LABELS = {
   dozzle: 'Dozzle - Docker log viewer'
 } as const
 
+export const SERVICE_DISPLAY_NAMES: Record<string, string> = {
+  lode: 'Lode',
+  redis: 'Redis',
+  postgres: 'PostgreSQL',
+  qbittorrent: 'qBittorrent',
+  prowlarr: 'Prowlarr',
+  jellyfin: 'Jellyfin',
+  flaresolverr: 'FlareSolverr',
+  dozzle: 'Dozzle'
+}
+
+export function serviceDisplayName(service: string): string {
+  return SERVICE_DISPLAY_NAMES[service] ?? service.charAt(0).toUpperCase() + service.slice(1)
+}
+
 export function composeFilesFor(selection: SetupSelection): ComposeFileName[] {
   const files: ComposeFileName[] = ['docker-compose.yml']
   if (selection.dbDriver === 'postgres') files.push('docker-compose.postgres.yml')

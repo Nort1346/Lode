@@ -80,11 +80,6 @@ export interface WaitPhase {
   run: (update: (msg: string) => void) => Promise<void>
 }
 
-export interface ComposeProgress {
-  image?: string
-  stage?: string
-}
-
 export interface RunOptions {
   cwd?: string
   /** Called for each complete line of stdout/stderr as it arrives (raw output stays captured). */

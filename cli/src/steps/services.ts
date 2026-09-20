@@ -12,8 +12,8 @@ import {
 import { SetupFailure } from '../core/errors'
 import { askConfirm, log, spinner, stepHeader } from '../core/prompt'
 import { sleep, waitForPort } from '../core/ports'
-import { infraServicesFor, LODE_IMAGE, PORTS, PORT_TIMEOUTS } from '../constants'
-import type { ComposeProgress, DeselectionCheck, StepContext, WaitPhase } from '../types'
+import { infraServicesFor, LODE_IMAGE, PORTS, PORT_TIMEOUTS, serviceDisplayName } from '../constants'
+import type { DeselectionCheck, StepContext, WaitPhase } from '../types'
 
 const QBIT_TEMP_PASSWORD = /A temporary password is provided for this session:\s*(\S+)/g
 
@@ -23,10 +23,10 @@ export function extractQbitTempPassword(logs: string): string {
   return last
 }
 
+// Compose >= 5 prints "<id> <stage> <size>" (no colon); older versions and
+// docker pull use "<id>: <stage>". Both map to the same stage label.
 const LAYER_STAGE =
-  /^([0-9a-f]{6,64}): (Pulling fs layer|Waiting|Downloading|Download complete|Verifying Checksum|Extracting|Pull complete|Mounted from cache)/
-const IMAGE_STATUS = /^(\S+) (Pulling|Pulled)\b/
-const IMAGE_PULLING = /^Pulling (\S+)/
+  /^[0-9a-f]{6,64}:? (Pulling fs layer|Waiting|Downloading|Download complete|Verifying Checksum|Extracting|Pull complete|Mounted from cache)\b/
 
 const STAGE_LABELS: Record<string, string> = {
   'Pulling fs layer': 'pulling',
@@ -39,20 +39,11 @@ const STAGE_LABELS: Record<string, string> = {
   'Mounted from cache': 'cached'
 }
 
-// Maps a raw docker compose pull line to a clean { image, stage } for the spinner.
-function parseComposeProgress(line: string): ComposeProgress | null {
-  const trimmed = line.trim()
-  if (!trimmed) return null
-  const layer = LAYER_STAGE.exec(trimmed)
-  const rawStage = layer?.[2]
-  if (rawStage) return { stage: STAGE_LABELS[rawStage] ?? rawStage.toLowerCase() }
-  const status = IMAGE_STATUS.exec(trimmed)
-  if (status?.[1] && status[2]) {
-    return { image: status[1], stage: status[2] === 'Pulled' ? 'pulled' : 'pulling' }
-  }
-  const pulling = IMAGE_PULLING.exec(trimmed)
-  if (pulling?.[1]) return { image: pulling[1], stage: 'pulling' }
-  return null
+// Maps a raw docker compose pull line to a stage label for the spinner, or
+// null when the line carries no progress info (image status lines, noise).
+export function parseComposeProgress(line: string): string | null {
+  const stage = LAYER_STAGE.exec(line.trim())?.[1]
+  return stage ? STAGE_LABELS[stage] ?? stage.toLowerCase() : null
 }
 
 const DESELECTION_CHECKS: readonly DeselectionCheck[] = [
@@ -109,27 +100,44 @@ export async function startServices(ctx: StepContext): Promise<void> {
 
   const services = infraServicesFor(selection)
 
-  // One spinner covers pull + up; docker's raw layer output is parsed into a clean
-  // "image: stage" message instead of being dumped to the terminal.
-  const pull = spinner()
-  pull.start('Pulling images...')
-  let image = ''
-  await composeOnLine(files, ['pull'], (line) => {
-    const progress = parseComposeProgress(line)
-    if (!progress) return
-    if (progress.image) image = progress.image
-    if (progress.stage) pull.message(`${image ? `${image}: ` : ''}${progress.stage}`)
-  })
+  // Pull one service at a time: the plain (non-TTY) pull stream does not reliably
+  // tie layer lines to an image, so the spinner gets its name from the loop and
+  // only the stage is parsed out of the output. Lode goes first - it is the
+  // critical image, so its pull failure surfaces early.
+  const pullServices = ['lode', ...services]
+  for (const service of pullServices) {
+    const name = serviceDisplayName(service)
+    const pull = spinner()
+    pull.start(`Pulling ${name}...`)
+    let lastStage = ''
+    const result = await composeOnLine(files, ['pull', service], (line) => {
+      const stage = parseComposeProgress(line)
+      if (stage && stage !== lastStage) {
+        lastStage = stage
+        pull.message(`${name}: ${stage}`)
+      }
+    })
+    if (result.code !== 0) {
+      pull.clear()
+      throw new SetupFailure(`Failed to pull ${name}. Check your network and try again.`, [
+        `You can also try manually: ${dcCmdPrefix(files)} pull ${service}`
+      ])
+    }
+    pull.stop(`${name} ready`)
+  }
   if (!(await imageExists(selection.imageTag))) {
-    pull.clear()
     throw new SetupFailure(
       `Failed to pull the Lode image (${LODE_IMAGE}:${selection.imageTag}). Check your network and try again.`,
       [`You can also try manually: ${dcCmdPrefix(files)} pull lode`]
     )
   }
-  pull.message('Starting selected services...')
+
+  const up = spinner()
+  up.start('Starting selected services...')
   await compose(files, 'up', '-d', ...services)
-  pull.stop('Services started')
+  // Clear instead of stop: the readiness wait below prints the single success
+  // line, and clack log output would be wiped while a spinner is still active.
+  up.clear()
 
   const failed: string[] = []
   for (const service of services) {
@@ -160,7 +168,8 @@ export async function startServices(ctx: StepContext): Promise<void> {
     log.warn('Jellyfin not running - you can configure it later (step 10)')
   }
 
-  // One spinner carries the whole readiness wait; its message moves with each phase.
+  // One spinner carries the whole readiness wait and stops on the single
+  // success line, so the started/running status is never printed twice.
   const phases: WaitPhase[] = [portWaitPhase('Redis', PORTS.redis, PORT_TIMEOUTS.redis)]
   if (selection.qbittorrent === 'local') {
     phases.push(portWaitPhase('qBittorrent', PORTS.qbittorrent, PORT_TIMEOUTS.qbittorrent))
@@ -195,5 +204,5 @@ export async function startServices(ctx: StepContext): Promise<void> {
     }
     await phase.run((msg) => waitSpinner.message(msg))
   }
-  waitSpinner.stop('Selected services are running')
+  waitSpinner.stop('Selected services are up and running')
 }
