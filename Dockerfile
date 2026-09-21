@@ -59,6 +59,9 @@ WORKDIR /app
 # Built server output
 COPY --link --from=build --chown=1001:1001 /app/.output ./.output
 
+# Static assets - the Discord webhook reads the fallback poster from /app/public
+COPY --link --from=build --chown=1001:1001 /app/public ./public
+
 # Production node_modules (prebuilt native binaries  trixie-slim ships GLIBC 2.40+)
 COPY --link --from=deps --chown=1001:1001 /app/node_modules ./node_modules
 

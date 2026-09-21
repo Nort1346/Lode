@@ -232,6 +232,17 @@ describe('notifications/discord', () => {
       expect(body.files).toHaveLength(1)
     })
 
+    it('sends the webhook without attachment when the fallback poster is missing', async () => {
+      stubSettingsDb({})
+      mockReadFile.mockRejectedValue(Object.assign(new Error('ENOENT: no such file or directory'), { code: 'ENOENT' }))
+
+      await expect(sendDownloadCompleteWebhook(makeDownloadData())).resolves.toBeUndefined()
+
+      expect(mockRestPost).toHaveBeenCalledTimes(1)
+      const [, options] = mockRestPost.mock.calls[0] as unknown as [string, { files: unknown[] }]
+      expect(options.files).toEqual([])
+    })
+
     it('uses the TMDB poster and metadata when available', async () => {
       stubSettingsDb({})
       mockGetMovieDetails.mockResolvedValue({

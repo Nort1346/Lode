@@ -156,8 +156,15 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
     const url = tmdb.posterUrl
     container.addMediaGalleryComponents((media) => media.addItems((item) => item.setURL(url)))
   } else {
-    posterFile = await readFile(FALLBACK_POSTER_PATH)
-    container.addMediaGalleryComponents((media) => media.addItems((item) => item.setURL(FALLBACK_POSTER_REF)))
+    try {
+      posterFile = await readFile(FALLBACK_POSTER_PATH)
+      container.addMediaGalleryComponents((media) => media.addItems((item) => item.setURL(FALLBACK_POSTER_REF)))
+    } catch (err: unknown) {
+      log.warn(
+        err instanceof Error ? err : new Error(String(err)),
+        'fallback poster unavailable, sending webhook without attachment'
+      )
+    }
   }
 
   if (description.length > 0) {
