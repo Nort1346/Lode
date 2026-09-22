@@ -116,14 +116,26 @@ export default defineEventHandler(async (event) => {
       log.info(
         `Searching: show="${show.name}" original="${show.original_name}" season=${seasonNumber} imdb=${imdbId ?? 'none'}`
       )
-      rawTorrents = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, seasonNumber, [
-        PROWLARR_CATEGORIES.TV
-      ], altTitles)
+      rawTorrents = await prowlarr.searchTv(
+        show.name,
+        show.original_name,
+        year,
+        imdbId,
+        seasonNumber,
+        [PROWLARR_CATEGORIES.TV],
+        altTitles
+      )
       if (rawTorrents.length === 0 && show.original_name !== show.name) {
         log.info(`Retrying with original name: "${show.original_name}"`)
-        rawTorrents = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, seasonNumber, [
-          PROWLARR_CATEGORIES.TV
-        ], altTitles)
+        rawTorrents = await prowlarr.searchTv(
+          show.original_name,
+          show.name,
+          year,
+          imdbId,
+          seasonNumber,
+          [PROWLARR_CATEGORIES.TV],
+          altTitles
+        )
       }
       log.info(`Prowlarr returned ${rawTorrents.length} results`)
     } catch (err) {

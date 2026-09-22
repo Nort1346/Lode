@@ -45,13 +45,25 @@ export default defineEventHandler(async (event) => {
         [show.name, show.original_name],
         locale
       )
-      let rawResults = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, null, [
-        PROWLARR_CATEGORIES.TV
-      ], altTitles)
+      let rawResults = await prowlarr.searchTv(
+        show.name,
+        show.original_name,
+        year,
+        imdbId,
+        null,
+        [PROWLARR_CATEGORIES.TV],
+        altTitles
+      )
       if (rawResults.length === 0 && show.original_name !== show.name) {
-        rawResults = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, null, [
-          PROWLARR_CATEGORIES.TV
-        ], altTitles)
+        rawResults = await prowlarr.searchTv(
+          show.original_name,
+          show.name,
+          year,
+          imdbId,
+          null,
+          [PROWLARR_CATEGORIES.TV],
+          altTitles
+        )
       }
       torrents = rankTorrents(rawResults, 'series', show.name, year, rankingConfig)
     } catch {

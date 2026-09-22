@@ -335,9 +335,7 @@ describe('ProwlarrClient', () => {
 
   it('skips the queued ladder query once a healthy set arrives', async () => {
     mockCacheGet.mockResolvedValue(null)
-    mockFetch.mockResolvedValue(
-      okJson([1, 2, 3, 4, 5].map((i) => release({ title: `R${i}`, size: i * 10 })))
-    )
+    mockFetch.mockResolvedValue(okJson([1, 2, 3, 4, 5].map((i) => release({ title: `R${i}`, size: i * 10 }))))
     const client = new ProwlarrClient('http://p', 'k')
 
     const results = await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt'])
@@ -356,9 +354,7 @@ describe('ProwlarrClient', () => {
 
     await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt'])
 
-    const queries = mockFetch.mock.calls.map(
-      (call) => new URL(String(call[0])).searchParams.get('query') ?? ''
-    )
+    const queries = mockFetch.mock.calls.map((call) => new URL(String(call[0])).searchParams.get('query') ?? '')
     // per-name cap keeps most-specific + bare name; the total cap keeps the
     // first 4 (the alt-title tier is cut)
     expect(queries).toEqual(['Show S01 2020', 'Show', 'Orig S01 2020', 'Orig'])
@@ -376,9 +372,7 @@ describe('ProwlarrClient', () => {
 
     // 3 names x 2 tiers = 6 queries -> capped to 4: the alt-title tier is the
     // first to go, the top names keep both of their queries
-    const queries = mockFetch.mock.calls.map(
-      (call) => new URL(String(call[0])).searchParams.get('query') ?? ''
-    )
+    const queries = mockFetch.mock.calls.map((call) => new URL(String(call[0])).searchParams.get('query') ?? '')
     expect(queries).toEqual(['Movie 2020', 'Movie', 'Original Movie 2020', 'Original Movie'])
     expect(results.map((r) => r.title)).toEqual(
       expect.arrayContaining(['Hit:Movie 2020', 'Hit:Movie', 'Hit:Original Movie 2020', 'Hit:Original Movie'])
@@ -395,9 +389,7 @@ describe('ProwlarrClient', () => {
 
     const results = await client.searchMovie('Movie', 'Movie', ['Alt Movie'], '2020', [2000])
 
-    const queries = mockFetch.mock.calls.map(
-      (call) => new URL(String(call[0])).searchParams.get('query') ?? ''
-    )
+    const queries = mockFetch.mock.calls.map((call) => new URL(String(call[0])).searchParams.get('query') ?? '')
     expect(queries).toEqual(['Movie 2020', 'Movie', 'Alt Movie 2020', 'Alt Movie'])
     expect(results.map((r) => r.title)).toEqual(
       expect.arrayContaining(['Hit:Movie 2020', 'Hit:Movie', 'Hit:Alt Movie 2020', 'Hit:Alt Movie'])
@@ -458,9 +450,7 @@ describe('ProwlarrClient', () => {
 
   it('backs off on 429 and retries once', async () => {
     mockCacheGet.mockResolvedValue(null)
-    mockFetch
-      .mockResolvedValueOnce(rateLimited('0'))
-      .mockResolvedValueOnce(okJson([release({ title: 'R', size: 1 })]))
+    mockFetch.mockResolvedValueOnce(rateLimited('0')).mockResolvedValueOnce(okJson([release({ title: 'R', size: 1 })]))
     const client = new ProwlarrClient('http://p', 'k')
 
     const results = await client.searchByQuery('X')

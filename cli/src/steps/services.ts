@@ -43,7 +43,7 @@ const STAGE_LABELS: Record<string, string> = {
 // null when the line carries no progress info (image status lines, noise).
 export function parseComposeProgress(line: string): string | null {
   const stage = LAYER_STAGE.exec(line.trim())?.[1]
-  return stage ? STAGE_LABELS[stage] ?? stage.toLowerCase() : null
+  return stage ? (STAGE_LABELS[stage] ?? stage.toLowerCase()) : null
 }
 
 const DESELECTION_CHECKS: readonly DeselectionCheck[] = [
