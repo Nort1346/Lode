@@ -79,6 +79,7 @@
             :year="item.year"
             :rating="item.rating"
             :in-library="item.inLibrary"
+            :genres="genreLabelsFor(item.type, item.genres)"
             @click="goToItem(item)"
           />
         </TransitionGroup>
@@ -282,6 +283,16 @@ function toggleGenre(id: number) {
   } else {
     searchParams.genres.push(id)
   }
+}
+
+// Maps raw TMDB genre IDs from search results to localized chip labels
+function genreLabelsFor(type: 'movie' | 'tv', genreIds: string[]): string[] {
+  const labels: string[] = []
+  for (const gid of genreIds) {
+    const g = allGenres.find((x) => (type === 'movie' ? x.movieId : x.tvId) === Number(gid))
+    if (g) labels.push(t(g.label))
+  }
+  return labels
 }
 
 function buildGenreParams() {

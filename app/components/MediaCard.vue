@@ -45,7 +45,16 @@
       <div
         class="absolute right-0 bottom-0 left-0 p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
       >
-        <p class="line-clamp-2 text-sm text-white">{{ overview }}</p>
+        <div v-if="hasGenres" class="flex flex-wrap gap-1">
+          <span
+            v-for="g in topGenres"
+            :key="g"
+            class="rounded-md bg-white/20 px-1.5 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-sm"
+          >
+            {{ g }}
+          </span>
+        </div>
+        <p v-else class="line-clamp-2 text-sm text-white">{{ overview }}</p>
       </div>
     </div>
 
@@ -59,7 +68,7 @@
 <script setup lang="ts">
 const { t } = useI18n()
 
-defineProps<{
+const props = defineProps<{
   id: number
   type: 'movie' | 'tv'
   title: string
@@ -68,11 +77,15 @@ defineProps<{
   year: string
   rating: number
   inLibrary: boolean
+  genres?: string[]
 }>()
 
 defineEmits<{
   click: []
 }>()
+
+const topGenres = computed(() => (props.genres ?? []).slice(0, 3))
+const hasGenres = computed(() => topGenres.value.length > 0)
 
 const cardRef = ref<HTMLElement | null>(null)
 
