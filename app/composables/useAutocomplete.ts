@@ -3,17 +3,14 @@ import type { AutocompleteSuggestion } from '~/types/autocomplete'
 export function useAutocomplete(query: Ref<string>, type: Ref<string>, locale: Ref<string>) {
   const suggestions = ref<AutocompleteSuggestion[]>([])
   const isOpen = ref(false)
-  const { smallerThan } = useBreakpoints()
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
   // Invalidates in-flight requests: only the latest query may write its results
   let requestId = 0
 
-  const isMobile = computed(() => smallerThan('md'))
-
   function fetchSuggestions() {
     if (debounceTimer !== null) clearTimeout(debounceTimer)
     requestId++
-    if (query.value.length < 2 || !isMobile.value) {
+    if (query.value.length < 2) {
       suggestions.value = []
       isOpen.value = false
       return
@@ -47,5 +44,5 @@ export function useAutocomplete(query: Ref<string>, type: Ref<string>, locale: R
     if (debounceTimer !== null) clearTimeout(debounceTimer)
   })
 
-  return { suggestions, isOpen, isMobile, close }
+  return { suggestions, isOpen, close }
 }

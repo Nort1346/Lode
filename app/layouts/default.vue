@@ -101,8 +101,9 @@ watch(
 
 <template>
   <div class="bg-main min-h-screen flex flex-col">
-    <!-- Mobile header -->
+    <!-- Mobile header (data-mobile-header: measured by pages that pin sticky bars below it) -->
     <div
+      data-mobile-header
       class="lg:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-white/8 bg-white dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-30 min-w-0"
     >
       <button

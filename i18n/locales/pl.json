@@ -35,6 +35,7 @@
     "searchAll": "Wszystko",
     "searchMovies": "Filmy",
     "searchTv": "Seriale",
+    "filters": "Filtry",
     "noResults1": "Nie udało się znaleźć niczego dla „{query}”",
     "noResults2": "Brak wyników dla „{query}”",
     "noResults3": "Hmm, nic nie wyszło dla „{query}”",

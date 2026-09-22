@@ -2,63 +2,99 @@
   <div>
     <div ref="sentinelRef" class="h-px" aria-hidden="true" />
 
-    <!-- Pinned on desktop while scrolling (sentinel + IntersectionObserver);
-         plain in-flow block on mobile, exactly as before -->
+    <!-- Pinned while scrolling: flush at the viewport top on desktop (top-0)
+         with CONSTANT top padding so the bar height never changes (no scroll
+         jump when it pins/unpins); the frosted background/border only appear
+         once stuck. Under the app header on mobile (measured offset). Phones
+         collapse to a compact search row + Filters toggle; tablets keep row. -->
     <div
-      class="border-b border-transparent lg:sticky lg:top-0 lg:z-30 lg:-mx-6 lg:mb-3 lg:px-6 lg:pb-3"
+      class="sticky z-30 -mx-4 border-b border-transparent px-4 pt-5 transition-[background-color,border-color] duration-200 motion-reduce:transition-none lg:-mx-6 lg:top-0 lg:mb-3 lg:px-6 lg:pb-3"
       :class="stuck ? 'border-zinc-200/70 bg-white/80 backdrop-blur-md dark:border-white/8 dark:bg-zinc-900/80' : ''"
+      :style="barTopStyle"
     >
       <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div class="relative flex-1 overflow-visible" data-autocomplete>
-          <UInput
-            v-model="searchParams.q"
-            :placeholder="t('browse.searchPlaceholder')"
-            icon="i-lucide-search"
-            size="xl"
-            class="w-full"
-            @focus="suggestions.length > 0 && (isOpen = true)"
-            @keydown.escape="isOpen = false"
-            @keydown.enter="close"
-          />
-          <div
-            v-if="isOpen && suggestions.length > 0 && isMobile"
-            class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
-          >
-            <button
-              v-for="item in suggestions"
-              :key="`${item.type}-${item.id}`"
-              class="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700"
-              @click="selectSuggestion(item)"
-            >
-              <img
-                v-if="item.posterUrl"
-                :src="item.posterUrl"
-                :alt="item.title"
-                class="h-10 w-7 rounded object-cover"
-              />
-              <div v-else class="h-10 w-7 rounded bg-zinc-200 dark:bg-zinc-700" />
-              <div class="min-w-0 flex-1">
-                <AutocompleteItemTitle :text="item.title" />
-                <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                  {{ item.type === 'movie' ? t('browse.searchMovies') : t('browse.searchTv') }}
-                  <span v-if="item.year"> · {{ item.year }}</span>
-                </p>
+        <div class="flex min-w-0 flex-1 gap-3">
+          <div class="relative min-w-0 flex-1 overflow-visible" data-autocomplete>
+            <UInput
+              v-model="searchParams.q"
+              :placeholder="t('browse.searchPlaceholder')"
+              icon="i-lucide-search"
+              size="xl"
+              class="w-full"
+              @focus="suggestions.length > 0 && (isOpen = true)"
+              @keydown.escape="isOpen = false"
+              @keydown.enter="close"
+            />
+            <Transition name="suggestions-fade">
+              <div
+                v-if="isOpen && suggestions.length > 0"
+                class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+              >
+                <button
+                  v-for="item in suggestions"
+                  :key="`${item.type}-${item.id}`"
+                  class="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  @click="selectSuggestion(item)"
+                >
+                  <img
+                    v-if="item.posterUrl"
+                    :src="item.posterUrl"
+                    :alt="item.title"
+                    class="h-10 w-7 rounded object-cover"
+                  />
+                  <div v-else class="h-10 w-7 rounded bg-zinc-200 dark:bg-zinc-700" />
+                  <div class="min-w-0 flex-1">
+                    <AutocompleteItemTitle :text="item.title" />
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                      {{ item.type === 'movie' ? t('browse.searchMovies') : t('browse.searchTv') }}
+                      <span v-if="item.year"> · {{ item.year }}</span>
+                    </p>
+                  </div>
+                </button>
               </div>
-            </button>
+            </Transition>
           </div>
+          <Transition name="filters-fade">
+            <button
+              v-if="compactStuck"
+              type="button"
+              class="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 transition-colors duration-150 hover:bg-zinc-100 motion-reduce:transition-none dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-white/5"
+              :aria-expanded="filterOpen"
+              :aria-label="t('browse.filters')"
+              @click="filterOpen = !filterOpen"
+            >
+              <UIcon name="i-lucide-sliders-horizontal" class="size-4" />
+              {{ t('browse.filters') }}
+              <span
+                v-if="searchParams.genres.length > 0"
+                class="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white"
+              >
+                {{ searchParams.genres.length }}
+              </span>
+            </button>
+          </Transition>
         </div>
-        <USelect v-model="searchParams.type" :items="typeOptions" size="xl" class="w-full sm:w-40" />
+        <USelect v-model="searchParams.type" :items="typeOptions" size="xl" class="hidden w-40 sm:block" />
       </div>
 
-      <div class="mb-6 flex flex-wrap gap-1.5 lg:mb-0">
-        <UButton
-          v-for="g in filteredGenres"
-          :key="`chip-${g.id}`"
-          :label="t(g.label)"
-          :variant="searchParams.genres.includes(g.id) ? 'solid' : 'outline'"
-          size="xs"
-          @click="toggleGenre(g.id)"
-        />
+      <!-- Collapsible on phones while pinned (grid rows 0fr -> 1fr); the phone-only
+           type selector lives here so it reappears with the filter panel -->
+      <div class="filter-panel" :class="panelExpanded ? 'filter-panel-open' : ''">
+        <div class="min-h-0 overflow-hidden">
+          <div class="flex flex-col gap-3 pb-6 lg:pb-0">
+            <USelect v-model="searchParams.type" :items="typeOptions" size="xl" class="w-full sm:hidden" />
+            <div class="flex flex-wrap gap-1.5">
+              <UButton
+                v-for="g in filteredGenres"
+                :key="`chip-${g.id}`"
+                :label="t(g.label)"
+                :variant="searchParams.genres.includes(g.id) ? 'solid' : 'outline'"
+                size="xs"
+                @click="toggleGenre(g.id)"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -229,7 +265,7 @@ const searchParams = reactive({
 
 const localeRef = toRef(locale)
 const typeRef = toRef(() => searchParams.type)
-const { suggestions, isOpen, isMobile, close } = useAutocomplete(
+const { suggestions, isOpen, close } = useAutocomplete(
   toRef(() => searchParams.q),
   typeRef,
   localeRef
@@ -255,23 +291,60 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 
-// Sticky control bar (desktop only): a 1px sentinel sits above the bar in
-// normal flow - the moment it scrolls out of view, the bar is pinned.
+// Sticky control bar: flush at the viewport top on desktop (top-0) with
+// CONSTANT top padding (bar height never changes, so no scroll jump when it
+// pins/unpins); pinned under the app header on mobile (measured offset). A
+// 1px sentinel sits above the bar in normal flow; the
+// IntersectionObserver's rootMargin shrinks the viewport top to the sticky
+// line so "stuck" fires exactly when the bar pins.
+const { width, smallerThan } = useBreakpoints()
+const isMobileBar = computed(() => smallerThan('lg'))
+const isPhoneBar = computed(() => smallerThan('sm'))
 const sentinelRef = ref<HTMLElement | null>(null)
 const stuck = ref(false)
+const filterOpen = ref(false)
+const mobileTop = ref(0)
+let observer: IntersectionObserver | null = null
 
-onMounted(() => {
+const compactStuck = computed(() => isPhoneBar.value && stuck.value)
+const panelExpanded = computed(() => !compactStuck.value || filterOpen.value)
+const barTopStyle = computed(() =>
+  isMobileBar.value && mobileTop.value > 0 ? { top: `${mobileTop.value}px` } : undefined
+)
+
+function measureHeader() {
+  const header = document.querySelector<HTMLElement>('[data-mobile-header]')
+  mobileTop.value = header ? header.getBoundingClientRect().bottom : 0
+}
+
+function createObserver() {
+  observer?.disconnect()
   const sentinel = sentinelRef.value
   if (sentinel === null) return
-  const observer = new IntersectionObserver(
+  const offset = isMobileBar.value ? mobileTop.value : 0
+  observer = new IntersectionObserver(
     (entries) => {
       const entry = entries[0]
       stuck.value = entry !== undefined && entry.isIntersecting === false
     },
-    { threshold: 0 }
+    { rootMargin: `-${offset}px 0px 0px 0px`, threshold: 0 }
   )
   observer.observe(sentinel)
-  onUnmounted(() => observer.disconnect())
+}
+
+onMounted(() => {
+  measureHeader()
+  createObserver()
+})
+
+watch(width, measureHeader)
+watch([isMobileBar, mobileTop], createObserver)
+watch(compactStuck, (v) => {
+  if (!v) filterOpen.value = false
+})
+
+onUnmounted(() => {
+  observer?.disconnect()
 })
 
 const typeOptions = computed(() => [
@@ -560,3 +633,67 @@ for (const g of tvGenres) {
   )
 }
 </script>
+
+<style scoped>
+/* Filter panel collapse: animating grid rows (0fr -> 1fr) avoids measuring
+   content height; degrades to an instant toggle where unsupported */
+.filter-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+
+.filter-panel-open {
+  grid-template-rows: 1fr;
+}
+
+.filter-panel > div {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.filter-panel-open > div {
+  opacity: 1;
+}
+
+/* Mobile "Filters" toggle: fades and settles as the compact bar pins/unpins */
+.filters-fade-enter-active,
+.filters-fade-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.filters-fade-enter-from,
+.filters-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* Mobile autocomplete dropdown: fades in slightly from above */
+.suggestions-fade-enter-active,
+.suggestions-fade-leave-active {
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.suggestions-fade-enter-from,
+.suggestions-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-panel,
+  .filter-panel > div,
+  .filters-fade-enter-active,
+  .filters-fade-leave-active,
+  .suggestions-fade-enter-active,
+  .suggestions-fade-leave-active {
+    transition: none;
+  }
+}
+</style>
