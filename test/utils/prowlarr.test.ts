@@ -59,6 +59,17 @@ function okJson(body: unknown) {
   return { ok: true, status: 200, json: async () => body } as unknown as Response
 }
 
+function rateLimited(retryAfter: string | null) {
+  return {
+    ok: false,
+    status: 429,
+    headers: {
+      get: (name: string) => (name.toLowerCase() === 'retry-after' ? retryAfter : null)
+    },
+    json: async () => ({})
+  } as unknown as Response
+}
+
 function release(over: Record<string, unknown> = {}) {
   return {
     title: 'T',
@@ -322,41 +333,38 @@ describe('ProwlarrClient', () => {
     expect(results.map((r) => r.title)).toEqual(expect.arrayContaining(['Hit:Show 2020', 'Hit:Show']))
   })
 
-  it('searchTv stops early when a query returns a healthy result set', async () => {
+  it('skips the queued ladder query once a healthy set arrives', async () => {
     mockCacheGet.mockResolvedValue(null)
     mockFetch.mockResolvedValue(
       okJson([1, 2, 3, 4, 5].map((i) => release({ title: `R${i}`, size: i * 10 })))
     )
     const client = new ProwlarrClient('http://p', 'k')
 
-    const results = await client.searchTv('Show', 'Show', '2020', null, 1)
+    const results = await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt'])
 
-    // season ladder: "Show S01 2020" already returns 5 -> no further queries
+    // 3 names x 2 (per-name cap) = 6 -> capped to 4; 3 run in parallel and all
+    // return a healthy set (5), so the 4th query, still waiting for a slot, is
+    // skipped
     expect(results).toHaveLength(5)
-    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledTimes(3)
   })
 
-  it('searchTv includes alternative titles as extra ladder tiers', async () => {
+  it('caps the season ladder at two queries per name and four in total', async () => {
     mockCacheGet.mockResolvedValue(null)
     mockFetch.mockResolvedValue(okJson([]))
     const client = new ProwlarrClient('http://p', 'k')
 
-    await client.searchTv('Show', 'Show', '2020', null, 1, undefined, ['Alt Title'])
+    await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt'])
 
     const queries = mockFetch.mock.calls.map(
       (call) => new URL(String(call[0])).searchParams.get('query') ?? ''
     )
-    expect(queries).toEqual([
-      'Show S01 2020',
-      'Show S01',
-      'Show',
-      'Alt Title S01 2020',
-      'Alt Title S01',
-      'Alt Title'
-    ])
+    // per-name cap keeps most-specific + bare name; the total cap keeps the
+    // first 4 (the alt-title tier is cut)
+    expect(queries).toEqual(['Show S01 2020', 'Show', 'Orig S01 2020', 'Orig'])
   })
 
-  it('searchMovie merges title, original title and alt title tiers', async () => {
+  it('searchMovie caps the ladder at the total query limit', async () => {
     mockCacheGet.mockResolvedValue(null)
     mockFetch.mockImplementation(async (input: unknown) => {
       const query = new URL(String(input)).searchParams.get('query') ?? ''
@@ -366,16 +374,108 @@ describe('ProwlarrClient', () => {
 
     const results = await client.searchMovie('Movie', 'Original Movie', ['Alt Movie'], '2020', [2000])
 
-    expect(results.map((r) => r.title)).toEqual(
-      expect.arrayContaining([
-        'Hit:Movie 2020',
-        'Hit:Movie',
-        'Hit:Original Movie 2020',
-        'Hit:Original Movie',
-        'Hit:Alt Movie 2020',
-        'Hit:Alt Movie'
-      ])
+    // 3 names x 2 tiers = 6 queries -> capped to 4: the alt-title tier is the
+    // first to go, the top names keep both of their queries
+    const queries = mockFetch.mock.calls.map(
+      (call) => new URL(String(call[0])).searchParams.get('query') ?? ''
     )
+    expect(queries).toEqual(['Movie 2020', 'Movie', 'Original Movie 2020', 'Original Movie'])
+    expect(results.map((r) => r.title)).toEqual(
+      expect.arrayContaining(['Hit:Movie 2020', 'Hit:Movie', 'Hit:Original Movie 2020', 'Hit:Original Movie'])
+    )
+  })
+
+  it('searchMovie includes alt titles in the pool when under the cap', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockImplementation(async (input: unknown) => {
+      const query = new URL(String(input)).searchParams.get('query') ?? ''
+      return okJson([release({ title: `Hit:${query}`, size: 10 })])
+    })
+    const client = new ProwlarrClient('http://p', 'k')
+
+    const results = await client.searchMovie('Movie', 'Movie', ['Alt Movie'], '2020', [2000])
+
+    const queries = mockFetch.mock.calls.map(
+      (call) => new URL(String(call[0])).searchParams.get('query') ?? ''
+    )
+    expect(queries).toEqual(['Movie 2020', 'Movie', 'Alt Movie 2020', 'Alt Movie'])
+    expect(results.map((r) => r.title)).toEqual(
+      expect.arrayContaining(['Hit:Movie 2020', 'Hit:Movie', 'Hit:Alt Movie 2020', 'Hit:Alt Movie'])
+    )
+  })
+
+  it('bounds total ladder latency by the concurrency cap, not the sequential sum', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+    mockFetch.mockImplementation(async () => {
+      await delay(80)
+      return okJson([release({ title: 'Slow', size: 1 })])
+    })
+    const client = new ProwlarrClient('http://p', 'k')
+
+    const started = Date.now()
+    // 4 capped queries of 80ms each: sequential would take >= 320ms, the
+    // 3-slot pool takes ~2 waves
+    await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt'])
+    const elapsed = Date.now() - started
+
+    expect(elapsed).toBeLessThan(300)
+    expect(elapsed).toBeGreaterThanOrEqual(150)
+  })
+
+  it('keeps in-flight Prowlarr requests at or below the concurrency limit', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    let inFlight = 0
+    let maxInFlight = 0
+    mockFetch.mockImplementation(async () => {
+      inFlight += 1
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      await new Promise<void>((resolve) => setTimeout(resolve, 40))
+      inFlight -= 1
+      return okJson([release({ title: 'C', size: 1 })])
+    })
+    const client = new ProwlarrClient('http://p', 'k')
+
+    await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt'])
+
+    // 4 capped queries through the 3-slot pool: some overlap (not serialized)
+    // but never more than 3 at once
+    expect(maxInFlight).toBe(3)
+  })
+
+  it('does not fail the whole search when a single ladder query errors', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    const fail = { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+    mockFetch.mockImplementation(async (input: unknown) =>
+      String(input).includes('Bad') ? fail : okJson([release({ title: 'Good', size: 1 })])
+    )
+    const client = new ProwlarrClient('http://p', 'k')
+
+    const results = await client.searchTv('Good Show', 'Bad Show', '2020', null, null)
+
+    expect(results.map((r) => r.title)).toContain('Good')
+  })
+
+  it('backs off on 429 and retries once', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch
+      .mockResolvedValueOnce(rateLimited('0'))
+      .mockResolvedValueOnce(okJson([release({ title: 'R', size: 1 })]))
+    const client = new ProwlarrClient('http://p', 'k')
+
+    const results = await client.searchByQuery('X')
+
+    expect(results).toHaveLength(1)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up after one 429 retry instead of retrying forever', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockResolvedValue(rateLimited('0'))
+    const client = new ProwlarrClient('http://p', 'k')
+
+    await expect(client.searchByQuery('X')).rejects.toThrow('Prowlarr API error 429')
+    expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 })
 

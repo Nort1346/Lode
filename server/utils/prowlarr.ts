@@ -169,8 +169,29 @@ function deduplicateResults(results: ProwlarrResult[]): ProwlarrResult[] {
 }
 
 // A single query returning at least this many results is considered healthy -
-// the ladder stops there instead of firing more queries.
+// the remaining ladder queries are skipped instead of fired.
 const HEALTHY_RESULT_COUNT = 5
+
+// Hard cap on text queries fired for a single search (movie/TV/season). The
+// IMDB branch (searchTv only) adds at most one more. Tune together with
+// QUERIES_PER_NAME - raising one without the other just shifts where the cap
+// bites.
+const MAX_SEARCH_QUERIES = 4
+
+// Per-name sub-cap: each name keeps its most specific and its bare-name
+// query. The middle tier (e.g. "Show S01" without the year) is a recall
+// subset of the bare-name query, so it is dropped first when the cap bites.
+const QUERIES_PER_NAME = 2
+
+// Max concurrent in-flight requests to Prowlarr, shared across ladders from
+// parallel users. Prowlarr's own HTTP API has no documented client rate
+// limit; the 429s it can return come from the indexers behind it (each
+// indexer has its own "Query Limit" in Prowlarr's settings). Keep this low
+// so a burst of searches stays gentle on those indexers.
+const PROWLARR_MAX_CONCURRENT = 3
+
+// Backoff for a Prowlarr 429 when no usable Retry-After header is present.
+const RATE_LIMIT_BACKOFF_MS = 2000
 
 function uniqueNames(names: string[]): string[] {
   const seen = new Set<string>()
@@ -202,9 +223,69 @@ function buildNameTiers(names: string[], seasonPad: string | null, year: string)
   return tiers
 }
 
+// Applies the per-name sub-cap (most specific + bare name) and the total cap,
+// keeping tier order so the most relevant queries fire first.
+function selectLadderQueries(tiers: string[][]): string[] {
+  const selected: string[] = []
+  for (const tier of tiers) {
+    if (tier.length <= QUERIES_PER_NAME) {
+      selected.push(...tier)
+      continue
+    }
+    const mostSpecific = tier[0]
+    const bareName = tier[tier.length - 1]
+    if (mostSpecific !== undefined) {
+      selected.push(mostSpecific)
+    }
+    if (bareName !== undefined && bareName !== mostSpecific) {
+      selected.push(bareName)
+    }
+  }
+  return selected.slice(0, MAX_SEARCH_QUERIES)
+}
+
+// Bounds concurrent in-flight requests. A released slot is transferred
+// directly to the next waiter (no re-increment), so `active` never exceeds
+// `max` even when a waiter is woken.
+class SlotLimiter {
+  private active = 0
+  private waiting: Array<() => void> = []
+
+  constructor(private readonly max: number) {}
+
+  async acquire(): Promise<void> {
+    if (this.active >= this.max) {
+      await new Promise<void>((resolve) => {
+        this.waiting.push(resolve)
+      })
+      return
+    }
+    this.active += 1
+  }
+
+  release(): void {
+    const next = this.waiting.shift()
+    if (next !== undefined) {
+      next()
+      return
+    }
+    this.active -= 1
+  }
+
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    await this.acquire()
+    try {
+      return await fn()
+    } finally {
+      this.release()
+    }
+  }
+}
+
 export class ProwlarrClient {
   private baseUrl: string
   private apiKey: string
+  private readonly limiter = new SlotLimiter(PROWLARR_MAX_CONCURRENT)
 
   constructor(baseUrl: string, apiKey: string) {
     this.baseUrl = baseUrl.replace(/\/+$/, '')
@@ -218,7 +299,18 @@ export class ProwlarrClient {
       url.searchParams.set(k, v)
     }
 
-    const response = await fetch(url.toString())
+    let response = await fetch(url.toString())
+    if (response.status === 429) {
+      // Back off before one retry - indexers behind Prowlarr rate-limit hard,
+      // and hammering a 429 only lengthens the cooldown. Honor Retry-After
+      // (seconds) when present, otherwise use a fixed delay.
+      const retryAfterHeader = response.headers.get('retry-after')
+      const retryAfter = retryAfterHeader !== null ? Number(retryAfterHeader) : NaN
+      const delayMs = Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter * 1000 : RATE_LIMIT_BACKOFF_MS
+      log.warn(`Prowlarr returned 429, backing off ${delayMs}ms before one retry`)
+      await new Promise<void>((resolve) => setTimeout(resolve, delayMs))
+      response = await fetch(url.toString())
+    }
     if (!response.ok) {
       throw new Error(`Prowlarr API error ${response.status}`)
     }
@@ -235,7 +327,7 @@ export class ProwlarrClient {
     if (categories !== undefined && categories.length > 0) {
       params.categories = categories.join(',')
     }
-    const raw = (await this.request('/api/v1/search', params)) as ProwlarrRelease[]
+    const raw = (await this.limiter.run(() => this.request('/api/v1/search', params))) as ProwlarrRelease[]
 
     const customNames = await getEnabledCustomTrackerNames()
     const results = deduplicateResults(
@@ -290,26 +382,52 @@ export class ProwlarrClient {
     return results
   }
 
-  // Runs the query ladder and MERGES every result set instead of stopping at
-  // the first non-empty one - a sparse first hit (e.g. a single weak episode
-  // release) must not hide a full season pack that a broader query finds.
-  // Stops early once a single query returns a healthy result set.
+  // Runs the query ladder in PARALLEL and MERGES every result set instead of
+  // stopping at the first non-empty one - a sparse first hit (e.g. a single
+  // weak episode release) must not hide a full season pack that a broader
+  // query finds. The ladder is capped (per name and in total) and bounded by
+  // the shared request limiter, so one missing show cannot turn a page load
+  // into a query storm. Once a single query returns a healthy result set, the
+  // queries still queued for a slot are skipped. A failing query is logged
+  // and dropped instead of failing the whole search.
   private async runQueryLadder(tiers: string[][], categories?: number[]): Promise<ProwlarrResult[]> {
+    const queries = selectLadderQueries(tiers)
+    const startedAt = Date.now()
+
     const merged: ProwlarrResult[] = []
+    let fired = 0
+    let healthy = false
 
-    for (const tier of tiers) {
-      for (const query of tier) {
-        log.info(`search: "${query}"`)
-        const results = await this.searchByQuery(query, categories)
-        log.info(`search: "${query}" -> ${results.length} results`)
-        merged.push(...results)
-        if (results.length >= HEALTHY_RESULT_COUNT) {
-          log.info(`search: "${query}" returned a healthy set (${results.length}), stopping early`)
-          return deduplicateResults(merged)
+    await Promise.all(
+      queries.map(async (query) => {
+        if (healthy) return
+        await this.limiter.acquire()
+        try {
+          // Re-check after acquiring the slot: a healthy set may have arrived
+          // while this query was still queued.
+          if (healthy) return
+          fired += 1
+          log.info(`search: "${query}"`)
+          try {
+            const results = await this.searchByQuery(query, categories)
+            log.info(`search: "${query}" -> ${results.length} results`)
+            merged.push(...results)
+            if (results.length >= HEALTHY_RESULT_COUNT) {
+              healthy = true
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            log.warn(`search: "${query}" failed: ${msg}`)
+          }
+        } finally {
+          this.limiter.release()
         }
-      }
-    }
+      })
+    )
 
+    log.info(
+      `search: fired ${fired}/${queries.length} queries in ${Date.now() - startedAt}ms, pool=${merged.length} results`
+    )
     return deduplicateResults(merged)
   }
 
