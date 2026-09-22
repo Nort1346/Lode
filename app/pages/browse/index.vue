@@ -1,51 +1,65 @@
 <template>
   <div>
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-      <div class="relative flex-1 overflow-visible" data-autocomplete>
-        <UInput
-          v-model="searchParams.q"
-          :placeholder="t('browse.searchPlaceholder')"
-          icon="i-lucide-search"
-          size="xl"
-          class="w-full"
-          @focus="suggestions.length > 0 && (isOpen = true)"
-          @keydown.escape="isOpen = false"
-          @keydown.enter="close"
-        />
-        <div
-          v-if="isOpen && suggestions.length > 0 && isMobile"
-          class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
-        >
-          <button
-            v-for="item in suggestions"
-            :key="`${item.type}-${item.id}`"
-            class="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700"
-            @click="selectSuggestion(item)"
-          >
-            <img v-if="item.posterUrl" :src="item.posterUrl" :alt="item.title" class="h-10 w-7 rounded object-cover" />
-            <div v-else class="h-10 w-7 rounded bg-zinc-200 dark:bg-zinc-700" />
-            <div class="min-w-0 flex-1">
-              <AutocompleteItemTitle :text="item.title" />
-              <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                {{ item.type === 'movie' ? t('browse.searchMovies') : t('browse.searchTv') }}
-                <span v-if="item.year"> · {{ item.year }}</span>
-              </p>
-            </div>
-          </button>
-        </div>
-      </div>
-      <USelect v-model="searchParams.type" :items="typeOptions" size="xl" class="w-full sm:w-40" />
-    </div>
+    <div ref="sentinelRef" class="h-px" aria-hidden="true" />
 
-    <div class="mb-6 flex flex-wrap gap-1.5">
-      <UButton
-        v-for="g in filteredGenres"
-        :key="`chip-${g.id}`"
-        :label="t(g.label)"
-        :variant="searchParams.genres.includes(g.id) ? 'solid' : 'outline'"
-        size="xs"
-        @click="toggleGenre(g.id)"
-      />
+    <!-- Pinned on desktop while scrolling (sentinel + IntersectionObserver);
+         plain in-flow block on mobile, exactly as before -->
+    <div
+      class="border-b border-transparent lg:sticky lg:top-0 lg:z-30 lg:-mx-6 lg:mb-3 lg:px-6 lg:pb-3"
+      :class="stuck ? 'border-zinc-200/70 bg-white/80 backdrop-blur-md dark:border-white/8 dark:bg-zinc-900/80' : ''"
+    >
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div class="relative flex-1 overflow-visible" data-autocomplete>
+          <UInput
+            v-model="searchParams.q"
+            :placeholder="t('browse.searchPlaceholder')"
+            icon="i-lucide-search"
+            size="xl"
+            class="w-full"
+            @focus="suggestions.length > 0 && (isOpen = true)"
+            @keydown.escape="isOpen = false"
+            @keydown.enter="close"
+          />
+          <div
+            v-if="isOpen && suggestions.length > 0 && isMobile"
+            class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+          >
+            <button
+              v-for="item in suggestions"
+              :key="`${item.type}-${item.id}`"
+              class="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700"
+              @click="selectSuggestion(item)"
+            >
+              <img
+                v-if="item.posterUrl"
+                :src="item.posterUrl"
+                :alt="item.title"
+                class="h-10 w-7 rounded object-cover"
+              />
+              <div v-else class="h-10 w-7 rounded bg-zinc-200 dark:bg-zinc-700" />
+              <div class="min-w-0 flex-1">
+                <AutocompleteItemTitle :text="item.title" />
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                  {{ item.type === 'movie' ? t('browse.searchMovies') : t('browse.searchTv') }}
+                  <span v-if="item.year"> · {{ item.year }}</span>
+                </p>
+              </div>
+            </button>
+          </div>
+        </div>
+        <USelect v-model="searchParams.type" :items="typeOptions" size="xl" class="w-full sm:w-40" />
+      </div>
+
+      <div class="mb-6 flex flex-wrap gap-1.5 lg:mb-0">
+        <UButton
+          v-for="g in filteredGenres"
+          :key="`chip-${g.id}`"
+          :label="t(g.label)"
+          :variant="searchParams.genres.includes(g.id) ? 'solid' : 'outline'"
+          size="xs"
+          @click="toggleGenre(g.id)"
+        />
+      </div>
     </div>
 
     <Transition name="search-fade" mode="out-in">
@@ -239,6 +253,25 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+})
+
+// Sticky control bar (desktop only): a 1px sentinel sits above the bar in
+// normal flow - the moment it scrolls out of view, the bar is pinned.
+const sentinelRef = ref<HTMLElement | null>(null)
+const stuck = ref(false)
+
+onMounted(() => {
+  const sentinel = sentinelRef.value
+  if (sentinel === null) return
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      stuck.value = entry !== undefined && entry.isIntersecting === false
+    },
+    { threshold: 0 }
+  )
+  observer.observe(sentinel)
+  onUnmounted(() => observer.disconnect())
 })
 
 const typeOptions = computed(() => [
