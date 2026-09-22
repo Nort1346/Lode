@@ -87,7 +87,6 @@
     "recommended": "Polecany",
     "download": "Dodaj",
     "limitReached": "Limit",
-    "noImdb": "Brak identyfikatora IMDB - nie można wyszukać torrentów.",
     "noTorrents": "Nie znaleziono pobrań.",
     "loadError": "Nie udało się załadować szczegółów filmu."
   },

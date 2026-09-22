@@ -5,6 +5,7 @@ import { checkDailyLimit } from '#server/utils/limits'
 import { createLogger } from '#server/utils/logger'
 import type { ProwlarrResult } from '#server/types/prowlarr'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
+import { pickAlternativeTitles } from '#server/utils/browse-utils'
 
 const log = createLogger('Season')
 
@@ -107,17 +108,22 @@ export default defineEventHandler(async (event) => {
   if (prowlarr !== null) {
     try {
       const imdbId = show.external_ids?.imdb_id ?? null
+      const altTitles = pickAlternativeTitles(
+        (show.alternative_names ?? []).map((a) => ({ title: a.name, iso_639_1: a.iso_639_1 })),
+        [show.name, show.original_name],
+        locale
+      )
       log.info(
         `Searching: show="${show.name}" original="${show.original_name}" season=${seasonNumber} imdb=${imdbId ?? 'none'}`
       )
       rawTorrents = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, seasonNumber, [
         PROWLARR_CATEGORIES.TV
-      ])
+      ], altTitles)
       if (rawTorrents.length === 0 && show.original_name !== show.name) {
         log.info(`Retrying with original name: "${show.original_name}"`)
         rawTorrents = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, seasonNumber, [
           PROWLARR_CATEGORIES.TV
-        ])
+        ], altTitles)
       }
       log.info(`Prowlarr returned ${rawTorrents.length} results`)
     } catch (err) {

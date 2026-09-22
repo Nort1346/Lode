@@ -189,8 +189,7 @@
         v-else-if="torrents.length === 0"
         class="rounded-xl bg-zinc-100/50 py-8 text-center text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
       >
-        <p v-if="!movie.imdbId">{{ t('movie.noImdb') }}</p>
-        <p v-else>{{ t('movie.noTorrents') }}</p>
+        <p>{{ t('movie.noTorrents') }}</p>
       </div>
 
       <div v-else class="space-y-2 torrent-list">
@@ -486,7 +485,7 @@ async function loadRequestStatus(movieId: number, seq: number) {
 
 watchEffect(() => {
   const movieData = movie.value
-  if (movieData === null || movieData.imdbId === null || movieData.imdbId === '') return
+  if (movieData === null) return
   void loadRequestStatus(movieData.id, ++requestStatusSeq)
 })
 

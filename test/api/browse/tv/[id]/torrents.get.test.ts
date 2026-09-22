@@ -131,7 +131,7 @@ describe('browse/tv/[id]/torrents.get', () => {
       resolution: '720p',
       isPrivate: true
     })
-    expect(mockClient.searchTv).toHaveBeenCalledWith('Show', 'Show', '2020', 'tt9', null, [5000])
+    expect(mockClient.searchTv).toHaveBeenCalledWith('Show', 'Show', '2020', 'tt9', null, [5000], [])
     expect(mockRankTorrents).toHaveBeenCalledWith([{ title: 'raw' }], 'series', 'Show', '2020', {})
   })
 
@@ -150,6 +150,44 @@ describe('browse/tv/[id]/torrents.get', () => {
     await handler(mockEvent)
 
     expect(mockClient.searchTv).toHaveBeenCalledTimes(2)
-    expect(mockClient.searchTv).toHaveBeenLastCalledWith('Original Show', 'English Show', '2020', 'tt9', null, [5000])
+    expect(mockClient.searchTv).toHaveBeenLastCalledWith(
+      'Original Show',
+      'English Show',
+      '2020',
+      'tt9',
+      null,
+      [5000],
+      []
+    )
+  })
+
+  it('passes alternative names as extra search tiers', async () => {
+    mockUseProwlarr.mockReturnValue(mockClient)
+    mockClient.searchTv.mockResolvedValue([{ title: 'raw' }])
+    mockRankTorrents.mockReturnValue([ranked()])
+    mockGetQuery.mockReturnValue({ locale: 'en' })
+    mockGetTvShowDetails.mockResolvedValue({
+      id: 456,
+      name: 'English Show',
+      original_name: 'English Show',
+      first_air_date: '2020-03-03',
+      external_ids: { imdb_id: 'tt9' },
+      alternative_names: [
+        { name: 'Foreign Show', iso_639_1: 'ja', type: 4 },
+        { name: 'English Show', iso_639_1: 'en', type: 4 }
+      ]
+    })
+
+    await handler(mockEvent)
+
+    expect(mockClient.searchTv).toHaveBeenCalledWith(
+      'English Show',
+      'English Show',
+      '2020',
+      'tt9',
+      null,
+      [5000],
+      ['Foreign Show']
+    )
   })
 })

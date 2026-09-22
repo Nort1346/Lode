@@ -87,7 +87,6 @@
     "recommended": "Recommended",
     "download": "Add",
     "limitReached": "Limit",
-    "noImdb": "No IMDB ID - cannot search for torrents.",
     "noTorrents": "No downloads found.",
     "loadError": "Failed to load movie details."
   },

@@ -168,6 +168,40 @@ function deduplicateResults(results: ProwlarrResult[]): ProwlarrResult[] {
   return deduplicated
 }
 
+// A single query returning at least this many results is considered healthy -
+// the ladder stops there instead of firing more queries.
+const HEALTHY_RESULT_COUNT = 5
+
+function uniqueNames(names: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const name of names) {
+    const trimmed = name.trim()
+    if (trimmed.length === 0) continue
+    const key = trimmed.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(trimmed)
+  }
+  return result
+}
+
+// One tier per name, most specific query first. The bare-name tier is what
+// catches releases the specific queries miss (localized "Sezon 01" naming,
+// missing year, alternate titles) - season/episode filtering happens later in
+// the browse endpoints.
+function buildNameTiers(names: string[], seasonPad: string | null, year: string): string[][] {
+  const tiers: string[][] = []
+  for (const name of names) {
+    const tier =
+      seasonPad !== null
+        ? [`${name} S${seasonPad} ${year}`.trim(), `${name} S${seasonPad}`.trim(), name]
+        : [`${name} ${year}`.trim(), name]
+    tiers.push(uniqueNames(tier))
+  }
+  return tiers
+}
+
 export class ProwlarrClient {
   private baseUrl: string
   private apiKey: string
@@ -208,8 +242,23 @@ export class ProwlarrClient {
       await Promise.all((raw ?? []).filter((item) => hasDownloadMethod(item, customNames)).map(normalizeResult))
     )
 
-    await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
+    // Don't cache empty results - a transient indexer hiccup must not lock the
+    // IMDB branch out for the whole TTL
+    if (results.length > 0) {
+      await cacheSet(cacheKey, results, CACHE_TTL.PROWLARR_RESULTS)
+    }
     return results
+  }
+
+  async searchMovie(
+    title: string,
+    originalTitle: string,
+    altTitles: string[],
+    year: string,
+    categories?: number[]
+  ): Promise<ProwlarrResult[]> {
+    const names = uniqueNames([title, originalTitle, ...altTitles])
+    return this.runQueryLadder(buildNameTiers(names, null, year), categories)
   }
 
   async searchByQuery(query: string, categories?: number[]): Promise<ProwlarrResult[]> {
@@ -241,16 +290,39 @@ export class ProwlarrClient {
     return results
   }
 
+  // Runs the query ladder and MERGES every result set instead of stopping at
+  // the first non-empty one - a sparse first hit (e.g. a single weak episode
+  // release) must not hide a full season pack that a broader query finds.
+  // Stops early once a single query returns a healthy result set.
+  private async runQueryLadder(tiers: string[][], categories?: number[]): Promise<ProwlarrResult[]> {
+    const merged: ProwlarrResult[] = []
+
+    for (const tier of tiers) {
+      for (const query of tier) {
+        log.info(`search: "${query}"`)
+        const results = await this.searchByQuery(query, categories)
+        log.info(`search: "${query}" -> ${results.length} results`)
+        merged.push(...results)
+        if (results.length >= HEALTHY_RESULT_COUNT) {
+          log.info(`search: "${query}" returned a healthy set (${results.length}), stopping early`)
+          return deduplicateResults(merged)
+        }
+      }
+    }
+
+    return deduplicateResults(merged)
+  }
+
   async searchTv(
     showName: string,
     originalName: string,
     year: string,
     imdbId: string | null,
     seasonNumber: number | null,
-    categories?: number[]
+    categories?: number[],
+    altTitles: string[] = []
   ): Promise<ProwlarrResult[]> {
     const seasonPad = seasonNumber !== null ? String(seasonNumber).padStart(2, '0') : null
-    const seasonNum = seasonNumber !== null ? String(seasonNumber) : null
     const nameKey = imdbId !== null && imdbId.length > 0 ? imdbId : `${showName}:${seasonPad ?? 'all'}`
     const catsKey = categories?.join(',') ?? 'all'
     const cacheKey = `prowlarr:tv:${nameKey}:${year}:${catsKey}`
@@ -274,7 +346,7 @@ export class ProwlarrClient {
     }
 
     // 2. Text search - covers private trackers
-    promises.push(this.searchTvText(showName, originalName, seasonPad, seasonNum, year, categories))
+    promises.push(this.searchTvText(showName, originalName, altTitles, seasonPad, year, categories))
 
     const settled = await Promise.all(promises)
     const hasImdb = imdbId !== null && imdbId.length > 0
@@ -302,44 +374,16 @@ export class ProwlarrClient {
   private async searchTvText(
     showName: string,
     originalName: string,
+    altTitles: string[],
     seasonPad: string | null,
-    seasonNum: string | null,
     year: string,
     categories?: number[]
   ): Promise<ProwlarrResult[]> {
-    // Build focused queries - most specific first
-    const queries: string[] = []
-    if (seasonPad !== null && seasonNum !== null) {
-      queries.push(`${showName} S${seasonPad} ${year}`.trim())
-      queries.push(`${showName} Sezon ${seasonPad} ${year}`.trim())
-      queries.push(`${showName} S${seasonPad}`.trim())
-      queries.push(`${showName} Sezon ${seasonNum}`.trim())
-      queries.push(`${showName}`.trim())
-      if (originalName !== showName) {
-        queries.push(`${originalName} S${seasonPad} ${year}`.trim())
-        queries.push(`${originalName} S${seasonPad}`.trim())
-        queries.push(`${originalName}`.trim())
-      }
-    } else {
-      queries.push(`${showName} ${year}`.trim())
-      queries.push(`${showName}`.trim())
-      if (originalName !== showName) {
-        queries.push(`${originalName} ${year}`.trim())
-        queries.push(`${originalName}`.trim())
-      }
-    }
-
-    // Try queries sequentially - stop at first non-empty
-    for (const query of queries) {
-      log.info(`searchTv: text search "${query}"`)
-      const results = await this.searchByQuery(query, categories)
-      if (results.length > 0) {
-        log.info(`searchTv: "${query}" → ${results.length} results`)
-        return results
-      }
-    }
-
-    return []
+    // Ladder tiers in relevance order: localized name, original name, then
+    // alternative titles. The bare-name tier of each also catches releases
+    // the specific queries miss (localized "Sezon 01" naming, missing year).
+    const names = uniqueNames([showName, originalName, ...altTitles])
+    return this.runQueryLadder(buildNameTiers(names, seasonPad, year), categories)
   }
 }
 

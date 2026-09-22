@@ -39,7 +39,7 @@ vi.mock('#server/utils/torrents/ranking-config', () => ({
 import handler from '#server/api/browse/movie/[id]/torrents.get'
 
 const mockEvent = {} as never
-const mockClient = { searchByQuery: vi.fn() }
+const mockClient = { searchMovie: vi.fn() }
 
 function ranked() {
   return {
@@ -112,7 +112,7 @@ describe('browse/movie/[id]/torrents.get', () => {
 
   it('maps ranked torrents and queries Prowlarr for the movie', async () => {
     mockUseProwlarr.mockReturnValue(mockClient)
-    mockClient.searchByQuery.mockResolvedValue([{ title: 'raw' }])
+    mockClient.searchMovie.mockResolvedValue([{ title: 'raw' }])
     mockRankTorrents.mockReturnValue([ranked()])
     mockGetMovieDetails.mockResolvedValue({
       id: 123,
@@ -131,30 +131,42 @@ describe('browse/movie/[id]/torrents.get', () => {
       source: 'WEB',
       language: 'EN'
     })
-    expect(mockClient.searchByQuery).toHaveBeenCalledWith('Movie 2024', [2000])
+    expect(mockClient.searchMovie).toHaveBeenCalledWith('Movie', 'Movie', [], '2024', [2000])
     expect(mockRankTorrents).toHaveBeenCalledWith([{ title: 'raw' }], 'movie', 'Movie', '2024', {})
   })
 
-  it('retries with the original title when the first search is empty', async () => {
+  it('passes alternative titles as extra search queries, english first for non-english locale', async () => {
     mockUseProwlarr.mockReturnValue(mockClient)
-    mockClient.searchByQuery.mockResolvedValueOnce([]).mockResolvedValueOnce([{ title: 'raw2' }])
+    mockClient.searchMovie.mockResolvedValue([{ title: 'raw' }])
     mockRankTorrents.mockReturnValue([ranked()])
+    mockGetQuery.mockReturnValue({ locale: 'pl' })
     mockGetMovieDetails.mockResolvedValue({
       id: 123,
       title: 'English Title',
       original_title: 'Original Title',
-      release_date: '2024-05-05'
+      release_date: '2024-05-05',
+      alternative_titles: [
+        { title: 'Other Title', iso_639_1: 'pl', type: 4 },
+        { title: 'Alt Title', iso_639_1: 'en', type: 4 },
+        { title: 'English Title', iso_639_1: 'en', type: 4 }
+      ]
     })
 
     await handler(mockEvent)
 
-    expect(mockClient.searchByQuery).toHaveBeenCalledTimes(2)
-    expect(mockClient.searchByQuery).toHaveBeenLastCalledWith('Original Title 2024', [2000])
+    // duplicates of the main titles are dropped, english is prioritized
+    expect(mockClient.searchMovie).toHaveBeenCalledWith(
+      'English Title',
+      'Original Title',
+      ['Alt Title', 'Other Title'],
+      '2024',
+      [2000]
+    )
   })
 
   it('swallows Prowlarr failures and returns empty torrents', async () => {
     mockUseProwlarr.mockReturnValue(mockClient)
-    mockClient.searchByQuery.mockRejectedValue(new Error('prowlarr offline'))
+    mockClient.searchMovie.mockRejectedValue(new Error('prowlarr offline'))
     mockGetMovieDetails.mockResolvedValue({
       id: 123,
       title: 'Movie',

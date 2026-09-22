@@ -1,3 +1,15 @@
+export interface TmdbAlternativeTitle {
+  title: string
+  iso_639_1: string | null
+  type?: number
+}
+
+export interface TmdbAlternativeName {
+  name: string
+  iso_639_1: string | null
+  type?: number
+}
+
 export interface TmdbMovie {
   id: number
   title: string
@@ -13,6 +25,7 @@ export interface TmdbMovie {
   runtime: number | null
   imdb_id: string | null
   original_language: string
+  alternative_titles?: TmdbAlternativeTitle[]
 }
 
 export interface TmdbTvShow {
@@ -32,6 +45,7 @@ export interface TmdbTvShow {
   seasons: TmdbSeason[]
   original_language: string
   external_ids?: { imdb_id: string | null }
+  alternative_names?: TmdbAlternativeName[]
 }
 
 export interface TmdbSeason {

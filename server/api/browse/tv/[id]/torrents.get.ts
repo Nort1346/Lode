@@ -3,6 +3,7 @@ import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { checkDailyLimit } from '#server/utils/limits'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
+import { pickAlternativeTitles } from '#server/utils/browse-utils'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -39,13 +40,18 @@ export default defineEventHandler(async (event) => {
       const rankingConfig = await getRankingConfig()
       const year = show.first_air_date?.slice(0, 4) ?? ''
       const imdbId = show.external_ids?.imdb_id ?? null
+      const altTitles = pickAlternativeTitles(
+        (show.alternative_names ?? []).map((a) => ({ title: a.name, iso_639_1: a.iso_639_1 })),
+        [show.name, show.original_name],
+        locale
+      )
       let rawResults = await prowlarr.searchTv(show.name, show.original_name, year, imdbId, null, [
         PROWLARR_CATEGORIES.TV
-      ])
+      ], altTitles)
       if (rawResults.length === 0 && show.original_name !== show.name) {
         rawResults = await prowlarr.searchTv(show.original_name, show.name, year, imdbId, null, [
           PROWLARR_CATEGORIES.TV
-        ])
+        ], altTitles)
       }
       torrents = rankTorrents(rawResults, 'series', show.name, year, rankingConfig)
     } catch {

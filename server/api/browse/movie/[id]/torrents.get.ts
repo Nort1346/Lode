@@ -3,6 +3,7 @@ import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { checkDailyLimit } from '#server/utils/limits'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
+import { pickAlternativeTitles } from '#server/utils/browse-utils'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -38,12 +39,14 @@ export default defineEventHandler(async (event) => {
     try {
       const rankingConfig = await getRankingConfig()
       const year = movie.release_date?.slice(0, 4) ?? ''
-      let rawResults = await prowlarr.searchByQuery(`${movie.title} ${year}`.trim(), [PROWLARR_CATEGORIES.MOVIES])
-      if (rawResults.length === 0 && movie.original_title !== movie.title) {
-        rawResults = await prowlarr.searchByQuery(`${movie.original_title} ${year}`.trim(), [
-          PROWLARR_CATEGORIES.MOVIES
-        ])
-      }
+      const altTitles = pickAlternativeTitles(
+        (movie.alternative_titles ?? []).map((a) => ({ title: a.title, iso_639_1: a.iso_639_1 })),
+        [movie.title, movie.original_title],
+        locale
+      )
+      const rawResults = await prowlarr.searchMovie(movie.title, movie.original_title, altTitles, year, [
+        PROWLARR_CATEGORIES.MOVIES
+      ])
       torrents = rankTorrents(rawResults, 'movie', movie.title, year, rankingConfig)
     } catch {
       // Prowlarr might be offline, return empty torrents

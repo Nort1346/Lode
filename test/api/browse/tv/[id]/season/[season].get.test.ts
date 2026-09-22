@@ -354,7 +354,8 @@ describe('browse/tv/[id]/season/[season].get', () => {
       '2024',
       null,
       1,
-      expect.anything()
+      expect.anything(),
+      []
     )
     expect(mockProwlarr.searchTv).toHaveBeenNthCalledWith(
       2,
@@ -363,7 +364,8 @@ describe('browse/tv/[id]/season/[season].get', () => {
       '2024',
       null,
       1,
-      expect.anything()
+      expect.anything(),
+      []
     )
   })
 })

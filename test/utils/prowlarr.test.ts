@@ -294,8 +294,88 @@ describe('ProwlarrClient', () => {
     const results = await client.searchTv('Show', 'Show', '2020', 'tt1', null)
 
     expect(results.map((r) => r.title)).toContain('TextHit')
-    // the text search caches its own result, then searchTv caches the merged result
-    expect(mockCacheSet).toHaveBeenCalledTimes(2)
+    // each text ladder query caches its own result, then searchTv caches the merged result
+    expect(mockCacheSet).toHaveBeenCalledTimes(3)
+  })
+
+  it('searchByImdb does not cache empty results', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockResolvedValueOnce(okJson([]))
+    const client = new ProwlarrClient('http://p', 'k')
+
+    await expect(client.searchByImdb('tt1', 'tv')).resolves.toEqual([])
+    expect(mockCacheSet).not.toHaveBeenCalled()
+  })
+
+  it('searchTv merges sparse ladder queries instead of stopping at the first hit', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockImplementation(async (input: unknown) => {
+      const query = new URL(String(input)).searchParams.get('query') ?? ''
+      return okJson([release({ title: `Hit:${query}`, size: 10 })])
+    })
+    const client = new ProwlarrClient('http://p', 'k')
+
+    const results = await client.searchTv('Show', 'Show', '2020', null, null)
+
+    // the old first-non-empty behavior kept only "Show 2020"; the broader
+    // "Show" query must contribute to the pool as well
+    expect(results.map((r) => r.title)).toEqual(expect.arrayContaining(['Hit:Show 2020', 'Hit:Show']))
+  })
+
+  it('searchTv stops early when a query returns a healthy result set', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockResolvedValue(
+      okJson([1, 2, 3, 4, 5].map((i) => release({ title: `R${i}`, size: i * 10 })))
+    )
+    const client = new ProwlarrClient('http://p', 'k')
+
+    const results = await client.searchTv('Show', 'Show', '2020', null, 1)
+
+    // season ladder: "Show S01 2020" already returns 5 -> no further queries
+    expect(results).toHaveLength(5)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('searchTv includes alternative titles as extra ladder tiers', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockResolvedValue(okJson([]))
+    const client = new ProwlarrClient('http://p', 'k')
+
+    await client.searchTv('Show', 'Show', '2020', null, 1, undefined, ['Alt Title'])
+
+    const queries = mockFetch.mock.calls.map(
+      (call) => new URL(String(call[0])).searchParams.get('query') ?? ''
+    )
+    expect(queries).toEqual([
+      'Show S01 2020',
+      'Show S01',
+      'Show',
+      'Alt Title S01 2020',
+      'Alt Title S01',
+      'Alt Title'
+    ])
+  })
+
+  it('searchMovie merges title, original title and alt title tiers', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockImplementation(async (input: unknown) => {
+      const query = new URL(String(input)).searchParams.get('query') ?? ''
+      return okJson([release({ title: `Hit:${query}`, size: 10 })])
+    })
+    const client = new ProwlarrClient('http://p', 'k')
+
+    const results = await client.searchMovie('Movie', 'Original Movie', ['Alt Movie'], '2020', [2000])
+
+    expect(results.map((r) => r.title)).toEqual(
+      expect.arrayContaining([
+        'Hit:Movie 2020',
+        'Hit:Movie',
+        'Hit:Original Movie 2020',
+        'Hit:Original Movie',
+        'Hit:Alt Movie 2020',
+        'Hit:Alt Movie'
+      ])
+    )
   })
 })
 
