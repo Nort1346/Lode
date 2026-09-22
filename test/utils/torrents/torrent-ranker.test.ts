@@ -154,6 +154,76 @@ describe('rankTorrents', () => {
   })
 })
 
+function seriesRelease(title: string, sizeGB: number, seeders = 0) {
+  return {
+    title,
+    size: Math.round(sizeGB * 1024 * 1024 * 1024),
+    seeders,
+    leechers: 0,
+    indexer: 'Test',
+    magnetLink: null,
+    downloadUrl: null,
+    guid: null,
+    publishDate: '2024-01-01',
+    categories: [5000],
+    infoUrl: '',
+    imdbId: null,
+    isPrivate: false
+  } as unknown as ProwlarrResult
+}
+
+// With an empty mediaTitle/year and no resolution/source/language/group
+// markers in the title, the score is exactly: language fallback (8) + the
+// size table score for the requested kind.
+describe('series and seasonPack size scoring', () => {
+  it('scores a range pack against the seasonPack table when classified as a pack', () => {
+    const ranked = rankTorrents([seriesRelease('Show.S01E01-E10', 30)], 'seasonPack')
+
+    // 30GB falls in the seasonPack 20-50GB band (20), not the series >=8GB band (5)
+    expect(ranked[0]!.score).toBe(8 + 20)
+    expect(ranked[0]!.isSeasonPack).toBe(true)
+  })
+
+  it('scores the same range title as a single episode when classified as series', () => {
+    const ranked = rankTorrents([seriesRelease('Show.S01E01-E10', 30)], 'series')
+
+    expect(ranked[0]!.score).toBe(8 + 5)
+    expect(ranked[0]!.isSeasonPack).toBe(false)
+  })
+
+  it('switches size scores between pack and episode tables across sizes', () => {
+    const cases: Array<[sizeGB: number, kind: 'series' | 'seasonPack', sizeScore: number]> = [
+      [3, 'seasonPack', 5], // pack 0-5GB
+      [3, 'series', 20], // episode 2-4GB peak
+      [10, 'seasonPack', 12], // pack 5-20GB
+      [10, 'series', 5], // episode >=8GB
+      [30, 'seasonPack', 20], // pack 20-50GB peak
+      [30, 'series', 5] // episode >=8GB
+    ]
+    for (const [sizeGB, kind, sizeScore] of cases) {
+      const ranked = rankTorrents([seriesRelease('Show', sizeGB)], kind)
+      expect(ranked[0]!.score).toBe(8 + sizeScore)
+    }
+  })
+
+  it('penalizes an oversized single episode but not an oversized pack', () => {
+    const episode = rankTorrents([seriesRelease('Show.S01E05', 30)], 'series')
+    const pack = rankTorrents([seriesRelease('Show.S01.Complete', 30)], 'seasonPack')
+
+    expect(episode[0]!.score).toBeLessThan(pack[0]!.score)
+  })
+
+  it('marks isSeasonPack only for the seasonPack kind', () => {
+    const movie = rankTorrents([seriesRelease('Movie.2024', 10)], 'movie')
+    const episode = rankTorrents([seriesRelease('Show.S01E05', 3)], 'series')
+    const pack = rankTorrents([seriesRelease('Show.S01.Complete', 30)], 'seasonPack')
+
+    expect(movie[0]!.isSeasonPack).toBe(false)
+    expect(episode[0]!.isSeasonPack).toBe(false)
+    expect(pack[0]!.isSeasonPack).toBe(true)
+  })
+})
+
 describe('formatScore', () => {
   it('formats score as percentage', () => {
     const score = 150

@@ -185,12 +185,15 @@ export default defineEventHandler(async (event) => {
     }
   })
 
+  // This isSeasonPack filter is the single source of pack classification -
+  // the ranker is told the bucket kind explicitly and no longer re-guesses it
+  // from the title (which broke episode-range packs like S01E01-E10).
   const seasonPackTorrents = rawTorrents.filter((t) => isSeasonPack(t.title, seasonNumber))
   if (seasonPackTorrents.length > 0) {
     log.info(`Season packs: ${seasonPackTorrents.length} found`)
   }
 
-  const seasonPacks = rankTorrents(seasonPackTorrents, 'series', show.name, year, rankingConfig).map((t) => ({
+  const seasonPacks = rankTorrents(seasonPackTorrents, 'seasonPack', show.name, year, rankingConfig).map((t) => ({
     title: t.title,
     size: t.size,
     sizeFormatted: formatSize(t.size),
@@ -206,7 +209,7 @@ export default defineEventHandler(async (event) => {
     resolution: t.parsed.resolution,
     source: t.parsed.source,
     language: t.parsed.language,
-    isSeasonPack: true,
+    isSeasonPack: t.isSeasonPack,
     isPrivate: t.isPrivate
   }))
 

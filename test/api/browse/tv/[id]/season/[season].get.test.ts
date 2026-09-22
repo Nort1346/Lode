@@ -295,6 +295,15 @@ describe('browse/tv/[id]/season/[season].get', () => {
     const packs = result as { seasonPacks: Array<{ title: string; isSeasonPack: boolean }> }
     expect(packs.seasonPacks).toHaveLength(1)
     expect(packs.seasonPacks[0]!.title).toBe('Show.S01.Complete.1080p')
+
+    // the pack bucket must be ranked with the seasonPack kind (its size table),
+    // while episode buckets keep the series kind
+    const calls = mockRankTorrents.mock.calls as Array<Array<unknown>>
+    const packCall = calls.find((call) =>
+      (call[0] as Array<{ title: string }> | undefined)?.some((t) => t.title === 'Show.S01.Complete.1080p')
+    )
+    expect(packCall?.[1]).toBe('seasonPack')
+    expect(calls[0]?.[1]).toBe('series')
   })
 
   it('retries with original_name when first search returns 0 results', async () => {

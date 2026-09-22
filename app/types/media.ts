@@ -41,6 +41,8 @@ export interface EpisodeTorrent extends BaseTorrentInfo {
 }
 
 export interface SeasonPack extends BaseTorrentInfo {
+  score: number
+  recommended: boolean
   isSeasonPack: boolean
 }
 

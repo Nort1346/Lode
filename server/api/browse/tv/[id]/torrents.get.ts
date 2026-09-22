@@ -65,6 +65,8 @@ export default defineEventHandler(async (event) => {
           altTitles
         )
       }
+      // Flat all-seasons list: no per-season context, so everything is scored
+      // with the single-episode size table
       torrents = rankTorrents(rawResults, 'series', show.name, year, rankingConfig)
     } catch {
       // Prowlarr might be offline

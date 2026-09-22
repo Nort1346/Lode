@@ -1,5 +1,5 @@
 import type { ProwlarrResult } from '#server/types/prowlarr'
-import type { RankedTorrent, ParsedTitle, RankingConfig } from '#server/types/ranking'
+import type { RankedTorrent, ParsedTitle, RankingConfig, ReleaseKind } from '#server/types/ranking'
 import { DEFAULT_RANKING_CONFIG } from '#server/types/ranking'
 
 function getConfig(overrides?: RankingConfig): RankingConfig {
@@ -55,14 +55,6 @@ export function parseTorrentTitle(title: string, config?: RankingConfig): Parsed
   return { resolution, source, language, group }
 }
 
-function detectSeasonPack(title: string): boolean {
-  const lower = title.toLowerCase()
-  if (/s\d{2}(?!e\d)/.test(lower)) return true
-  if (/season\s+\d+/.test(lower)) return true
-  if (/sezon\s+\d+/.test(lower)) return true
-  return false
-}
-
 function scoreResolution(parsed: ParsedTitle, config: RankingConfig): number {
   if (parsed.resolution === null) return 0
   const rawScore = config.resolutions[parsed.resolution] ?? 0
@@ -108,9 +100,10 @@ function scoreSizeFromThresholds(
   return 0
 }
 
-function scoreSize(sizeBytes: number, type: 'movie' | 'series', isSeasonPack: boolean, config: RankingConfig): number {
-  if (type === 'movie') return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.movie, config.weights.size)
-  if (isSeasonPack) return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.seasonPack, config.weights.size)
+function scoreSize(sizeBytes: number, kind: ReleaseKind, config: RankingConfig): number {
+  if (kind === 'seasonPack')
+    return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.seasonPack, config.weights.size)
+  if (kind === 'movie') return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.movie, config.weights.size)
   return scoreSizeFromThresholds(sizeBytes, config.sizeThresholds.series, config.weights.size)
 }
 
@@ -147,18 +140,17 @@ function scoreTitleRelevance(torrentTitle: string, mediaTitle: string, year: str
 
 function calculateScore(
   result: ProwlarrResult,
-  type: 'movie' | 'series',
+  kind: ReleaseKind,
   mediaTitle: string,
   year: string,
   config: RankingConfig
 ): number {
   const parsed = parseTorrentTitle(result.title, config)
-  const isSeasonPack = type === 'series' && detectSeasonPack(result.title)
 
   const resolution = scoreResolution(parsed, config)
   const language = scoreLanguage(parsed, config)
   const seeders = scoreSeeders(result.seeders, config)
-  const size = scoreSize(result.size, type, isSeasonPack, config)
+  const size = scoreSize(result.size, kind, config)
   const source = scoreSource(parsed, config)
   const group = scoreGroup(parsed, config)
   const titleRelevance = scoreTitleRelevance(result.title, mediaTitle, year, config)
@@ -168,7 +160,7 @@ function calculateScore(
 
 export function rankTorrents(
   results: ProwlarrResult[],
-  type: 'movie' | 'series' = 'movie',
+  kind: ReleaseKind = 'movie',
   mediaTitle = '',
   year = '',
   config?: RankingConfig
@@ -186,11 +178,10 @@ export function rankTorrents(
     cfg.titleRelevance.fullTitleWeight
 
   const ranked = results.map((result) => {
-    const score = calculateScore(result, type, mediaTitle, year, cfg)
+    const score = calculateScore(result, kind, mediaTitle, year, cfg)
     const percentage = scoreMax > 0 ? Math.min(100, Math.round((score / scoreMax) * 100)) : 0
     const parsed = parseTorrentTitle(result.title, cfg)
-    const isSeasonPack = type === 'series' && detectSeasonPack(result.title)
-    return { ...result, score, percentage, recommended: false, parsed, isSeasonPack }
+    return { ...result, score, percentage, recommended: false, parsed, isSeasonPack: kind === 'seasonPack' }
   })
 
   ranked.sort((a, b) => b.score - a.score)

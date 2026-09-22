@@ -6,6 +6,15 @@
       <span class="flex items-center gap-2 text-xs font-bold text-purple-500">
         <UIcon name="i-lucide-layers" class="size-3" />
         {{ t('tv.seasonPack') }}
+        <span
+          class="font-bold"
+          :class="
+            pack.percentage >= 80 ? 'text-emerald-500' : pack.percentage >= 60 ? 'text-amber-500' : 'text-zinc-500'
+          "
+        >
+          {{ pack.percentage }}%
+        </span>
+        <UIcon v-if="pack.recommended" name="i-lucide-star" class="size-3 text-amber-500" />
       </span>
       <BrowseTorrentTitle class="mt-1" :text="pack.title" />
       <div class="mt-1 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
