@@ -43,6 +43,12 @@
     "noResultsGeneric": "Nenhum resultado",
     "noResultsHint": "Verifique a grafia, tente outras palavras-chave ou navegue por gênero.",
     "searchError": "A busca falhou. Tente novamente.",
+    "searching": {
+      "0": "Buscando...",
+      "1": "Verificando filmes e séries...",
+      "2": "Aprimorando resultados...",
+      "3": "Quase lá..."
+    },
     "popularMovies": "Filmes Populares",
     "popularTv": "Séries Populares",
     "trending": "Em Alta",

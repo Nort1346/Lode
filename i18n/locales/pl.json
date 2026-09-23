@@ -43,6 +43,12 @@
     "noResultsGeneric": "Brak wyników",
     "noResultsHint": "Sprawdź pisownię, spróbuj innych słów kluczowych lub przeglądaj według gatunku.",
     "searchError": "Nie udało się wyszukać. Spróbuj ponownie.",
+    "searching": {
+      "0": "Szukam...",
+      "1": "Sprawdzam filmy i seriale...",
+      "2": "Dopasowuję wyniki...",
+      "3": "Prawie gotowe..."
+    },
     "popularMovies": "Popularne filmy",
     "popularTv": "Popularne seriale",
     "trending": "Na czasie",

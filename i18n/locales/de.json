@@ -43,6 +43,12 @@
     "noResultsGeneric": "Keine Ergebnisse",
     "noResultsHint": "Prüfe die Schreibweise, versuche andere Stichwörter oder stöbere nach Genre.",
     "searchError": "Suche fehlgeschlagen. Bitte erneut versuchen.",
+    "searching": {
+      "0": "Suche...",
+      "1": "Prüfe Filme und Serien...",
+      "2": "Verfeinere die Ergebnisse...",
+      "3": "Fast geschafft..."
+    },
     "popularMovies": "Beliebte Filme",
     "popularTv": "Beliebte Serien",
     "trending": "Im Trend",

@@ -43,6 +43,12 @@
     "noResultsGeneric": "Aucun résultat",
     "noResultsHint": "Vérifiez l'orthographe, essayez d'autres mots-clés ou parcourez par genre.",
     "searchError": "La recherche a échoué. Veuillez réessayer.",
+    "searching": {
+      "0": "Recherche...",
+      "1": "Vérification des films et séries...",
+      "2": "Affinement des résultats...",
+      "3": "Presque terminé..."
+    },
     "popularMovies": "Films populaires",
     "popularTv": "Séries populaires",
     "trending": "Tendances",
