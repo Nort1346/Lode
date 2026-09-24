@@ -2,32 +2,42 @@
   <div>
     <div ref="sentinelRef" class="h-px" aria-hidden="true" />
 
-    <!-- Pinned while scrolling: flush at the viewport top on desktop (top-0)
-         with CONSTANT top padding so the bar height never changes (no scroll
-         jump when it pins/unpins); the frosted background/border only appear
-         once stuck. Under the app header on mobile (measured offset). Phones
-         collapse to a compact search row + Filters toggle; tablets keep row. -->
+    <!-- Pinned while scrolling: flush at the viewport top on desktop (top-0);
+         under the app header on mobile (measured offset). Top padding (pt-5)
+         and margins are CONSTANT in resting and stuck states so the bar height
+         never changes (no scroll jump when it pins/unpins); -mt-* cancels the
+         default layout padding (p-4 / lg:p-6) so the resting position sits
+         tight against the content edge. Frosted background/border appear only
+         once stuck. -->
+    <!-- v-reveal 'fade' variant: pure opacity entrance (no transform on the
+         sticky element); fades the whole bar in as one unit on page load -->
     <div
-      class="sticky z-30 -mx-4 border-b border-transparent px-4 pt-5 transition-[background-color,border-color] duration-200 motion-reduce:transition-none lg:-mx-6 lg:top-0 lg:mb-3 lg:px-6 lg:pb-3"
+      v-reveal="'fade'"
+      class="sticky z-30 -mx-4 -mt-4 border-b border-transparent px-4 pt-5 transition-[background-color,border-color] duration-200 motion-reduce:transition-none lg:-mx-6 lg:-mt-6 lg:top-0 lg:mb-3 lg:px-6 lg:pb-3"
       :class="stuck ? 'border-zinc-200/70 bg-white/80 backdrop-blur-md dark:border-white/8 dark:bg-zinc-900/80' : ''"
       :style="barTopStyle"
     >
       <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div class="flex min-w-0 flex-1 gap-3">
           <div class="relative min-w-0 flex-1 overflow-visible" data-autocomplete>
+            <!-- h-11 on the base: Nuxt UI's xl size sets no height class
+                 (padding + line-box only = 40px); this pins the input to the
+                 same 44px as the filter button and segmented track -->
             <UInput
               v-model="searchParams.q"
               :placeholder="t('browse.searchPlaceholder')"
               icon="i-lucide-search"
               size="xl"
+              :ui="{ base: 'h-11' }"
               class="w-full"
               @focus="suggestions.length > 0 && (isOpen = true)"
               @keydown.escape="isOpen = false"
               @keydown.enter="close"
             />
+            <!-- Mobile-only (<768px) suggestion dropdown: never rendered on desktop -->
             <Transition name="suggestions-fade">
               <div
-                v-if="isOpen && suggestions.length > 0"
+                v-if="isOpen && suggestions.length > 0 && isSuggestionMobile"
                 class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
               >
                 <button
@@ -54,32 +64,76 @@
               </div>
             </Transition>
           </div>
-          <Transition name="filters-fade">
-            <button
-              v-if="compactStuck"
-              type="button"
-              class="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 transition-colors duration-150 hover:bg-zinc-100 motion-reduce:transition-none dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-white/5"
-              :aria-expanded="filterOpen"
-              :aria-label="t('browse.filters')"
-              @click="filterOpen = !filterOpen"
+          <!-- Persistently visible on phones (no appear-on-stick animation);
+               tapping expands/collapses the options panel below -->
+          <button
+            v-if="isPhoneBar"
+            type="button"
+            class="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 transition-colors duration-150 hover:bg-zinc-100 motion-reduce:transition-none dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-white/5"
+            :aria-expanded="filterOpen"
+            :aria-controls="filterPanelId"
+            :aria-label="t('browse.filters')"
+            @click="filterOpen = !filterOpen"
+          >
+            <UIcon name="i-lucide-sliders-horizontal" class="size-4" />
+            {{ t('browse.filters') }}
+            <span
+              v-if="searchParams.genres.length > 0"
+              class="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white"
             >
-              <UIcon name="i-lucide-sliders-horizontal" class="size-4" />
-              {{ t('browse.filters') }}
-              <span
-                v-if="searchParams.genres.length > 0"
-                class="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white"
-              >
-                {{ searchParams.genres.length }}
-              </span>
-            </button>
-          </Transition>
+              {{ searchParams.genres.length }}
+            </span>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="size-4 text-zinc-400 transition-transform duration-200 motion-reduce:transition-none dark:text-zinc-500"
+              :class="filterOpen ? 'rotate-180' : ''"
+            />
+          </button>
         </div>
-        <USelect v-model="searchParams.type" :items="typeOptions" size="xl" class="hidden w-40 sm:block" />
+        <!-- Tablet + desktop type control: segmented radiogroup (mutually
+             exclusive views); active segment inverts for contrast; arrow keys
+             move the selection (WAI-ARIA select-only pattern) -->
+        <div
+          role="radiogroup"
+          :aria-label="t('browse.mediaType')"
+          class="hidden h-11 shrink-0 items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1 sm:flex dark:border-white/10 dark:bg-zinc-800/60"
+        >
+          <button
+            v-for="opt in typeOptions"
+            :key="opt.value"
+            :ref="(el: unknown) => setTypeButtonRef(el, opt.value)"
+            type="button"
+            role="radio"
+            :aria-checked="searchParams.type === opt.value"
+            :tabindex="searchParams.type === opt.value ? 0 : -1"
+            class="flex h-8 items-center justify-center rounded-md px-3 text-sm transition-colors duration-150 motion-reduce:transition-none"
+            :class="
+              searchParams.type === opt.value
+                ? 'bg-zinc-900 font-semibold text-white dark:bg-white dark:text-zinc-900'
+                : 'font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+            "
+            @click="searchParams.type = opt.value"
+            @keydown="handleTypeKeydown($event, opt.value)"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
       </div>
 
-      <!-- Collapsible on phones while pinned (grid rows 0fr -> 1fr); the phone-only
-           type selector lives here so it reappears with the filter panel -->
-      <div class="filter-panel" :class="panelExpanded ? 'filter-panel-open' : ''">
+      <!-- Always expanded on tablet/desktop (type control + genre chips stay
+           visible). On phones it stays collapsed until the Filters toggle is
+           tapped (grid rows 0fr -> 1fr); inert while collapsed so hidden
+           controls leave the tab order. The phone-only type selector lives
+           here so it appears with the panel. Transitions only activate one
+           frame after the initial render, so the breakpoint correction
+           (viewport width starts at 0 -> real value) never plays the unfold
+           on page load on tablet/desktop -->
+      <div
+        :id="filterPanelId"
+        class="filter-panel"
+        :class="[panelAnimated ? 'filter-panel-anim' : '', panelExpanded ? 'filter-panel-open' : '']"
+        :inert="!panelExpanded"
+      >
         <div class="min-h-0 overflow-hidden">
           <div class="flex flex-col gap-3 pb-6 lg:pb-0">
             <USelect v-model="searchParams.type" :items="typeOptions" size="xl" class="w-full sm:hidden" />
@@ -295,18 +349,40 @@ onUnmounted(() => {
 // pins/unpins); pinned under the app header on mobile (measured offset). A
 // 1px sentinel sits above the bar in normal flow; the
 // IntersectionObserver's rootMargin shrinks the viewport top to the sticky
-// line so "stuck" fires exactly when the bar pins.
+// line so "stuck" fires exactly when the bar pins. The -mt-4 / lg:-mt-6
+// resting margin lifts the bar's pinning point, so the observer line must be
+// lifted by the same amount to stay in sync with the pin moment.
 const { width, smallerThan } = useBreakpoints()
 const isMobileBar = computed(() => smallerThan('lg'))
 const isPhoneBar = computed(() => smallerThan('sm'))
+// Suggestion dropdown + marquee titles are a mobile-only mechanism (<768px),
+// matching the original behaviour before the sticky-bar work made it global
+const isSuggestionMobile = computed(() => smallerThan('md'))
 const sentinelRef = ref<HTMLElement | null>(null)
 const stuck = ref(false)
 const filterOpen = ref(false)
 const mobileTop = ref(0)
 let observer: IntersectionObserver | null = null
 
-const compactStuck = computed(() => isPhoneBar.value && stuck.value)
-const panelExpanded = computed(() => !compactStuck.value || filterOpen.value)
+// Phones: the panel follows the Filters toggle (user-driven, no scroll
+// coupling). Tablet/desktop: type control + genre chips stay visible always.
+const panelExpanded = computed(() => (isPhoneBar.value ? filterOpen.value : true))
+
+// The panel's transitions switch on one frame AFTER the initial render. The
+// viewport width ref starts at 0, so the first render (SSR + hydration) reads
+// as "phone" and renders the panel collapsed; when the real width lands on
+// tablet/desktop the panel flips open. Enabling transitions only after that
+// flip has painted keeps the landing unfold invisible; user-driven phone
+// toggles still animate normally.
+const panelAnimated = ref(false)
+
+onMounted(() => {
+  void nextTick(() => {
+    requestAnimationFrame(() => {
+      panelAnimated.value = true
+    })
+  })
+})
 const barTopStyle = computed(() =>
   isMobileBar.value && mobileTop.value > 0 ? { top: `${mobileTop.value}px` } : undefined
 )
@@ -320,7 +396,9 @@ function createObserver() {
   observer?.disconnect()
   const sentinel = sentinelRef.value
   if (sentinel === null) return
-  const offset = isMobileBar.value ? mobileTop.value : 0
+  // Matches the -mt-4 / lg:-mt-6 classes on the bar
+  const restMargin = isMobileBar.value ? 16 : 24
+  const offset = (isMobileBar.value ? mobileTop.value : 0) + restMargin
   observer = new IntersectionObserver(
     (entries) => {
       const entry = entries[0]
@@ -338,9 +416,6 @@ onMounted(() => {
 
 watch(width, measureHeader)
 watch([isMobileBar, mobileTop], createObserver)
-watch(compactStuck, (v) => {
-  if (!v) filterOpen.value = false
-})
 
 onUnmounted(() => {
   observer?.disconnect()
@@ -351,6 +426,34 @@ const typeOptions = computed(() => [
   { label: t('browse.searchMovies'), value: 'movie' },
   { label: t('browse.searchTv'), value: 'tv' }
 ])
+
+const filterPanelId = 'browse-filter-panel'
+const typeOrder: readonly string[] = ['all', 'movie', 'tv']
+const typeButtonRefs = new Map<string, HTMLButtonElement>()
+
+function setTypeButtonRef(el: unknown, value: string) {
+  if (el instanceof HTMLButtonElement) typeButtonRefs.set(value, el)
+  else typeButtonRefs.delete(value)
+}
+
+// Keyboard support for the segmented type control (APG select-only pattern):
+// arrows cycle the options, Home/End jump, focus follows the selection
+function handleTypeKeydown(e: KeyboardEvent, value: string) {
+  let next: number | null = null
+  const current = typeOrder.indexOf(value)
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (current + 1) % typeOrder.length
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (current + typeOrder.length - 1) % typeOrder.length
+  else if (e.key === 'Home') next = 0
+  else if (e.key === 'End') next = typeOrder.length - 1
+  if (next === null) return
+  e.preventDefault()
+  const target = typeOrder[next]
+  if (target === undefined) return
+  searchParams.type = target
+  void nextTick(() => {
+    typeButtonRefs.get(target)?.focus()
+  })
+}
 
 const allGenres = [
   { id: 1, label: 'browse.action', movieId: 28, tvId: 10759 },
@@ -635,11 +738,13 @@ for (const g of tvGenres) {
 
 <style scoped>
 /* Filter panel collapse: animating grid rows (0fr -> 1fr) avoids measuring
-   content height; degrades to an instant toggle where unsupported */
+   content height; degrades to an instant toggle where unsupported. The
+   transitions live on .filter-panel-anim, which only activates one frame
+   after the initial render (see panelAnimated) so the tablet/desktop
+   breakpoint correction never plays the unfold on page load */
 .filter-panel {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.25s ease;
 }
 
 .filter-panel-open {
@@ -650,25 +755,18 @@ for (const g of tvGenres) {
   min-height: 0;
   overflow: hidden;
   opacity: 0;
-  transition: opacity 0.2s ease;
 }
 
 .filter-panel-open > div {
   opacity: 1;
 }
 
-/* Mobile "Filters" toggle: fades and settles as the compact bar pins/unpins */
-.filters-fade-enter-active,
-.filters-fade-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+.filter-panel-anim {
+  transition: grid-template-rows 0.25s ease;
 }
 
-.filters-fade-enter-from,
-.filters-fade-leave-to {
-  opacity: 0;
-  transform: scale(0.95);
+.filter-panel-anim > div {
+  transition: opacity 0.2s ease;
 }
 
 /* Mobile autocomplete dropdown: fades in slightly from above */
@@ -686,13 +784,19 @@ for (const g of tvGenres) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .filter-panel,
-  .filter-panel > div,
-  .filters-fade-enter-active,
-  .filters-fade-leave-active,
+  .filter-panel-anim,
+  .filter-panel-anim > div,
   .suggestions-fade-enter-active,
   .suggestions-fade-leave-active {
     transition: none;
+  }
+
+  /* The v-reveal utilities have no built-in reduced-motion handling: reveal
+     instantly instead of animating (opacity 1 so nothing stays hidden) */
+  .fade-in.revealed,
+  .reveal.revealed {
+    animation: none;
+    opacity: 1;
   }
 }
 </style>

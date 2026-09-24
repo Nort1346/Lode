@@ -36,6 +36,7 @@
     "searchMovies": "Filmes",
     "searchTv": "Séries",
     "filters": "Filtros",
+    "mediaType": "Tipo",
     "noResults1": "Não encontramos nada para “{query}”",
     "noResults2": "Nenhum resultado para “{query}”",
     "noResults3": "Hmm, nada apareceu para “{query}”",
