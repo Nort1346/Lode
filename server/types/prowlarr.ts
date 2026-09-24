@@ -29,6 +29,18 @@ export interface ProwlarrRelease {
   imdbId: number
 }
 
+// Progress events emitted while the query ladder runs. `index`/`total` give the
+// "N of M queries done" signal, `text` is the tier query actually sent to
+// Prowlarr, and `results` is the per-query hit count (cumulative totals are
+// kept client-side).
+export type ProwlarrProgressEvent =
+  | { kind: 'start'; queries: number }
+  | { kind: 'query'; state: 'start' | 'skipped'; index: number; total: number; text: string }
+  | { kind: 'query'; state: 'done'; index: number; total: number; text: string; results: number }
+  | { kind: 'imdb'; results: number }
+
+export type ProwlarrProgressCallback = (event: ProwlarrProgressEvent) => void
+
 export type TrackerType = 'guid' | 'counting'
 
 export interface TrackerCookieConfig {

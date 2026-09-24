@@ -1,9 +1,5 @@
-import { getMovieDetails } from '#server/utils/tmdb'
-import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
-import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
+import { searchMovieTorrents } from '#server/utils/torrents/torrent-search'
 import { checkDailyLimit } from '#server/utils/limits'
-import { getRankingConfig } from '#server/utils/torrents/ranking-config'
-import { pickAlternativeTitles } from '#server/utils/browse-utils'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -26,51 +22,10 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  let movie
-  try {
-    movie = await getMovieDetails(id, locale)
-  } catch {
+  const outcome = await searchMovieTorrents(id, locale)
+  if (outcome.kind === 'details-failed') {
     throw createError({ statusCode: 502, statusMessage: 'Failed to fetch movie details from TMDB' })
   }
 
-  let torrents: ReturnType<typeof rankTorrents> = []
-  const prowlarr = useProwlarr()
-  if (prowlarr !== null) {
-    try {
-      const rankingConfig = await getRankingConfig()
-      const year = movie.release_date?.slice(0, 4) ?? ''
-      const altTitles = pickAlternativeTitles(
-        (movie.alternative_titles ?? []).map((a) => ({ title: a.title, iso_639_1: a.iso_639_1 })),
-        [movie.title, movie.original_title],
-        locale
-      )
-      const rawResults = await prowlarr.searchMovie(movie.title, movie.original_title, altTitles, year, [
-        PROWLARR_CATEGORIES.MOVIES
-      ])
-      torrents = rankTorrents(rawResults, 'movie', movie.title, year, rankingConfig)
-    } catch {
-      // Prowlarr might be offline, return empty torrents
-    }
-  }
-
-  return {
-    torrents: torrents.map((t) => ({
-      title: t.title,
-      size: t.size,
-      sizeFormatted: formatSize(t.size),
-      seeders: t.seeders,
-      leechers: t.leechers,
-      indexer: t.indexer,
-      magnetLink: t.magnetLink,
-      downloadUrl: t.downloadUrl,
-      guid: t.guid,
-      score: t.score,
-      percentage: t.percentage,
-      recommended: t.recommended,
-      resolution: t.parsed.resolution,
-      source: t.parsed.source,
-      language: t.parsed.language,
-      isPrivate: t.isPrivate
-    }))
-  }
+  return outcome.payload
 })

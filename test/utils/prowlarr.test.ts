@@ -52,6 +52,7 @@ import {
   getEnabledCustomTrackerNames,
   useProwlarr
 } from '#server/utils/prowlarr'
+import type { ProwlarrProgressEvent } from '#server/types/prowlarr'
 
 const fakeDb = { select: () => ({ from: () => ({ where: () => ({}) }) }) }
 
@@ -466,6 +467,77 @@ describe('ProwlarrClient', () => {
 
     await expect(client.searchByQuery('X')).rejects.toThrow('Prowlarr API error 429')
     expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('emits start and per-query progress events through the movie ladder', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockResolvedValue(okJson([release({ title: 'R', size: 1 })]))
+    const client = new ProwlarrClient('http://p', 'k')
+    const events: ProwlarrProgressEvent[] = []
+
+    await client.searchMovie('Movie', 'Movie', [], '2020', [2000], (e) => events.push(e))
+
+    expect(events[0]).toEqual({ kind: 'start', queries: 2 })
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'start')).toHaveLength(2)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'done' && e.results === 1)).toHaveLength(2)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'done')[0]).toMatchObject({
+      index: 1,
+      total: 2,
+      text: expect.stringContaining('Movie')
+    })
+    expect(events.some((e) => e.kind === 'imdb')).toBe(false)
+  })
+
+  it('emits a skipped event for the queued query once a healthy set arrives', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockResolvedValue(okJson([1, 2, 3, 4, 5].map((i) => release({ title: `R${i}`, size: i * 10 }))))
+    const client = new ProwlarrClient('http://p', 'k')
+    const events: ProwlarrProgressEvent[] = []
+
+    await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt'], (e) => events.push(e))
+
+    // 3 queries run, the 4th (still waiting for a slot) is skipped
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'start')).toHaveLength(3)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'skipped')).toHaveLength(1)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'done')).toHaveLength(3)
+  })
+
+  it('emits an imdb event for the parallel IMDB branch', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockImplementation(async (input: unknown) => {
+      const query = new URL(String(input)).searchParams.get('query') ?? ''
+      return okJson(
+        query.includes('imdbid') ? [release({ title: 'ImdbHit', size: 5 })] : [release({ title: 'TextHit', size: 10 })]
+      )
+    })
+    const client = new ProwlarrClient('http://p', 'k')
+    const events: ProwlarrProgressEvent[] = []
+
+    await client.searchTv('Show', 'Show', '2020', 'tt1', null, undefined, [], (e) => events.push(e))
+
+    expect(events.filter((e) => e.kind === 'imdb')).toEqual([{ kind: 'imdb', results: 1 }])
+  })
+
+  it('emits a zero-result imdb event when the IMDB branch fails', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    const fail = { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+    mockFetch.mockImplementation(async (input: unknown) =>
+      String(input).includes('imdbid') ? fail : okJson([release({ title: 'TextHit', size: 10 })])
+    )
+    const client = new ProwlarrClient('http://p', 'k')
+    const events: ProwlarrProgressEvent[] = []
+
+    await client.searchTv('Show', 'Show', '2020', 'tt1', null, undefined, [], (e) => events.push(e))
+
+    expect(events.filter((e) => e.kind === 'imdb')).toEqual([{ kind: 'imdb', results: 0 }])
+  })
+
+  it('does not emit progress events when no callback is provided', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockResolvedValue(okJson([release({ title: 'R', size: 1 })]))
+    const client = new ProwlarrClient('http://p', 'k')
+
+    await expect(client.searchMovie('Movie', 'Movie', [], '2020', [2000])).resolves.toHaveLength(1)
   })
 })
 

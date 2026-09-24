@@ -165,12 +165,15 @@
         <USelect v-model="selectedSeason" :items="seasonOptions" size="md" class="w-48" />
       </div>
 
-      <div v-if="seasonPending" class="space-y-3">
-        <USkeleton class="h-24 w-full rounded-xl" />
-        <USkeleton class="h-32 w-full rounded-xl" />
-        <USkeleton class="h-32 w-full rounded-xl" />
-        <USkeleton class="h-32 w-full rounded-xl" />
-      </div>
+      <BrowseSearchProgress
+        v-if="searching"
+        :phase="searchPhase"
+        :label="show?.name ?? ''"
+        :queries-total="queriesTotal"
+        :queries-completed="queriesCompleted"
+        :current-query="currentQuery"
+        :found="foundSoFar"
+      />
 
       <div
         v-else-if="seasonLimitInfo"
@@ -190,12 +193,12 @@
         <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ t('browse.limitResetInfo') }}</p>
       </div>
 
-      <div v-else-if="seasonData">
-        <div v-if="seasonData.seasonPacks.length > 0" class="mb-6">
+      <div v-else-if="seasonPayload">
+        <div v-if="seasonPayload.seasonPacks.length > 0" class="mb-6">
           <h3 class="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ t('tv.seasonPacks') }}</h3>
           <div class="flex flex-col gap-4 torrent-list">
             <BrowseSeasonPackCard
-              v-for="(pack, idx) in seasonData.seasonPacks"
+              v-for="(pack, idx) in seasonPayload.seasonPacks"
               :key="'pack-' + idx"
               :pack="pack"
               :loading="downloadingPackIdx === idx"
@@ -227,7 +230,7 @@
 
         <div class="flex flex-col gap-4 torrent-list">
           <BrowseEpisodeCard
-            v-for="ep in seasonData.episodes"
+            v-for="ep in seasonPayload.episodes"
             :key="ep.id"
             :episode="ep"
             :show-name="show?.name ?? ''"
@@ -354,24 +357,30 @@ const seasonOptions = computed(() => {
 })
 
 const {
-  data: seasonData,
-  pending: seasonPending,
-  error: seasonError
-} = useLazyFetch<SeasonData>(
-  computed(() => `/api/browse/tv/${mediaId.value}/season/${selectedSeason.value}?locale=${mediaLanguage.value}`),
-  { watch: [selectedSeason, mediaLanguage] }
+  phase: searchPhase,
+  queriesTotal,
+  queriesCompleted,
+  foundSoFar,
+  currentQuery,
+  payload: seasonPayload,
+  limitInfo: seasonLimitInfo,
+  start: startSeasonSearch
+} = useTorrentSearch<SeasonData>()
+
+const searching = computed(
+  () => searchPhase.value === 'connecting' || searchPhase.value === 'searching' || searchPhase.value === 'finishing'
 )
 
-const seasonLimitInfo = computed(() => {
-  if (seasonError.value === null || seasonError.value === undefined) return null
-  if (getApiStatusCode(seasonError.value) !== 429) return null
-  const err = seasonError.value as unknown as Record<string, unknown>
-  const body = err.data as Record<string, unknown> | undefined
-  if (body !== null && body !== undefined && 'activeCount' in body) return body
-  const nested = body?.data as Record<string, unknown> | undefined
-  if (nested !== null && nested !== undefined && 'activeCount' in nested) return nested
-  return null
-})
+const seasonStreamUrl = computed(
+  () => `/api/browse/tv/${mediaId.value}/season/${selectedSeason.value}/torrents-stream?locale=${mediaLanguage.value}`
+)
+watch(
+  seasonStreamUrl,
+  (url) => {
+    startSeasonSearch(url)
+  },
+  { immediate: true }
+)
 
 function isPrivateLimitExceeded(isPrivate: boolean): boolean {
   if (!isPrivate) return false

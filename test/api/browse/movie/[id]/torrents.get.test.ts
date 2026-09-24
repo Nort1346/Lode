@@ -131,7 +131,8 @@ describe('browse/movie/[id]/torrents.get', () => {
       source: 'WEB',
       language: 'EN'
     })
-    expect(mockClient.searchMovie).toHaveBeenCalledWith('Movie', 'Movie', [], '2024', [2000])
+    // the 6th argument is the optional progress callback (unused by the JSON endpoint)
+    expect(mockClient.searchMovie).toHaveBeenCalledWith('Movie', 'Movie', [], '2024', [2000], undefined)
     expect(mockRankTorrents).toHaveBeenCalledWith([{ title: 'raw' }], 'movie', 'Movie', '2024', {})
   })
 
@@ -160,7 +161,8 @@ describe('browse/movie/[id]/torrents.get', () => {
       'Original Title',
       ['Alt Title', 'Other Title'],
       '2024',
-      [2000]
+      [2000],
+      undefined
     )
   })
 

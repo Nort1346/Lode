@@ -5,7 +5,13 @@ import { decryptAES } from '#server/utils/crypto'
 import { performTrackerLogin } from '#server/utils/tracker-auth'
 import { createLogger } from '#server/utils/logger'
 import { useDbAsync, dbGet, dbAll } from '#server/utils/db'
-import type { ProwlarrResult, ProwlarrRelease, TrackerType, TrackerCookieConfig } from '#server/types/prowlarr'
+import type {
+  ProwlarrResult,
+  ProwlarrRelease,
+  ProwlarrProgressCallback,
+  TrackerType,
+  TrackerCookieConfig
+} from '#server/types/prowlarr'
 
 const log = createLogger('Prowlarr')
 
@@ -347,10 +353,11 @@ export class ProwlarrClient {
     originalTitle: string,
     altTitles: string[],
     year: string,
-    categories?: number[]
+    categories?: number[],
+    onProgress?: ProwlarrProgressCallback
   ): Promise<ProwlarrResult[]> {
     const names = uniqueNames([title, originalTitle, ...altTitles])
-    return this.runQueryLadder(buildNameTiers(names, null, year), categories)
+    return this.runQueryLadder(buildNameTiers(names, null, year), categories, onProgress)
   }
 
   async searchByQuery(query: string, categories?: number[]): Promise<ProwlarrResult[]> {
@@ -390,27 +397,40 @@ export class ProwlarrClient {
   // into a query storm. Once a single query returns a healthy result set, the
   // queries still queued for a slot are skipped. A failing query is logged
   // and dropped instead of failing the whole search.
-  private async runQueryLadder(tiers: string[][], categories?: number[]): Promise<ProwlarrResult[]> {
+  private async runQueryLadder(
+    tiers: string[][],
+    categories?: number[],
+    onProgress?: ProwlarrProgressCallback
+  ): Promise<ProwlarrResult[]> {
     const queries = selectLadderQueries(tiers)
+    const total = queries.length
     const startedAt = Date.now()
 
     const merged: ProwlarrResult[] = []
     let fired = 0
     let healthy = false
 
+    onProgress?.({ kind: 'start', queries: total })
+
     await Promise.all(
-      queries.map(async (query) => {
+      queries.map(async (query, qi) => {
+        const index = qi + 1
         if (healthy) return
         await this.limiter.acquire()
         try {
           // Re-check after acquiring the slot: a healthy set may have arrived
           // while this query was still queued.
-          if (healthy) return
+          if (healthy) {
+            onProgress?.({ kind: 'query', state: 'skipped', index, total, text: query })
+            return
+          }
           fired += 1
           log.info(`search: "${query}"`)
+          onProgress?.({ kind: 'query', state: 'start', index, total, text: query })
           try {
             const results = await this.searchByQuery(query, categories)
             log.info(`search: "${query}" -> ${results.length} results`)
+            onProgress?.({ kind: 'query', state: 'done', index, total, text: query, results: results.length })
             merged.push(...results)
             if (results.length >= HEALTHY_RESULT_COUNT) {
               healthy = true
@@ -418,6 +438,7 @@ export class ProwlarrClient {
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err)
             log.warn(`search: "${query}" failed: ${msg}`)
+            onProgress?.({ kind: 'query', state: 'done', index, total, text: query, results: 0 })
           }
         } finally {
           this.limiter.release()
@@ -438,7 +459,8 @@ export class ProwlarrClient {
     imdbId: string | null,
     seasonNumber: number | null,
     categories?: number[],
-    altTitles: string[] = []
+    altTitles: string[] = [],
+    onProgress?: ProwlarrProgressCallback
   ): Promise<ProwlarrResult[]> {
     const seasonPad = seasonNumber !== null ? String(seasonNumber).padStart(2, '0') : null
     const nameKey = imdbId !== null && imdbId.length > 0 ? imdbId : `${showName}:${seasonPad ?? 'all'}`
@@ -455,16 +477,23 @@ export class ProwlarrClient {
     // 1. IMDB tvsearch - covers public trackers
     if (imdbId !== null && imdbId.length > 0) {
       promises.push(
-        this.searchByImdb(imdbId, 'tv', categories).catch((err) => {
-          const msg = err instanceof Error ? err.message : String(err)
-          log.warn(`searchTv: IMDB search failed: ${msg}`)
-          return [] as ProwlarrResult[]
-        })
+        this.searchByImdb(imdbId, 'tv', categories).then(
+          (results) => {
+            onProgress?.({ kind: 'imdb', results: results.length })
+            return results
+          },
+          (err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err)
+            log.warn(`searchTv: IMDB search failed: ${msg}`)
+            onProgress?.({ kind: 'imdb', results: 0 })
+            return [] as ProwlarrResult[]
+          }
+        )
       )
     }
 
     // 2. Text search - covers private trackers
-    promises.push(this.searchTvText(showName, originalName, altTitles, seasonPad, year, categories))
+    promises.push(this.searchTvText(showName, originalName, altTitles, seasonPad, year, categories, onProgress))
 
     const settled = await Promise.all(promises)
     const hasImdb = imdbId !== null && imdbId.length > 0
@@ -495,13 +524,14 @@ export class ProwlarrClient {
     altTitles: string[],
     seasonPad: string | null,
     year: string,
-    categories?: number[]
+    categories?: number[],
+    onProgress?: ProwlarrProgressCallback
   ): Promise<ProwlarrResult[]> {
     // Ladder tiers in relevance order: localized name, original name, then
     // alternative titles. The bare-name tier of each also catches releases
     // the specific queries miss (localized "Sezon 01" naming, missing year).
     const names = uniqueNames([showName, originalName, ...altTitles])
-    return this.runQueryLadder(buildNameTiers(names, seasonPad, year), categories)
+    return this.runQueryLadder(buildNameTiers(names, seasonPad, year), categories, onProgress)
   }
 }
 

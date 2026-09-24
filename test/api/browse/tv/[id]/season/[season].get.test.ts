@@ -356,6 +356,7 @@ describe('browse/tv/[id]/season/[season].get', () => {
 
     await handler(mockEvent)
     expect(mockProwlarr.searchTv).toHaveBeenCalledTimes(2)
+    // the 8th argument is the optional progress callback (unused by the JSON endpoint)
     expect(mockProwlarr.searchTv).toHaveBeenNthCalledWith(
       1,
       'English Name',
@@ -364,7 +365,8 @@ describe('browse/tv/[id]/season/[season].get', () => {
       null,
       1,
       expect.anything(),
-      []
+      [],
+      undefined
     )
     expect(mockProwlarr.searchTv).toHaveBeenNthCalledWith(
       2,
@@ -374,7 +376,8 @@ describe('browse/tv/[id]/season/[season].get', () => {
       null,
       1,
       expect.anything(),
-      []
+      [],
+      undefined
     )
   })
 })

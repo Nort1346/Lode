@@ -163,11 +163,15 @@
         {{ t('movie.availableTorrents') }}
       </h2>
 
-      <div v-if="torrentsPending" class="space-y-2">
-        <USkeleton class="h-20 w-full rounded-xl" />
-        <USkeleton class="h-20 w-full rounded-xl" />
-        <USkeleton class="h-20 w-full rounded-xl" />
-      </div>
+      <BrowseSearchProgress
+        v-if="searching"
+        :phase="searchPhase"
+        :label="movie?.title ?? ''"
+        :queries-total="queriesTotal"
+        :queries-completed="queriesCompleted"
+        :current-query="currentQuery"
+        :found="foundSoFar"
+      />
 
       <div
         v-else-if="limitInfo"
@@ -426,29 +430,36 @@ const { data, pending, error } = await useFetch<{ movie: MovieData }>(
   { watch: [mediaLanguage] }
 )
 
-const {
-  data: torrentData,
-  pending: torrentsPending,
-  error: torrentError
-} = useLazyFetch<{ torrents: Torrent[] }>(
-  computed(() => `/api/browse/movie/${mediaId.value}/torrents?locale=${mediaLanguage.value}`),
-  { watch: [mediaLanguage] }
-)
-
 const movie = computed(() => data.value?.movie ?? null)
 
-const torrents = computed(() => torrentData.value?.torrents ?? [])
+const {
+  phase: searchPhase,
+  queriesTotal,
+  queriesCompleted,
+  foundSoFar,
+  currentQuery,
+  payload: torrentPayload,
+  limitInfo,
+  start: startTorrentSearch
+} = useTorrentSearch<{ torrents: Torrent[] }>()
+
+const torrents = computed(() => torrentPayload.value?.torrents ?? [])
+const searching = computed(
+  () => searchPhase.value === 'connecting' || searchPhase.value === 'searching' || searchPhase.value === 'finishing'
+)
+
+const torrentStreamUrl = computed(
+  () => `/api/browse/movie/${mediaId.value}/torrents-stream?locale=${mediaLanguage.value}`
+)
+watch(
+  torrentStreamUrl,
+  (url) => {
+    startTorrentSearch(url)
+  },
+  { immediate: true }
+)
+
 const { data: limits } = useFetch('/api/user/limits')
-const limitInfo = computed(() => {
-  if (torrentError.value === null || torrentError.value === undefined) return null
-  if (getApiStatusCode(torrentError.value) !== 429) return null
-  const err = torrentError.value as unknown as Record<string, unknown>
-  const body = err.data as Record<string, unknown> | undefined
-  if (body !== null && body !== undefined && 'activeCount' in body) return body
-  const nested = body?.data as Record<string, unknown> | undefined
-  if (nested !== null && nested !== undefined && 'activeCount' in nested) return nested
-  return null
-})
 
 function isPrivateLimitExceeded(torrent: Torrent): boolean {
   if (!torrent.isPrivate) return false

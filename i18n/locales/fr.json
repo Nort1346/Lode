@@ -83,7 +83,15 @@
     "copyFailed": "Échec de la copie",
     "plDubbing": "PL Dubbing",
     "plSubtitles": "PL Sous-titres",
-    "plLektor": "PL Audio"
+    "plLektor": "PL Audio",
+    "searchProgress": {
+      "connecting": "Recherche de téléchargements...",
+      "searching": "Recherche sur les trackeurs pour « {title} »...",
+      "query": "Recherche : {text}",
+      "finishing": "Tri des résultats...",
+      "progress": "{done} sur {total} requêtes",
+      "found": "{count} résultats"
+    }
   },
   "mediaCard": {
     "movie": "Film",

@@ -83,7 +83,15 @@
     "copyFailed": "Nie udało się skopiować",
     "plDubbing": "PL Dubbing",
     "plSubtitles": "PL Napisy",
-    "plLektor": "PL Lektor"
+    "plLektor": "PL Lektor",
+    "searchProgress": {
+      "connecting": "Szukam pobrań...",
+      "searching": "Szukam w trackerach dla „{title}”...",
+      "query": "Szukam: {text}",
+      "finishing": "Sortuję wyniki...",
+      "progress": "{done} z {total} zapytań",
+      "found": "{count} wyników"
+    }
   },
   "mediaCard": {
     "movie": "Film",
