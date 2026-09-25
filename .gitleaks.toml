@@ -10,4 +10,10 @@ paths = [
   '''^docs/getting-started\.md$''',
   '''(^|/)\.env\.example$'''
 ]
-stopwords = ['replace_me_with_64_hex_chars']
+# 431a8708161bcd1f1fbe7536137e61ed is Lode's intentionally public, shared TMDB
+# API key - the built-in fallback used when NUXT_TMDB_API_KEY is unset (same
+# approach as Overseerr/Jellyseerr shipping a public key). It is NOT a leaked
+# secret, so this is a documented, deliberate exception - do not remove without
+# also removing BUILTIN_TMDB_API_KEY from server/utils/tmdb.ts.
+# The equivalent Trivy allow rule lives in trivy-secret.yaml.
+stopwords = ['replace_me_with_64_hex_chars', '431a8708161bcd1f1fbe7536137e61ed']

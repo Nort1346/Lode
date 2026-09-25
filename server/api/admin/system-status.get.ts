@@ -7,6 +7,7 @@ import { checkJellyfinStatus } from '#server/utils/clients/jellyfin'
 import { useDbAsync } from '#server/utils/db'
 import { createLogger } from '#server/utils/logger'
 import { normalizeUrl } from '#server/utils/url'
+import { resolveTmdbApiKey } from '#server/utils/tmdb'
 
 const log = createLogger('SystemStatus')
 
@@ -140,11 +141,9 @@ async function checkDiscord(config: ReturnType<typeof useRuntimeConfig>): Promis
   }
 }
 
-async function checkTmdb(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
-  const apiKey = (config.tmdbApiKey as string) || ''
-  if (!apiKey) {
-    return { name: 'TMDB', configured: false, status: 'not_configured', details: 'NUXT_TMDB_API_KEY missing' }
-  }
+async function checkTmdb(_config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
+  // TMDB always has a key: the user's NUXT_TMDB_API_KEY or the built-in shared key.
+  const apiKey = resolveTmdbApiKey()
 
   const start = Date.now()
   try {

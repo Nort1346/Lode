@@ -12,6 +12,18 @@ import type {
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
 
+// Intentionally public, shared TMDB API v3 key - the built-in fallback used
+// when the user has not set NUXT_TMDB_API_KEY.
+export const BUILTIN_TMDB_API_KEY = '431a8708161bcd1f1fbe7536137e61ed'
+
+// NUXT_TMDB_API_KEY (runtime config) takes precedence; the built-in shared
+// key is the default, so TMDB always has a key to call with.
+export function resolveTmdbApiKey(): string {
+  const config = useRuntimeConfig()
+  const key = ((config.tmdbApiKey as string) ?? '').trim()
+  return key || BUILTIN_TMDB_API_KEY
+}
+
 const TMDB_BCP47_MAP: Record<string, string> = {
   pl: 'pl-PL',
   en: 'en-US',
@@ -36,15 +48,7 @@ function resolveTmdbLogoLanguage(locale: string): string {
 }
 
 function getApiKey(): string {
-  const config = useRuntimeConfig()
-  const key = (config.tmdbApiKey as string) || ''
-  if (!key) {
-    throw createError({
-      statusCode: 503,
-      statusMessage: 'TMDB is not configured. Set NUXT_TMDB_API_KEY and restart the server.'
-    })
-  }
-  return key
+  return resolveTmdbApiKey()
 }
 
 function throwTmdbError(response: Response): never {

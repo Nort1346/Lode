@@ -292,8 +292,12 @@ describe('admin/system-status.get', () => {
     expect(result.services).toHaveLength(8)
     const db = result.services.find((s: { name: string }) => s.name === 'SQLite')
     expect(db).toEqual(expect.objectContaining({ status: 'up', configured: true }))
-    const others = result.services.filter((s: { name: string }) => s.name !== 'SQLite')
-    expect(others).toHaveLength(7)
+    // TMDB stays configured even with an empty key: it falls back to the
+    // built-in shared key, so it is health-checked instead of not_configured.
+    const tmdb = result.services.find((s: { name: string }) => s.name === 'TMDB')
+    expect(tmdb).toEqual(expect.objectContaining({ status: 'down', configured: true }))
+    const others = result.services.filter((s: { name: string }) => s.name !== 'SQLite' && s.name !== 'TMDB')
+    expect(others).toHaveLength(6)
     expect(others.every((s: { status: string }) => s.status === 'not_configured')).toBe(true)
   })
 

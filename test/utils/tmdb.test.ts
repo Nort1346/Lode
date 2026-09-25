@@ -9,7 +9,14 @@ vi.mock('#server/utils/cache', () => ({
   CACHE_TTL: { TMDB_POPULAR: 3600, TMDB_SEARCH: 600, TMDB_DETAILS: 7200, TMDB_GENRE: 3600 }
 }))
 
-import { searchMovies, getMovieDetails, getTrending, getMoviesByGenre, getLogosForItems } from '#server/utils/tmdb'
+import {
+  BUILTIN_TMDB_API_KEY,
+  searchMovies,
+  getMovieDetails,
+  getTrending,
+  getMoviesByGenre,
+  getLogosForItems
+} from '#server/utils/tmdb'
 
 const mockFetch = vi.fn()
 
@@ -36,14 +43,17 @@ describe('tmdb network helpers', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('searchMovies throws 503 when the api key is missing', async () => {
+  it('searchMovies falls back to the built-in shared key when the config key is missing', async () => {
     mockCacheGet.mockResolvedValue(null)
     vi.stubGlobal(
       'useRuntimeConfig',
       vi.fn(() => ({ tmdbApiKey: '' }))
     )
+    mockFetch.mockResolvedValueOnce(okJson(emptySearch))
 
-    await expect(searchMovies('x')).rejects.toThrow('503: TMDB is not configured')
+    await searchMovies('x')
+
+    expect(mockFetch.mock.calls[0]?.[0]).toContain(`api_key=${BUILTIN_TMDB_API_KEY}`)
   })
 
   it('searchMovies maps a 401 to a 503 key-rejected error', async () => {
@@ -70,7 +80,11 @@ describe('tmdb network helpers', () => {
 
     expect(result.results).toHaveLength(1)
     expect(mockCacheSet).toHaveBeenCalledTimes(1)
-    expect(mockFetch.mock.calls[0]?.[0]).toContain('/search/movie')
+    const url = mockFetch.mock.calls[0]?.[0] as string
+    expect(url).toContain('/search/movie')
+    // NUXT_TMDB_API_KEY takes precedence over the built-in shared key
+    expect(url).toContain('api_key=test-key')
+    expect(url).not.toContain(`api_key=${BUILTIN_TMDB_API_KEY}`)
   })
 
   it('getMovieDetails maps the external_ids imdb id', async () => {

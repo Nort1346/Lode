@@ -9,7 +9,6 @@
 | `NUXT_QBITTORRENT_URL` | qBittorrent WebUI URL (e.g. `http://localhost:8080`) |
 | `NUXT_QBITTORRENT_API_KEY` | qBittorrent WebUI API key (Settings > Web UI > API Key) |
 | `NUXT_SESSION_PASSWORD` | Session encryption key (32+ chars) |
-| `NUXT_TMDB_API_KEY` | TMDB API v3 key (required for browse) |
 | `NUXT_PROWLARR_URL` | Prowlarr base URL |
 | `NUXT_PROWLARR_API_KEY` | Prowlarr API key |
 | `NUXT_TRACKER_ENCRYPTION_KEY` | AES-256-GCM key for tracker passwords (64 hex chars) |
@@ -30,6 +29,7 @@
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `NUXT_TMDB_API_KEY` | Built-in shared key | TMDB API v3 key - Lode falls back to its built-in shared key when unset (Overseerr/Jellyseerr style) |
 | `NUXT_REDIS_URL` | - | Redis connection URL (enables caching) |
 | `NUXT_JELLYFIN_URL` | - | Jellyfin server URL |
 | `NUXT_JELLYFIN_API_KEY` | - | Jellyfin API key |

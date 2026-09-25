@@ -17,9 +17,8 @@ export default defineNitroPlugin(() => {
   })
 
   const logger = createLogger('Config')
-  if (!config.tmdbApiKey) {
-    logger.warn('TMDB API key not set (NUXT_TMDB_API_KEY) - media browsing and search are disabled until configured')
-  }
+  // TMDB is never warned about: Lode falls back to its built-in shared key
+  // (see BUILTIN_TMDB_API_KEY in server/utils/tmdb.ts) when NUXT_TMDB_API_KEY is unset.
   if (!config.prowlarrApiKey) {
     logger.warn('Prowlarr API key not set (NUXT_PROWLARR_API_KEY) - torrent searching is disabled until configured')
   }

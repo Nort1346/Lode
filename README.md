@@ -125,7 +125,7 @@ Requirements:
 - pnpm 11+
 - qBittorrent with WebUI API key enabled
 - Prowlarr
-- TMDB API key
+- TMDB (optional API key - Lode ships a built-in shared key, so most users can skip this)
 
 ```bash
 git clone https://github.com/Nort1346/Lode.git
