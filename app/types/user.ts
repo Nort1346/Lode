@@ -4,6 +4,7 @@ export interface UserProfile {
   role: string
   isActive: boolean
   canSubmit: boolean
+  mustChangePassword: boolean
   dailyDownloadLimit: number
   activeTorrentLimit: number
   maxTorrentSizeGb: number

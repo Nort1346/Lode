@@ -75,6 +75,7 @@ export default defineEventHandler(async (event) => {
       createdAt: new Date().toISOString(),
       discordId: discordId ?? null,
       canSubmit: canSubmit ?? defaultCanSubmit,
+      mustChangePassword: true,
       maxSessions: maxSessions ?? defaultMaxSessions,
       expiresAt: body.expiresAt ?? null,
       syncStatus: 'pending'

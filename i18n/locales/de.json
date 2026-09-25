@@ -250,6 +250,7 @@
     "sectionAccount": "Konto",
     "sectionLimits": "Limits",
     "saveFailed": "Benutzer konnte nicht gespeichert werden",
+    "mustChangePassword": "Passwortwechsel erforderlich",
     "sessionsTitle": "Aktive Sitzungen",
     "sessionsSubtitle": "Aktive Benutzersitzungen verwalten",
     "sessionRevoked": "Sitzung widerrufen",
@@ -706,7 +707,13 @@
     "passwordChanged": "Passwort geändert",
     "passwordMismatch": "Passwörter stimmen nicht überein",
     "passwordTooShort": "Passwort muss mindestens 8 Zeichen lang sein",
-    "passwordSame": "Neues Passwort muss sich vom aktuellen unterscheiden"
+    "passwordSame": "Neues Passwort muss sich vom aktuellen unterscheiden",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort verbergen"
+  },
+  "forcePassword": {
+    "title": "Passwort ändern",
+    "description": "Aus Sicherheitsgründen musst du dein temporäres Passwort ändern, bevor du fortfahren kannst."
   },
   "seo": {
     "title": "Lode",

@@ -250,6 +250,7 @@
     "sectionAccount": "Cuenta",
     "sectionLimits": "Límites",
     "saveFailed": "No se pudo guardar el usuario",
+    "mustChangePassword": "Debe cambiar la contraseña",
     "sessionsTitle": "Sesiones activas",
     "sessionsSubtitle": "Gestiona las sesiones activas de los usuarios",
     "sessionRevoked": "Sesión revocada",
@@ -706,7 +707,13 @@
     "passwordChanged": "Contraseña cambiada",
     "passwordMismatch": "Las contraseñas no coinciden",
     "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
-    "passwordSame": "La nueva contraseña debe ser diferente a la actual"
+    "passwordSame": "La nueva contraseña debe ser diferente a la actual",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña"
+  },
+  "forcePassword": {
+    "title": "Cambia tu contraseña",
+    "description": "Por seguridad, debes cambiar tu contraseña temporal antes de poder continuar."
   },
   "seo": {
     "title": "Lode",

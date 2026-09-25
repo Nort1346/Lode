@@ -37,7 +37,8 @@ export async function ensureAdminExists() {
       activeTorrentLimit: 999,
       maxTorrentSizeGb: 999,
       downloadsToday: 0,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      mustChangePassword: true
     })
 
     log.info('Admin user created  username: admin')

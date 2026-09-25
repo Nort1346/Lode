@@ -17,6 +17,7 @@ export const users = pgTable('users', {
   createdAt: text('created_at').notNull().default(''),
   discordId: text('discord_id'),
   canSubmit: boolean('can_submit').notNull().default(false),
+  mustChangePassword: boolean('must_change_password').notNull().default(false),
   maxSessions: integer('max_sessions').notNull().default(0),
   avatarUrl: text('avatar_url'),
   expiresAt: text('expires_at'),

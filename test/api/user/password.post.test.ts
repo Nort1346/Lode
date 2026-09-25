@@ -131,6 +131,7 @@ describe('user/password.post', () => {
 
     expect(result).toEqual({ success: true })
     expect(mockHash).toHaveBeenCalledWith('newpass123', 12)
+    expect(mockDb._mocks.setMock).toHaveBeenCalledWith({ password: 'hashed', mustChangePassword: false })
     expect(mockDb._mocks.runMock).toHaveBeenCalled()
     expect(mockSyncUserUpdate).not.toHaveBeenCalled()
     expect(mockLogActivity).toHaveBeenCalledWith(
@@ -157,6 +158,18 @@ describe('user/password.post', () => {
         syncAvatar: true
       }
     )
+  })
+
+  it('clears mustChangePassword for a user flagged on first login', async () => {
+    mockGetUserSession.mockResolvedValue({ user: makeUser({ mustChangePassword: true }) })
+    stubBody({ currentPassword: 'oldpass1', newPassword: 'newpass123' })
+    const mockDb = createMockDb({ selectResult: makeUser({ mustChangePassword: true }) })
+    vi.stubGlobal('useDb', () => mockDb)
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ success: true })
+    expect(mockDb._mocks.setMock).toHaveBeenCalledWith({ password: 'hashed', mustChangePassword: false })
   })
 
   it('still succeeds when the Jellyfin sync fails', async () => {

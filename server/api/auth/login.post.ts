@@ -92,7 +92,8 @@ export default defineEventHandler(async (event) => {
       activeTorrentLimit: user.activeTorrentLimit,
       maxTorrentSizeGb: user.maxTorrentSizeGb,
       privateTrackerLimit: user.privateTrackerLimit,
-      downloadsToday: user.downloadsToday
+      downloadsToday: user.downloadsToday,
+      mustChangePassword: user.mustChangePassword
     },
     sessionId
   })

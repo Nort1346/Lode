@@ -167,6 +167,21 @@ describe('auth/login.post', () => {
     })
   })
 
+  it('includes mustChangePassword in the session payload', async () => {
+    vi.mocked(readBody).mockResolvedValue({ username: 'user1', password: 'pass123' })
+    mockGet.mockReturnValue({ ...mockUser, mustChangePassword: true })
+    vi.mocked(compare).mockResolvedValue(true as never)
+
+    await handler(mockEvent)
+    expect(mockSetUserSession).toHaveBeenCalledWith(
+      mockEvent,
+      expect.objectContaining({
+        user: expect.objectContaining({ id: 'u1', mustChangePassword: true }),
+        sessionId: 'session-uuid'
+      })
+    )
+  })
+
   it('sets user session on success', async () => {
     vi.mocked(readBody).mockResolvedValue({ username: 'user1', password: 'pass123' })
     mockGet.mockReturnValue(mockUser)

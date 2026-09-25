@@ -250,6 +250,7 @@
     "sectionAccount": "Account",
     "sectionLimits": "Limits",
     "saveFailed": "Failed to save user",
+    "mustChangePassword": "Must change password",
     "sessionsTitle": "Active Sessions",
     "sessionsSubtitle": "Manage active user sessions",
     "sessionRevoked": "Session revoked",
@@ -718,7 +719,13 @@
     "passwordChanged": "Password changed",
     "passwordMismatch": "Passwords do not match",
     "passwordTooShort": "Password must be at least 8 characters",
-    "passwordSame": "New password must differ from current"
+    "passwordSame": "New password must differ from current",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
+  },
+  "forcePassword": {
+    "title": "Change your password",
+    "description": "For security, you must change your temporary password before you can continue."
   },
   "seo": {
     "title": "Lode",

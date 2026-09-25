@@ -52,6 +52,7 @@ export default defineEventHandler(async (event) => {
   if (body.password !== undefined && body.password.trim()) {
     plainPassword = body.password.trim()
     updates.password = await hash(plainPassword, 12)
+    updates.mustChangePassword = true
     changedFields.push('password')
   }
 

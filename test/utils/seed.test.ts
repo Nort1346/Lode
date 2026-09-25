@@ -50,6 +50,14 @@ describe('ensureAdminExists', () => {
     expect(mockRepos.users.create).toHaveBeenCalled()
   })
 
+  it('marks the seeded admin as must-change-password', async () => {
+    mockRepos.users.findByRole.mockResolvedValue([])
+    await ensureAdminExists()
+    expect(mockRepos.users.create).toHaveBeenCalledWith(
+      expect.objectContaining({ username: 'admin', mustChangePassword: true })
+    )
+  })
+
   it('uses bcrypt hash for password', async () => {
     mockRepos.users.findByRole.mockResolvedValue([])
     await ensureAdminExists()

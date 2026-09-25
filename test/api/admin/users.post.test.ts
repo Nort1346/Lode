@@ -3,6 +3,7 @@ import { stubAdminAuth } from '../helpers'
 
 const mockGetUserSession = vi.fn()
 const mockRun = vi.fn(() => ({ changes: 1 }))
+const mockInsertValues = vi.fn(() => ({ run: mockRun }))
 const mockGetExisting = vi.fn()
 const mockHash = vi.hoisted(() => vi.fn())
 const mockRandomUUID = vi.hoisted(() => vi.fn())
@@ -46,6 +47,8 @@ describe('admin/users.post', () => {
     mockReadBody.mockReset()
     mockRun.mockReset()
     mockRun.mockReturnValue({ changes: 1 })
+    mockInsertValues.mockReset()
+    mockInsertValues.mockReturnValue({ run: mockRun })
     mockGetExisting.mockReset()
     mockHash.mockReset()
     mockRandomUUID.mockReset()
@@ -73,9 +76,7 @@ describe('admin/users.post', () => {
           }))
         })),
         insert: vi.fn(() => ({
-          values: vi.fn(() => ({
-            run: mockRun
-          }))
+          values: mockInsertValues
         })),
         update: vi.fn(() => ({
           set: vi.fn(() => ({
@@ -97,6 +98,15 @@ describe('admin/users.post', () => {
     expect(result).toEqual({ success: true, id: 'new-id-1' })
     expect(mockHash).toHaveBeenCalledWith('pass1234', 12)
     expect(mockSyncNewUser).toHaveBeenCalled()
+  })
+
+  it('marks new users as must-change-password', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ username: 'newuser', password: 'pass1234' })
+    stubDb(undefined)
+
+    await handler(mockEvent)
+    expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: true }))
   })
 
   it('throws 400 when username missing', async () => {

@@ -50,6 +50,13 @@
       "when": 1788266237795,
       "tag": "0006_stiff_ezekiel",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788300000000,
+      "tag": "0007_add_must_change_password",
+      "breakpoints": true
     }
   ]
 }

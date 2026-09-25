@@ -31,6 +31,7 @@ export default defineEventHandler(async (event) => {
         createdAt: u.createdAt,
         discordId: u.discordId,
         canSubmit: u.canSubmit,
+        mustChangePassword: u.mustChangePassword,
         maxSessions: u.maxSessions,
         avatarUrl: u.avatarUrl,
         expiresAt: u.expiresAt,

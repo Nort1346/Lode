@@ -250,6 +250,7 @@
     "sectionAccount": "Conta",
     "sectionLimits": "Limites",
     "saveFailed": "Falha ao salvar o usuário",
+    "mustChangePassword": "Deve alterar a senha",
     "sessionsTitle": "Sessões Ativas",
     "sessionsSubtitle": "Gerencie as sessões ativas dos usuários",
     "sessionRevoked": "Sessão revogada",
@@ -706,7 +707,13 @@
     "passwordChanged": "Senha alterada",
     "passwordMismatch": "As senhas não coincidem",
     "passwordTooShort": "A senha deve ter pelo menos 8 caracteres",
-    "passwordSame": "A nova senha deve ser diferente da atual"
+    "passwordSame": "A nova senha deve ser diferente da atual",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha"
+  },
+  "forcePassword": {
+    "title": "Altere sua senha",
+    "description": "Por segurança, você precisa alterar sua senha temporária antes de poder continuar."
   },
   "seo": {
     "title": "Lode",

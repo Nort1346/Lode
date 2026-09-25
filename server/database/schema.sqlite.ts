@@ -17,6 +17,7 @@ export const users = sqliteTable('users', {
   createdAt: text('created_at').notNull().default(''),
   discordId: text('discord_id'),
   canSubmit: integer('can_submit', { mode: 'boolean' }).notNull().default(false),
+  mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
   maxSessions: integer('max_sessions').notNull().default(0),
   avatarUrl: text('avatar_url'),
   expiresAt: text('expires_at'),

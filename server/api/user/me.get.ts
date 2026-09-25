@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
     role: user.role,
     isActive: user.isActive,
     canSubmit: user.canSubmit,
+    mustChangePassword: user.mustChangePassword,
     dailyDownloadLimit: user.dailyDownloadLimit,
     activeTorrentLimit: user.activeTorrentLimit,
     maxTorrentSizeGb: user.maxTorrentSizeGb,

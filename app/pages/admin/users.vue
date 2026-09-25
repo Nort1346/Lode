@@ -464,6 +464,11 @@ function onExpiresAtInput(event: Event) {
                   <div>
                     <span class="text-sm font-medium text-zinc-900 dark:text-white">{{ u.username }}</span>
                     <span
+                      v-if="u.mustChangePassword"
+                      class="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                      >{{ t('admin.mustChangePassword') }}</span
+                    >
+                    <span
                       class="sm:hidden ml-2 text-xs px-1.5 py-0.5 rounded-full"
                       :class="
                         u.role === 'admin'

@@ -9,6 +9,7 @@ declare module '#auth-utils' {
     maxTorrentSizeGb: number
     privateTrackerLimit: number
     downloadsToday: number
+    mustChangePassword: boolean
   }
 
   interface UserSession {

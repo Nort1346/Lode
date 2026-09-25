@@ -70,6 +70,7 @@ export default defineEventHandler(async (event) => {
       isActive: true,
       downloadsToday: 0,
       createdAt: new Date().toISOString(),
+      mustChangePassword: true,
       syncStatus: 'pending'
     })
   )

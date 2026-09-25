@@ -3,6 +3,7 @@ import { stubAdminAuth } from '../../helpers'
 
 const mockGetUserSession = vi.fn()
 const mockRun = vi.fn(() => ({ changes: 1 }))
+const mockUpdateSet = vi.fn(() => ({ where: vi.fn(() => ({ run: mockRun })) }))
 const mockGetUser = vi.fn()
 const mockHash = vi.hoisted(() => vi.fn())
 const mockReadBody = vi.fn()
@@ -46,6 +47,8 @@ describe('admin/users/[id].put', () => {
     mockReadBody.mockReset()
     mockGetRouterParam.mockReset()
     mockRun.mockReset()
+    mockUpdateSet.mockReset()
+    mockUpdateSet.mockReturnValue({ where: vi.fn(() => ({ run: mockRun })) })
     mockGetUser.mockReset()
     mockHash.mockReset()
     mockLogActivity.mockReset()
@@ -78,11 +81,7 @@ describe('admin/users/[id].put', () => {
           }))
         })),
         update: vi.fn(() => ({
-          set: vi.fn(() => ({
-            where: vi.fn(() => ({
-              run: mockRun
-            }))
-          }))
+          set: mockUpdateSet
         }))
       }))
     )
@@ -168,6 +167,19 @@ describe('admin/users/[id].put', () => {
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true })
     expect(mockSyncUserEnable).toHaveBeenCalledWith('u1')
+  })
+
+  it('marks the user as must-change-password when the admin resets the password', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockGetRouterParam.mockReturnValue('u1')
+    mockReadBody.mockResolvedValue({ password: 'temp1234' })
+    stubDb({ id: 'u1', username: 'user1', isActive: true })
+
+    const result = await handler(mockEvent)
+    expect(result).toEqual({ success: true })
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ password: '$2b$12$hashed', mustChangePassword: true })
+    )
   })
 
   it('throws 403 for non-admin', async () => {

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const mockGetUserSession = vi.fn()
 const mockGet = vi.fn()
 const mockRun = vi.fn(() => ({ changes: 1 }))
+const mockInsertValues = vi.fn(() => ({ run: mockRun, get: vi.fn() }))
 const mockLogActivity = vi.fn()
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
@@ -20,7 +21,7 @@ vi.stubGlobal(
       }))
     })),
     insert: vi.fn(() => ({
-      values: vi.fn(() => ({ run: mockRun, get: vi.fn() }))
+      values: mockInsertValues
     }))
   }))
 )
@@ -73,6 +74,7 @@ describe('auth/register.post', () => {
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true, id: 'user-uuid' })
     expect(vi.mocked(hash)).toHaveBeenCalledWith('pass1234', 12)
+    expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: true }))
     expect(mockRun).toHaveBeenCalled()
   })
 

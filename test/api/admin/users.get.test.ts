@@ -84,6 +84,15 @@ describe('admin/users.get', () => {
     expect(users[0]!.id).toBe('u1')
   })
 
+  it('includes mustChangePassword in user responses', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubDb([{ id: 'u1', username: 'user1', role: 'user', mustChangePassword: true }], [])
+
+    const result = await handler(mockEvent)
+    const users = result as Array<{ mustChangePassword: boolean }>
+    expect(users[0]!.mustChangePassword).toBe(true)
+  })
+
   it('throws 403 for non-admin', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
 

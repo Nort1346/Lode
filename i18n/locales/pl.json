@@ -250,6 +250,7 @@
     "sectionAccount": "Konto",
     "sectionLimits": "Limity",
     "saveFailed": "Nie udało się zapisać użytkownika",
+    "mustChangePassword": "Wymagana zmiana hasła",
     "sessionsTitle": "Aktywne sesje",
     "sessionsSubtitle": "Zarządzaj aktywnymi sesjami użytkowników",
     "sessionRevoked": "Sesja wycofana",
@@ -706,7 +707,13 @@
     "passwordChanged": "Hasło zmienione",
     "passwordMismatch": "Hasła nie są takie same",
     "passwordTooShort": "Hasło musi mieć min. 8 znaków",
-    "passwordSame": "Nowe hasło musi się różnić od aktualnego"
+    "passwordSame": "Nowe hasło musi się różnić od aktualnego",
+    "showPassword": "Pokaż hasło",
+    "hidePassword": "Ukryj hasło"
+  },
+  "forcePassword": {
+    "title": "Zmień hasło",
+    "description": "Z powodów bezpieczeństwa musisz zmienić tymczasowe hasło przed dalszym użytkowaniem."
   },
   "seo": {
     "title": "Lode",

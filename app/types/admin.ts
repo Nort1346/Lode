@@ -27,6 +27,7 @@ export interface AdminUser {
   createdAt: string
   discordId: string | null
   canSubmit: boolean
+  mustChangePassword: boolean
   maxSessions: number
   avatarUrl: string | null
   expiresAt: string | null

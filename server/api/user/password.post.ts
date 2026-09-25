@@ -40,7 +40,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const hashedPassword = await hash(body.newPassword, 12)
-  await dbRun(db.update(users).set({ password: hashedPassword }).where(eq(users.id, session.user.id)))
+  await dbRun(
+    db.update(users).set({ password: hashedPassword, mustChangePassword: false }).where(eq(users.id, session.user.id))
+  )
 
   const hasJellyfin = (await getProviderUserId(session.user.id, 'jellyfin')) !== null
   if (hasJellyfin) {
