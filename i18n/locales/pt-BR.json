@@ -448,7 +448,7 @@
     "noTrackers": "Nenhum tracker configurado. Adicione seu primeiro tracker para habilitar downloads de serviços semiprivados/privados.",
     "indexerNameLabel": "Nome do Indexer",
     "indexerNameDesc": "Nome exato retornado pelo Prowlarr (campo indexer)",
-    "indexerNamePlaceholder": "ex.: Brazilian-Torrents, Private-Tracker",
+    "indexerNamePlaceholder": "ex.: MyPrivateTracker, AnotherTracker",
     "cookieLabel": "Cookie de Sessão",
     "cookieDesc": "Cookie de sessão do DevTools do navegador (F12 → Rede → requisição → cabeçalho Cookie)",
     "cookiePlaceholder": "Cole seu cookie de sessão aqui...",

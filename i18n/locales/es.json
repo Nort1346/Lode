@@ -448,7 +448,7 @@
     "noTrackers": "No hay trackers configurados. Añade un primer tracker para permitir descargas desde sitios semi-privados/privados.",
     "indexerNameLabel": "Nombre del indexador",
     "indexerNameDesc": "Nombre exacto devuelto por Prowlarr (campo indexer)",
-    "indexerNamePlaceholder": "ej. Spanish-Trackers, Private-Tracker",
+    "indexerNamePlaceholder": "ej. MyPrivateTracker, AnotherTracker",
     "cookieLabel": "Cookie de sesión",
     "cookieDesc": "Cookie desde las herramientas de desarrollo (F12 → Network → solicitud → cabecera Cookie)",
     "cookiePlaceholder": "Pega tu cookie de sesión aquí...",

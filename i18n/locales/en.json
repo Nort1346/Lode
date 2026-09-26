@@ -448,7 +448,7 @@
     "noTrackers": "No trackers configured. Add your first tracker to enable downloading from semi-private/private services.",
     "indexerNameLabel": "Indexer Name",
     "indexerNameDesc": "Exact name returned by Prowlarr (indexer field)",
-    "indexerNamePlaceholder": "e.g. Polskie-Torrenty, Devil-Torrents",
+    "indexerNamePlaceholder": "e.g. MyPrivateTracker, AnotherTracker",
     "cookieLabel": "Session Cookie",
     "cookieDesc": "Session cookie from browser DevTools (F12 → Network → request → Cookie header)",
     "cookiePlaceholder": "Paste your session cookie here...",
