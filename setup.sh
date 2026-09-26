@@ -73,9 +73,9 @@ if [ ! -x "$BIN" ]; then
   fi
   mkdir -p "$CACHE_DIR"
   if [ -t 2 ] && [ "${TERM:-}" != "dumb" ]; then
-    # Single-line progress bar. curl only draws it on a TTY, so CI and
-    # logs see the quiet path below; the bar never throttles the transfer.
-    curl -fsSL --progress-bar -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
+    # Single-line progress bar. No -s here: it suppresses the meter, and
+    # --progress-bar cannot override it. CI and logs get the quiet path below.
+    curl -fL --progress-bar -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
   else
     curl -fsSL -sS -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
   fi
@@ -84,9 +84,11 @@ if [ ! -x "$BIN" ]; then
 fi
 
 # `curl | bash` feeds this script a pipe on stdin; the interactive setup
-# needs a real TTY, so re-point stdin at the terminal when available.
-if [ ! -t 0 ] && [ -e /dev/tty ]; then
-  exec < /dev/tty
+# needs a real TTY. The stdin redirection must stay on the exec line itself:
+# a separate `exec < /dev/tty` replaces stdin before bash reads the rest of
+# the pipe, so the exec below would never be read or run.
+if [ -t 0 ]; then
+  exec "$BIN" "$@"
+else
+  exec "$BIN" "$@" < /dev/tty
 fi
-
-exec "$BIN" "$@"
