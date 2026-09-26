@@ -5,6 +5,40 @@ All notable changes to Lode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.4] - 2026-09-26
+
+Live service health monitoring with dismissible outage notices, forced password change on first login, an optional TMDB key with a built-in shared fallback, and a more reliable torrent search with live progress - alongside browse UI polish, a custom 404 page, and signed Windows setup binaries.
+
+### Added
+
+- Service health monitoring - live checks of TMDB, Prowlarr, and qBittorrent (online state, API key validity, latency, and for Prowlarr the count of indexers that are enabled and not disabled in the background) exposed to the UI through a new health endpoint
+- Dismissible outage notices on the browse, dashboard, and submit pages when TMDB or Prowlarr is down or rejecting its API key, Prowlarr is running with no usable indexers, or the download client is down, unconfigured, or rejecting its API key; each notice offers a "Check again" action
+- Downloads blocked while qBittorrent is unavailable - starting a download opens a modal with a "Check again" retry instead of failing deep inside the download request
+- Forced password change on first login - users created by an admin and the seeded admin account must set their own password in a modal before they can continue
+- Optional TMDB API key - Lode ships with a built-in shared TMDB key, so metadata works out of the box without a TMDB account; setup offers the built-in key or your own, and `NUXT_TMDB_API_KEY` still takes precedence
+- Torrent search progress on movie and TV detail pages - the torrent list streams the real Prowlarr search as it runs (current query, queries finished, results found so far) and recovers automatically if the stream drops mid-search
+- Animated searching indicator above the skeleton cards while a browse search is running
+- Genre chips on media cards - hovering a browse card reveals the title's genres
+- Custom 404/error page matching the app design language
+
+### Changed
+
+- Torrent search now runs a merged query ladder over the localized name, original name, and up to two alternative titles (English alts first when the media language is not English) instead of stopping at the first non-empty result, so releases found under an alternative or localized title are no longer hidden by a sparse first hit, and empty results are no longer cached
+- Prowlarr search is capped at 4 text queries per search, limited to 3 concurrent in-flight requests, and backs off before retrying on 429 rate-limit responses
+- Browse: search and filter bar stays pinned while scrolling on all breakpoints, with a compact mode on phones; the suggestion dropdown is mobile-only, and the type filter and genre chips stay visible on tablet and desktop
+- Setup: Docker pull progress shows service names instead of opaque image IDs
+- Setup CLI: Windows release binaries are stamped with version metadata and Authenticode-signed via SignPath, so they no longer trip heuristic antivirus detection
+
+### Fixed
+
+- Ranking: season-pack results are now scored as season packs by the season endpoint instead of guessing per title, and season-pack cards show their score
+- Setup: release binaries report the correct version instead of the unexpanded `${GITHUB_REF_NAME}` placeholder
+- Setup: the PowerShell bootstrap no longer closes your terminal on error during session runs, double-click runs pause before the window closes, piped `irm | iex` runs no longer show a redundant prompt or re-exec messages, and both scripts show download progress and respect `NO_COLOR` / `TERM=dumb`
+- Discord: download-complete webhooks no longer fail when the TMDB poster is missing - the fallback poster is bundled in the Docker image, and the webhook degrades to no attachment if it cannot be read
+- Browse: tightened search bar spacing and levelled row heights on the browse page
+- CI: scoped the Docker release build to tag pushes so manual workflow dispatch runs no longer produce release images, and the CLI release-wait loop logs every attempt with the real error so a stuck run is diagnosable
+- Private tracker: the indexer name field placeholder no longer names specific Polish indexers
+
 ## [1.0.3] - 2026-09-19
 
 A cross-platform TypeScript setup CLI (`lode-setup`) replaces the shell installers, alongside Docker/CI workflow fixes and a browse empty-state refinement.
