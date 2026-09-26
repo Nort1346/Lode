@@ -756,6 +756,16 @@
     },
     "retry": "Check again"
   },
+  "notFound": {
+    "metaTitle": "Page not found",
+    "title": "This page isn't in the library",
+    "description": "The page you're looking for doesn't exist, was moved, or is still buffering.",
+    "backToDashboard": "Back to dashboard"
+  },
+  "error": {
+    "metaTitle": "Something went wrong",
+    "description": "An unexpected error occurred. Try again in a moment - if it keeps happening, your server admin should take a look."
+  },
   "seo": {
     "title": "Lode",
     "description": "Browse, request, and download movies & TV shows"

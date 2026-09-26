@@ -744,6 +744,16 @@
     },
     "retry": "Comprobar de nuevo"
   },
+  "notFound": {
+    "metaTitle": "Página no encontrada",
+    "title": "Esta página no está en la biblioteca",
+    "description": "La página que buscas no existe, se ha movido o todavía se está bufferizando.",
+    "backToDashboard": "Volver al panel"
+  },
+  "error": {
+    "metaTitle": "Algo salió mal",
+    "description": "Ocurrió un error inesperado. Inténtalo de nuevo en un momento; si se repite, tu administrador debería revisarlo."
+  },
   "seo": {
     "title": "Lode",
     "description": "Busca, solicita y descarga películas y series"

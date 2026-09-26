@@ -744,6 +744,16 @@
     },
     "retry": "Erneut prüfen"
   },
+  "notFound": {
+    "metaTitle": "Seite nicht gefunden",
+    "title": "Diese Seite ist nicht in der Bibliothek",
+    "description": "Die gesuchte Seite existiert nicht, wurde verschoben oder wird noch gepuffert.",
+    "backToDashboard": "Zurück zum Dashboard"
+  },
+  "error": {
+    "metaTitle": "Etwas ist schiefgelaufen",
+    "description": "Ein unerwarteter Fehler ist aufgetreten. Versuche es gleich erneut - wenn es weiter passiert, sollte sich dein Server-Admin das ansehen."
+  },
   "seo": {
     "title": "Lode",
     "description": "Filme und Serien durchsuchen, anfordern und herunterladen"

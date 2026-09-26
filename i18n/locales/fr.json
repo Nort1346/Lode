@@ -744,6 +744,16 @@
     },
     "retry": "Vérifier à nouveau"
   },
+  "notFound": {
+    "metaTitle": "Page introuvable",
+    "title": "Cette page n'est pas dans la bibliothèque",
+    "description": "La page que vous cherchez n'existe pas, a été déplacée ou est encore en cours de chargement.",
+    "backToDashboard": "Retour au tableau de bord"
+  },
+  "error": {
+    "metaTitle": "Une erreur s'est produite",
+    "description": "Une erreur inattendue s'est produite. Réessayez dans un instant - si le problème persiste, votre administrateur devrait s'en occuper."
+  },
   "seo": {
     "title": "Lode",
     "description": "Recherchez, demandez et téléchargez des films et séries"

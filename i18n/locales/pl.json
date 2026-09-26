@@ -744,6 +744,16 @@
     },
     "retry": "Sprawdź ponownie"
   },
+  "notFound": {
+    "metaTitle": "Nie znaleziono strony",
+    "title": "Ta strona nie znajduje się w bibliotece",
+    "description": "Szukana strona nie istnieje, została przeniesiona albo wciąż się buforuje.",
+    "backToDashboard": "Wróć do panelu"
+  },
+  "error": {
+    "metaTitle": "Coś poszło nie tak",
+    "description": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie za chwilę - jeśli problem będzie się powtarzał, administrator serwera powinien to sprawdzić."
+  },
   "seo": {
     "title": "Lode",
     "description": "Przeglądaj, requestuj i pobieraj filmy oraz seriale"
