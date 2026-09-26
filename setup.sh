@@ -27,7 +27,16 @@ case "$(uname -s)" in
 esac
 
 case "$(uname -m)" in
-  x86_64 | amd64) ARCH="x64" ;;
+  x86_64 | amd64)
+    # An x86_64 shell under Rosetta on Apple Silicon still reports
+    # hw.optional.arm64=1; take the native binary instead of running the
+    # TUI through Rosetta.
+    if [ "$OS" = "darwin" ] && [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ]; then
+      ARCH="arm64"
+    else
+      ARCH="x64"
+    fi
+    ;;
   arm64 | aarch64) ARCH="arm64" ;;
   *) die "unsupported CPU architecture: $(uname -m)" ;;
 esac
@@ -38,7 +47,7 @@ ASSET="lode-setup-${OS}-${ARCH}"
 ASSET_URL="${BASE_URL}/releases/latest/download/${ASSET}"
 
 TAG="latest"
-LOCATION="$(curl -fsSI "$ASSET_URL" 2>/dev/null | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }' | head -n 1 || true)"
+LOCATION="$(curl -fsSI --connect-timeout 15 --retry 2 "$ASSET_URL" 2>/dev/null | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }' | head -n 1 || true)"
 if [[ "${LOCATION:-}" == *"releases/download/"* ]]; then
   TAG="${LOCATION##*releases/download/}"
   TAG="${TAG%%/*}"
@@ -72,23 +81,51 @@ if [ ! -x "$BIN" ]; then
     printf 'Downloading %s (%s)...\n' "$ASSET" "$TAG"
   fi
   mkdir -p "$CACHE_DIR"
+  # Both branches share the hang guards: bounded connect, transient retries,
+  # and an abort if the transfer crawls below ~1KB/s for a minute.
   if [ -t 2 ] && [ "${TERM:-}" != "dumb" ]; then
     # Single-line progress bar. No -s here: it suppresses the meter, and
     # --progress-bar cannot override it. CI and logs get the quiet path below.
-    curl -fL --progress-bar -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
+    curl -fL --progress-bar --connect-timeout 15 --retry 3 --retry-delay 2 \
+      --speed-limit 1024 --speed-time 60 -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
   else
-    curl -fsSL -sS -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
+    curl -fsSL --connect-timeout 15 --retry 3 --retry-delay 2 \
+      --speed-limit 1024 --speed-time 60 -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
   fi
+  # Never execute a cached error page or a truncated download: require a
+  # plausible size and a real ELF (Linux) or Mach-O (macOS) magic number.
+  SIZE=$(($(wc -c < "${BIN}.tmp")))
+  [ "$SIZE" -ge 1048576 ] || die "download failed: only ${SIZE} bytes received - not a valid binary"
+  MAGIC="$(head -c 4 "${BIN}.tmp" | od -An -tx1 | tr -d ' \n')"
+  case "$MAGIC" in
+    7f454c46 | cffaedfe | cefaedfe | feedface | feedfacf) ;;
+    *) die "download failed: file is not an ELF/Mach-O binary (magic: ${MAGIC:-empty})" ;;
+  esac
   chmod +x "${BIN}.tmp"
   mv -f "${BIN}.tmp" "$BIN"
 fi
 
-# `curl | bash` feeds this script a pipe on stdin; the interactive setup
-# needs a real TTY. The stdin redirection must stay on the exec line itself:
-# a separate `exec < /dev/tty` replaces stdin before bash reads the rest of
-# the pipe, so the exec below would never be read or run.
-if [ -t 0 ]; then
-  exec "$BIN" "$@"
+# curl never sets the quarantine attribute, but the cache can hold a binary
+# fetched another way; strip it so Gatekeeper cannot block the launch.
+if [ "$OS" = "darwin" ] && command -v xattr >/dev/null 2>&1; then
+  xattr -d com.apple.quarantine "$BIN" 2>/dev/null || true
+fi
+
+# Stay the parent of the TUI: if the child exits leaving the terminal in raw
+# mode, these traps restore it with `stty sane`. The child runs in the
+# foreground - backgrounding it would break Ctrl+C delivery.
+restore_tty() {
+  stty sane < /dev/tty > /dev/null 2>&1 || true
+}
+trap restore_tty EXIT
+trap 'restore_tty; exit 130' INT
+trap 'restore_tty; exit 143' TERM
+
+# `curl | bash` gives this script a pipe for stdin; the TUI needs the real
+# terminal on all three streams, opened read/write - a read-only open of
+# /dev/tty is not guaranteed to deliver raw-mode keystrokes.
+if [ -t 0 ] && [ -t 1 ]; then
+  "$BIN" "$@"
 else
-  exec "$BIN" "$@" < /dev/tty
+  "$BIN" "$@" <> /dev/tty >&0 2>&0
 fi
