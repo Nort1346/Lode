@@ -152,6 +152,8 @@
       </div>
     </div>
 
+    <ServiceHealthBanner />
+
     <Transition name="search-fade" mode="out-in">
       <div v-if="showSkeletons" key="search-skeletons">
         <BrowseSearchStatus />
@@ -296,6 +298,9 @@
         </InviewSection>
       </div>
     </Transition>
+
+    <!-- Blocking dialog while the metadata service is unavailable -->
+    <ServiceHealthModal v-if="tmdbBlocked" service="tmdb" />
   </div>
 </template>
 
@@ -309,6 +314,7 @@ const { t, locale } = useI18n()
 const { goToItem } = useGoToItem()
 const route = useRoute()
 const router = useRouter()
+const { tmdbBlocked } = useServiceHealth()
 
 const searchParams = reactive({
   q: '',

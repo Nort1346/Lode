@@ -85,3 +85,18 @@ export function stubAdminAuth(mockGetUserSession: ReturnType<typeof vi.fn>) {
   )
   vi.stubGlobal('logActivity', vi.fn())
 }
+
+export function stubUserAuth(mockGetUserSession: ReturnType<typeof vi.fn>) {
+  vi.stubGlobal('getUserSession', mockGetUserSession)
+  vi.stubGlobal(
+    'requireUser',
+    vi.fn().mockImplementation(async (event: never) => {
+      const session = await (mockGetUserSession as unknown as (...args: unknown[]) => Promise<MockSession>)(event)
+      if (!session?.user) {
+        throw new Error('401: Unauthorized')
+      }
+      return session.user
+    })
+  )
+  vi.stubGlobal('logActivity', vi.fn())
+}

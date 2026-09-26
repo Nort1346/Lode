@@ -160,6 +160,8 @@
     </div>
 
     <div class="relative z-10 mt-10">
+      <ServiceHealthBanner />
+
       <div class="mb-6 flex items-center gap-4">
         <h2 class="text-xl font-bold text-zinc-900 dark:text-white">{{ t('tv.seasons') }}</h2>
         <USelect v-model="selectedSeason" :items="seasonOptions" size="md" class="w-48" />
@@ -282,6 +284,9 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Blocking dialog while the metadata service is unavailable -->
+    <ServiceHealthModal v-if="tmdbBlocked" service="tmdb" />
   </div>
 </template>
 
@@ -314,6 +319,8 @@ const requestNote = ref('')
 const { t } = useI18n()
 const toast = useToast()
 const { user } = useUserSession()
+const { tmdbBlocked } = useServiceHealth()
+const { guard: guardDownload } = useDownloadGuard()
 
 const isDev = computed(() => import.meta.dev && user.value?.role === 'admin')
 
@@ -403,6 +410,7 @@ async function downloadTorrent(
   const hasGuid = guid !== null && guid !== undefined && guid.length > 0
   const hasDownloadUrl = downloadUrl !== null && downloadUrl !== undefined && downloadUrl.length > 0
   if (!hasMagnet && !hasGuid && !hasDownloadUrl) return
+  if (!(await guardDownload())) return
 
   if (type === 'pack') {
     downloadingPackIdx.value = Number(key)

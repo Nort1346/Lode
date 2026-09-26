@@ -34,6 +34,7 @@ const statusColors: Record<string, string> = {
   up: 'bg-green-500',
   down: 'bg-red-500',
   invalid: 'bg-amber-500',
+  no_indexers: 'bg-yellow-400',
   error: 'bg-rose-500',
   not_configured: 'bg-zinc-400 dark:bg-zinc-600'
 }
@@ -42,6 +43,7 @@ const statusTextColors: Record<string, string> = {
   up: 'text-green-600 dark:text-green-400',
   down: 'text-red-600 dark:text-red-400',
   invalid: 'text-amber-600 dark:text-amber-400',
+  no_indexers: 'text-yellow-600 dark:text-yellow-400',
   error: 'text-rose-600 dark:text-rose-400',
   not_configured: 'text-zinc-500 dark:text-zinc-400'
 }
@@ -50,12 +52,14 @@ function statusLabel(status: string): string {
   if (status === 'up') return t('settings.serviceUp')
   if (status === 'down') return t('settings.serviceDown')
   if (status === 'invalid') return t('settings.serviceInvalid')
+  if (status === 'no_indexers') return t('settings.noIndexers')
   if (status === 'error') return t('settings.serviceError')
   return t('settings.notConfigured')
 }
 
 function statusHint(s: ServiceStatus): string {
   if (s.status === 'invalid') return t('settings.hintInvalid')
+  if (s.status === 'no_indexers') return t('settings.hintNoIndexers')
   if (s.status === 'down') return t('settings.hintOffline')
   if (s.status === 'error') return s.details ?? t('settings.hintError')
   if (s.status === 'up') return s.details ?? t('settings.serviceUp')

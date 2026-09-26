@@ -7,6 +7,7 @@ const { user, clear } = useUserSession()
 const route = useRoute()
 const colorMode = useColorMode()
 const { t, locale, locales, setLocale } = useI18n()
+const { modalVisible: downloadBlockedVisible } = useDownloadGuard()
 const {
   public: { appVersion }
 } = useRuntimeConfig()
@@ -277,6 +278,9 @@ watch(
 
     <!-- Blocking dialog until the temporary password is changed -->
     <ForcePasswordModal v-if="me?.mustChangePassword" @changed="refreshNuxtData()" />
+
+    <!-- Blocking dialog when a download is attempted but the download client is unavailable -->
+    <ServiceHealthModal v-if="downloadBlockedVisible" service="qbittorrent" />
 
     <!-- Footer -->
     <footer class="footer py-4 text-center text-xs text-zinc-400 dark:text-zinc-600">

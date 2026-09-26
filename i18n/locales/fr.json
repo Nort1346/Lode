@@ -366,6 +366,8 @@
     "hintInvalid": "La clé API est invalide ou les permissions manquent",
     "hintOffline": "Le serveur est injoignable",
     "hintError": "Réponse inattendue du serveur",
+    "noIndexers": "Aucun indexeur",
+    "hintNoIndexers": "Prowlarr fonctionne, mais aucun indexeur n'est activé",
     "hintNotConfigured": "Non configuré. Ajoutez une URL de serveur et une clé API",
     "ms": "ms",
     "discordTitle": "Discord Webhook",
@@ -714,6 +716,33 @@
   "forcePassword": {
     "title": "Changez votre mot de passe",
     "description": "Pour des raisons de sécurité, vous devez changer votre mot de passe temporaire avant de pouvoir continuer."
+  },
+  "serviceHealth": {
+    "tmdb": {
+      "downTitle": "Films et séries indisponibles",
+      "downDesc": "Le service qui fournit les informations sur les films et les séries est hors ligne. La navigation reprendra dès son retour - réessayez dans un instant.",
+      "invalidTitle": "Service de métadonnées indisponible",
+      "invalidDesc": "Le service de métadonnées a refusé la connexion. Un administrateur doit vérifier les paramètres de l'application."
+    },
+    "qbit": {
+      "downTitle": "Téléchargements actuellement indisponibles",
+      "downDesc": "Impossible de joindre le client de téléchargement, de nouveaux téléchargements ne peuvent pas démarrer. La navigation et les demandes fonctionnent normalement.",
+      "invalidTitle": "Téléchargements actuellement indisponibles",
+      "invalidDesc": "Le client de téléchargement a refusé la connexion. Un administrateur doit vérifier les paramètres de l'application.",
+      "setupTitle": "Téléchargements pas encore configurés",
+      "setupDesc": "Aucun client de téléchargement n'est configuré sur ce serveur. Un administrateur doit le connecter avant de pouvoir démarrer des téléchargements."
+    },
+    "prowlarr": {
+      "downTitle": "Recherche de torrents actuellement indisponible",
+      "downDesc": "Impossible de joindre Prowlarr, la recherche de torrents ne renvoie aucun résultat. Vous pouvez continuer à parcourir les titres et envoyer des demandes.",
+      "invalidTitle": "Recherche de torrents indisponible",
+      "invalidDesc": "Prowlarr a refusé la connexion. Un administrateur doit vérifier les paramètres de l'application.",
+      "noIndexersTitle": "Aucune source de recherche configurée",
+      "noIndexersDesc": "Prowlarr fonctionne, mais aucun indexeur n'est activé pour l'instant. Ajoutez un indexeur dans Prowlarr pour que la recherche de torrents fonctionne.",
+      "setupTitle": "Recherche de torrents pas encore configurée",
+      "setupDesc": "Prowlarr n'est pas encore connecté à ce serveur. Un administrateur doit le configurer pour que la recherche de torrents fonctionne."
+    },
+    "retry": "Vérifier à nouveau"
   },
   "seo": {
     "title": "Lode",

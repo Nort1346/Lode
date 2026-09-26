@@ -366,6 +366,8 @@
     "hintInvalid": "API-Schlüssel ist ungültig oder es fehlen Berechtigungen",
     "hintOffline": "Server ist nicht erreichbar",
     "hintError": "Unerwartete Serverantwort",
+    "noIndexers": "Keine Indexer",
+    "hintNoIndexers": "Prowlarr läuft, aber es sind keine Indexer aktiviert",
     "hintNotConfigured": "Nicht konfiguriert. Server-URL und API-Schlüssel hinzufügen",
     "ms": "ms",
     "discordTitle": "Discord-Webhook",
@@ -714,6 +716,33 @@
   "forcePassword": {
     "title": "Passwort ändern",
     "description": "Aus Sicherheitsgründen musst du dein temporäres Passwort ändern, bevor du fortfahren kannst."
+  },
+  "serviceHealth": {
+    "tmdb": {
+      "downTitle": "Filme und Serien sind nicht verfügbar",
+      "downDesc": "Der Dienst, der Filmdaten bereitstellt, ist gerade nicht erreichbar. Das Stöbern funktioniert wieder, sobald er zurück ist - prüfe in einem Moment erneut.",
+      "invalidTitle": "Metadatendienst nicht verfügbar",
+      "invalidDesc": "Der Metadatendienst hat die Verbindung abgelehnt. Ein Administrator muss die App-Einstellungen prüfen."
+    },
+    "qbit": {
+      "downTitle": "Downloads sind derzeit nicht verfügbar",
+      "downDesc": "Der Download-Client ist nicht erreichbar, daher können keine neuen Downloads gestartet werden. Stöbern und Anfragen funktionieren weiterhin.",
+      "invalidTitle": "Downloads sind derzeit nicht verfügbar",
+      "invalidDesc": "Der Download-Client hat die Verbindung abgelehnt. Ein Administrator muss die App-Einstellungen prüfen.",
+      "setupTitle": "Downloads sind noch nicht eingerichtet",
+      "setupDesc": "Auf diesem Server ist kein Download-Client konfiguriert. Ein Administrator muss ihn verbinden, bevor Downloads starten können."
+    },
+    "prowlarr": {
+      "downTitle": "Torrent-Suche ist derzeit nicht verfügbar",
+      "downDesc": "Prowlarr ist nicht erreichbar, daher liefert die Torrent-Suche keine Ergebnisse. Titel stöbern und Anfragen senden funktionieren weiterhin.",
+      "invalidTitle": "Torrent-Suche nicht verfügbar",
+      "invalidDesc": "Prowlarr hat die Verbindung abgelehnt. Ein Administrator muss die App-Einstellungen prüfen.",
+      "noIndexersTitle": "Keine Suchquellen konfiguriert",
+      "noIndexersDesc": "Prowlarr läuft, aber es sind noch keine Indexer aktiviert. Füge in Prowlarr einen Indexer hinzu, damit die Torrent-Suche funktioniert.",
+      "setupTitle": "Torrent-Suche ist noch nicht eingerichtet",
+      "setupDesc": "Prowlarr ist mit diesem Server noch nicht verbunden. Ein Administrator muss es einrichten, damit die Torrent-Suche funktioniert."
+    },
+    "retry": "Erneut prüfen"
   },
   "seo": {
     "title": "Lode",

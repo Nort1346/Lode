@@ -366,6 +366,8 @@
     "hintInvalid": "A chave da API é inválida ou faltam permissões",
     "hintOffline": "O servidor está inacessível",
     "hintError": "Resposta inesperada do servidor",
+    "noIndexers": "Sem indexers",
+    "hintNoIndexers": "O Prowlarr está funcionando, mas nenhum indexer está habilitado",
     "hintNotConfigured": "Não configurado. Adicione uma URL do servidor e uma chave da API",
     "ms": "ms",
     "discordTitle": "Webhook do Discord",
@@ -714,6 +716,33 @@
   "forcePassword": {
     "title": "Altere sua senha",
     "description": "Por segurança, você precisa alterar sua senha temporária antes de poder continuar."
+  },
+  "serviceHealth": {
+    "tmdb": {
+      "downTitle": "Não conseguimos exibir filmes e séries",
+      "downDesc": "O serviço que fornece as informações de filmes e séries está fora do ar. A navegação voltará a funcionar assim que ele retornar - tente novamente em instantes.",
+      "invalidTitle": "Serviço de metadados indisponível",
+      "invalidDesc": "O serviço de metadados recusou a conexão. Um administrador precisa verificar as configurações do aplicativo."
+    },
+    "qbit": {
+      "downTitle": "Downloads não estão disponíveis no momento",
+      "downDesc": "Não conseguimos conectar ao cliente de downloads, então novos downloads não podem começar. A navegação e os pedidos continuam funcionando.",
+      "invalidTitle": "Downloads não estão disponíveis no momento",
+      "invalidDesc": "O cliente de downloads recusou a conexão. Um administrador precisa verificar as configurações do aplicativo.",
+      "setupTitle": "Downloads ainda não configurados",
+      "setupDesc": "Nenhum cliente de downloads está configurado neste servidor. Um administrador precisa conectá-lo antes que os downloads possam começar."
+    },
+    "prowlarr": {
+      "downTitle": "Busca de torrents não está disponível no momento",
+      "downDesc": "Não conseguimos conectar ao Prowlarr, então a busca de torrents não retornará resultados. Você ainda pode navegar pelos títulos e fazer pedidos.",
+      "invalidTitle": "Busca de torrents indisponível",
+      "invalidDesc": "O Prowlarr recusou a conexão. Um administrador precisa verificar as configurações do aplicativo.",
+      "noIndexersTitle": "Nenhuma fonte de busca configurada",
+      "noIndexersDesc": "O Prowlarr está funcionando, mas nenhum indexer está habilitado ainda. Adicione um indexer no Prowlarr para que a busca de torrents funcione.",
+      "setupTitle": "Busca de torrents ainda não configurada",
+      "setupDesc": "O Prowlarr ainda não está conectado a este servidor. Um administrador precisa configurá-lo para que a busca de torrents funcione."
+    },
+    "retry": "Verificar novamente"
   },
   "seo": {
     "title": "Lode",

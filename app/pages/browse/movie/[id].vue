@@ -158,6 +158,8 @@
     </div>
 
     <div class="relative z-10 mt-10">
+      <ServiceHealthBanner />
+
       <h2 class="mb-4 text-xl font-bold text-zinc-900 dark:text-white">
         <UIcon name="i-lucide-download" class="mr-2 inline size-5" />
         {{ t('movie.availableTorrents') }}
@@ -378,6 +380,9 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Blocking dialog while the metadata service is unavailable -->
+    <ServiceHealthModal v-if="tmdbBlocked" service="tmdb" />
   </div>
 </template>
 
@@ -390,6 +395,8 @@ import { useCopyToClipboard } from '~/composables/useClipboard'
 const route = useRoute()
 const downloadingIdx = ref<number | null>(null)
 const { active: downloadActive, startDownload, finishDownload } = useDownloadOverlay()
+const { tmdbBlocked } = useServiceHealth()
+const { guard: guardDownload } = useDownloadGuard()
 const requesting = ref(false)
 const requestStatus = ref<RequestStatus>(null)
 const rejectedAdminNote = ref<string | null>(null)
@@ -587,6 +594,7 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
   const hasGuid = torrent.guid !== null && torrent.guid.length > 0
   const hasDownloadUrl = torrent.downloadUrl !== null && torrent.downloadUrl.length > 0
   if (!hasMagnet && !hasGuid && !hasDownloadUrl) return
+  if (!(await guardDownload())) return
   downloadingIdx.value = idx
   startDownload(movie.value?.title ?? t('download.adding'))
 

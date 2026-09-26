@@ -20,6 +20,7 @@ const form = reactive({
 const selectedFile = ref<File | null>(null)
 const loading = ref(false)
 const { active: downloadActive, startDownload, finishDownload } = useDownloadOverlay()
+const { guard: guardDownload } = useDownloadGuard()
 
 const CATEGORY_I18N: Record<string, string> = {
   movies: 'common.savePath_movies',
@@ -84,6 +85,7 @@ function fileToBase64(file: File): Promise<string> {
 
 async function handleSubmit() {
   if (loading.value) return
+  if (!(await guardDownload())) return
   loading.value = true
   startDownload(form.label || t('download.adding'))
 
@@ -160,6 +162,8 @@ async function handleSubmit() {
       <h1 class="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{{ t('submit.title') }}</h1>
       <p class="text-zinc-500 dark:text-zinc-400">{{ t('submit.subtitle') }}</p>
     </div>
+
+    <ServiceHealthBanner :services="['qbittorrent']" />
 
     <div v-reveal="1" class="card p-6">
       <form @submit.prevent="handleSubmit">

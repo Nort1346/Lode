@@ -366,6 +366,8 @@
     "hintInvalid": "API key is invalid or missing permissions",
     "hintOffline": "Server is unreachable",
     "hintError": "Unexpected server response",
+    "noIndexers": "No indexers",
+    "hintNoIndexers": "Prowlarr is running, but no indexers are enabled",
     "hintNotConfigured": "Not configured. Add a server URL and API key",
     "ms": "ms",
     "discordTitle": "Discord Webhook",
@@ -726,6 +728,33 @@
   "forcePassword": {
     "title": "Change your password",
     "description": "For security, you must change your temporary password before you can continue."
+  },
+  "serviceHealth": {
+    "tmdb": {
+      "downTitle": "We can't show movies and shows",
+      "downDesc": "The service that provides movie and show details is offline. Browsing will work again as soon as it is back - check again in a moment.",
+      "invalidTitle": "Metadata service is unavailable",
+      "invalidDesc": "The metadata service rejected its connection. An administrator needs to check the app settings."
+    },
+    "qbit": {
+      "downTitle": "Downloads are currently unavailable",
+      "downDesc": "We can't reach the download client, so new downloads can't start. Browsing and requests still work fine.",
+      "invalidTitle": "Downloads are currently unavailable",
+      "invalidDesc": "The download client rejected its connection. An administrator needs to check the app settings.",
+      "setupTitle": "Downloads aren't set up yet",
+      "setupDesc": "No download client is configured on this server. An administrator needs to connect one before downloads can start."
+    },
+    "prowlarr": {
+      "downTitle": "Torrent search is currently unavailable",
+      "downDesc": "We can't reach Prowlarr, so searching for torrents won't return results. You can still browse titles and make requests.",
+      "invalidTitle": "Torrent search is unavailable",
+      "invalidDesc": "Prowlarr rejected its connection. An administrator needs to check the app settings.",
+      "noIndexersTitle": "No search sources configured",
+      "noIndexersDesc": "Prowlarr is running, but no indexers are enabled yet. Add an indexer in Prowlarr to make torrent search work.",
+      "setupTitle": "Torrent search isn't set up yet",
+      "setupDesc": "Prowlarr isn't connected to this server yet. An administrator needs to configure it to make torrent search work."
+    },
+    "retry": "Check again"
   },
   "seo": {
     "title": "Lode",

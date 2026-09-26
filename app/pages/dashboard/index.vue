@@ -17,6 +17,7 @@ const { user } = useUserSession()
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
 const toast = useToast()
+const { tmdbBlocked } = useServiceHealth()
 
 const stats = ref({
   activeTorrents: 0,
@@ -167,6 +168,8 @@ const savePathLabels = computed<Record<string, string>>(() => ({
         </p>
       </div>
     </div>
+
+    <ServiceHealthBanner />
 
     <div v-reveal class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
       <div class="card p-5 reveal-delay-1 cursor-pointer" @click="scrollToActiveDownloads">
@@ -393,5 +396,8 @@ const savePathLabels = computed<Record<string, string>>(() => ({
     <div v-reveal>
       <DashboardBrowseCTA />
     </div>
+
+    <!-- Blocking dialog while the metadata service is unavailable -->
+    <ServiceHealthModal v-if="tmdbBlocked" service="tmdb" />
   </div>
 </template>

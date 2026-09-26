@@ -366,6 +366,8 @@
     "hintInvalid": "Klucz API jest nieprawidłowy lub brakuje uprawnień",
     "hintOffline": "Serwer jest niedostępny",
     "hintError": "Niespodziewana odpowiedź serwera",
+    "noIndexers": "Brak indeksów",
+    "hintNoIndexers": "Prowlarr działa, ale nie włączono żadnych indeksów",
     "hintNotConfigured": "Nie skonfigurowano. Dodaj adres URL serwera i klucz API",
     "ms": "ms",
     "discordTitle": "Discord Webhook",
@@ -714,6 +716,33 @@
   "forcePassword": {
     "title": "Zmień hasło",
     "description": "Z powodów bezpieczeństwa musisz zmienić tymczasowe hasło przed dalszym użytkowaniem."
+  },
+  "serviceHealth": {
+    "tmdb": {
+      "downTitle": "Nie możemy pokazać filmów i seriali",
+      "downDesc": "Usługa dostarczająca informacje o filmach i serialach jest niedostępna. Przeglądanie zadziała ponownie, gdy tylko wróci - spróbuj za chwilę ponownie.",
+      "invalidTitle": "Usługa metadanych niedostępna",
+      "invalidDesc": "Usługa metadanych odrzuciła połączenie. Administrator musi sprawdzić ustawienia aplikacji."
+    },
+    "qbit": {
+      "downTitle": "Pobieranie jest obecnie niedostępne",
+      "downDesc": "Nie możemy połączyć się z klientem pobierania, dlatego nie można rozpocząć nowych pobrań. Przeglądanie i zgłoszenia nadal działają.",
+      "invalidTitle": "Pobieranie jest obecnie niedostępne",
+      "invalidDesc": "Klient pobierania odrzucił połączenie. Administrator musi sprawdzić ustawienia aplikacji.",
+      "setupTitle": "Pobieranie nie jest jeszcze skonfigurowane",
+      "setupDesc": "Na tym serwerze nie skonfigurowano klienta pobierania. Administrator musi go podłączyć, zanim pobieranie będzie możliwe."
+    },
+    "prowlarr": {
+      "downTitle": "Wyszukiwanie torrentów jest obecnie niedostępne",
+      "downDesc": "Nie możemy połączyć się z Prowlarr, dlatego wyszukiwanie torrentów nie zwraca wyników. Możesz nadal przeglądać tytuły i składać zgłoszenia.",
+      "invalidTitle": "Wyszukiwanie torrentów niedostępne",
+      "invalidDesc": "Prowlarr odrzucił połączenie. Administrator musi sprawdzić ustawienia aplikacji.",
+      "noIndexersTitle": "Brak skonfigurowanych źródeł wyszukiwania",
+      "noIndexersDesc": "Prowlarr działa, ale nie włączono jeszcze żadnych indeksów. Dodaj indeks w Prowlarr, aby wyszukiwanie torrentów zadziałało.",
+      "setupTitle": "Wyszukiwanie torrentów nie jest jeszcze skonfigurowane",
+      "setupDesc": "Prowlarr nie jest jeszcze podłączony do tego serwera. Administrator musi go skonfigurować, aby wyszukiwanie torrentów działało."
+    },
+    "retry": "Sprawdź ponownie"
   },
   "seo": {
     "title": "Lode",
