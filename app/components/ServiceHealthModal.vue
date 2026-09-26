@@ -84,7 +84,7 @@ function onRetry() {
 <template>
   <UModal :open="true" :close="false" :dismissible="false">
     <template #header>
-      <div class="flex flex-col items-center text-center">
+      <div v-reveal="'fade'" class="flex flex-col items-center text-center">
         <div
           class="mb-4 flex size-12 items-center justify-center rounded-2xl ring-1"
           :class="toneClasses[presentation.tone].badge"

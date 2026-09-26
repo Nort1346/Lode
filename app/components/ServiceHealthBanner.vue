@@ -4,9 +4,7 @@ import type { CoreServiceKey, ServiceIssueKind } from '~/composables/useServiceH
 
 // Dismissible outage banners for services that degrade (but do not block) the
 // page: Prowlarr search and the qBittorrent download client. Rendered only
-// after the first check resolves, so a pending check never shifts the layout;
-// the entrance is a single short fade + 4px settle (disabled with
-// prefers-reduced-motion).
+// after the first check resolves, so a pending check never shifts the layout.
 const props = withDefaults(
   defineProps<{
     services?: CoreServiceKey[]
@@ -105,7 +103,7 @@ function onClose(kind: ServiceIssueKind, open: boolean) {
 
 <template>
   <Transition name="health-banner">
-    <div v-if="rows.length > 0" class="mb-4 space-y-2">
+    <div v-if="rows.length > 0" v-reveal class="mb-4 space-y-2">
       <UAlert
         v-for="row in rows"
         :key="row.kind"
