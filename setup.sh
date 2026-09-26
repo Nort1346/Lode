@@ -122,10 +122,18 @@ trap 'restore_tty; exit 130' INT
 trap 'restore_tty; exit 143' TERM
 
 # `curl | bash` gives this script a pipe for stdin; the TUI needs the real
-# terminal on all three streams, opened read/write - a read-only open of
-# /dev/tty is not guaranteed to deliver raw-mode keystrokes.
+# terminal on all three streams. Open the slave device by its real name
+# (e.g. /dev/ttys001) instead of the /dev/tty magic device - a fresh
+# /dev/tty open does not deliver keystrokes to the TUI on some systems.
+# fd1 is duplicated first: command substitution runs in a subshell where
+# fd1 is the capture pipe, so `tty <&1` there would always fail.
 if [ -t 0 ] && [ -t 1 ]; then
   "$BIN" "$@"
 else
-  "$BIN" "$@" <> /dev/tty >&0 2>&0
+  exec 4<&1
+  TTY_DEV="$(tty <&4 2>/dev/null || true)"
+  case "$TTY_DEV" in
+    /dev/*) "$BIN" "$@" <> "$TTY_DEV" >&0 2>&0 ;;
+    *) "$BIN" "$@" <> /dev/tty >&0 2>&0 ;;
+  esac
 fi
