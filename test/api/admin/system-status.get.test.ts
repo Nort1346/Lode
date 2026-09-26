@@ -239,7 +239,10 @@ describe('admin/system-status.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers')) {
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) {
+        return { ok: true, status: 200, text: () => Promise.resolve('[]'), json: () => Promise.resolve([]) } as Response
+      }
+      if (u.includes('prowlarr') && u.includes('indexer')) {
         return { ok: true, status: 200, text: () => Promise.resolve('[]'), json: () => Promise.resolve([]) } as Response
       }
       return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
@@ -254,12 +257,19 @@ describe('admin/system-status.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers')) {
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) {
+        return { ok: true, status: 200, text: () => Promise.resolve('[]'), json: () => Promise.resolve([]) } as Response
+      }
+      if (u.includes('prowlarr') && u.includes('indexer')) {
         return {
           ok: true,
           status: 200,
           text: () => Promise.resolve('[]'),
-          json: () => Promise.resolve([{ enable: false }, { enable: false }])
+          json: () =>
+            Promise.resolve([
+              { id: 1, enable: false },
+              { id: 2, enable: false }
+            ])
         } as Response
       }
       return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
@@ -270,16 +280,57 @@ describe('admin/system-status.get', () => {
     expect(prowlarr).toEqual(expect.objectContaining({ status: 'no_indexers', configured: true }))
   })
 
-  it('keeps Prowlarr up when at least one indexer is enabled', async () => {
+  it('reports Prowlarr no_indexers when all enabled indexers are disabled by Prowlarr', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers')) {
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) {
         return {
           ok: true,
           status: 200,
           text: () => Promise.resolve('[]'),
-          json: () => Promise.resolve([{ enable: true }, { enable: false }])
+          json: () => Promise.resolve([{ indexerId: 1, disabledTill: '2026-09-26T12:00:00Z' }])
+        } as Response
+      }
+      if (u.includes('prowlarr') && u.includes('indexer')) {
+        return {
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve('[]'),
+          json: () => Promise.resolve([{ id: 1, enable: true }])
+        } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const prowlarr = result.services.find((s: { name: string }) => s.name === 'Prowlarr')
+    expect(prowlarr).toEqual(
+      expect.objectContaining({
+        status: 'no_indexers',
+        configured: true,
+        details: 'All enabled indexers are disabled by Prowlarr'
+      })
+    )
+  })
+
+  it('keeps Prowlarr up when at least one indexer is enabled', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      const u = String(url)
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) {
+        return { ok: true, status: 200, text: () => Promise.resolve('[]'), json: () => Promise.resolve([]) } as Response
+      }
+      if (u.includes('prowlarr') && u.includes('indexer')) {
+        return {
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve('[]'),
+          json: () =>
+            Promise.resolve([
+              { id: 1, enable: true },
+              { id: 2, enable: false }
+            ])
         } as Response
       }
       return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
@@ -294,7 +345,10 @@ describe('admin/system-status.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers')) {
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) {
+        return { ok: true, status: 200, text: () => Promise.resolve('[]'), json: () => Promise.resolve([]) } as Response
+      }
+      if (u.includes('prowlarr') && u.includes('indexer')) {
         return {
           ok: true,
           status: 200,

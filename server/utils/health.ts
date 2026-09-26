@@ -1,4 +1,5 @@
 import type { ServiceStatus } from '#server/types/admin'
+import type { ProwlarrIndexer, ProwlarrIndexerStatus } from '#server/types/prowlarr'
 import { normalizeUrl } from '#server/utils/url'
 import { resolveTmdbApiKey } from '#server/utils/tmdb'
 
@@ -58,8 +59,24 @@ export async function checkQbittorrent(config: ReturnType<typeof useRuntimeConfi
   }
 }
 
-interface ProwlarrIndexer {
-  enable?: unknown
+// /api/v1/indexerstatus lists only indexers Prowlarr has disabled in the
+// background after repeated failures. A failed or unparseable response means
+// "nothing known to be blocked", not "everything is broken".
+async function readBlockedIndexerIds(result: PromiseSettledResult<Response>): Promise<Set<number>> {
+  if (result.status !== 'fulfilled' || !result.value.ok) return new Set()
+  try {
+    const data: unknown = await result.value.json()
+    if (!Array.isArray(data)) return new Set()
+    const ids = new Set<number>()
+    for (const item of data) {
+      if (typeof item !== 'object' || item === null) continue
+      const { indexerId } = item as ProwlarrIndexerStatus
+      if (typeof indexerId === 'number') ids.add(indexerId)
+    }
+    return ids
+  } catch {
+    return new Set()
+  }
 }
 
 export async function checkProwlarr(config: ReturnType<typeof useRuntimeConfig>): Promise<ServiceStatus> {
@@ -72,14 +89,16 @@ export async function checkProwlarr(config: ReturnType<typeof useRuntimeConfig>)
   const start = Date.now()
   const base = normalizeUrl(url)
   try {
-    // system/status requires the API key, unlike /health. The indexer list is
-    // fetched in parallel (it does not depend on the status result) so a
-    // dead service still resolves within the single timeout budget.
-    // A running Prowlarr with zero enabled indexers is as broken for search
-    // as an offline one, so it is reported as its own condition.
-    const [statusResult, indexersResult] = await Promise.allSettled([
+    // system/status requires the API key, unlike /health. The indexer list
+    // (singular /api/v1/indexer - the plural route 404s) and the
+    // background-disabled list (/api/v1/indexerstatus) are fetched in parallel
+    // so a dead service still resolves within the single timeout budget.
+    // A running Prowlarr with zero usable indexers is as broken for search as
+    // an offline one, so it is reported as its own condition.
+    const [statusResult, indexersResult, indexerStatusResult] = await Promise.allSettled([
       fetch(`${base}/api/v1/system/status?apikey=${apiKey}`, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) }),
-      fetch(`${base}/api/v1/indexers?apikey=${apiKey}`, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) })
+      fetch(`${base}/api/v1/indexer?apikey=${apiKey}`, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) }),
+      fetch(`${base}/api/v1/indexerstatus?apikey=${apiKey}`, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) })
     ])
 
     const latencyMs = Date.now() - start
@@ -97,15 +116,29 @@ export async function checkProwlarr(config: ReturnType<typeof useRuntimeConfig>)
     }
     if (!statusResult.value.ok) throw new Error(`HTTP ${statusResult.value.status}`)
 
-    let enabledIndexers = -1
+    // -1 means the list could not be read; only a successfully parsed list
+    // can ever produce no_indexers.
+    let usableIndexers = -1
+    let enabledIndexers = 0
     if (indexersResult.status === 'fulfilled' && indexersResult.value.ok) {
       try {
         const data: unknown = await indexersResult.value.json()
         if (Array.isArray(data)) {
-          enabledIndexers = data.filter(
-            (item): item is ProwlarrIndexer =>
-              typeof item === 'object' && item !== null && (item as ProwlarrIndexer).enable === true
-          ).length
+          const blockedIds = await readBlockedIndexerIds(indexerStatusResult)
+          let enabled = 0
+          let usable = 0
+          for (const item of data) {
+            if (typeof item !== 'object' || item === null) continue
+            const { id, enable } = item as ProwlarrIndexer
+            if (enable !== true) continue
+            enabled += 1
+            // An enabled indexer counts as usable unless it is known to be
+            // disabled in the background; without an id it cannot be matched
+            // against the blocked list.
+            if (typeof id !== 'number' || !blockedIds.has(id)) usable += 1
+          }
+          enabledIndexers = enabled
+          usableIndexers = usable
         }
       } catch {
         // Unparseable indexer list: reachability is already proven, so
@@ -113,13 +146,13 @@ export async function checkProwlarr(config: ReturnType<typeof useRuntimeConfig>)
       }
     }
 
-    if (enabledIndexers === 0) {
+    if (usableIndexers === 0) {
       return {
         name: 'Prowlarr',
         configured: true,
         status: 'no_indexers',
         latencyMs,
-        details: 'No enabled indexers'
+        details: enabledIndexers === 0 ? 'No enabled indexers' : 'All enabled indexers are disabled by Prowlarr'
       }
     }
 

@@ -49,7 +49,8 @@ describe('health/services.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers')) return okResponse({ json: [{ enable: true }] })
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) return okResponse({ json: [] })
+      if (u.includes('prowlarr') && u.includes('indexer')) return okResponse({ json: [{ id: 1, enable: true }] })
       return okResponse({ text: 'v5.2.3' })
     })
 
@@ -62,8 +63,14 @@ describe('health/services.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers'))
-        return okResponse({ json: [{ enable: true }, { enable: false }] })
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) return okResponse({ json: [] })
+      if (u.includes('prowlarr') && u.includes('indexer'))
+        return okResponse({
+          json: [
+            { id: 1, enable: true },
+            { id: 2, enable: false }
+          ]
+        })
       return okResponse({ text: 'v5.2.3' })
     })
 
@@ -76,8 +83,9 @@ describe('health/services.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       if (String(url).includes('themoviedb')) throw new Error('Connection refused')
-      if (String(url).includes('prowlarr') && String(url).includes('indexers'))
-        return okResponse({ json: [{ enable: true }] })
+      if (String(url).includes('prowlarr') && String(url).includes('indexerstatus')) return okResponse({ json: [] })
+      if (String(url).includes('prowlarr') && String(url).includes('indexer'))
+        return okResponse({ json: [{ id: 1, enable: true }] })
       return okResponse({ text: 'v5.2.3' })
     })
 
@@ -92,8 +100,9 @@ describe('health/services.get', () => {
       if (String(url).includes('themoviedb')) {
         return { ok: false, status: 401, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
       }
-      if (String(url).includes('prowlarr') && String(url).includes('indexers'))
-        return okResponse({ json: [{ enable: true }] })
+      if (String(url).includes('prowlarr') && String(url).includes('indexerstatus')) return okResponse({ json: [] })
+      if (String(url).includes('prowlarr') && String(url).includes('indexer'))
+        return okResponse({ json: [{ id: 1, enable: true }] })
       return okResponse({ text: 'v5.2.3' })
     })
 
@@ -107,7 +116,8 @@ describe('health/services.get', () => {
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
       if (u.includes('qbit')) throw new Error('Connection refused')
-      if (u.includes('prowlarr') && u.includes('indexers')) return okResponse({ json: [{ enable: true }] })
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) return okResponse({ json: [] })
+      if (u.includes('prowlarr') && u.includes('indexer')) return okResponse({ json: [{ id: 1, enable: true }] })
       return okResponse({ text: 'v5.2.3' })
     })
 
@@ -128,7 +138,8 @@ describe('health/services.get', () => {
           json: () => Promise.resolve({})
         } as Response
       }
-      if (u.includes('prowlarr') && u.includes('indexers')) return okResponse({ json: [{ enable: true }] })
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) return okResponse({ json: [] })
+      if (u.includes('prowlarr') && u.includes('indexer')) return okResponse({ json: [{ id: 1, enable: true }] })
       return okResponse({ text: 'v5.2.3' })
     })
 
@@ -141,8 +152,9 @@ describe('health/services.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     stubConfig({ qbittorrentUrl: '', qbittorrentApiKey: '' })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
-      if (String(url).includes('prowlarr') && String(url).includes('indexers'))
-        return okResponse({ json: [{ enable: true }] })
+      if (String(url).includes('prowlarr') && String(url).includes('indexerstatus')) return okResponse({ json: [] })
+      if (String(url).includes('prowlarr') && String(url).includes('indexer'))
+        return okResponse({ json: [{ id: 1, enable: true }] })
       return okResponse({ text: 'v5.2.3' })
     })
 
@@ -183,7 +195,8 @@ describe('health/services.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers')) return okResponse({ json: [] })
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) return okResponse({ json: [] })
+      if (u.includes('prowlarr') && u.includes('indexer')) return okResponse({ json: [] })
       return okResponse({ text: 'v5.2.3' })
     })
 
@@ -196,8 +209,9 @@ describe('health/services.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers')) {
-        return okResponse({ json: [{ enable: false }, { enable: false }, { name: 'Broken' }] })
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) return okResponse({ json: [] })
+      if (u.includes('prowlarr') && u.includes('indexer')) {
+        return okResponse({ json: [{ id: 1, enable: false }, { id: 2, enable: false }, { name: 'Broken' }] })
       }
       return okResponse({ text: 'v5.2.3' })
     })
@@ -207,11 +221,85 @@ describe('health/services.get', () => {
     expect(prowlarr).toEqual(expect.objectContaining({ status: 'no_indexers', configured: true }))
   })
 
+  it('reports no_indexers when all enabled indexers are disabled by Prowlarr', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      const u = String(url)
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) {
+        return okResponse({
+          json: [
+            { indexerId: 1, disabledTill: '2026-09-26T12:00:00Z' },
+            { indexerId: 2, disabledTill: '2026-09-26T13:00:00Z' }
+          ]
+        })
+      }
+      if (u.includes('prowlarr') && u.includes('indexer')) {
+        return okResponse({
+          json: [
+            { id: 1, enable: true },
+            { id: 2, enable: true }
+          ]
+        })
+      }
+      return okResponse({ text: 'v5.2.3' })
+    })
+
+    const result = await handler(mockEvent)
+    const prowlarr = result.services.find((s: { name: string }) => s.name === 'Prowlarr')
+    expect(prowlarr).toEqual(
+      expect.objectContaining({
+        status: 'no_indexers',
+        configured: true,
+        details: 'All enabled indexers are disabled by Prowlarr'
+      })
+    )
+  })
+
+  it('stays up when some enabled indexers are disabled by Prowlarr', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      const u = String(url)
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) {
+        return okResponse({ json: [{ indexerId: 2, disabledTill: '2026-09-26T12:00:00Z' }] })
+      }
+      if (u.includes('prowlarr') && u.includes('indexer')) {
+        return okResponse({
+          json: [
+            { id: 1, enable: true },
+            { id: 2, enable: true }
+          ]
+        })
+      }
+      return okResponse({ text: 'v5.2.3' })
+    })
+
+    const result = await handler(mockEvent)
+    const prowlarr = result.services.find((s: { name: string }) => s.name === 'Prowlarr')
+    expect(prowlarr).toEqual(expect.objectContaining({ status: 'up' }))
+  })
+
+  it('stays up when the indexerstatus endpoint errors', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      const u = String(url)
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) {
+        return { ok: false, status: 500, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+      }
+      if (u.includes('prowlarr') && u.includes('indexer')) return okResponse({ json: [{ id: 1, enable: true }] })
+      return okResponse({ text: 'v5.2.3' })
+    })
+
+    const result = await handler(mockEvent)
+    const prowlarr = result.services.find((s: { name: string }) => s.name === 'Prowlarr')
+    expect(prowlarr).toEqual(expect.objectContaining({ status: 'up' }))
+  })
+
   it('stays up when the indexer list is not an array', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers')) return okResponse({ json: { Version: '10.9.0' } })
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) return okResponse({ json: [] })
+      if (u.includes('prowlarr') && u.includes('indexer')) return okResponse({ json: { Version: '10.9.0' } })
       return okResponse({ text: 'v5.2.3' })
     })
 
@@ -224,7 +312,8 @@ describe('health/services.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers')) {
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) return okResponse({ json: [] })
+      if (u.includes('prowlarr') && u.includes('indexer')) {
         return {
           ok: true,
           status: 200,
@@ -244,7 +333,8 @@ describe('health/services.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
     vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
       const u = String(url)
-      if (u.includes('prowlarr') && u.includes('indexers')) {
+      if (u.includes('prowlarr') && u.includes('indexerstatus')) return okResponse({ json: [] })
+      if (u.includes('prowlarr') && u.includes('indexer')) {
         return { ok: false, status: 500, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
       }
       return okResponse({ text: 'v5.2.3' })

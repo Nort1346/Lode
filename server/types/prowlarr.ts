@@ -1,3 +1,18 @@
+// Response item of GET /api/v1/indexer (the list endpoint is singular; the
+// plural route does not exist in Prowlarr 2.x). Fields are `unknown` because
+// the payload is untrusted external JSON narrowed at the call site.
+export interface ProwlarrIndexer {
+  id?: unknown
+  enable?: unknown
+}
+
+// Response item of GET /api/v1/indexerstatus: an indexer Prowlarr has
+// disabled in the background after repeated failures. Only currently blocked
+// indexers are listed, so presence in the list means non-functional.
+export interface ProwlarrIndexerStatus {
+  indexerId?: unknown
+}
+
 export interface ProwlarrResult {
   title: string
   indexer: string
