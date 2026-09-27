@@ -89,7 +89,7 @@
     "@vite-pwa/nuxt": "^1.1.1",
     "@vitest/coverage-v8": "5.0.0",
     "discord-api-types": "^0.38.55",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "happy-dom": "^20.14.5",
