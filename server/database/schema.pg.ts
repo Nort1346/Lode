@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, boolean, uniqueIndex, index } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, bigint, real, boolean, uniqueIndex, index } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -45,8 +45,8 @@ export const downloads = pgTable(
     etaSeconds: integer('eta_seconds').notNull().default(0),
     downloadSpeed: integer('download_speed').notNull().default(0),
     uploadSpeed: integer('upload_speed').notNull().default(0),
-    sizeBytes: integer('size_bytes').notNull().default(0),
-    downloadedBytes: integer('downloaded_bytes').notNull().default(0),
+    sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
+    downloadedBytes: bigint('downloaded_bytes', { mode: 'number' }).notNull().default(0),
     numSeeds: integer('num_seeds').notNull().default(0),
     numLeechs: integer('num_leechs').notNull().default(0),
     createdAt: text('created_at').notNull().default(''),
