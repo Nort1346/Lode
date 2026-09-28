@@ -5,6 +5,21 @@ All notable changes to Lode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.5] - 2026-09-28
+
+A patch release repairing the PostgreSQL migration chain - download label columns that were missing from PostgreSQL databases, and 32-bit byte counters that overflowed on files above 2.1 GB - plus hardened binary download in the setup script.
+
+### Fixed
+
+- Postgres: the migration adding the download label columns (`indexer_name`, `resolution`, `qbit_tag`) was never registered in the PostgreSQL migration journal, so those columns were missing from PostgreSQL databases and download syncing crashed with `column "indexer_name" does not exist`; a backfill migration now adds the columns to existing databases on upgrade, and fresh installs receive them in order
+- Postgres: `size_bytes` and `downloaded_bytes` on the `downloads` table widened from 32-bit `integer` to `bigint` - downloads larger than ~2.1 GB no longer fail to record with a `value out of range for type integer` error
+- Setup script: the downloaded binary is validated before execution - a minimum size and the ELF/Mach-O magic number are required, so a cached error page or truncated download is never run
+- Setup script: bounded connect timeout, transient retries, and an abort when the transfer crawls below ~1 KB/s for a minute, so a stalled download no longer hangs setup
+- Setup script: an x86_64 shell running under Rosetta on Apple Silicon now downloads the native arm64 binary instead of running the TUI through Rosetta
+- Setup script: the TUI is launched through the real tty device name (e.g. `/dev/ttys001`) instead of the `/dev/tty` magic device, which does not deliver keystrokes on some systems
+- Setup script: `curl | bash` runs no longer drop the downloaded binary mid-execution
+- Setup script (macOS): the quarantine attribute is stripped from a cached binary so Gatekeeper does not block the launch
+
 ## [1.0.4] - 2026-09-26
 
 Live service health monitoring with dismissible outage notices, forced password change on first login, an optional TMDB key with a built-in shared fallback, and a more reliable torrent search with live progress - alongside browse UI polish, a custom 404 page, and signed Windows setup binaries.

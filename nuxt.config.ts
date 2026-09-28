@@ -48,7 +48,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      appVersion: '1.0.4',
+      appVersion: '1.0.5',
       vapidPublicKey: ''
     },
     session: {
