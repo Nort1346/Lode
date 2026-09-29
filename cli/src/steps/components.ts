@@ -96,7 +96,8 @@ export async function chooseComponents(ctx: StepContext): Promise<void> {
       { value: 'flaresolverr', label: OPTION_LABELS.flaresolverr },
       { value: 'dozzle', label: OPTION_LABELS.dozzle }
     ],
-    addonInitial
+    addonInitial,
+    false // add-ons are optional: selecting none is a valid answer
   )
   ctx.selection.flaresolverr = addons.includes('flaresolverr')
   ctx.selection.dozzle = addons.includes('dozzle')

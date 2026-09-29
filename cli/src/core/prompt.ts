@@ -65,12 +65,14 @@ export async function askSelect<T extends string>(
 export async function askMultiSelect(
   message: string,
   options: readonly PromptOption[],
-  initialValues: readonly string[] = []
+  initialValues: readonly string[] = [],
+  required = true
 ): Promise<string[]> {
   const result = await multiselect<string>({
     message,
     options: options.map((option) => ({ value: option.value, label: option.label, hint: option.hint })),
-    initialValues: [...initialValues]
+    initialValues: [...initialValues],
+    required
   })
   return guard(result)
 }
