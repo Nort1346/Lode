@@ -169,7 +169,7 @@ describe('admin/users/[id].put', () => {
     expect(mockSyncUserEnable).toHaveBeenCalledWith('u1')
   })
 
-  it('marks the user as must-change-password when the admin resets the password', async () => {
+  it('does not force a password change when the admin assigns a password', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
     mockGetRouterParam.mockReturnValue('u1')
     mockReadBody.mockResolvedValue({ password: 'temp1234' })
@@ -178,7 +178,7 @@ describe('admin/users/[id].put', () => {
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true })
     expect(mockUpdateSet).toHaveBeenCalledWith(
-      expect.objectContaining({ password: '$2b$12$hashed', mustChangePassword: true })
+      expect.objectContaining({ password: '$2b$12$hashed', mustChangePassword: false })
     )
   })
 

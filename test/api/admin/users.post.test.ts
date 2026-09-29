@@ -100,13 +100,13 @@ describe('admin/users.post', () => {
     expect(mockSyncNewUser).toHaveBeenCalled()
   })
 
-  it('marks new users as must-change-password', async () => {
+  it('does not force a password change for newly created users', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
     mockReadBody.mockResolvedValue({ username: 'newuser', password: 'pass1234' })
     stubDb(undefined)
 
     await handler(mockEvent)
-    expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: true }))
+    expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: false }))
   })
 
   it('throws 400 when username missing', async () => {
