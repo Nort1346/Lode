@@ -45,7 +45,11 @@ function goBrowse() {
       <div class="w-full max-w-md px-4 text-center pt-safe">
         <!-- 404: page not in the library -->
         <template v-if="is404">
-          <h1 v-reveal="1" class="text-7xl sm:text-9xl font-black leading-none tracking-tight text-gradient" aria-hidden="true">
+          <h1
+            v-reveal="1"
+            class="text-7xl sm:text-9xl font-black leading-none tracking-tight text-gradient"
+            aria-hidden="true"
+          >
             404
           </h1>
           <h2 v-reveal="2" class="mt-6 text-xl sm:text-2xl font-semibold text-highlighted" role="alert">
@@ -58,7 +62,10 @@ function goBrowse() {
 
         <!-- Any other error (500, etc.) -->
         <template v-else>
-          <div v-reveal="1" class="mb-4 mt-4 flex size-12 items-center justify-center rounded-2xl bg-red-500/10 ring-1 ring-red-500/20">
+          <div
+            v-reveal="1"
+            class="mb-4 mt-4 flex size-12 items-center justify-center rounded-2xl bg-red-500/10 ring-1 ring-red-500/20"
+          >
             <UIcon name="i-lucide-triangle-alert" class="size-6 text-red-600 dark:text-red-400" />
           </div>
           <h1 v-reveal="2" class="text-xl sm:text-2xl font-semibold text-highlighted" role="alert">
