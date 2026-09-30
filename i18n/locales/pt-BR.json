@@ -603,9 +603,21 @@
     "languages": {
       "title": "Idiomas",
       "code": "Código",
+      "label": "Rótulo",
       "patterns": "Padrões de detecção",
       "patternsHint": "Padrões de expressão regular separados por vírgula (ex.: pldub, pl[\\\\s.]?dub)",
-      "isFallback": "Padrão (fallback)"
+      "isFallback": "Padrão (fallback)",
+      "preferred": "Preferido",
+      "addProfile": "Adicionar idioma"
+    },
+    "formats": {
+      "title": "Formatos",
+      "add": "Adicionar formato",
+      "code": "Código",
+      "label": "Rótulo",
+      "score": "Pontuação",
+      "patterns": "Padrões",
+      "patternsHint": "Padrões de expressão regular separados por vírgula"
     },
     "groups": {
       "title": "Grupos Conhecidos",

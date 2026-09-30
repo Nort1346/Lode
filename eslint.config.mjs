@@ -1,5 +1,6 @@
 // @ts-check
 import withNuxt from './.nuxt/eslint.config.mjs'
+import vueI18n from '@intlify/eslint-plugin-vue-i18n'
 import prettierConfig from 'eslint-config-prettier'
 import { fileURLToPath } from 'node:url'
 
@@ -160,6 +161,35 @@ export default withNuxt(
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/strict-boolean-expressions': 'off',
       '@typescript-eslint/no-floating-promises': 'off'
+    }
+  },
+
+  // vue-i18n: parser setup for .vue and .json files (flat/base = no rules)
+  ...vueI18n.configs.base,
+
+  // vue-i18n: shared settings - localeDir globs i18n/locales/*.json (locale = filename)
+  {
+    settings: {
+      'vue-i18n': {
+        localeDir: './i18n/locales/*.json',
+        messageSyntaxVersion: '^11.0.0'
+      }
+    }
+  },
+
+  // vue-i18n: every locale file must contain the same keys (en is source of truth)
+  {
+    files: ['i18n/locales/*.json'],
+    rules: {
+      '@intlify/vue-i18n/no-missing-keys-in-other-locales': 'error'
+    }
+  },
+
+  // vue-i18n: t()/tc() calls must reference keys that exist in the locale files
+  {
+    files: ['app/**/*.vue', 'app/**/*.ts'],
+    rules: {
+      '@intlify/vue-i18n/no-missing-keys': 'error'
     }
   },
 

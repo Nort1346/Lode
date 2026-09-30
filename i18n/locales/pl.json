@@ -603,9 +603,21 @@
     "languages": {
       "title": "Języki",
       "code": "Kod",
+      "label": "Etykieta",
       "patterns": "Wzorce detekcji",
       "patternsHint": "Regex patterny oddzielone przecinkami (np. pldub, pl[\\\\s.]?dub)",
-      "isFallback": "Domyślny (fallback)"
+      "isFallback": "Domyślny (fallback)",
+      "preferred": "Preferowany",
+      "addProfile": "Dodaj język"
+    },
+    "formats": {
+      "title": "Formaty",
+      "add": "Dodaj format",
+      "code": "Kod",
+      "label": "Etykieta",
+      "score": "Punktacja",
+      "patterns": "Wzorce",
+      "patternsHint": "Wzorce regex oddzielone przecinkami"
     },
     "groups": {
       "title": "Znane grupy",

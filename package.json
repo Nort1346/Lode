@@ -79,6 +79,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@intlify/eslint-plugin-vue-i18n": "^4.5.1",
     "@nuxt/eslint": "^1.17.0",
     "@nuxt/test-utils": "^4.3.2",
     "@types/better-sqlite3": "^9.6.0",

@@ -603,9 +603,21 @@
     "languages": {
       "title": "Langues",
       "code": "Code",
+      "label": "Libellé",
       "patterns": "Motifs de détection",
       "patternsHint": "Motifs regex séparés par des virgules (ex. pldub, pl[\\\\s.]?dub)",
-      "isFallback": "Par défaut (fallback)"
+      "isFallback": "Par défaut (fallback)",
+      "preferred": "Préféré",
+      "addProfile": "Ajouter une langue"
+    },
+    "formats": {
+      "title": "Formats",
+      "add": "Ajouter un format",
+      "code": "Code",
+      "label": "Libellé",
+      "score": "Score",
+      "patterns": "Motifs",
+      "patternsHint": "Motifs regex séparés par des virgules"
     },
     "groups": {
       "title": "Groupes connus",

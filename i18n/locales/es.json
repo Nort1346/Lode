@@ -603,9 +603,21 @@
     "languages": {
       "title": "Idiomas",
       "code": "Código",
+      "label": "Etiqueta",
       "patterns": "Patrones de detección",
       "patternsHint": "Patrones regex separados por comas (ej. pldub, pl[\\\\s.]?dub)",
-      "isFallback": "Predeterminado (fallback)"
+      "isFallback": "Predeterminado (fallback)",
+      "preferred": "Preferido",
+      "addProfile": "Añadir idioma"
+    },
+    "formats": {
+      "title": "Formatos",
+      "add": "Añadir formato",
+      "code": "Código",
+      "label": "Etiqueta",
+      "score": "Puntuación",
+      "patterns": "Patrones",
+      "patternsHint": "Patrones regex separados por comas"
     },
     "groups": {
       "title": "Grupos conocidos",

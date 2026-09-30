@@ -603,9 +603,21 @@
     "languages": {
       "title": "Sprachen",
       "code": "Code",
+      "label": "Beschriftung",
       "patterns": "Erkennungsmuster",
       "patternsHint": "Regex-Muster, getrennt durch Kommas (z.B. pldub, pl[\\\\s.]?dub)",
-      "isFallback": "Standard (Fallback)"
+      "isFallback": "Standard (Fallback)",
+      "preferred": "Bevorzugt",
+      "addProfile": "Sprache hinzufügen"
+    },
+    "formats": {
+      "title": "Formate",
+      "add": "Format hinzufügen",
+      "code": "Code",
+      "label": "Beschriftung",
+      "score": "Punktzahl",
+      "patterns": "Muster",
+      "patternsHint": "Regex-Muster, getrennt durch Kommas"
     },
     "groups": {
       "title": "Bekannte Gruppen",
