@@ -137,6 +137,9 @@ export function toStreamEvent(e: ProwlarrProgressEvent): TorrentStreamEvent {
   if (e.kind === 'query' && e.state === 'done') {
     return { type: 'query', state: 'done', index: e.index, total: e.total, text: e.text, results: e.results }
   }
+  if (e.kind === 'query' && e.state === 'failed') {
+    return { type: 'query', state: 'failed', index: e.index, total: e.total, text: e.text, reason: e.reason }
+  }
   if (e.kind === 'query') return { type: 'query', state: e.state, index: e.index, total: e.total, text: e.text }
   return { type: 'imdb', results: e.results }
 }

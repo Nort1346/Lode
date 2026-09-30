@@ -108,6 +108,48 @@ describe('useTorrentSearch', () => {
     expect(s.phase.value).toBe('searching')
   })
 
+  it('tracks skipped queries with their reason and counts them as completed', () => {
+    const s = use()
+    s.start('/api/stream')
+    const es = MockEventSource.instances[0]!
+
+    es.emit({ type: 'start', queries: 3 })
+    es.emit({ type: 'query', state: 'start', index: 1, total: 3, text: 'Slow' })
+    es.emit({ type: 'query', state: 'failed', index: 1, total: 3, text: 'Slow', reason: 'timeout' })
+    es.emit({ type: 'query', state: 'start', index: 2, total: 3, text: 'Broken' })
+    es.emit({ type: 'query', state: 'failed', index: 2, total: 3, text: 'Broken', reason: 'error' })
+
+    expect(s.skippedQueries.value).toEqual([
+      { text: 'Slow', reason: 'timeout' },
+      { text: 'Broken', reason: 'error' }
+    ])
+    expect(s.queriesCompleted.value).toBe(2)
+    expect(s.foundSoFar.value).toBe(0)
+    expect(s.phase.value).toBe('searching')
+
+    es.emit({ type: 'query', state: 'start', index: 3, total: 3, text: 'Fast' })
+    es.emit({ type: 'query', state: 'done', index: 3, total: 3, text: 'Fast', results: 7 })
+
+    expect(s.skippedQueries.value).toEqual([
+      { text: 'Slow', reason: 'timeout' },
+      { text: 'Broken', reason: 'error' }
+    ])
+    expect(s.foundSoFar.value).toBe(7)
+    expect(s.phase.value).toBe('finishing')
+  })
+
+  it('resets skippedQueries on a second start event', () => {
+    const s = use()
+    s.start('/api/stream')
+    const es = MockEventSource.instances[0]!
+
+    es.emit({ type: 'start', queries: 2 })
+    es.emit({ type: 'query', state: 'failed', index: 1, total: 2, text: 'Slow', reason: 'timeout' })
+    es.emit({ type: 'start', queries: 2 })
+
+    expect(s.skippedQueries.value).toEqual([])
+  })
+
   it('surfaces a limit error as the limitInfo state', () => {
     const s = use()
     s.start('/api/stream')

@@ -1,4 +1,5 @@
 import { computed, onScopeDispose, ref } from 'vue'
+import type { SlowQueryInfo } from '~/types/browse'
 import type { TorrentSearchLimitInfo, TorrentStreamEvent } from '#server/types/torrent-search'
 import {
   TORRENT_STREAM_RECONNECT_BASE_MS,
@@ -29,6 +30,11 @@ export function useTorrentSearch<T>() {
   const activeQueries = ref<string[]>([])
   const currentQuery = computed(() => activeQueries.value[0] ?? null)
 
+  // Tier queries cut off by the per-request deadline (slow indexer behind
+  // Prowlarr) or failed another way; named in the progress card, results from
+  // the remaining queries still arrive
+  const skippedQueries = ref<SlowQueryInfo[]>([])
+
   let eventSource: EventSource | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let staleTimer: ReturnType<typeof setTimeout> | null = null
@@ -41,6 +47,7 @@ export function useTorrentSearch<T>() {
     queriesCompleted.value = 0
     foundSoFar.value = 0
     activeQueries.value = []
+    skippedQueries.value = []
   }
 
   function clearStaleTimer() {
@@ -89,7 +96,11 @@ export function useTorrentSearch<T>() {
         } else {
           const at = activeQueries.value.indexOf(e.text)
           if (at !== -1) activeQueries.value.splice(at, 1)
-          if (e.state === 'done') foundSoFar.value += e.results
+          if (e.state === 'done') {
+            foundSoFar.value += e.results
+          } else if (e.state === 'failed') {
+            skippedQueries.value.push({ text: e.text, reason: e.reason })
+          }
           queriesCompleted.value += 1
           if (queriesTotal.value > 0 && queriesCompleted.value >= queriesTotal.value) {
             phase.value = 'finishing'
@@ -184,6 +195,7 @@ export function useTorrentSearch<T>() {
     queriesCompleted,
     foundSoFar,
     currentQuery,
+    skippedQueries,
     payload,
     limitInfo,
     start,

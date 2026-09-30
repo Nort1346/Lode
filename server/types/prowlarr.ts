@@ -47,11 +47,13 @@ export interface ProwlarrRelease {
 // Progress events emitted while the query ladder runs. `index`/`total` give the
 // "N of M queries done" signal, `text` is the tier query actually sent to
 // Prowlarr, and `results` is the per-query hit count (cumulative totals are
-// kept client-side).
+// kept client-side). A `failed` query hit the per-request deadline (a slow
+// indexer behind Prowlarr) or another error; the rest of the ladder still runs.
 export type ProwlarrProgressEvent =
   | { kind: 'start'; queries: number }
   | { kind: 'query'; state: 'start' | 'skipped'; index: number; total: number; text: string }
   | { kind: 'query'; state: 'done'; index: number; total: number; text: string; results: number }
+  | { kind: 'query'; state: 'failed'; index: number; total: number; text: string; reason: 'timeout' | 'error' }
   | { kind: 'imdb'; results: number }
 
 export type ProwlarrProgressCallback = (event: ProwlarrProgressEvent) => void

@@ -2,6 +2,13 @@ import type { Genre } from './media'
 
 export type SearchPhase = 'idle' | 'debouncing' | 'loading' | 'success' | 'empty' | 'error'
 
+// A tier query that did not complete: 'timeout' hit the per-request deadline
+// (a slow indexer behind Prowlarr), 'error' failed for another reason
+export interface SlowQueryInfo {
+  text: string
+  reason: 'timeout' | 'error'
+}
+
 export interface SearchResultItem {
   id: number
   type: 'movie' | 'tv'

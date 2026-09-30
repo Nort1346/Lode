@@ -20,6 +20,7 @@
 
 <script setup lang="ts">
 import type { TorrentSearchPhase } from '~/composables/useTorrentSearch'
+import type { SlowQueryInfo } from '~/types/browse'
 
 const props = defineProps<{
   phase: TorrentSearchPhase
@@ -28,6 +29,7 @@ const props = defineProps<{
   queriesCompleted: number
   currentQuery: string | null
   found: number
+  skippedQueries: SlowQueryInfo[]
 }>()
 
 const { t } = useI18n()
@@ -48,6 +50,14 @@ const meta = computed(() => {
   }
   if (props.found > 0) {
     parts.push(t('browse.searchProgress.found', { count: props.found }))
+  }
+  const timedOut = props.skippedQueries.filter((q) => q.reason === 'timeout').map((q) => q.text)
+  if (timedOut.length > 0) {
+    parts.push(t('browse.searchProgress.slowSkipped', { text: timedOut.join(', ') }))
+  }
+  const failed = props.skippedQueries.filter((q) => q.reason === 'error').map((q) => q.text)
+  if (failed.length > 0) {
+    parts.push(t('browse.searchProgress.queryFailed', { text: failed.join(', ') }))
   }
   return parts.length > 0 ? parts.join(' · ') : null
 })

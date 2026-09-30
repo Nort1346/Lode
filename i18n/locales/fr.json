@@ -91,7 +91,9 @@
       "query": "Recherche : {text}",
       "finishing": "Tri des résultats...",
       "progress": "{done} sur {total} requêtes",
-      "found": "{count} résultats"
+      "found": "{count} résultats",
+      "slowSkipped": "Requête lente ignorée : {text}",
+      "queryFailed": "Requête en échec : {text}"
     }
   },
   "mediaCard": {

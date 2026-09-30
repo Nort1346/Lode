@@ -298,6 +298,16 @@ describe('toStreamEvent', () => {
       text: 'Q',
       results: 2
     })
+    expect(toStreamEvent({ kind: 'query', state: 'failed', index: 1, total: 3, text: 'Q', reason: 'timeout' })).toEqual(
+      {
+        type: 'query',
+        state: 'failed',
+        index: 1,
+        total: 3,
+        text: 'Q',
+        reason: 'timeout'
+      }
+    )
     expect(toStreamEvent({ kind: 'imdb', results: 4 })).toEqual({ type: 'imdb', results: 4 })
   })
 })

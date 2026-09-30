@@ -20,6 +20,7 @@ export interface TorrentStreamStartEvent {
 export type TorrentStreamQueryEvent =
   | { type: 'query'; state: 'start' | 'skipped'; index: number; total: number; text: string }
   | { type: 'query'; state: 'done'; index: number; total: number; text: string; results: number }
+  | { type: 'query'; state: 'failed'; index: number; total: number; text: string; reason: 'timeout' | 'error' }
 
 export interface TorrentStreamImdbEvent {
   type: 'imdb'

@@ -449,6 +449,63 @@ describe('ProwlarrClient', () => {
     expect(results.map((r) => r.title)).toContain('Good')
   })
 
+  it('cuts off a slow query at the per-request deadline and keeps the fast results', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockImplementation(async (input: unknown, init?: { signal?: AbortSignal | null }) => {
+      const query = new URL(String(input)).searchParams.get('query') ?? ''
+      const signal = init?.signal
+      if (query === 'Show') {
+        // A sick indexer that would take 500ms; the injected 100ms deadline must cut it off
+        await new Promise<void>((resolve, reject) => {
+          const t = setTimeout(resolve, 500)
+          const onAbort = () => {
+            clearTimeout(t)
+            reject(signal?.reason ?? new DOMException('aborted', 'AbortError'))
+          }
+          if (signal?.aborted) return onAbort()
+          signal?.addEventListener('abort', onAbort, { once: true })
+        })
+        throw new Error('unreachable')
+      }
+      return okJson([release({ title: `Hit:${query}`, size: 1 })])
+    })
+    const client = new ProwlarrClient('http://p', 'k', 100)
+    const events: ProwlarrProgressEvent[] = []
+
+    const started = Date.now()
+    const results = await client.searchMovie('Show', 'Show', [], '2020', [2000], (e) => events.push(e))
+    const elapsed = Date.now() - started
+
+    // cut off at ~100ms, not the indexer's full 500ms
+    expect(elapsed).toBeLessThan(400)
+    expect(results.map((r) => r.title)).toContain('Hit:Show 2020')
+    expect(results.map((r) => r.title)).not.toContain('Hit:Show')
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'failed')).toEqual([
+      { kind: 'query', state: 'failed', index: 2, total: 2, text: 'Show', reason: 'timeout' }
+    ])
+  })
+
+  it('emits a failed event with reason error when a ladder query hits an API error', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    const fail = { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+    mockFetch.mockImplementation(async (input: unknown) =>
+      String(input).includes('Bad') ? fail : okJson([release({ title: 'Good', size: 1 })])
+    )
+    const client = new ProwlarrClient('http://p', 'k')
+    const events: ProwlarrProgressEvent[] = []
+
+    await client.searchMovie('Good Show', 'Bad Show', [], '2020', [2000], (e) => events.push(e))
+
+    // the two "Bad" ladder queries fail, the two "Good" ones keep their results
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'failed')).toHaveLength(2)
+    for (const e of events.filter((ev) => ev.kind === 'query' && ev.state === 'failed')) {
+      if (e.kind === 'query' && e.state === 'failed') {
+        expect(e.reason).toBe('error')
+        expect(['Bad Show 2020', 'Bad Show']).toContain(e.text)
+      }
+    }
+  })
+
   it('backs off on 429 and retries once', async () => {
     mockCacheGet.mockResolvedValue(null)
     mockFetch.mockResolvedValueOnce(rateLimited('0')).mockResolvedValueOnce(okJson([release({ title: 'R', size: 1 })]))

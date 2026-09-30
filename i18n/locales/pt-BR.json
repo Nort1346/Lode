@@ -91,7 +91,9 @@
       "query": "Procurando: {text}",
       "finishing": "Organizando resultados...",
       "progress": "{done} de {total} consultas",
-      "found": "{count} resultados"
+      "found": "{count} resultados",
+      "slowSkipped": "Consulta lenta ignorada: {text}",
+      "queryFailed": "Consulta falhou: {text}"
     }
   },
   "mediaCard": {

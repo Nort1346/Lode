@@ -173,6 +173,7 @@
         :queries-completed="queriesCompleted"
         :current-query="currentQuery"
         :found="foundSoFar"
+        :skipped-queries="skippedQueries"
       />
 
       <div
@@ -445,6 +446,7 @@ const {
   queriesCompleted,
   foundSoFar,
   currentQuery,
+  skippedQueries,
   payload: torrentPayload,
   limitInfo,
   start: startTorrentSearch

@@ -91,7 +91,9 @@
       "query": "Szukam: {text}",
       "finishing": "Sortuję wyniki...",
       "progress": "{done} z {total} zapytań",
-      "found": "{count} wyników"
+      "found": "{count} wyników",
+      "slowSkipped": "Pominięto wolne zapytanie: {text}",
+      "queryFailed": "Błąd zapytania: {text}"
     }
   },
   "mediaCard": {

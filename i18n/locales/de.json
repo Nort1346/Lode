@@ -91,7 +91,9 @@
       "query": "Suche: {text}",
       "finishing": "Ergebnisse werden sortiert...",
       "progress": "{done} von {total} Abfragen",
-      "found": "{count} Ergebnisse"
+      "found": "{count} Ergebnisse",
+      "slowSkipped": "Langsame Abfrage übersprungen: {text}",
+      "queryFailed": "Fehlgeschlagene Abfrage: {text}"
     }
   },
   "mediaCard": {

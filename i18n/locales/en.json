@@ -91,7 +91,9 @@
       "query": "Searching: {text}",
       "finishing": "Sorting results...",
       "progress": "{done} of {total} queries",
-      "found": "{count} results so far"
+      "found": "{count} results so far",
+      "slowSkipped": "Skipped slow query: {text}",
+      "queryFailed": "Query failed: {text}"
     }
   },
   "mediaCard": {

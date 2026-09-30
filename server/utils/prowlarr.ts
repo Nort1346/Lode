@@ -199,6 +199,19 @@ const PROWLARR_MAX_CONCURRENT = 3
 // Backoff for a Prowlarr 429 when no usable Retry-After header is present.
 const RATE_LIMIT_BACKOFF_MS = 2000
 
+// A single Prowlarr search fans out to every enabled indexer inside Prowlarr,
+// so one sick tracker can hold the whole response open. Each request gets its
+// own deadline; aborting it cuts that slice while the rest of the ladder keeps
+// merging. Kept below the client-side stale watchdog (60s) so a timeout event
+// always reaches the UI before it can fail the whole search.
+const PROWLARR_QUERY_TIMEOUT_MS = 45_000
+
+export class ProwlarrTimeoutError extends Error {}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')
+}
+
 function uniqueNames(names: string[]): string[] {
   const seen = new Set<string>()
   const result: string[] = []
@@ -292,10 +305,12 @@ export class ProwlarrClient {
   private baseUrl: string
   private apiKey: string
   private readonly limiter = new SlotLimiter(PROWLARR_MAX_CONCURRENT)
+  private readonly queryTimeoutMs: number
 
-  constructor(baseUrl: string, apiKey: string) {
+  constructor(baseUrl: string, apiKey: string, queryTimeoutMs: number = PROWLARR_QUERY_TIMEOUT_MS) {
     this.baseUrl = baseUrl.replace(/\/+$/, '')
     this.apiKey = apiKey
+    this.queryTimeoutMs = queryTimeoutMs
   }
 
   private async request(path: string, params: Record<string, string> = {}): Promise<unknown> {
@@ -305,7 +320,9 @@ export class ProwlarrClient {
       url.searchParams.set(k, v)
     }
 
-    let response = await fetch(url.toString())
+    // One deadline per request, covering the 429 backoff and retry as well
+    const signal = AbortSignal.timeout(this.queryTimeoutMs)
+    let response = await this.fetchWithTimeout(url.toString(), signal)
     if (response.status === 429) {
       // Back off before one retry - indexers behind Prowlarr rate-limit hard,
       // and hammering a 429 only lengthens the cooldown. Honor Retry-After
@@ -315,12 +332,26 @@ export class ProwlarrClient {
       const delayMs = Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter * 1000 : RATE_LIMIT_BACKOFF_MS
       log.warn(`Prowlarr returned 429, backing off ${delayMs}ms before one retry`)
       await new Promise<void>((resolve) => setTimeout(resolve, delayMs))
-      response = await fetch(url.toString())
+      if (signal.aborted) {
+        throw new ProwlarrTimeoutError(`Prowlarr request timed out after ${this.queryTimeoutMs}ms`)
+      }
+      response = await this.fetchWithTimeout(url.toString(), signal)
     }
     if (!response.ok) {
       throw new Error(`Prowlarr API error ${response.status}`)
     }
     return response.json()
+  }
+
+  private async fetchWithTimeout(url: string, signal: AbortSignal): Promise<Response> {
+    try {
+      return await fetch(url, { signal })
+    } catch (err) {
+      if (isAbortError(err)) {
+        throw new ProwlarrTimeoutError(`Prowlarr request timed out after ${this.queryTimeoutMs}ms`)
+      }
+      throw err
+    }
   }
 
   async searchByImdb(imdbId: string, mediaType: 'movie' | 'tv', categories?: number[]): Promise<ProwlarrResult[]> {
@@ -436,9 +467,10 @@ export class ProwlarrClient {
               healthy = true
             }
           } catch (err) {
+            const reason = err instanceof ProwlarrTimeoutError ? 'timeout' : 'error'
             const msg = err instanceof Error ? err.message : String(err)
             log.warn(`search: "${query}" failed: ${msg}`)
-            onProgress?.({ kind: 'query', state: 'done', index, total, text: query, results: 0 })
+            onProgress?.({ kind: 'query', state: 'failed', index, total, text: query, reason })
           }
         } finally {
           this.limiter.release()

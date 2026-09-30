@@ -175,6 +175,7 @@
         :queries-completed="queriesCompleted"
         :current-query="currentQuery"
         :found="foundSoFar"
+        :skipped-queries="skippedQueries"
       />
 
       <div
@@ -369,6 +370,7 @@ const {
   queriesCompleted,
   foundSoFar,
   currentQuery,
+  skippedQueries,
   payload: seasonPayload,
   limitInfo: seasonLimitInfo,
   start: startSeasonSearch
