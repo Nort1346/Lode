@@ -48,4 +48,4 @@ test/                 # Vitest suite mirroring src/
 - `build` (tags): cross-compiles all 6 targets from one ubuntu runner
 - `publish` (tags): polls for the GitHub release that `docker.yml` creates (the docker build finishes long after this pipeline), then uploads the 6 binaries
 
-Binary names are part of the bootstrap contract (`lode-setup-<os>-<arch>[.exe]`) - `setup.sh` / `setup.ps1` resolve the asset from the `releases/latest/download/<asset>` redirect, so renaming them breaks both.
+Binary names are part of the bootstrap contract (`lode-setup-<os>-<arch>[.exe]`) - `setup.sh` / `setup.ps1` resolve the tag by walking the releases API for the newest non-prerelease release whose assets include the binary (falling back to the `releases/latest/download/<asset>` redirect when the API is unreachable), so renaming them breaks both.

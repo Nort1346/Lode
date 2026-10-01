@@ -155,7 +155,11 @@ if (-not $archName) {
 $asset = "lode-setup-windows-${archName}.exe"
 $url = "${BaseUrl}/releases/latest/download/${asset}"
 
+# The cheap path first: releases/latest/download/<asset> redirects to the
+# asset in the current latest release; the tag is recoverable from the
+# Location header. One request, and it covers the common case.
 $tag = 'latest'
+$haveTag = $false
 try {
   Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
   $handler = [System.Net.Http.HttpClientHandler]::new()
@@ -166,6 +170,7 @@ try {
     if ($response.Headers.Location) {
       $suffix = [string]$response.Headers.Location -replace '.*releases/download/', ''
       $tag = ($suffix -split '/')[0]
+      $haveTag = $true
     }
   }
   finally {
@@ -174,6 +179,68 @@ try {
   $http.Dispose()
 }
 catch {
+}
+
+if (-not $haveTag) {
+  # The latest release does not ship $asset (empty tag, notes-only, assets
+  # still uploading, wrong names): walk the public releases API newest-first
+  # and take the first non-prerelease release whose assets include $asset
+  # (drafts are never public; skipping prereleases matches `releases/latest`).
+  # Mirrors set via LODE_BASE_URL keep serving the bytes; the API base is
+  # derived so a Gitea-style mirror can answer the walk too.
+  if ($BaseUrl -eq "https://github.com/${Repo}") {
+    $apiBase = "https://api.github.com/repos/${Repo}"
+  }
+  else {
+    $apiBase = "${BaseUrl}/api/v1/repos/${Repo}"
+  }
+
+  $foundTag = $null
+  $walkComplete = $false
+  $triedTags = @()
+  for ($page = 1; $page -le 3; $page++) {
+    try {
+      $releases = Invoke-RestMethod -Uri "${apiBase}/releases?per_page=30&page=$page" -Headers @{ Accept = 'application/vnd.github+json' }
+    }
+    catch {
+      break
+    }
+    # A mirror without a releases API may answer 200 with HTML (which
+    # Invoke-RestMethod parses to an XmlDocument) or other non-release
+    # payloads; only an array of release objects is a usable answer.
+    if ($null -eq $releases) {
+      $walkComplete = $true
+      break
+    }
+    $releases = @($releases)
+    if ($releases.Count -eq 0) {
+      $walkComplete = $true
+      break
+    }
+    if ($null -eq $releases[0].tag_name) { break }
+    foreach ($release in $releases) {
+      if ($null -eq $release.tag_name) { continue }
+      $triedTags += $release.tag_name
+      if ($release.draft -or $release.prerelease) { continue }
+      if (@($release.assets | Where-Object { $_.name -eq $asset }).Count -gt 0) {
+        $foundTag = $release.tag_name
+        break
+      }
+    }
+    if ($null -ne $foundTag) { break }
+    if ($page -eq 3) { $walkComplete = $true }
+  }
+
+  if ($null -ne $foundTag) {
+    $tag = $foundTag
+    $url = "${BaseUrl}/releases/download/${tag}/${asset}"
+  }
+  elseif ($walkComplete -and $triedTags.Count -gt 0) {
+    Stop-WithError "no GitHub release ships ${asset} (tried: $($triedTags -join ', '))"
+  }
+  # The API is unreachable (mirror without a releases API, network, rate
+  # limit): keep $url (releases/latest) - the download fails with the usual
+  # error below.
 }
 
 $cacheDir = Join-Path $env:LOCALAPPDATA "LodeSetup\$tag"
@@ -198,6 +265,12 @@ if (-not (Test-Path $bin)) {
     $handler = [System.Net.Http.HttpClientHandler]::new()
     $http = [System.Net.Http.HttpClient]::new($handler)
     $response = $http.GetAsync($url, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
+    # Never cache an error page as the binary (a 404 body is not an exe).
+    if ([int]$response.StatusCode -ge 400) {
+      $response.Dispose()
+      $http.Dispose()
+      Stop-WithError "download failed: $url"
+    }
     $total = if ($response.Content.Headers.ContentLength) { [long]$response.Content.Headers.ContentLength } else { 0 }
     $net = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
     $buf = New-Object byte[] 65536

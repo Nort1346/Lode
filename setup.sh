@@ -42,15 +42,98 @@ case "$(uname -m)" in
 esac
 
 ASSET="lode-setup-${OS}-${ARCH}"
-# releases/latest/download/<asset> redirects to the asset in the current
-# latest release; the tag is recoverable from the Location header.
-ASSET_URL="${BASE_URL}/releases/latest/download/${ASSET}"
-
+# The cheap path first: releases/latest/download/<asset> redirects to the
+# asset in the current latest release; the tag is recoverable from the
+# Location header. One request, and it covers the common case.
 TAG="latest"
+ASSET_URL="${BASE_URL}/releases/latest/download/${ASSET}"
+HAVE_TAG=0
 LOCATION="$(curl -fsSI --connect-timeout 15 --retry 2 "$ASSET_URL" 2>/dev/null | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }' | head -n 1 || true)"
 if [[ "${LOCATION:-}" == *"releases/download/"* ]]; then
   TAG="${LOCATION##*releases/download/}"
   TAG="${TAG%%/*}"
+  HAVE_TAG=1
+fi
+
+# The latest release does not ship $ASSET (empty tag, notes-only, assets
+# still uploading, wrong names): walk the public releases API newest-first
+# and take the first non-prerelease release whose assets include $ASSET
+# (drafts are never public; skipping prereleases matches `releases/latest`).
+# Mirrors set via LODE_BASE_URL keep serving the bytes; the API base is
+# derived so a Gitea-style mirror can answer the walk too.
+#
+# Walks up to WALK_MAX_PAGES pages, newest first. Sets WALK_TAG to the
+# chosen tag and WALK_TRIED to the tags seen. Returns 0 when the API
+# answered (a match was found or the list was exhausted), 1 when it is
+# unreachable. Works with both pretty-printed (GitHub) and compact (Gitea)
+# JSON: each release segment runs from its "tag_name" key to the next one,
+# which always contains its assets array, and JSON escaping guarantees the
+# probes only match real object keys, never string values.
+WALK_MAX_PAGES=3
+WALK_TAG=""
+WALK_TRIED=""
+walk_releases() {
+  local page=1 body page_tags
+  while [ "$page" -le "$WALK_MAX_PAGES" ]; do
+    body="$(curl -fsS --connect-timeout 15 --retry 2 -H 'Accept: application/vnd.github+json' "${API_BASE}/releases?per_page=30&page=${page}" 2>/dev/null)" || return 1
+    # A mirror without a releases API answers with HTML; only a JSON array
+    # is a usable answer.
+    [ "$(printf '%s' "$body" | head -c 1)" = "[" ] || return 1
+    page_tags="$(printf '%s\n' "$body" | grep -oE '"tag_name": *"[^"]+"' | cut -d'"' -f4 | tr '\n' ' ' || true)"
+    [ -n "$page_tags" ] || return 0
+    WALK_TRIED="${WALK_TRIED}${page_tags}"
+    WALK_TAG="$(printf '%s' "$body" | awk -v asset="$ASSET" '
+      { doc = doc $0 " " }
+      END {
+        probeA = "\"name\":\"" asset "\""
+        probeB = "\"name\": \"" asset "\""
+        key = "\"tag_name\""
+        p = index(doc, key)
+        while (p > 0) {
+          rest = substr(doc, p + length(key))
+          np = index(rest, key)
+          end = (np > 0) ? p + length(key) + np - 1 : length(doc) + 1
+          seg = substr(doc, p, end - p)
+          tail = substr(seg, length(key) + 1)
+          sub(/^ *: *"/, "", tail)
+          sub(/".*/, "", tail)
+          skip = 0
+          if (seg ~ /"prerelease" *: *true/) skip = 1
+          if (seg ~ /"draft" *: *true/) skip = 1
+          if (!skip && (index(seg, probeA) > 0 || index(seg, probeB) > 0)) {
+            print tail
+            exit
+          }
+          if (np == 0) break
+          p = p + length(key) + np - 1
+        }
+      }
+    ' || true)"
+    if [ -n "$WALK_TAG" ]; then
+      return 0
+    fi
+    page=$((page + 1))
+  done
+  return 0
+}
+
+if [ "$HAVE_TAG" -eq 0 ]; then
+  if [ "$BASE_URL" = "https://github.com/${REPO}" ]; then
+    API_BASE="https://api.github.com/repos/${REPO}"
+  else
+    API_BASE="${BASE_URL}/api/v1/repos/${REPO}"
+  fi
+  if walk_releases; then
+    if [ -n "$WALK_TAG" ]; then
+      TAG="$WALK_TAG"
+      ASSET_URL="${BASE_URL}/releases/download/${TAG}/${ASSET}"
+    elif [ -n "$WALK_TRIED" ]; then
+      die "no GitHub release ships ${ASSET} (tried: ${WALK_TRIED% })"
+    fi
+  fi
+  # The API is unreachable (mirror without a releases API, network, rate
+  # limit): keep ASSET_URL (releases/latest) - the download fails with the
+  # usual error below.
 fi
 
 CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/lode-setup/${TAG}"
