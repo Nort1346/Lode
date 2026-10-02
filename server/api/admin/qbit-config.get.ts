@@ -5,6 +5,7 @@ export default defineEventHandler(async (event) => {
   await requireAdmin(event)
 
   return {
-    autoRemoveCompleted: (await getSetting(SETTINGS.QBIT_AUTO_REMOVE_COMPLETED)) === 'true'
+    autoRemoveCompleted: (await getSetting(SETTINGS.QBIT_AUTO_REMOVE_COMPLETED)) === 'true',
+    seedingEnabled: (await getSetting(SETTINGS.QBIT_SEEDING_ENABLED)) !== 'false'
   }
 })

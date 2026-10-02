@@ -11,7 +11,10 @@ vi.mock('#server/utils/settings', () => ({
 }))
 
 vi.mock('#server/types/settings', () => ({
-  SETTINGS: { QBIT_AUTO_REMOVE_COMPLETED: 'qbit_auto_remove_completed' }
+  SETTINGS: {
+    QBIT_AUTO_REMOVE_COMPLETED: 'qbit_auto_remove_completed',
+    QBIT_SEEDING_ENABLED: 'qbit_seeding_enabled'
+  }
 }))
 
 import handler from '#server/api/admin/qbit-config.put'
@@ -55,6 +58,24 @@ describe('admin/qbit-config.put', () => {
     await handler(mockEvent)
 
     expect(mockPutSetting).not.toHaveBeenCalled()
+  })
+
+  it('stores seedingEnabled as false', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ seedingEnabled: false })
+
+    await handler(mockEvent)
+
+    expect(mockPutSetting).toHaveBeenCalledWith('qbit_seeding_enabled', 'false')
+  })
+
+  it('stores seedingEnabled as true', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ seedingEnabled: true })
+
+    await handler(mockEvent)
+
+    expect(mockPutSetting).toHaveBeenCalledWith('qbit_seeding_enabled', 'true')
   })
 
   it('logs the activity', async () => {

@@ -16,6 +16,7 @@ import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { extractMagnetInfoHashes, primaryTorrentHash } from '#server/utils/clients/qbittorrent'
 import { computeTorrentInfoHashes, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
+import { applySeedingPolicy } from '#server/utils/torrents/seeding'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
 import type { DownloadBody } from '#server/types/browse'
@@ -601,6 +602,11 @@ export default defineEventHandler(async (event) => {
         } else {
           log.warn(`[Download:8:QBIT] ⚠ addTorrent returned null after ${Date.now() - t3}ms`)
         }
+      }
+
+      // ── 8b2: SEEDING POLICY (per-torrent share limits, failure never blocks the download) ──
+      if (torrent !== null) {
+        await applySeedingPolicy(qbit, torrent.hash).catch(() => {})
       }
 
       // ── 8c: DANGEROUS FILE CHECK ─────────────────────────────

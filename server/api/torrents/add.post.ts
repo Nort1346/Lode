@@ -8,6 +8,7 @@ import { checkTargetDiskForDownload, findTargetDisk, isDiskCheckEnabled, getDisk
 import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mutex'
 import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
+import { applySeedingPolicy } from '#server/utils/torrents/seeding'
 import { parseTorrentTitle } from '#server/utils/torrents/torrent-ranker'
 import { computeTorrentInfoHashes, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
 import { extractMagnetHash, extractMagnetInfoHashes, primaryTorrentHash } from '#server/utils/clients/qbittorrent'
@@ -321,6 +322,10 @@ export default defineEventHandler(async (event) => {
           : { alreadyDownloading: true, name: outcome.torrent.name }
       }
       torrent = outcome.torrent
+    }
+
+    if (torrent !== null) {
+      await applySeedingPolicy(qbit, torrent.hash).catch(() => {})
     }
 
     if (torrent !== null) {

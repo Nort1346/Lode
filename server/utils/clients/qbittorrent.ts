@@ -1,4 +1,10 @@
-import type { TorrentFile, QBitTorrent, MagnetInfoHashes, TorrentAddOutcome } from '#server/types/torrent'
+import type {
+  TorrentFile,
+  QBitTorrent,
+  MagnetInfoHashes,
+  TorrentAddOutcome,
+  ShareLimitAction
+} from '#server/types/torrent'
 import { COMPLETED_STATES } from '#server/types/torrent'
 import { createLogger } from '#server/utils/logger'
 
@@ -59,7 +65,6 @@ export function primaryTorrentHash(hashes: MagnetInfoHashes): string | null {
   if (hashes.v2 !== null) return hashes.v2.slice(0, 40)
   return hashes.v1
 }
-
 export function extractMagnetHash(magnetUrl: string): string | null {
   return primaryTorrentHash(extractMagnetInfoHashes(magnetUrl))
 }
@@ -342,6 +347,26 @@ export class QBittorrentClient {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `hashes=${hashes.join('|')}`
+    })
+  }
+
+  async setShareLimits(
+    hash: string,
+    ratioLimit: number,
+    seedingTimeLimit: number,
+    inactiveSeedingTimeLimit = 0,
+    shareLimitAction: ShareLimitAction = 'Stop'
+  ) {
+    const body = new URLSearchParams()
+    body.append('hashes', hash)
+    body.append('ratioLimit', String(ratioLimit))
+    body.append('seedingTimeLimit', String(seedingTimeLimit))
+    body.append('inactiveSeedingTimeLimit', String(inactiveSeedingTimeLimit))
+    body.append('shareLimitAction', shareLimitAction)
+    await this.request('/api/v2/torrents/setShareLimits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
     })
   }
 }

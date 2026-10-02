@@ -406,6 +406,8 @@
     "qbittorrentDesc": "Jak Lode interpretuje zdarzenia związane z pobieraniem w qBittorrent.",
     "qbitAutoRemove": "Automatyczne usuwanie ukończonych torrentów",
     "qbitAutoRemoveHint": "Włącz to, jeśli qBittorrent usuwa torrenty z listy tuż po zakończeniu pobierania (bez seedowania). Pobranie, którego torrent zniknął, ale było ukończone w co najmniej 90%, zostanie oznaczone jako ukończone zamiast nieudane.",
+    "qbitSeedingEnabled": "Seedowanie",
+    "qbitSeedingEnabledHint": "Po wyłączeniu torrenty dodane przez Lode przestają udostępniać natychmiast po ukończeniu. Dotyczy tylko torrentów dodanych przez Lode, globalne ustawienia qBittorrent nie są zmieniane.",
     "qbittorrentSaved": "Zapisano ustawienia qBittorrent",
     "qbittorrentError": "Nie udało się zapisać ustawień qBittorrent",
     "liveLogs": "Logi na żywo",
