@@ -406,6 +406,8 @@
     "qbittorrentDesc": "Wie Lode Ereignisse von Downloads in qBittorrent interpretiert.",
     "qbitAutoRemove": "Abgeschlossene Torrents automatisch entfernen",
     "qbitAutoRemoveHint": "Aktiviere dies, wenn qBittorrent Torrents nach Abschluss sofort aus der Liste entfernt (ohne Seeding). Ein Download, dessen Torrent verschwunden ist, aber zu mindestens 90 % abgeschlossen war, wird als abgeschlossen statt fehlgeschlagen markiert.",
+    "qbitSeedingEnabled": "Seeding",
+    "qbitSeedingEnabledHint": "Wenn deaktiviert, stoppen von Lode hinzugefügte Torrents die Freigabe sofort nach Abschluss. Betrifft nur von Lode hinzugefügte Torrents, globale qBittorrent-Einstellungen werden nicht geändert.",
     "qbittorrentSaved": "qBittorrent-Einstellungen gespeichert",
     "qbittorrentError": "qBittorrent-Einstellungen konnten nicht gespeichert werden",
     "liveLogs": "Live-Logs",

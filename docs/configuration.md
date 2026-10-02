@@ -104,6 +104,7 @@ Some settings are stored in the `settings` DB table and can be changed at runtim
 | `prep_countdown_enabled` | `true` | Show prep countdown for completed downloads |
 | `prep_speed_mb` | `15` | Simulated file copy speed (MB/s) |
 | `qbit_auto_remove_completed` | `false` | Mark a download as completed when its torrent disappears from qBittorrent at ≥90% progress (for setups that auto-remove finished torrents) |
+| `qbit_seeding_enabled` | `true` | When disabled, torrents added by Lode get per-torrent share limits (ratio 0, seeding time 0) so they stop sharing immediately after completion. Only affects Lode-added torrents, never global qBittorrent preferences |
 | `discord_locale` | `en` | Discord webhook language (`pl`, `en`, `de`, `fr`, `es`) |
 | `discord_mentions_enabled` | `true` | Enable user mentions in Discord notifications |
 | `jellyfin_sync_enabled` | `false` | Enable Jellyfin user sync |

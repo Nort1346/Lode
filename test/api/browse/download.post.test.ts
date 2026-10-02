@@ -24,6 +24,7 @@ const mockLogActivity = vi.hoisted(() => vi.fn())
 const mockClearSessionCache = vi.hoisted(() => vi.fn())
 const mockPerformTrackerLogin = vi.hoisted(() => vi.fn())
 const mockDecryptAES = vi.hoisted(() => vi.fn())
+const mockApplySeedingPolicy = vi.hoisted(() => vi.fn())
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
 vi.stubGlobal('readBody', mockReadBody)
@@ -77,6 +78,9 @@ vi.mock('#server/utils/crypto', () => ({
 }))
 vi.mock('#server/utils/logger', () => ({
   createLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }))
+}))
+vi.mock('#server/utils/torrents/seeding', () => ({
+  applySeedingPolicy: mockApplySeedingPolicy
 }))
 
 import handler from '#server/api/browse/download.post'
@@ -198,6 +202,7 @@ describe('browse/download.post', () => {
     mockQbit.addTorrent.mockResolvedValue(addedOutcome(torrentResult))
     mockQbit.addTorrentFile.mockResolvedValue(addedOutcome({ ...torrentResult, name: 'Test.torrent' }))
     mockQbit.getTorrentFiles.mockResolvedValue([{ name: 'file.mkv', size: 1000000 }])
+    mockApplySeedingPolicy.mockResolvedValue(undefined)
   })
 
   const mockEvent = {} as never
@@ -324,6 +329,22 @@ describe('browse/download.post', () => {
       expect.stringMatching(/^dl-/),
       { v1: null, v2: null }
     )
+  })
+
+  it('applies the seeding policy after adding the torrent', async () => {
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockApplySeedingPolicy).toHaveBeenCalledWith(mockQbit, 'abc123')
+  })
+
+  it('still succeeds when applying the seeding policy fails', async () => {
+    mockApplySeedingPolicy.mockRejectedValue(new Error('qBittorrent API error 500: boom'))
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
   })
 
   it('returns already when an active download with the same magnet hash exists', async () => {

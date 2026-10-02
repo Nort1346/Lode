@@ -83,6 +83,11 @@ export const CHECKING_STATES = new Set(['checkingDL', 'checkingUP', 'checkingRes
 // qBittorrent states for a torrent that has finished downloading.
 export const COMPLETED_STATES = new Set(['uploading', 'stalledUP', 'pausedUP', 'stoppedUP', 'queuedUP', 'forcedUP'])
 
+// Per-torrent share limit action for torrents/setShareLimits. Web API 2.15.1+
+// (qBittorrent 5.2+) requires shareLimitAction and expects Qt meta-object enum
+// names, not numeric codes. Older instances ignore the unknown parameter.
+export type ShareLimitAction = 'Stop' | 'Remove' | 'RemoveWithContent' | 'EnableSuperSeeding'
+
 export interface RankedTorrent extends ProwlarrResult {
   score: number
   percentage: number

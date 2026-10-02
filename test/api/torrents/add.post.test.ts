@@ -16,6 +16,7 @@ const mockFindTargetDisk = vi.hoisted(() => vi.fn())
 const mockIsDiskCheckEnabled = vi.hoisted(() => vi.fn())
 const mockGetDiskMinFreeGb = vi.hoisted(() => vi.fn())
 const mockLogActivity = vi.hoisted(() => vi.fn())
+const mockApplySeedingPolicy = vi.hoisted(() => vi.fn())
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
 vi.stubGlobal('readBody', mockReadBody)
@@ -48,6 +49,9 @@ vi.mock('#server/utils/disk', () => ({
 }))
 vi.mock('#server/utils/logger', () => ({
   createLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }))
+}))
+vi.mock('#server/utils/torrents/seeding', () => ({
+  applySeedingPolicy: mockApplySeedingPolicy
 }))
 
 import handler from '#server/api/torrents/add.post'
@@ -180,6 +184,7 @@ describe('torrents/add.post', () => {
         num_leechs: -1
       })
     )
+    mockApplySeedingPolicy.mockResolvedValue(undefined)
   })
 
   const mockEvent = {} as never
@@ -307,6 +312,22 @@ describe('torrents/add.post', () => {
       expect.stringMatching(/^dl-/)
     )
     expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({ numSeeds: -1, numLeechs: -1 }))
+  })
+
+  it('applies the seeding policy after adding the torrent', async () => {
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockApplySeedingPolicy).toHaveBeenCalledWith(mockQbit, 'abc123')
+  })
+
+  it('still succeeds when applying the seeding policy fails', async () => {
+    mockApplySeedingPolicy.mockRejectedValue(new Error('qBittorrent API error 500: boom'))
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
   })
 
   it('normalizes magnet:// to magnet:', async () => {

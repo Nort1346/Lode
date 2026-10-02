@@ -12,6 +12,7 @@ export const SETTINGS = {
   PREP_COUNTDOWN_ENABLED: 'prep_countdown_enabled',
   PREP_SPEED_MB: 'prep_speed_mb',
   QBIT_AUTO_REMOVE_COMPLETED: 'qbit_auto_remove_completed',
+  QBIT_SEEDING_ENABLED: 'qbit_seeding_enabled',
   DISK_CHECK_ENABLED: 'disk_check_enabled',
   DISK_MIN_FREE_GB: 'disk_min_free_gb',
   DISCORD_MENTIONS_ENABLED: 'discord_mentions_enabled',

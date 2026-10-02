@@ -406,6 +406,8 @@
     "qbittorrentDesc": "How Lode interprets what happens to downloads in qBittorrent.",
     "qbitAutoRemove": "Auto-remove completed torrents",
     "qbitAutoRemoveHint": "Enable this if qBittorrent removes torrents from the list right after they finish (no seeding). A download whose torrent has disappeared but was at least 90% complete is marked as completed instead of failed.",
+    "qbitSeedingEnabled": "Seeding",
+    "qbitSeedingEnabledHint": "When disabled, torrents added by Lode stop sharing immediately after completion. Only affects torrents added by Lode, global qBittorrent settings are not changed.",
     "qbittorrentSaved": "qBittorrent settings saved",
     "qbittorrentError": "Failed to save qBittorrent settings",
     "liveLogs": "Live Logs",
