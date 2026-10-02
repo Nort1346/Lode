@@ -9,11 +9,19 @@ import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mu
 import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { parseTorrentTitle } from '#server/utils/torrents/torrent-ranker'
-import { computeTorrentInfoHash, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
-import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
+import { computeTorrentInfoHashes, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
+import { extractMagnetHash, extractMagnetInfoHashes, primaryTorrentHash } from '#server/utils/clients/qbittorrent'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
-import { DEDUP_MATCH_STATUSES, SAVE_PATH_KEYS, type AddTorrentBody, type SavePathKey } from '#server/types/torrent'
+import {
+  DEDUP_MATCH_STATUSES,
+  SAVE_PATH_KEYS,
+  type AddTorrentBody,
+  type MagnetInfoHashes,
+  type QBitTorrent,
+  type SavePathKey,
+  type TorrentAddOutcome
+} from '#server/types/torrent'
 
 const log = createLogger('Add')
 
@@ -148,16 +156,20 @@ export default defineEventHandler(async (event) => {
     // Duplicate check: reject adding a torrent the user is already downloading
     const fileBuffer = hasFile && !hasDownloadUrl ? Buffer.from(torrentFileBase64, 'base64') : null
     let infoHash: string | null = null
+    let fileHashes: MagnetInfoHashes = { v1: null, v2: null }
     let preAddSizeBytes = 0
     if (fileBuffer !== null) {
       try {
-        infoHash = computeTorrentInfoHash(fileBuffer)
+        fileHashes = computeTorrentInfoHashes(fileBuffer)
+        infoHash = fileHashes.v1
       } catch (err) {
         log.warn(`info-hash computation failed: ${err instanceof Error ? err.message : String(err)}`)
       }
       preAddSizeBytes = computeTorrentTotalSize(fileBuffer) ?? 0
     }
-    const preHash = hasMagnet ? extractMagnetHash(magnetLink) : hasFile ? infoHash : null
+    const magnetHashes = hasMagnet ? extractMagnetInfoHashes(magnetLink) : null
+    const magnetPrimaryHash = magnetHashes !== null ? primaryTorrentHash(magnetHashes) : null
+    const preHash = hasMagnet ? magnetPrimaryHash : hasFile ? infoHash : null
     if (preHash !== null) {
       const existingActive = await dbGet(
         db
@@ -210,7 +222,7 @@ export default defineEventHandler(async (event) => {
     const qbit = useQBittorrent()
 
     const dlTag = `dl-${randomUUID().slice(0, 8)}`
-    let torrent
+    let torrent: QBitTorrent | null
     let storedMagnetLink: string
 
     if (hasDownloadUrl) {
@@ -246,14 +258,9 @@ export default defineEventHandler(async (event) => {
 
       setCooldown(userId)
       storedMagnetLink = `download:${downloadUrl}`
+      let outcome: TorrentAddOutcome
       try {
-        torrent = await qbit.addTorrent(
-          downloadUrl,
-          targetPath,
-          savePath,
-          dlTag,
-          hasMagnet ? extractMagnetHash(magnetLink) : null
-        )
+        outcome = await qbit.addTorrent(downloadUrl, targetPath, savePath, dlTag, magnetHashes)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         if (msg.includes('already exists')) {
@@ -263,11 +270,19 @@ export default defineEventHandler(async (event) => {
         log.error(`qBittorrent error: ${msg}`)
         throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
       }
+      if (outcome.status === 'existing') {
+        log.info(`torrent already in qBittorrent: hash=${outcome.torrent.hash} complete=${outcome.complete}`)
+        return outcome.complete
+          ? { alreadyComplete: true, name: outcome.torrent.name }
+          : { alreadyDownloading: true, name: outcome.torrent.name }
+      }
+      torrent = outcome.torrent
     } else if (hasFile && fileBuffer !== null) {
       storedMagnetLink = `file:${fileName}`
       setCooldown(userId)
+      let outcome: TorrentAddOutcome
       try {
-        torrent = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag, infoHash)
+        outcome = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag, fileHashes)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         if (msg.includes('already exists')) {
@@ -277,11 +292,19 @@ export default defineEventHandler(async (event) => {
         log.error(`qBittorrent error: ${msg}`)
         throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
       }
+      if (outcome.status === 'existing') {
+        log.info(`torrent already in qBittorrent: hash=${outcome.torrent.hash} complete=${outcome.complete}`)
+        return outcome.complete
+          ? { alreadyComplete: true, name: outcome.torrent.name }
+          : { alreadyDownloading: true, name: outcome.torrent.name }
+      }
+      torrent = outcome.torrent
     } else {
       storedMagnetLink = magnetLink
       setCooldown(userId)
+      let outcome: TorrentAddOutcome
       try {
-        torrent = await qbit.addTorrent(magnetLink, targetPath, savePath, dlTag)
+        outcome = await qbit.addTorrent(magnetLink, targetPath, savePath, dlTag)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         if (msg.includes('already exists')) {
@@ -291,6 +314,13 @@ export default defineEventHandler(async (event) => {
         log.error(`qBittorrent error: ${msg}`)
         throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
       }
+      if (outcome.status === 'existing') {
+        log.info(`torrent already in qBittorrent: hash=${outcome.torrent.hash} complete=${outcome.complete}`)
+        return outcome.complete
+          ? { alreadyComplete: true, name: outcome.torrent.name }
+          : { alreadyDownloading: true, name: outcome.torrent.name }
+      }
+      torrent = outcome.torrent
     }
 
     if (torrent !== null) {

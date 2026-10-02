@@ -159,6 +159,9 @@ const torrentResult = {
   downloaded: 0,
   tags: ''
 }
+function addedOutcome(torrent: Record<string, unknown>) {
+  return { status: 'added' as const, torrent }
+}
 
 describe('browse/download.post', () => {
   beforeEach(() => {
@@ -192,8 +195,8 @@ describe('browse/download.post', () => {
         }))
       }))
     } as never)
-    mockQbit.addTorrent.mockResolvedValue(torrentResult)
-    mockQbit.addTorrentFile.mockResolvedValue({ ...torrentResult, name: 'Test.torrent' })
+    mockQbit.addTorrent.mockResolvedValue(addedOutcome(torrentResult))
+    mockQbit.addTorrentFile.mockResolvedValue(addedOutcome({ ...torrentResult, name: 'Test.torrent' }))
     mockQbit.getTorrentFiles.mockResolvedValue([{ name: 'file.mkv', size: 1000000 }])
   })
 
@@ -244,7 +247,7 @@ describe('browse/download.post', () => {
       expect.any(String),
       expect.any(String),
       expect.any(String),
-      null
+      { v1: null, v2: null }
     )
   })
 
@@ -319,7 +322,7 @@ describe('browse/download.post', () => {
       '/data/movies',
       'movies',
       expect.stringMatching(/^dl-/),
-      null
+      { v1: null, v2: null }
     )
   })
 
@@ -489,13 +492,43 @@ describe('browse/download.post', () => {
         }))
       }))
     } as never)
-    mockQbit.addTorrent.mockResolvedValue({ ...torrentResult, tags: 'dl-old12345' })
+    mockQbit.addTorrent.mockResolvedValue(addedOutcome({ ...torrentResult, tags: 'dl-old12345' }))
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
 
     const result = await handler(mockEvent)
 
     expect(result).toEqual({ already: true, id: 'existing-tag' })
     expect(mockQbit.addTorrent).toHaveBeenCalled()
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('returns alreadyComplete when the torrent is already seeding in qBittorrent', async () => {
+    mockQbit.addTorrent.mockResolvedValue({
+      status: 'existing',
+      complete: true,
+      torrent: { ...torrentResult, state: 'uploading', progress: 1, amount_left: 0 }
+    })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ alreadyComplete: true, name: 'Test.Torrent.1080p' })
+    expect(mockQbit.deleteTorrent).not.toHaveBeenCalled()
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('returns alreadyDownloading when the torrent is still downloading in qBittorrent', async () => {
+    mockQbit.addTorrent.mockResolvedValue({
+      status: 'existing',
+      complete: false,
+      torrent: { ...torrentResult, state: 'downloading', progress: 0.2, amount_left: 800000000 }
+    })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ alreadyDownloading: true, name: 'Test.Torrent.1080p' })
+    expect(mockQbit.deleteTorrent).not.toHaveBeenCalled()
     expect(mockDb.insert).not.toHaveBeenCalled()
   })
 
@@ -786,7 +819,7 @@ describe('browse/download.post', () => {
 
   it('throws 413 when torrent too large', async () => {
     const bigTorrent = { ...torrentResult, size: 30 * 1024 * 1024 * 1024 }
-    mockQbit.addTorrent.mockResolvedValue(bigTorrent)
+    mockQbit.addTorrent.mockResolvedValue(addedOutcome(bigTorrent))
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
 
     await expect(handler(mockEvent)).rejects.toThrow('413')
@@ -794,7 +827,7 @@ describe('browse/download.post', () => {
   })
 
   it('throws 507 when disk full post-add', async () => {
-    mockQbit.addTorrent.mockResolvedValue({ ...torrentResult, size: 10 * 1024 * 1024 * 1024 })
+    mockQbit.addTorrent.mockResolvedValue(addedOutcome({ ...torrentResult, size: 10 * 1024 * 1024 * 1024 }))
     stubConfig({ disks: '/data' })
     mockIsDiskCheckEnabled.mockReturnValue(true)
     mockGetDiskMinFreeGb.mockReturnValue(10)
@@ -812,7 +845,7 @@ describe('browse/download.post', () => {
   })
 
   it('throws 507 when free space minus torrent size falls below the minimum', async () => {
-    mockQbit.addTorrent.mockResolvedValue({ ...torrentResult, size: 5 * 1024 * 1024 * 1024 })
+    mockQbit.addTorrent.mockResolvedValue(addedOutcome({ ...torrentResult, size: 5 * 1024 * 1024 * 1024 }))
     stubConfig({ disks: '/data' })
     mockIsDiskCheckEnabled.mockReturnValue(true)
     mockGetDiskMinFreeGb.mockReturnValue(7)
@@ -830,7 +863,7 @@ describe('browse/download.post', () => {
   })
 
   it('allows download when free space minus torrent size meets the minimum', async () => {
-    mockQbit.addTorrent.mockResolvedValue({ ...torrentResult, size: 5 * 1024 * 1024 * 1024 })
+    mockQbit.addTorrent.mockResolvedValue(addedOutcome({ ...torrentResult, size: 5 * 1024 * 1024 * 1024 }))
     stubConfig({ disks: '/data' })
     mockIsDiskCheckEnabled.mockReturnValue(true)
     mockGetDiskMinFreeGb.mockReturnValue(7)
@@ -926,7 +959,7 @@ describe('browse/download.post', () => {
     stubConfig({ disks: '/media,/data' })
     mockIsDiskCheckEnabled.mockReturnValue(true)
     mockGetDiskMinFreeGb.mockReturnValue(7)
-    mockQbit.addTorrent.mockResolvedValue({ ...torrentResult, size: 5 * 1024 ** 3 })
+    mockQbit.addTorrent.mockResolvedValue(addedOutcome({ ...torrentResult, size: 5 * 1024 ** 3 }))
     mockFindTargetDisk.mockResolvedValue({
       path: '/data',
       available: true,
@@ -946,7 +979,7 @@ describe('browse/download.post', () => {
     stubConfig({ disks: '/data' })
     mockIsDiskCheckEnabled.mockReturnValue(true)
     mockGetDiskMinFreeGb.mockReturnValue(7)
-    mockQbit.addTorrent.mockResolvedValue({ ...torrentResult, size: 5 * 1024 ** 3 })
+    mockQbit.addTorrent.mockResolvedValue(addedOutcome({ ...torrentResult, size: 5 * 1024 ** 3 }))
     mockFindTargetDisk.mockResolvedValue({
       path: '/data',
       available: true,
@@ -1042,7 +1075,7 @@ describe('browse/download.post', () => {
   })
 
   it('returns null torrent when qBittorrent returns null', async () => {
-    mockQbit.addTorrent.mockResolvedValue(null)
+    mockQbit.addTorrent.mockResolvedValue({ status: 'added', torrent: null })
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
 
     const result = await handler(mockEvent)
@@ -1050,7 +1083,7 @@ describe('browse/download.post', () => {
   })
 
   it('skips dangerous file check when torrent is null', async () => {
-    mockQbit.addTorrent.mockResolvedValue(null)
+    mockQbit.addTorrent.mockResolvedValue({ status: 'added', torrent: null })
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
 
     await handler(mockEvent)

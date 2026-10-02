@@ -45,6 +45,7 @@ export interface QBitTorrent {
   dlspeed_avg: number
   upspeed: number
   size: number
+  amount_left: number
   downloaded: number
   num_seeds: number
   num_complete: number
@@ -56,6 +57,19 @@ export interface QBitTorrent {
   added_on: number
   completion_on: number
 }
+
+// Info hashes of a torrent source (magnet link or .torrent file).
+// v1 = 40-char hex SHA-1, v2 = 64-char hex SHA-256 (BEP 52).
+export interface MagnetInfoHashes {
+  v1: string | null
+  v2: string | null
+}
+
+// Result of adding a torrent to qBittorrent.
+// 'existing' = the torrent was already in qBittorrent (nothing was added);
+// complete = it finished downloading (seeding/stopped-complete/etc.).
+export type TorrentAddOutcome =
+  { status: 'added'; torrent: QBitTorrent | null } | { status: 'existing'; complete: boolean; torrent: QBitTorrent }
 
 // qBittorrent states for a torrent that is stopped without having finished downloading.
 // v5.0 renamed pausedDL/pausedUP to stoppedDL/stoppedUP, so both spellings are accepted

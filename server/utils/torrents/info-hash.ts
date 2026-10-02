@@ -159,13 +159,33 @@ class BencodeDecoder {
 }
 
 /**
- * Computes the info hash of a .torrent file: SHA-1 of the bencoded `info` dictionary.
- * The original `info` bytes are hashed directly, so the result is independent of
- * integer formatting and binary content. Throws if the buffer is not a valid torrent.
+ * Computes the info hashes of a .torrent file. v1 is the SHA-1 of the bencoded
+ * `info` dictionary; v2 (BEP 52) is the SHA-256 of the same original `info`
+ * bytes and is only present for v2/hybrid torrents (detected via `meta version`,
+ * `piece layers` or `v2` keys in the info dict). The original `info` bytes are
+ * hashed directly, so the results are independent of integer formatting and
+ * binary content. Throws if the buffer is not a valid torrent.
+ */
+export function computeTorrentInfoHashes(fileBuffer: Buffer): { v1: string; v2: string | null } {
+  const decoder = new BencodeDecoder(fileBuffer)
+  const range = decoder.extractInfoDictRange()
+  const infoBytes = fileBuffer.subarray(range.start, range.end)
+  const v1 = createHash('sha1').update(infoBytes).digest('hex')
+
+  let v2: string | null = null
+  const info = new BencodeDecoder(fileBuffer).extractInfoDict()
+  if (info['meta version'] === '2' || info['piece layers'] !== undefined || info['v2'] !== undefined) {
+    v2 = createHash('sha256').update(infoBytes).digest('hex')
+  }
+  return { v1, v2 }
+}
+
+/**
+ * Computes the v1 info hash of a .torrent file: SHA-1 of the bencoded `info`
+ * dictionary. Throws if the buffer is not a valid torrent.
  */
 export function computeTorrentInfoHash(fileBuffer: Buffer): string {
-  const range = new BencodeDecoder(fileBuffer).extractInfoDictRange()
-  return createHash('sha1').update(fileBuffer.subarray(range.start, range.end)).digest('hex')
+  return computeTorrentInfoHashes(fileBuffer).v1
 }
 
 export function computeTorrentTotalSize(fileBuffer: Buffer): number | null {

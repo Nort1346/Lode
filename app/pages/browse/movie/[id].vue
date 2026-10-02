@@ -391,6 +391,7 @@
 import type { Torrent } from '~/types/media'
 import type { MovieData } from '~/types/browse'
 import type { RequestStatus } from '~/types/requests'
+import type { AddTorrentResponse } from '~/types/downloads'
 import { useCopyToClipboard } from '~/composables/useClipboard'
 
 const route = useRoute()
@@ -601,7 +602,7 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
   startDownload(movie.value?.title ?? t('download.adding'))
 
   try {
-    const res = await $fetch<{ already?: boolean }>('/api/browse/download', {
+    const res = await $fetch<AddTorrentResponse>('/api/browse/download', {
       method: 'POST',
       body: {
         magnetLink: torrent.magnetLink ?? '',
@@ -616,13 +617,26 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
         torrentSize: torrent.size ?? 0
       }
     })
+    const label = movie.value?.title ?? t('download.film')
     if (res.already === true) {
+      toast.add({ title: t('download.already'), description: t('download.alreadyDesc', { label }), color: 'info' })
+      await navigateTo('/dashboard/downloads')
+      return
+    }
+    if (res.alreadyComplete === true) {
       toast.add({
-        title: t('download.already'),
-        description: t('download.alreadyDesc', { label: movie.value?.title ?? t('download.film') }),
+        title: t('download.alreadyComplete'),
+        description: t('download.alreadyCompleteDesc', { label }),
         color: 'info'
       })
-      await navigateTo('/dashboard/downloads')
+      return
+    }
+    if (res.alreadyDownloading === true) {
+      toast.add({
+        title: t('download.alreadyDownloading'),
+        description: t('download.alreadyDownloadingDesc', { label }),
+        color: 'info'
+      })
       return
     }
     toast.add({
@@ -644,6 +658,12 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
         title: t('download.sizeLimit'),
         description: err instanceof Error ? err.message : undefined,
         color: 'warning'
+      })
+    } else if (status === 409) {
+      toast.add({
+        title: t('download.alreadyExists'),
+        description: t('download.alreadyExistsDesc', { label: movie.value?.title ?? t('download.film') }),
+        color: 'info'
       })
     } else {
       const msg = err instanceof Error ? err.message : t('download.errorDesc')

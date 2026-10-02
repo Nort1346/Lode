@@ -294,6 +294,7 @@
 <script setup lang="ts">
 import type { ShowData, SeasonData } from '~/types/browse'
 import type { RequestStatus } from '~/types/requests'
+import type { AddTorrentResponse } from '~/types/downloads'
 
 const route = useRoute()
 const selectedSeason = ref(1)
@@ -422,7 +423,7 @@ async function downloadTorrent(
   startDownload(label || t('download.adding'))
 
   try {
-    const res = await $fetch<{ already?: boolean }>('/api/browse/download', {
+    const res = await $fetch<AddTorrentResponse>('/api/browse/download', {
       method: 'POST',
       body: {
         magnetLink: magnetLink ?? '',
@@ -442,6 +443,22 @@ async function downloadTorrent(
       await navigateTo('/dashboard/downloads')
       return
     }
+    if (res.alreadyComplete === true) {
+      toast.add({
+        title: t('download.alreadyComplete'),
+        description: t('download.alreadyCompleteDesc', { label }),
+        color: 'info'
+      })
+      return
+    }
+    if (res.alreadyDownloading === true) {
+      toast.add({
+        title: t('download.alreadyDownloading'),
+        description: t('download.alreadyDownloadingDesc', { label }),
+        color: 'info'
+      })
+      return
+    }
     toast.add({ title: t('download.added'), description: t('download.addedDesc', { label }), color: 'success' })
     await navigateTo('/dashboard/downloads')
   } catch (err) {
@@ -457,6 +474,12 @@ async function downloadTorrent(
         title: t('download.sizeLimit'),
         description: err instanceof Error ? err.message : undefined,
         color: 'warning'
+      })
+    } else if (status === 409) {
+      toast.add({
+        title: t('download.alreadyExists'),
+        description: t('download.alreadyExistsDesc', { label }),
+        color: 'info'
       })
     } else {
       const msg = err instanceof Error ? err.message : t('download.errorDesc')

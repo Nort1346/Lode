@@ -14,12 +14,19 @@ import { withTorrentAddLock, checkCooldown, setCooldown } from '#server/utils/mu
 import { checkForDangerousFiles } from '#server/utils/torrents/safe-download'
 import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
-import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
-import { computeTorrentInfoHash, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
+import { extractMagnetInfoHashes, primaryTorrentHash } from '#server/utils/clients/qbittorrent'
+import { computeTorrentInfoHashes, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
 import type { DownloadBody } from '#server/types/browse'
-import { DEDUP_MATCH_STATUSES, SAVE_PATH_KEYS, type SavePathKey } from '#server/types/torrent'
+import {
+  DEDUP_MATCH_STATUSES,
+  SAVE_PATH_KEYS,
+  type MagnetInfoHashes,
+  type QBitTorrent,
+  type SavePathKey,
+  type TorrentAddOutcome
+} from '#server/types/torrent'
 
 const log = createLogger('Download')
 
@@ -197,8 +204,10 @@ export default defineEventHandler(async (event) => {
 
       // ── 3b: DUPLICATE CHECK (magnet hash known up front) ──────
       let infoHash: string | null = null
+      let fileHashes: MagnetInfoHashes = { v1: null, v2: null }
 
-      const magnetHash = hasMagnet ? extractMagnetHash(rawMagnetLink) : null
+      const magnetHashes = hasMagnet ? extractMagnetInfoHashes(rawMagnetLink) : null
+      const magnetHash = magnetHashes !== null ? primaryTorrentHash(magnetHashes) : null
       if (magnetHash !== null) {
         const existingActive = await dbGet(
           db
@@ -256,7 +265,7 @@ export default defineEventHandler(async (event) => {
       // ── 5: TRACKER (Polish) ───────────────────────────────────
       const qbit = useQBittorrent()
       const dlTag = `dl-${randomUUID().slice(0, 8)}`
-      let torrent
+      let torrent: QBitTorrent | null
       let storedMagnetLink: string
 
       if (hasGuid && isPrivateTrackerEnabled && (await getTrackerType(indexer)) === 'guid') {
@@ -475,9 +484,10 @@ export default defineEventHandler(async (event) => {
 
         log.info(`[Download:7:VALIDATE] ✓ valid torrent file (${fileBuffer.length} bytes)`)
 
-        // ── 7b: INFO HASH (duplicate pre-check + 409 handling) ──
+        // ── 7b: INFO HASH (duplicate pre-check + qBittorrent pre-check) ──
         try {
-          infoHash = computeTorrentInfoHash(fileBuffer)
+          fileHashes = computeTorrentInfoHashes(fileBuffer)
+          infoHash = fileHashes.v1
         } catch (err) {
           log.warn(
             `[Download:7b:HASH] ✗ info-hash computation failed: ${err instanceof Error ? err.message : String(err)}`
@@ -527,8 +537,9 @@ export default defineEventHandler(async (event) => {
           `[Download:8:QBIT] addTorrentFile: fileName=${fileName}, target=${targetPath}, cat=${savePath}, tag=${dlTag}`
         )
         const t3 = Date.now()
+        let outcome: TorrentAddOutcome
         try {
-          torrent = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag, infoHash)
+          outcome = await qbit.addTorrentFile(fileBuffer, fileName, targetPath, savePath, dlTag, fileHashes)
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
           if (msg.includes('already exists')) {
@@ -538,6 +549,15 @@ export default defineEventHandler(async (event) => {
           log.error(`[Download:8:QBIT] ✗ addTorrentFile failed in ${Date.now() - t3}ms: ${msg}`)
           throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
         }
+        if (outcome.status === 'existing') {
+          log.info(
+            `[Download:8:QBIT] already in qBittorrent: hash=${outcome.torrent.hash} state=${outcome.torrent.state} complete=${outcome.complete} (in ${Date.now() - t3}ms)`
+          )
+          return outcome.complete
+            ? { alreadyComplete: true, name: outcome.torrent.name }
+            : { alreadyDownloading: true, name: outcome.torrent.name }
+        }
+        torrent = outcome.torrent
 
         if (torrent !== null) {
           log.info(
@@ -552,8 +572,9 @@ export default defineEventHandler(async (event) => {
         setCooldown(userId)
         log.info(`[Download:8:QBIT] addTorrent (magnet/url): url=${torrentUrl.substring(0, 100)}, tag=${dlTag}`)
         const t3 = Date.now()
+        let outcome: TorrentAddOutcome
         try {
-          torrent = await qbit.addTorrent(torrentUrl, targetPath, savePath, dlTag, magnetHash)
+          outcome = await qbit.addTorrent(torrentUrl, targetPath, savePath, dlTag, magnetHashes)
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
           if (msg.includes('already exists')) {
@@ -563,6 +584,15 @@ export default defineEventHandler(async (event) => {
           log.error(`[Download:8:QBIT] ✗ addTorrent failed in ${Date.now() - t3}ms: ${msg}`)
           throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
         }
+        if (outcome.status === 'existing') {
+          log.info(
+            `[Download:8:QBIT] already in qBittorrent: hash=${outcome.torrent.hash} state=${outcome.torrent.state} complete=${outcome.complete} (in ${Date.now() - t3}ms)`
+          )
+          return outcome.complete
+            ? { alreadyComplete: true, name: outcome.torrent.name }
+            : { alreadyDownloading: true, name: outcome.torrent.name }
+        }
+        torrent = outcome.torrent
 
         if (torrent !== null) {
           log.info(
@@ -739,7 +769,7 @@ export default defineEventHandler(async (event) => {
 
       const id = randomUUID()
       const isPrivateDownload = (await getTrackerType(indexer)) !== null
-      const storedHash = torrent?.hash ?? infoHash ?? extractMagnetHash(torrentUrl)
+      const storedHash = torrent?.hash ?? infoHash ?? magnetHash
       log.info(
         `[Download:10:DB] inserting: id=${id} status=downloading hash=${storedHash ?? 'null'} isPrivate=${isPrivateDownload} indexer="${indexer}" resolution=${resolution ?? 'null'}`
       )

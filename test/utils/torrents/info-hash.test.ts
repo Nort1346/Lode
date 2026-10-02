@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { computeTorrentInfoHash, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
+import {
+  computeTorrentInfoHash,
+  computeTorrentInfoHashes,
+  computeTorrentTotalSize
+} from '#server/utils/torrents/info-hash'
 
 // Hand-built bencoded torrent (see docs: info hash = SHA-1 of the bencoded `info` dict).
 // Outer dict: created by + creation date (i…e integer) + info dict containing a length
@@ -43,6 +47,34 @@ describe('computeTorrentInfoHash', () => {
 
   it('throws on empty input', () => {
     expect(() => computeTorrentInfoHash(Buffer.alloc(0))).toThrow('root is not a bencode dict')
+  })
+})
+
+// v2 (BEP 52) fixture: info dict with `meta version` 2. The `info` dict bytes are
+// `d12:meta versioni2e6:lengthi1000e4:name5:Test2e`; ground-truth SHA-1/SHA-256 were
+// computed independently with node:crypto over those exact bytes.
+const V2_FIXTURE = Buffer.from('d4:infod12:meta versioni2e6:lengthi1000e4:name5:Test2ee', 'utf-8')
+
+describe('computeTorrentInfoHashes', () => {
+  it('returns only the v1 hash for a v1 torrent', () => {
+    expect(computeTorrentInfoHashes(Buffer.from(FIXTURE_HEX, 'hex'))).toEqual({
+      v1: EXPECTED_HASH,
+      v2: null
+    })
+  })
+
+  it('returns the SHA-1 and SHA-256 of the info dict for a v2 torrent', () => {
+    expect(computeTorrentInfoHashes(V2_FIXTURE)).toEqual({
+      v1: '2de3cea7eb2ed24feaaf267459f0327ebd8a6205',
+      v2: 'b9a5700f039b0a325ab9464874c8f7a341271e722aab28e26ecb33b90d39e8f8'
+    })
+  })
+
+  it('detects v2 via the v2 key', () => {
+    const hybrid = Buffer.from('d4:infod2:v2d5:layeri0e6:lengthi1e6:piecesi0ee4:name5:Test2ee', 'utf-8')
+    const result = computeTorrentInfoHashes(hybrid)
+
+    expect(result.v2).toMatch(/^[a-f0-9]{64}$/)
   })
 })
 

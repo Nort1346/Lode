@@ -24,6 +24,17 @@ export interface Download {
   resolution: string | null
 }
 
+// Response of /api/torrents/add and /api/browse/download.
+// Exactly one flag is set: already (an active Lode row already exists) or
+// alreadyComplete/alreadyDownloading (the torrent is already in qBittorrent).
+// None of them is set when a new download row was created.
+export interface AddTorrentResponse {
+  already?: boolean
+  alreadyComplete?: boolean
+  alreadyDownloading?: boolean
+  name?: string
+}
+
 export type TorrentQuality = 'dead' | 'poor' | 'slow' | 'ok'
 
 export type EtaState = 'waiting-seeders' | 'calculating' | 'ready'

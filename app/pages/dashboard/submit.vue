@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getApiStatusCode, mapApiError } from '~/composables/useApiError'
+import type { AddTorrentResponse } from '~/types/downloads'
 
 definePageMeta({
   middleware: ['auth', 'submit'],
@@ -90,9 +91,9 @@ async function handleSubmit() {
   startDownload(form.label || t('download.adding'))
 
   try {
-    let res: { already?: boolean } | undefined
+    let res: AddTorrentResponse | undefined
     if (inputMode.value === 'magnet') {
-      res = await $fetch<{ already?: boolean }>('/api/torrents/add', {
+      res = await $fetch<AddTorrentResponse>('/api/torrents/add', {
         method: 'POST',
         body: {
           magnetLink: form.magnetLink.trim(),
@@ -101,7 +102,7 @@ async function handleSubmit() {
         }
       })
     } else if (inputMode.value === 'url') {
-      res = await $fetch<{ already?: boolean }>('/api/torrents/add', {
+      res = await $fetch<AddTorrentResponse>('/api/torrents/add', {
         method: 'POST',
         body: {
           downloadUrl: form.torrentUrl.trim(),
@@ -117,7 +118,7 @@ async function handleSubmit() {
         return
       }
       const torrentFile = await fileToBase64(selectedFile.value)
-      res = await $fetch<{ already?: boolean }>('/api/torrents/add', {
+      res = await $fetch<AddTorrentResponse>('/api/torrents/add', {
         method: 'POST',
         body: {
           torrentFile,
@@ -129,16 +130,30 @@ async function handleSubmit() {
       selectedFile.value = null
     }
 
+    const label = form.label.trim()
     if (res?.already === true) {
       toast.add({
         title: t('download.already'),
-        description: t('download.alreadyDesc', { label: form.label.trim() }),
+        description: t('download.alreadyDesc', { label }),
+        color: 'info'
+      })
+      await navigateTo('/dashboard/downloads')
+    } else if (res?.alreadyComplete === true) {
+      toast.add({
+        title: t('download.alreadyComplete'),
+        description: t('download.alreadyCompleteDesc', { label }),
+        color: 'info'
+      })
+    } else if (res?.alreadyDownloading === true) {
+      toast.add({
+        title: t('download.alreadyDownloading'),
+        description: t('download.alreadyDownloadingDesc', { label }),
         color: 'info'
       })
     } else {
       toast.add({ title: t('submit.success'), color: 'success' })
+      await navigateTo('/dashboard/downloads')
     }
-    await navigateTo('/dashboard/downloads')
   } catch (e: unknown) {
     const err = mapApiError(e)
     const statusCode = getApiStatusCode(e)
@@ -146,6 +161,12 @@ async function handleSubmit() {
       toast.add({ title: t('download.diskFull'), description: err.data?.statusMessage, color: 'warning' })
     } else if (statusCode === 413) {
       toast.add({ title: t('download.sizeLimit'), description: err.data?.statusMessage, color: 'warning' })
+    } else if (statusCode === 409) {
+      toast.add({
+        title: t('download.alreadyExists'),
+        description: t('download.alreadyExistsDesc', { label: form.label.trim() }),
+        color: 'info'
+      })
     } else {
       toast.add({ title: err.data?.statusMessage ?? t('submit.failed'), color: 'error' })
     }
