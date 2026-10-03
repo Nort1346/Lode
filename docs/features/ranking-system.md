@@ -102,7 +102,7 @@ Admin can customize all weights and thresholds via Admin → Ranking.
 
 ### Reset to Defaults
 ```bash
-POST /api/admin/ranking/config.reset
+POST /api/admin/ranking/config/reset
 ```
 
 ### Legacy Migration

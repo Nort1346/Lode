@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { stubAdminAuth } from '../../helpers'
+import { stubAdminAuth } from '../../../helpers'
 
 const mockGetUserSession = vi.fn()
 const mockResetRankingConfig = vi.fn()
@@ -9,9 +9,9 @@ const mockLogActivity = vi.fn()
 vi.stubGlobal('resetRankingConfig', mockResetRankingConfig)
 vi.stubGlobal('getRankingConfig', mockGetRankingConfig)
 
-import handler from '#server/api/admin/ranking/config.reset.post'
+import handler from '#server/api/admin/ranking/config/reset.post'
 
-describe('admin/ranking/config.reset.post', () => {
+describe('admin/ranking/config/reset.post', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     stubAdminAuth(mockGetUserSession)
