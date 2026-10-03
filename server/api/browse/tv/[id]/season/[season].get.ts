@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   if (limit.reached) {
     throw createError({
       statusCode: 429,
-      data: { activeCount: limit.activeCount, todayCount: limit.todayCount, limit: limit.limit }
+      data: { code: 'daily-limit', activeCount: limit.activeCount, todayCount: limit.todayCount, limit: limit.limit }
     })
   }
 

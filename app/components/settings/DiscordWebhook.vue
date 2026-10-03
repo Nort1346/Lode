@@ -40,8 +40,8 @@ async function changeDiscordLocale(newLocale: string) {
     await $fetch('/api/admin/discord-locale', { method: 'PUT', body: { locale: valid } })
     discordLocale.value = valid
     toast.add({ title: t('settings.discordLocaleSaved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('common.error'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('common.error'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 
@@ -51,8 +51,8 @@ async function toggleDiscordMentions() {
     await $fetch('/api/admin/discord-mentions', { method: 'PUT', body: { enabled: newValue } })
     discordMentionsEnabled.value = newValue
     toast.add({ title: t('settings.discordMentionsSaved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('common.error'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('common.error'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 

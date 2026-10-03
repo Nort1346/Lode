@@ -7,7 +7,8 @@ const serverAlias = {
   '#db': resolve(import.meta.dirname, 'server/database'),
   '#utils': resolve(import.meta.dirname, 'server/utils'),
   '#server/types': resolve(import.meta.dirname, 'server/types'),
-  '#shared': resolve(import.meta.dirname, 'shared')
+  '#shared': resolve(import.meta.dirname, 'shared'),
+  '~': resolve(import.meta.dirname, 'app')
 }
 
 // vue and vue-i18n are transitive deps (via nuxt / @nuxtjs/i18n) and not resolvable from the

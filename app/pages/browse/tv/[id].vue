@@ -482,8 +482,7 @@ async function downloadTorrent(
         color: 'info'
       })
     } else {
-      const msg = err instanceof Error ? err.message : t('download.errorDesc')
-      toast.add({ title: t('download.error'), description: msg, color: 'error' })
+      toast.add({ title: t('download.error'), description: describeApiError(err, t).description, color: 'error' })
     }
   } finally {
     downloadingKey.value = null
@@ -542,8 +541,7 @@ async function submitRequest() {
       color: 'success'
     })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : t('requests.alreadyRequested')
-    toast.add({ title: t('requests.alreadyRequested'), description: msg, color: 'warning' })
+    toast.add({ title: t('requests.alreadyRequested'), description: describeApiError(err, t).description, color: 'warning' })
   } finally {
     requesting.value = false
   }
@@ -592,8 +590,8 @@ async function toggleWishlist() {
         color: 'success'
       })
     }
-  } catch {
-    toast.add({ title: t('wishlist.failed'), color: 'error' })
+  } catch (err) {
+    toast.add({ title: t('wishlist.failed'), description: describeApiError(err, t).description, color: 'error' })
   }
 }
 </script>

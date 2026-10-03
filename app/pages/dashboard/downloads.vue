@@ -57,10 +57,10 @@ async function fetchDownloads() {
     const totalPages = Math.max(1, Math.ceil(res.total / PAGE_SIZE))
     if (page.value > totalPages) page.value = totalPages
     lastFetchOk = true
-  } catch {
+  } catch (e: unknown) {
     // Toast only on the first failure so the 3s poll does not spam while the API is down
     if (lastFetchOk) {
-      toast.add({ title: t('download.error'), color: 'error' })
+      toast.add({ title: t('download.error'), description: describeApiError(e, t).description, color: 'error' })
     }
     lastFetchOk = false
   } finally {
@@ -99,8 +99,8 @@ async function cancelTorrent(dl: Download) {
   try {
     await $fetch(`/api/torrents/${dl.id}`, { method: 'DELETE' })
     await fetchDownloads()
-  } catch {
-    toast.add({ title: t('download.error'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('download.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     cancelling.value = null
   }

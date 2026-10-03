@@ -49,10 +49,10 @@ async function fetchData() {
     }
     activeList.value = listRes.downloads ?? []
     lastFetchOk = true
-  } catch {
+  } catch (e: unknown) {
     // Keep previous data on failure; toast only on the first failure so the poll loop does not spam
     if (lastFetchOk) {
-      toast.add({ title: t('download.error'), color: 'error' })
+      toast.add({ title: t('download.error'), description: describeApiError(e, t).description, color: 'error' })
     }
     lastFetchOk = false
   } finally {
@@ -123,8 +123,8 @@ async function cancelTorrent(dl: Download) {
   try {
     await $fetch(`/api/torrents/${dl.id}`, { method: 'DELETE' })
     await fetchData()
-  } catch {
-    toast.add({ title: t('download.error'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('download.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     cancelling.value = null
   }

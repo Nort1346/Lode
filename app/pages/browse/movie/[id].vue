@@ -587,8 +587,8 @@ async function toggleWishlist() {
         color: 'success'
       })
     }
-  } catch {
-    toast.add({ title: t('wishlist.failed'), color: 'error' })
+  } catch (err) {
+    toast.add({ title: t('wishlist.failed'), description: describeApiError(err, t).description, color: 'error' })
   }
 }
 
@@ -666,8 +666,7 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
         color: 'info'
       })
     } else {
-      const msg = err instanceof Error ? err.message : t('download.errorDesc')
-      toast.add({ title: t('download.error'), description: msg, color: 'error' })
+      toast.add({ title: t('download.error'), description: describeApiError(err, t).description, color: 'error' })
     }
   } finally {
     downloadingIdx.value = null
