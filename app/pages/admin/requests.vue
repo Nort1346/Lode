@@ -137,9 +137,9 @@ async function confirmAction() {
     })
     actionModalOpen.value = false
     await fetchRequests()
-  } catch {
+  } catch (e: unknown) {
     // Keep the modal open on failure so the admin's note is not lost
-    toast.add({ title: t('common.error'), color: 'error' })
+    toast.add({ title: t('common.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     processingId.value = null
     actionId.value = null

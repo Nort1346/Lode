@@ -292,7 +292,7 @@ async function saveUser() {
     showModal.value = false
     await fetchUsers()
   } catch (e: unknown) {
-    error.value = mapApiError(e).data?.statusMessage ?? t('admin.saveFailed')
+    error.value = describeApiError(e, t).description
   } finally {
     saving.value = false
   }
@@ -310,8 +310,8 @@ async function deleteUser(id: string) {
   try {
     await $fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
     await fetchUsers()
-  } catch {
-    toast.add({ title: t('admin.saveFailed'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('admin.saveFailed'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 
@@ -332,8 +332,8 @@ async function toggleActive(user: { id: string; isActive: boolean }) {
       body: { isActive: !user.isActive }
     })
     await fetchUsers()
-  } catch {
-    toast.add({ title: t('admin.saveFailed'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('admin.saveFailed'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 
@@ -362,7 +362,7 @@ async function forceSync(user: AdminUser) {
 
     await fetchUsers()
   } catch (e: unknown) {
-    toast.add({ title: t('admin.forceSyncError'), description: mapApiError(e).data?.statusMessage, color: 'error' })
+    toast.add({ title: t('admin.forceSyncError'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     syncingUserId.value = null
   }

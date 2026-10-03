@@ -47,8 +47,8 @@ async function saveDefaults() {
       }
     })
     toast.add({ title: t('admin.defaultLimitsSaved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('admin.defaultLimitsError'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('admin.defaultLimitsError'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     saving.value = false
   }
