@@ -1,22 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockGetMovieDetails, mockGetTvShowDetails, mockGetImageUrl, mockReadFile, mockRestCtor, mockRestPost } =
-  vi.hoisted(() => ({
-    mockGetMovieDetails: vi.fn(),
-    mockGetTvShowDetails: vi.fn(),
-    mockGetImageUrl: vi.fn((path: string | null, size: string) =>
-      path ? `https://image.tmdb.org/t/p/${size}${path}` : null
-    ),
-    mockReadFile: vi.fn(async () => Buffer.from('fallback-poster')),
-    mockRestPost: vi.fn(async (..._args: unknown[]) => ({})),
-    mockRestCtor: vi.fn(function () {
-      return { setToken: vi.fn(() => ({ post: mockRestPost })) }
-    })
-  }))
+const {
+  mockGetMovieDetails,
+  mockGetTvShowDetails,
+  mockGetSeasonDetails,
+  mockGetImageUrl,
+  mockReadFile,
+  mockRestCtor,
+  mockRestPost
+} = vi.hoisted(() => ({
+  mockGetMovieDetails: vi.fn(),
+  mockGetTvShowDetails: vi.fn(),
+  mockGetSeasonDetails: vi.fn(),
+  mockGetImageUrl: vi.fn((path: string | null, size: string) =>
+    path ? `https://image.tmdb.org/t/p/${size}${path}` : null
+  ),
+  mockReadFile: vi.fn(async () => Buffer.from('fallback-poster')),
+  mockRestPost: vi.fn(async (..._args: unknown[]) => ({})),
+  mockRestCtor: vi.fn(function () {
+    return { setToken: vi.fn(() => ({ post: mockRestPost })) }
+  })
+}))
 
 vi.mock('#server/utils/tmdb', () => ({
   getMovieDetails: mockGetMovieDetails,
   getTvShowDetails: mockGetTvShowDetails,
+  getSeasonDetails: mockGetSeasonDetails,
   getImageUrl: mockGetImageUrl
 }))
 
@@ -46,9 +55,14 @@ import {
   getDiscordLocale,
   fetchTmdbMeta,
   sendDownloadCompleteWebhook,
-  notifyRequestPending
+  notifyRequestPending,
+  truncateText,
+  escapeDiscordText,
+  formatEpisodeSuffix,
+  buildDisplayTitle
 } from '#server/utils/notifications/discord'
 import type { DownloadCompleteData, RequestPendingData } from '#server/types/discord'
+import { parseEpisodeInfo } from '#server/utils/torrents/release-episode'
 
 const WEBHOOK_URL = 'https://discord.com/api/webhooks/12345/abcdef'
 
@@ -83,6 +97,7 @@ function makeDownloadData(overrides: Partial<DownloadCompleteData> = {}): Downlo
     tmdbId: null,
     mediaType: null,
     discordId: null,
+    resolution: null,
     ...overrides
   }
 }
@@ -97,6 +112,7 @@ describe('notifications/discord', () => {
     stubSettingsDb({})
     mockGetMovieDetails.mockReset()
     mockGetTvShowDetails.mockReset()
+    mockGetSeasonDetails.mockReset()
     mockGetImageUrl.mockReset()
     mockGetImageUrl.mockImplementation((path: string | null, size: string) =>
       path ? `https://image.tmdb.org/t/p/${size}${path}` : null
@@ -390,6 +406,228 @@ describe('notifications/discord', () => {
       mockRestPost.mockRejectedValue(new Error('discord down'))
 
       await expect(notifyRequestPending(makeRequestData())).resolves.toBeUndefined()
+    })
+
+    it('sends allowed_mentions that suppress all pings', async () => {
+      stubSettingsDb({})
+
+      await notifyRequestPending(makeRequestData())
+
+      const [, options] = mockRestPost.mock.calls[0] as unknown as [string, { body: { allowed_mentions: unknown } }]
+      expect(options.body.allowed_mentions).toEqual({ parse: [] })
+    })
+  })
+
+  describe('text helpers', () => {
+    const dict: Record<string, string> = {
+      'discord.completed': 'Download completed',
+      'discord.seasonFull': 'Season {season} (full season)',
+      'discord.fullSeason': 'full season',
+      'discord.seasonsPack': 'Seasons {from}-{to} (pack)',
+      'discord.completeSeries': '(complete series)',
+      'discord.airedOn': 'aired {date}',
+      'discord.episodeN': 'Episode {n}'
+    }
+    const t = (key: string): string => dict[key] ?? key
+
+    it('truncateText keeps short strings and cuts long ones on code points', () => {
+      expect(truncateText('abc', 10)).toBe('abc')
+      expect(truncateText('x'.repeat(10), 10)).toBe('x'.repeat(10))
+      expect(truncateText('x'.repeat(11), 10)).toBe(`${'x'.repeat(7)}...`)
+      expect(truncateText('😀'.repeat(5), 4)).toBe('😀...')
+    })
+
+    it('escapeDiscordText neutralizes mentions and markdown', () => {
+      expect(escapeDiscordText('@everyone look')).toBe('@\u200beveryone look')
+      expect(escapeDiscordText('@HERE ping')).toBe('@\u200bHERE ping')
+      expect(escapeDiscordText('<@&1234>')).toBe('<@\u200b&1234\\>')
+      expect(escapeDiscordText('<@5678> hi')).toBe('<@5678\\> hi')
+      expect(escapeDiscordText('a *b* _c_')).toBe('a \\*b\\* \\_c\\_')
+    })
+
+    it('formatEpisodeSuffix covers every tv shape', () => {
+      expect(formatEpisodeSuffix(parseEpisodeInfo('Show.S02E05.1080p'), t)).toBe('S02E05')
+      expect(formatEpisodeSuffix(parseEpisodeInfo('Show.S01E01-E03.1080p'), t)).toBe('S01E01-E03')
+      expect(formatEpisodeSuffix(parseEpisodeInfo('Show.S01E01E02.1080p'), t)).toBe('S01E01-E02')
+      expect(formatEpisodeSuffix(parseEpisodeInfo('Show.S02.1080p'), t)).toBe('Season 2 (full season)')
+      expect(formatEpisodeSuffix(parseEpisodeInfo('Show.S01-S03.1080p'), t)).toBe('Seasons 1-3 (pack)')
+      expect(formatEpisodeSuffix(parseEpisodeInfo('Show.Complete.Series.720p'), t)).toBe('(complete series)')
+      expect(formatEpisodeSuffix(parseEpisodeInfo('Show.2024.05.12.1080p'), t)).toBe('aired 2024-05-12')
+      expect(formatEpisodeSuffix(parseEpisodeInfo('Show.EP.1090.1080p'), t)).toBe('Episode 1090')
+      expect(formatEpisodeSuffix(parseEpisodeInfo('Dune.Part.Two.2024.1080p'), t)).toBeNull()
+    })
+
+    it('buildDisplayTitle appends the episode name only for single items', () => {
+      expect(buildDisplayTitle('Show', parseEpisodeInfo('Show.S02E05.1080p'), 'Pilot', t)).toBe('Show, S02E05 - Pilot')
+      // A pack is never shown as a single episode, so no episode name is attached.
+      expect(buildDisplayTitle('Show', parseEpisodeInfo('Show.S02.1080p'), 'Pilot', t)).toBe(
+        'Show, Season 2 (full season)'
+      )
+      expect(buildDisplayTitle('Dune', parseEpisodeInfo('Dune.2024.1080p'), null, t)).toBe('Dune')
+    })
+  })
+
+  describe('sendDownloadCompleteWebhook episode info', () => {
+    function stubTvShow(name: string) {
+      mockGetTvShowDetails.mockResolvedValue({
+        name,
+        overview: 'A show',
+        poster_path: '/p.jpg',
+        backdrop_path: null,
+        genres: [],
+        vote_average: 0,
+        first_air_date: '2008-01-20'
+      })
+    }
+
+    async function serialized(data: DownloadCompleteData): Promise<string> {
+      await sendDownloadCompleteWebhook(data)
+      const calls = mockRestPost.mock.calls
+      const [, options] = calls[calls.length - 1] as unknown as [string, { body: { components: unknown[] } }]
+      return JSON.stringify(options.body.components)
+    }
+
+    it('shows SxxExx plus the TMDB episode title for a single episode', async () => {
+      stubSettingsDb({})
+      stubTvShow('Breaking Bad')
+      mockGetSeasonDetails.mockResolvedValue({ episodes: [{ episode_number: 5, name: 'Ozymandias' }] })
+
+      const out = await serialized(
+        makeDownloadData({
+          tmdbId: 7,
+          mediaType: 'tv',
+          label: 'Breaking Bad',
+          torrentName: 'Breaking.Bad.S02E05.1080p.WEB-DL-GROUP'
+        })
+      )
+
+      expect(out).toContain('S02E05')
+      expect(out).toContain('Ozymandias')
+      expect(mockGetSeasonDetails).toHaveBeenCalledWith(7, 2, 'en')
+    })
+
+    it('falls back to the add-time label when the torrent name has no episode info', async () => {
+      stubSettingsDb({})
+
+      const out = await serialized(
+        makeDownloadData({ label: 'Show S02E05 Pilot', torrentName: 'Show.2024.1080p.WEB-DL' })
+      )
+
+      expect(out).toContain('S02E05')
+    })
+
+    it('shows ranges for multi-episode releases', async () => {
+      stubSettingsDb({})
+
+      const out = await serialized(makeDownloadData({ torrentName: 'Show.S01E01-E03.1080p.WEB-DL' }))
+
+      expect(out).toContain('S01E01-E03')
+    })
+
+    it('shows a season pack as a pack, never as a single episode', async () => {
+      stubSettingsDb({})
+      stubTvShow('Show')
+
+      const out = await serialized(
+        makeDownloadData({ tmdbId: 7, mediaType: 'tv', label: 'Show', torrentName: 'Show.S01.1080p.WEB-DL' })
+      )
+
+      expect(out).toContain('discord.seasonFull')
+      expect(out).not.toContain('S01E')
+    })
+
+    it('shows complete series and daily releases distinctly', async () => {
+      stubSettingsDb({})
+
+      const series = await serialized(makeDownloadData({ torrentName: 'Show.Complete.Series.720p' }))
+      expect(series).toContain('discord.completeSeries')
+
+      const daily = await serialized(makeDownloadData({ torrentName: 'Show.2024.05.12.1080p' }))
+      expect(daily).toContain('discord.airedOn')
+    })
+
+    it('shows unknown releases with the bare title plus the release name', async () => {
+      stubSettingsDb({})
+
+      const out = await serialized(makeDownloadData({ torrentName: 'Dune.Part.Two.2024.1080p.WEB-DL' }))
+
+      expect(out).toContain('discord.release')
+      expect(out).toContain('Dune.Part.Two.2024.1080p.WEB-DL')
+    })
+
+    it('prefers the stored add-time resolution over re-parsing', async () => {
+      stubSettingsDb({})
+
+      const out = await serialized(makeDownloadData({ resolution: '2160p', torrentName: 'Show.S01E02.HDTV' }))
+
+      expect(out).toContain('2160p')
+    })
+  })
+
+  describe('sendDownloadCompleteWebhook transport hardening', () => {
+    it('neutralizes pings from hostile release names and suppresses parsing by default', async () => {
+      stubSettingsDb({})
+
+      await sendDownloadCompleteWebhook(makeDownloadData({ torrentName: 'Show.S01E02.@everyone.<@&1234>.1080p' }))
+
+      const [, options] = mockRestPost.mock.calls[0] as unknown as [
+        string,
+        { body: { components: unknown[]; allowed_mentions: unknown } }
+      ]
+      const serialized = JSON.stringify(options.body.components)
+      expect(serialized).not.toContain('@everyone')
+      expect(serialized).toContain('@\u200beveryone')
+      expect(serialized).not.toContain('<@&1234>')
+      expect(options.body.allowed_mentions).toEqual({ parse: [] })
+    })
+
+    it('scopes allowed_mentions to the single user when mentions are enabled', async () => {
+      stubSettingsDb({ discord_mentions_enabled: 'true' })
+
+      await sendDownloadCompleteWebhook(makeDownloadData({ discordId: '999' }))
+
+      const [, options] = mockRestPost.mock.calls[0] as unknown as [
+        string,
+        { body: { components: unknown[]; allowed_mentions: unknown } }
+      ]
+      expect(options.body.allowed_mentions).toEqual({ users: ['999'] })
+    })
+
+    it('retries a 429 honoring retry_after and then succeeds', async () => {
+      stubSettingsDb({})
+      mockRestPost.mockRejectedValueOnce({ retryAfter: 0.01 })
+      mockRestPost.mockResolvedValueOnce({})
+
+      await expect(sendDownloadCompleteWebhook(makeDownloadData())).resolves.toBeUndefined()
+
+      expect(mockRestPost).toHaveBeenCalledTimes(2)
+    })
+
+    it('gives up after bounded 429 retries without throwing', async () => {
+      stubSettingsDb({})
+      mockRestPost.mockRejectedValue({ retryAfter: 0.01 })
+
+      await expect(sendDownloadCompleteWebhook(makeDownloadData())).resolves.toBeUndefined()
+
+      expect(mockRestPost).toHaveBeenCalledTimes(3)
+    })
+
+    it('does not retry a deleted webhook (404)', async () => {
+      stubSettingsDb({})
+      mockRestPost.mockRejectedValue({ status: 404 })
+
+      await expect(sendDownloadCompleteWebhook(makeDownloadData())).resolves.toBeUndefined()
+
+      expect(mockRestPost).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not retry server errors and never throws', async () => {
+      stubSettingsDb({})
+      mockRestPost.mockRejectedValue({ status: 500 })
+
+      await expect(sendDownloadCompleteWebhook(makeDownloadData())).resolves.toBeUndefined()
+
+      expect(mockRestPost).toHaveBeenCalledTimes(1)
     })
   })
 })
