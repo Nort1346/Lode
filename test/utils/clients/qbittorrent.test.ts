@@ -338,6 +338,38 @@ describe('QBittorrentClient', () => {
       )
     })
 
+    it('throws immediately on a "Fails." add response without polling', async () => {
+      const failsResponse = {
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+        text: async () => 'Fails.'
+      } as unknown as Response
+      mockFetch.mockResolvedValueOnce(okResponse([])).mockResolvedValueOnce(failsResponse)
+
+      await expect(client.addTorrent(MAGNET, '/save', 'movies', 'u1')).rejects.toThrow(
+        'Torrent already exists in qBittorrent'
+      )
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+    })
+
+    it('treats a "Fails." add response as an existing torrent instead of tracking it as new', async () => {
+      // qBittorrent 5.0.x answers a duplicate add with HTTP 200 and a "Fails."
+      // body (no 409). With no known hash there is nothing to verify by, so a
+      // "Fails." verdict must block instead of resolving { added, null }.
+      const failsResponse = {
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+        text: async () => 'Fails.'
+      } as unknown as Response
+      mockFetch.mockResolvedValueOnce(failsResponse).mockResolvedValue(okResponse([]))
+
+      await expect(
+        client.addTorrent('https://example.com/file.torrent', '/save', 'movies', 'u1')
+      ).rejects.toThrow('Torrent already exists in qBittorrent')
+    })
+
     it('proceeds with the add when the pre-check itself fails', async () => {
       mockFetch
         .mockResolvedValueOnce(errorResponse(500, 'pre-check down'))

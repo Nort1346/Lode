@@ -174,11 +174,20 @@ export class QBittorrentClient {
     formData.append('paused', 'false')
 
     try {
-      await this.request('/api/v2/torrents/add', {
+      const response = await this.request('/api/v2/torrents/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString()
       })
+      // qBittorrent 5.0.x reports a rejected add (duplicate or invalid source)
+      // with HTTP 200 and a "Fails." body instead of a 409: nothing will ever
+      // be added, so report it as existing instead of tracking a phantom
+      // torrent. Newer versions answer 409 (handled below) or JSON counts.
+      // An unreadable body fails open to the verification loop below.
+      const bodyText = await response.text().catch(() => '')
+      if (bodyText.trim() === 'Fails.') {
+        throw new Error('Torrent already exists in qBittorrent')
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       if (!msg.includes('409')) throw err
@@ -251,10 +260,15 @@ export class QBittorrentClient {
     formData.append('paused', 'false')
 
     try {
-      await this.request('/api/v2/torrents/add', {
+      const response = await this.request('/api/v2/torrents/add', {
         method: 'POST',
         body: formData
       })
+      // See addTorrent: a 200 "Fails." body means nothing will ever be added.
+      const bodyText = await response.text().catch(() => '')
+      if (bodyText.trim() === 'Fails.') {
+        throw new Error('Torrent already exists in qBittorrent')
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       if (!msg.includes('409')) throw err
