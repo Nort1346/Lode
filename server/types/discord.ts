@@ -9,6 +9,7 @@ export interface DownloadCompleteData {
   tmdbId: number | null
   mediaType: string | null
   discordId: string | null
+  resolution: string | null
 }
 
 export interface TmdbMeta {

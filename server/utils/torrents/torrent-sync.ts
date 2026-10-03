@@ -26,9 +26,16 @@ const NEW_DOWNLOAD_GRACE_MS = 2 * 60 * 1000
 let firstSyncReported = false
 const zeroSeedDownloads = new Set<string>()
 
+// Downloads whose completion webhook is currently being dispatched. The sync
+// runs on a timer and is also triggered by API reads, so two overlapping runs
+// can observe the same newly-completed row; the guard keeps the notification
+// exactly-once without touching notifiedAt (which the Jellyfin pass owns).
+const discordInflight = new Set<string>()
+
 export function resetSyncDiagnostics(): void {
   firstSyncReported = false
   zeroSeedDownloads.clear()
+  discordInflight.clear()
 }
 
 async function isPrepCountdownEnabled(): Promise<boolean> {
@@ -56,10 +63,16 @@ function notifyDiscord(
     tmdbId: number | null
     mediaType: string | null
     userId: string
+    resolution: string | null
   },
   userMap: Map<string, string>,
   discordIdMap: Map<string, string | null>
 ): void {
+  if (discordInflight.has(dl.id)) {
+    log.info(`skipping duplicate discord notify: id=${dl.id}`)
+    return
+  }
+  discordInflight.add(dl.id)
   const completedAt = dl.completedAt ?? new Date().toISOString()
   void sendDownloadCompleteWebhook({
     id: dl.id,
@@ -71,8 +84,13 @@ function notifyDiscord(
     username: userMap.get(dl.userId) ?? 'unknown',
     tmdbId: dl.tmdbId,
     mediaType: dl.mediaType,
-    discordId: discordIdMap.get(dl.userId) ?? null
-  }).catch((err) => log.error(err, 'webhook failed'))
+    discordId: discordIdMap.get(dl.userId) ?? null,
+    resolution: dl.resolution ?? null
+  })
+    .catch((err) => log.error(err, 'webhook failed'))
+    .finally(() => {
+      discordInflight.delete(dl.id)
+    })
 }
 
 export async function syncTorrentStatus(): Promise<SyncResult> {

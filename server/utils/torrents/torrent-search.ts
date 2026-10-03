@@ -3,6 +3,7 @@ import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
 import { pickAlternativeTitles } from '#server/utils/browse-utils'
+import { titleIsSeasonPack, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
 import { createLogger } from '#server/utils/logger'
 import type { ProwlarrResult, ProwlarrProgressCallback, ProwlarrProgressEvent } from '#server/types/prowlarr'
 import type { RankedTorrent } from '#server/types/ranking'
@@ -20,66 +21,14 @@ import type {
 
 const log = createLogger('TorrentSearch')
 
+// Single source of truth lives in release-episode.ts (token-based, case
+// insensitive); these wrappers keep the call sites unchanged.
 function episodeRangeMatches(title: string, seasonNumber: number, episodeNumber: number): boolean {
-  const lower = title.toLowerCase()
-  const seasonPad = String(seasonNumber).padStart(2, '0')
-  const epPad = String(episodeNumber).padStart(2, '0')
-
-  // SxxExx
-  if (lower.includes(`s${seasonPad}e${epPad}`)) return true
-
-  // NxMM (e.g. 4x01)
-  if (lower.includes(`${seasonNumber}x${epPad}`)) return true
-
-  // Range: S04E01-E03
-  const rangeMatch = lower.match(/s(\d{2})e(\d{2})-e(\d{2})/)
-  if (rangeMatch !== null) {
-    const s = parseInt(rangeMatch[1] ?? '0', 10)
-    const eStart = parseInt(rangeMatch[2] ?? '0', 10)
-    const eEnd = parseInt(rangeMatch[3] ?? '0', 10)
-    if (s === seasonNumber && episodeNumber >= eStart && episodeNumber <= eEnd) return true
-  }
-
-  // Polskie: Odc. 01, Odcinek 01, Odc 1
-  const odcMatch = lower.match(/(?:odc(?:inek)?\.?\s*)(\d{1,2})/)
-  if (odcMatch !== null && parseInt(odcMatch[1] ?? '0', 10) === episodeNumber) return true
-
-  // Angielskie: Episode 01, Ep. 01, Ep01
-  const epMatch = lower.match(/(?:ep(?:isode)?\.?\s*)(\d{1,2})/)
-  if (epMatch !== null && parseInt(epMatch[1] ?? '0', 10) === episodeNumber) return true
-
-  return false
+  return titleMatchesEpisode(title, seasonNumber, episodeNumber)
 }
 
 function isSeasonPack(title: string, seasonNumber: number): boolean {
-  const lower = title.toLowerCase()
-  const seasonPad = String(seasonNumber).padStart(2, '0')
-
-  // "S01" without single episode - but allow "S01E01-E10" (range = pack)
-  const sMatch = lower.match(/s(\d{2})/)
-  if (sMatch !== null && sMatch[1] === seasonPad) {
-    // If it has "SxxExx" with a single episode number, it's NOT a season pack
-    if (/s\d{2}e\d{2}(?!-)/.test(lower)) return false
-    return true
-  }
-
-  // "Sezon 01" or "Sezon 01-02" (Polish format)
-  const sezonMatch = lower.match(/sezon\s+(\d{1,2})/)
-  if (sezonMatch !== null) {
-    const startSeason = parseInt(sezonMatch[1] ?? '0', 10)
-    if (startSeason === seasonNumber) return true
-    // Handle ranges: "Sezon 01-02" → matches season 1 and 2
-    const rangeMatch = lower.match(/sezon\s+(\d{1,2})\s*-\s*(\d{1,2})/)
-    if (rangeMatch !== null) {
-      const end = parseInt(rangeMatch[2] ?? '0', 10)
-      if (seasonNumber >= startSeason && seasonNumber <= end) return true
-    }
-  }
-
-  // "Season 1" or "Season 01"
-  if (lower.includes(`season ${seasonNumber}`)) return true
-
-  return false
+  return titleIsSeasonPack(title, seasonNumber)
 }
 
 function toTorrentPayload(t: RankedTorrent): TorrentSearchTorrent {
