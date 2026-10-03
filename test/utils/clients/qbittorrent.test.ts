@@ -6,6 +6,7 @@ import {
   extractMagnetInfoHashes,
   isTorrentComplete,
   primaryTorrentHash,
+  torrentHasTag,
   useQBittorrent
 } from '#server/utils/clients/qbittorrent'
 import type { QBitTorrent } from '#server/types/torrent'
@@ -176,6 +177,26 @@ describe('isTorrentComplete', () => {
   })
 })
 
+describe('torrentHasTag', () => {
+  const baseTorrent = { hash: HASH } as QBitTorrent
+
+  it('matches a single tag', () => {
+    expect(torrentHasTag({ ...baseTorrent, tags: 'dl-abc123' } as QBitTorrent, 'dl-abc123')).toBe(true)
+  })
+
+  it('matches within a comma-separated tag list', () => {
+    expect(torrentHasTag({ ...baseTorrent, tags: 'other, dl-abc123' } as QBitTorrent, 'dl-abc123')).toBe(true)
+  })
+
+  it('does not match a different tag', () => {
+    expect(torrentHasTag({ ...baseTorrent, tags: 'dl-other' } as QBitTorrent, 'dl-abc123')).toBe(false)
+  })
+
+  it('does not match an empty tag list', () => {
+    expect(torrentHasTag({ ...baseTorrent, tags: '' } as QBitTorrent, 'dl-abc123')).toBe(false)
+  })
+})
+
 describe('QBittorrentClient', () => {
   let client: QBittorrentClient
 
@@ -254,6 +275,32 @@ describe('QBittorrentClient', () => {
 
       await expect(pending).resolves.toEqual({ status: 'added', torrent: { hash: HASH, size: 100, tags: 'u1' } })
       expect(mockFetch).toHaveBeenCalledTimes(3)
+    })
+
+    it('reports a pre-existing torrent found by hash when it lacks our tag', async () => {
+      const preExisting = { hash: HASH, size: 100, state: 'downloading', progress: 0.4, amount_left: 60, tags: 'u9' }
+      mockFetch
+        .mockResolvedValueOnce(okResponse([]))
+        .mockResolvedValueOnce(okResponse())
+        .mockResolvedValueOnce(okResponse([preExisting]))
+
+      const pending = client.addTorrent(MAGNET, '/save', 'movies', 'u1')
+      await settle(2000)
+
+      await expect(pending).resolves.toEqual({ status: 'existing', complete: false, torrent: preExisting })
+    })
+
+    it('reports a pre-existing complete torrent found by hash when it lacks our tag', async () => {
+      const preExisting = { hash: HASH, size: 100, state: 'stoppedUP', progress: 1, amount_left: 0, tags: 'u9' }
+      mockFetch
+        .mockResolvedValueOnce(okResponse([]))
+        .mockResolvedValueOnce(okResponse())
+        .mockResolvedValueOnce(okResponse([preExisting]))
+
+      const pending = client.addTorrent(MAGNET, '/save', 'movies', 'u1')
+      await settle(2000)
+
+      await expect(pending).resolves.toEqual({ status: 'existing', complete: true, torrent: preExisting })
     })
 
     it('reports the existing torrent when the add fails with 409', async () => {
@@ -361,10 +408,43 @@ describe('QBittorrentClient', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1)
     })
 
+    it('reports a pre-existing torrent found by hash when it lacks our tag', async () => {
+      const preExisting = { hash: HASH, size: 9, state: 'downloading', progress: 0.4, amount_left: 60, tags: 'u9' }
+      mockFetch
+        .mockResolvedValueOnce(okResponse([]))
+        .mockResolvedValueOnce(okResponse())
+        .mockResolvedValueOnce(okResponse([preExisting]))
+
+      const pending = client.addTorrentFile(Buffer.from([1, 2, 3]), 'file.torrent', '/save', 'movies', 'u2', {
+        v1: HASH,
+        v2: null
+      })
+      await settle(2000)
+
+      await expect(pending).resolves.toEqual({ status: 'existing', complete: false, torrent: preExisting })
+    })
+
+    it('falls through to tag matching when the hash match carries our tag', async () => {
+      mockFetch
+        .mockResolvedValueOnce(okResponse([]))
+        .mockResolvedValueOnce(okResponse())
+        .mockResolvedValueOnce(okResponse([{ hash: HASH, size: 9, tags: 'u2' }]))
+        .mockResolvedValueOnce(okResponse([{ hash: HASH, size: 9, tags: 'u2' }]))
+
+      const pending = client.addTorrentFile(Buffer.from([1, 2, 3]), 'file.torrent', '/save', 'movies', 'u2', {
+        v1: HASH,
+        v2: null
+      })
+      await settle(2000)
+
+      await expect(pending).resolves.toEqual({ status: 'added', torrent: { hash: HASH, size: 9, tags: 'u2' } })
+    })
+
     it('proceeds with the add when the pre-check fails', async () => {
       mockFetch
         .mockResolvedValueOnce(errorResponse(500, 'pre-check down'))
         .mockResolvedValueOnce(okResponse())
+        .mockResolvedValueOnce(okResponse([{ hash: HASH, size: 9, tags: 'u2' }]))
         .mockResolvedValueOnce(okResponse([{ hash: HASH, size: 9, tags: 'u2' }]))
 
       const pending = client.addTorrentFile(Buffer.from([1, 2, 3]), 'file.torrent', '/save', 'movies', 'u2', {

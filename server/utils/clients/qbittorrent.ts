@@ -93,6 +93,17 @@ export function isTorrentComplete(torrent: QBitTorrent): boolean {
   return torrent.state === 'checkingUP'
 }
 
+// Whether a torrent found by hash is the one from the current add request.
+// Each add uses a fresh unique tag, so a hash match without our tag is a
+// pre-existing torrent (e.g. the pre-check missed it) and must be reported
+// as existing instead of tracked as a new download.
+export function torrentHasTag(torrent: QBitTorrent, tag: string): boolean {
+  return (torrent.tags ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .includes(tag)
+}
+
 export class QBittorrentClient {
   private baseUrl: string
   private apiKey: string
@@ -185,6 +196,12 @@ export class QBittorrentClient {
 
       const byHash = await this.findExistingByHashes(hashes)
       if (byHash !== undefined) {
+        if (!torrentHasTag(byHash, tags)) {
+          log.info(
+            `found pre-existing torrent by hash (pre-check missed it): hash=${byHash.hash} state=${byHash.state}`
+          )
+          return { status: 'existing', complete: isTorrentComplete(byHash), torrent: byHash }
+        }
         if (byHash.size === 0) {
           const waited = await this.waitForSize(byHash.hash, 10, 3000)
           if (waited !== undefined) return { status: 'added', torrent: waited }
@@ -251,6 +268,19 @@ export class QBittorrentClient {
 
     for (let i = 0; i < 3; i++) {
       await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      // A hash match without our tag is a pre-existing torrent the pre-check
+      // missed (same handling as addTorrent) - it must not be tracked as new.
+      // A match with our tag falls through to the tag lookup below.
+      if (knownHashes !== null) {
+        const byHash = await this.findExistingByHashes(knownHashes)
+        if (byHash !== undefined && !torrentHasTag(byHash, tags)) {
+          log.info(
+            `found pre-existing torrent by hash (pre-check missed it): hash=${byHash.hash} state=${byHash.state}`
+          )
+          return { status: 'existing', complete: isTorrentComplete(byHash), torrent: byHash }
+        }
+      }
 
       const torrents = await this.getRecentTorrents()
       const found = torrents.find((t) => t.hash !== undefined && t.tags === tags)

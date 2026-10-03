@@ -21,7 +21,6 @@ import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
 import type { DownloadBody } from '#server/types/browse'
 import {
-  DEDUP_MATCH_STATUSES,
   SAVE_PATH_KEYS,
   type MagnetInfoHashes,
   type QBitTorrent,
@@ -203,53 +202,14 @@ export default defineEventHandler(async (event) => {
         log.info(`[Download:3:LIMITS] admin - skipping all limits`)
       }
 
-      // ── 3b: DUPLICATE CHECK (magnet hash known up front) ──────
+      // ── 3b: HASH (known up front for the live qBittorrent pre-check) ──
+      // Duplicate detection is live-only: the qBittorrent client reports an
+      // already-present torrent instead of re-adding it.
       let infoHash: string | null = null
       let fileHashes: MagnetInfoHashes = { v1: null, v2: null }
 
       const magnetHashes = hasMagnet ? extractMagnetInfoHashes(rawMagnetLink) : null
       const magnetHash = magnetHashes !== null ? primaryTorrentHash(magnetHashes) : null
-      if (magnetHash !== null) {
-        const existingActive = await dbGet(
-          db
-            .select()
-            .from(downloads)
-            .where(
-              and(
-                eq(downloads.userId, userId),
-                eq(downloads.torrentHash, magnetHash),
-                inArray(downloads.status, DEDUP_MATCH_STATUSES)
-              )
-            )
-        )
-        if (existingActive !== undefined) {
-          log.info(
-            `[Download:3b:DUP] already active: hash=${magnetHash} id=${existingActive.id} label="${existingActive.label}"`
-          )
-          return { already: true, id: existingActive.id }
-        }
-      }
-
-      // ── 3c: DUPLICATE CHECK (same stored link, e.g. same Prowlarr URL) ──
-      const willStoreLink = hasDownloadUrl ? `download:${downloadUrl}` : torrentUrl
-      const existingByLink = await dbGet(
-        db
-          .select()
-          .from(downloads)
-          .where(
-            and(
-              eq(downloads.userId, userId),
-              eq(downloads.magnetLink, willStoreLink),
-              inArray(downloads.status, DEDUP_MATCH_STATUSES)
-            )
-          )
-      )
-      if (existingByLink !== undefined) {
-        log.info(
-          `[Download:3c:DUP] already active by link: link=${willStoreLink.substring(0, 80)} id=${existingByLink.id} label="${existingByLink.label}"`
-        )
-        return { already: true, id: existingByLink.id }
-      }
 
       // ── 3d: DISK PRE-CHECK (known size from search/indexer) ───
       const preDisk = await checkTargetDiskForDownload(disks, targetPath, knownSizeBytes)
@@ -494,26 +454,10 @@ export default defineEventHandler(async (event) => {
             `[Download:7b:HASH] ✗ info-hash computation failed: ${err instanceof Error ? err.message : String(err)}`
           )
         }
+        // The info hash feeds the live qBittorrent pre-check in addTorrentFile.
+        // Old downloads rows never block an add.
         if (infoHash !== null) {
           log.info(`[Download:7b:HASH] ✓ infoHash=${infoHash}`)
-          const existingActive = await dbGet(
-            db
-              .select()
-              .from(downloads)
-              .where(
-                and(
-                  eq(downloads.userId, userId),
-                  eq(downloads.torrentHash, infoHash),
-                  inArray(downloads.status, DEDUP_MATCH_STATUSES)
-                )
-              )
-          )
-          if (existingActive !== undefined) {
-            log.info(
-              `[Download:7b:DUP] already active: hash=${infoHash} id=${existingActive.id} label="${existingActive.label}"`
-            )
-            return { already: true, id: existingActive.id }
-          }
         }
 
         // ── 7c: DISK PRE-CHECK (exact size from fetched torrent file) ─
@@ -708,56 +652,9 @@ export default defineEventHandler(async (event) => {
         await qbit.moveToTop([torrent.hash]).catch(() => {})
       }
 
-      // ── 9d: POST-ADD DUPLICATE GUARD ───────────────────────────
-      // Catches the case where qBittorrent returned an existing torrent (409)
-      // and an active row for this user already exists for its hash.
-      if (torrent !== null) {
-        const existingActive = await dbGet(
-          db
-            .select()
-            .from(downloads)
-            .where(
-              and(
-                eq(downloads.userId, userId),
-                eq(downloads.torrentHash, torrent.hash),
-                inArray(downloads.status, DEDUP_MATCH_STATUSES)
-              )
-            )
-        )
-        if (existingActive !== undefined) {
-          log.info(`[Download:9d:DUP] already active after add: hash=${torrent.hash} id=${existingActive.id}`)
-          return { already: true, id: existingActive.id }
-        }
-
-        // Tag fallback: catches the 409-existing case where the stored row has a null hash
-        const torrentTags = torrent.tags
-          .split(',')
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0)
-        if (torrentTags.length > 0) {
-          const tagRows = await dbAll(
-            db
-              .select()
-              .from(downloads)
-              .where(
-                and(
-                  eq(downloads.userId, userId),
-                  inArray(downloads.qbitTag, torrentTags),
-                  inArray(downloads.status, DEDUP_MATCH_STATUSES)
-                )
-              )
-          )
-          const tagRow = tagRows[0]
-          if (tagRow !== undefined) {
-            log.info(
-              `[Download:9d:DUP] already active after add (tag): tag="${torrent.tags}" id=${tagRow.id} label="${tagRow.label}"`
-            )
-            return { already: true, id: tagRow.id }
-          }
-        }
-      }
-
       // ── 10: DB ────────────────────────────────────────────────
+      // A fresh row is always inserted, even when older rows for the same
+      // hash exist: completed history is never rewritten and never blocks.
       let posterUrl: string | null = null
       if (tmdbId !== null && mediaType !== null) {
         try {
