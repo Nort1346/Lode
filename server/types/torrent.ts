@@ -18,15 +18,12 @@ export type SupportedStatus = (typeof DOWNLOAD_STATUS_VALUES)[number]
 // In-progress downloads that should be pinned to the top of the list
 export const ACTIVE_DOWNLOAD_STATUSES: readonly SupportedStatus[] = ['pending', 'checking', 'downloading', 'paused']
 
-// Statuses that block re-adding the same torrent (hash or link) for a user.
-// removed/failed/disk_full rows are dead - they must not block a fresh re-add.
-export const DEDUP_MATCH_STATUSES: readonly SupportedStatus[] = [
-  'pending',
-  'checking',
-  'downloading',
-  'completed',
-  'paused'
-]
+// Result of a live duplicate check against qBittorrent: a torrent with the
+// same identity was found there right now (downloading or complete).
+export interface LiveDuplicate {
+  complete: boolean
+  name: string
+}
 
 export interface TorrentFile {
   index: number

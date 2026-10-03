@@ -1,7 +1,7 @@
 import { downloads } from '#server/database/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
+import { useDbAsync, dbAll, dbRun } from '#server/utils/db'
 import { getMovieDetails, getTvShowDetails, getImageUrl } from '#server/utils/tmdb'
 import { getFreshUser } from '#server/utils/user'
 import { checkTargetDiskForDownload, findTargetDisk, isDiskCheckEnabled, getDiskMinFreeGb } from '#server/utils/disk'
@@ -10,12 +10,13 @@ import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { applySeedingPolicy } from '#server/utils/torrents/seeding'
 import { parseTorrentTitle } from '#server/utils/torrents/torrent-ranker'
-import { computeTorrentInfoHashes, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
-import { extractMagnetHash, extractMagnetInfoHashes, primaryTorrentHash } from '#server/utils/clients/qbittorrent'
+import { computeTorrentInfoHashes, computeTorrentTotalSize, hasUsableHash } from '#server/utils/torrents/info-hash'
+import { readTorrentHashesFromResponse } from '#server/utils/torrents/url-torrent'
+import { findLiveDuplicateByLink } from '#server/utils/torrents/live-duplicate'
+import { extractMagnetHash, extractMagnetInfoHashes } from '#server/utils/clients/qbittorrent'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
 import {
-  DEDUP_MATCH_STATUSES,
   SAVE_PATH_KEYS,
   type AddTorrentBody,
   type MagnetInfoHashes,
@@ -154,7 +155,8 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Duplicate check: reject adding a torrent the user is already downloading
+    // Hashes are computed up front for the live qBittorrent pre-check in
+    // addTorrent/addTorrentFile. Duplicate detection is live-only
     const fileBuffer = hasFile && !hasDownloadUrl ? Buffer.from(torrentFileBase64, 'base64') : null
     let infoHash: string | null = null
     let fileHashes: MagnetInfoHashes = { v1: null, v2: null }
@@ -169,45 +171,6 @@ export default defineEventHandler(async (event) => {
       preAddSizeBytes = computeTorrentTotalSize(fileBuffer) ?? 0
     }
     const magnetHashes = hasMagnet ? extractMagnetInfoHashes(magnetLink) : null
-    const magnetPrimaryHash = magnetHashes !== null ? primaryTorrentHash(magnetHashes) : null
-    const preHash = hasMagnet ? magnetPrimaryHash : hasFile ? infoHash : null
-    if (preHash !== null) {
-      const existingActive = await dbGet(
-        db
-          .select()
-          .from(downloads)
-          .where(
-            and(
-              eq(downloads.userId, userId),
-              eq(downloads.torrentHash, preHash),
-              inArray(downloads.status, DEDUP_MATCH_STATUSES)
-            )
-          )
-      )
-      if (existingActive !== undefined) {
-        log.info(`already active: hash=${preHash} id=${existingActive.id}`)
-        return { already: true, id: existingActive.id }
-      }
-    }
-
-    // Duplicate check by stored link (covers rows with a null hash, e.g. same Prowlarr URL)
-    const storedValue = hasDownloadUrl ? `download:${downloadUrl}` : hasFile ? `file:${fileName}` : magnetLink
-    const existingByLink = await dbGet(
-      db
-        .select()
-        .from(downloads)
-        .where(
-          and(
-            eq(downloads.userId, userId),
-            eq(downloads.magnetLink, storedValue),
-            inArray(downloads.status, DEDUP_MATCH_STATUSES)
-          )
-        )
-    )
-    if (existingByLink !== undefined) {
-      log.info(`already active by link: id=${existingByLink.id}`)
-      return { already: true, id: existingByLink.id }
-    }
 
     const preDisk = await checkTargetDiskForDownload(disks, targetPath, preAddSizeBytes)
     if (preDisk !== null && (!preDisk.status.available || !preDisk.status.hasEnoughSpace)) {
@@ -228,6 +191,7 @@ export default defineEventHandler(async (event) => {
 
     if (hasDownloadUrl) {
       let isHtml = false
+      let urlHashes: MagnetInfoHashes | null = null
       try {
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 3000)
@@ -238,6 +202,7 @@ export default defineEventHandler(async (event) => {
         if (res.status >= 300 && res.status < 400) {
           if (location.startsWith('magnet:')) {
             log.info('URL redirects to magnet: - valid torrent URL')
+            urlHashes = extractMagnetInfoHashes(location)
           } else {
             log.info(`URL redirects to ${location.substring(0, 80)} - passing to qBittorrent`)
           }
@@ -245,6 +210,13 @@ export default defineEventHandler(async (event) => {
           const contentType = res.headers.get('content-type') ?? ''
           if (contentType.includes('text/html')) {
             isHtml = true
+          } else if (!hasUsableHash(magnetHashes)) {
+            // Hash unknown: resolve it from the torrent bytes so the live
+            // qBittorrent pre-check can detect duplicates. Fail-open.
+            urlHashes = await readTorrentHashesFromResponse(res)
+            if (urlHashes === null) {
+              log.info('could not resolve torrent hash from URL, proceeding without pre-check')
+            }
           }
         } else {
           log.warn(`URL returned ${res.status}, passing to qBittorrent anyway`)
@@ -257,11 +229,25 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, statusMessage: 'URL returned HTML, not a torrent file' })
       }
 
+      // Prefer the explicit magnet's hashes; fall back to the resolved ones.
+      const effectiveHashes = hasUsableHash(magnetHashes) ? magnetHashes : (urlHashes ?? magnetHashes)
+      if (!hasUsableHash(effectiveHashes)) {
+        // Still unknown: nominate old rows by stored link, but let live
+        // qBittorrent state decide. Read-only, never touches old rows.
+        const live = await findLiveDuplicateByLink(db, qbit, userId, `download:${downloadUrl}`)
+        if (live !== null) {
+          log.info(`torrent already in qBittorrent (live check): name="${live.name}" complete=${live.complete}`)
+          return live.complete
+            ? { alreadyComplete: true, name: live.name }
+            : { alreadyDownloading: true, name: live.name }
+        }
+      }
+
       setCooldown(userId)
       storedMagnetLink = `download:${downloadUrl}`
       let outcome: TorrentAddOutcome
       try {
-        outcome = await qbit.addTorrent(downloadUrl, targetPath, savePath, dlTag, magnetHashes)
+        outcome = await qbit.addTorrent(downloadUrl, targetPath, savePath, dlTag, effectiveHashes)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         if (msg.includes('already exists')) {
@@ -302,6 +288,17 @@ export default defineEventHandler(async (event) => {
       torrent = outcome.torrent
     } else {
       storedMagnetLink = magnetLink
+      if (!hasUsableHash(magnetHashes)) {
+        // Unparseable magnet: nothing to pre-check by. Nominate old rows by
+        // stored link, but let live qBittorrent state decide. Read-only.
+        const live = await findLiveDuplicateByLink(db, qbit, userId, magnetLink)
+        if (live !== null) {
+          log.info(`torrent already in qBittorrent (live check): name="${live.name}" complete=${live.complete}`)
+          return live.complete
+            ? { alreadyComplete: true, name: live.name }
+            : { alreadyDownloading: true, name: live.name }
+        }
+      }
       setCooldown(userId)
       let outcome: TorrentAddOutcome
       try {
@@ -368,50 +365,8 @@ export default defineEventHandler(async (event) => {
       await qbit.moveToTop([torrent.hash]).catch(() => {})
     }
 
-    // Post-add duplicate guard: qBittorrent may have returned an existing torrent (409)
-    if (torrent !== null) {
-      const existingActive = await dbGet(
-        db
-          .select()
-          .from(downloads)
-          .where(
-            and(
-              eq(downloads.userId, userId),
-              eq(downloads.torrentHash, torrent.hash),
-              inArray(downloads.status, DEDUP_MATCH_STATUSES)
-            )
-          )
-      )
-      if (existingActive !== undefined) {
-        log.info(`already active after add: hash=${torrent.hash} id=${existingActive.id}`)
-        return { already: true, id: existingActive.id }
-      }
-
-      // Tag fallback: catches the 409-existing case where the stored row has a null hash
-      const torrentTags = torrent.tags
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-      if (torrentTags.length > 0) {
-        const tagRows = await dbAll(
-          db
-            .select()
-            .from(downloads)
-            .where(
-              and(
-                eq(downloads.userId, userId),
-                inArray(downloads.qbitTag, torrentTags),
-                inArray(downloads.status, DEDUP_MATCH_STATUSES)
-              )
-            )
-        )
-        const tagRow = tagRows[0]
-        if (tagRow !== undefined) {
-          log.info(`already active after add (tag): tag="${torrent.tags}" id=${tagRow.id}`)
-          return { already: true, id: tagRow.id }
-        }
-      }
-    }
+    // A fresh row is always inserted below, even when older rows for the same
+    // hash exist: completed history is never rewritten and never blocks.
 
     let posterUrl: string | null = null
     if (tmdbId !== null && mediaType !== null) {
