@@ -65,10 +65,11 @@ export const DEFAULT_RANKING_CONFIG: RankingConfig = {
     language: 30,
     seeders: 100,
     size: 20,
-    source: 10,
+    source: 70,
     group: 5
   },
   resolutions: {
+    '8k': 20,
     '2160p': 20,
     '4k': 20,
     '1080p': 40,
@@ -76,23 +77,36 @@ export const DEFAULT_RANKING_CONFIG: RankingConfig = {
     '480p': 5,
     '576p': 5
   },
+  // Source scores are on the points-at-default-weight scale (like the other
+  // categories: a score of 56 contributes 56 points when the weight is the
+  // default 70, and scales with admin weight changes). Capture sources score
+  // negative: a 500-seeder CAM must not outrank a 5-seeder WEB-DL of the same
+  // resolution.
   sources: {
-    remux: 10,
-    'blu-ray': 9,
-    bluray: 9,
-    bdrip: 8,
-    'web-dl': 8,
-    webdl: 8,
-    webrip: 7,
-    web: 7,
-    hdrip: 6,
-    hdtv: 5,
-    dvdrip: 4,
-    dvd: 4,
-    hdtvrip: 4,
-    cam: 1,
-    ts: 1,
-    tc: 1
+    remux: 70,
+    'blu-ray': 63,
+    bluray: 63,
+    bdrip: 56,
+    brrip: 56,
+    'web-dl': 56,
+    webdl: 56,
+    webrip: 42,
+    web: 42,
+    hdtv: 35,
+    hdtvrip: 35,
+    hdrip: 28,
+    dvdrip: 21,
+    dvd: 21,
+    dvdscr: 14,
+    scr: 14,
+    screener: 14,
+    tc: -14,
+    telecine: -14,
+    hdts: -14,
+    telesync: -14,
+    ts: -14,
+    cam: -35,
+    hdcam: -35
   },
   languageProfiles: [
     {

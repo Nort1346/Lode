@@ -428,7 +428,7 @@ onMounted(fetchConfig)
         <div class="space-y-2 mb-4">
           <div v-for="(score, key) in config.sources" :key="key" class="flex items-center gap-3">
             <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300 w-24">{{ key }}</span>
-            <UInput v-model.number="config.sources[key]" type="number" :min="0" :max="500" class="flex-1" />
+            <UInput v-model.number="config.sources[key]" type="number" :min="-100" :max="500" class="flex-1" />
             <UButton color="error" variant="ghost" icon="i-lucide-x" size="xs" @click="removeSource(key)" />
           </div>
         </div>

@@ -224,6 +224,59 @@ describe('series and seasonPack size scoring', () => {
   })
 })
 
+function movieRelease(title: string, sizeGB: number, seeders: number) {
+  return {
+    title,
+    size: Math.round(sizeGB * 1024 * 1024 * 1024),
+    seeders,
+    leechers: 0,
+    indexer: 'Test',
+    magnetLink: null,
+    downloadUrl: null,
+    guid: null,
+    publishDate: '2024-01-01',
+    categories: [2000],
+    infoUrl: '',
+    imdbId: null,
+    isPrivate: false
+  } as unknown as ProwlarrResult
+}
+
+describe('media source rebalance', () => {
+  it('puts a 500-seeder CAM below a 5-seeder WEB-DL at the same resolution', () => {
+    const ranked = rankTorrents(
+      [movieRelease('Movie.2024.720p.WEB-DL.x264-GRP', 5, 5), movieRelease('Movie.2024.720p.CAM.x264-GRP', 5, 500)],
+      'movie',
+      'Movie',
+      '2024'
+    )
+    expect(ranked[0]!.title).toContain('WEB-DL')
+    expect(ranked[1]!.title).toContain('CAM')
+  })
+
+  it('scores capture sources negative in the default config', () => {
+    expect(DEFAULT_RANKING_CONFIG.sources.cam).toBeLessThan(0)
+    expect(DEFAULT_RANKING_CONFIG.sources.hdcam).toBeLessThan(0)
+    expect(DEFAULT_RANKING_CONFIG.sources.ts).toBeLessThan(0)
+    expect(DEFAULT_RANKING_CONFIG.sources.hdts).toBeLessThan(0)
+    expect(DEFAULT_RANKING_CONFIG.sources.tc).toBeLessThan(0)
+    expect(DEFAULT_RANKING_CONFIG.sources.dvdscr).toBeGreaterThan(0)
+    expect(DEFAULT_RANKING_CONFIG.sources.remux).toBeGreaterThan(DEFAULT_RANKING_CONFIG.sources['web-dl']!)
+    expect(DEFAULT_RANKING_CONFIG.sources.cam).toBeLessThan(DEFAULT_RANKING_CONFIG.sources.dvd!)
+  })
+
+  it('has an 8k resolution score', () => {
+    expect(DEFAULT_RANKING_CONFIG.resolutions['8k']).toBe(20)
+  })
+
+  it('clamps the percentage at zero for penalized releases', () => {
+    const ranked = rankTorrents([movieRelease('Random.Movie.Title', 100, 0)], 'movie', 'Other', '1999')
+    expect(ranked[0]!.score).toBeLessThan(0)
+    expect(ranked[0]!.percentage).toBe(0)
+    expect(formatScore(ranked[0]!.score)).toBe('0%')
+  })
+})
+
 describe('formatScore', () => {
   it('formats score as percentage', () => {
     const score = 150

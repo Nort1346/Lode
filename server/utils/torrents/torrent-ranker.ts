@@ -381,7 +381,7 @@ export function rankTorrents(
 
   const ranked = results.map((result) => {
     const score = calculateScore(result, kind, mediaTitle, year, cfg)
-    const percentage = scoreMax > 0 ? Math.min(100, Math.round((score / scoreMax) * 100)) : 0
+    const percentage = scoreMax > 0 ? Math.max(0, Math.min(100, Math.round((score / scoreMax) * 100))) : 0
     const parsed = parseTorrentTitle(result.title, cfg)
     return { ...result, score, percentage, recommended: false, parsed, isSeasonPack: kind === 'seasonPack' }
   })
@@ -411,6 +411,6 @@ export function formatScore(score: number, config?: RankingConfig): string {
     cfg.titleRelevance.wordWeight +
     cfg.titleRelevance.yearWeight +
     cfg.titleRelevance.fullTitleWeight
-  const pct = scoreMax > 0 ? Math.min(100, Math.round((score / scoreMax) * 100)) : 0
+  const pct = scoreMax > 0 ? Math.max(0, Math.min(100, Math.round((score / scoreMax) * 100))) : 0
   return `${pct}%`
 }

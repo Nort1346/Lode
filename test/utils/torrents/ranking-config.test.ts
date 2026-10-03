@@ -54,6 +54,21 @@ describe('ranking-config', () => {
       expect(config.sizeThresholds!.seasonPack[0]!.max).toBe(RANKING_SIZE_UNLIMITED)
     })
 
+    it('merges stored sources per-key over defaults', async () => {
+      mockGetSetting.mockReturnValue(JSON.stringify({ sources: { cam: -10 } }))
+      const config = await getRankingConfig()
+      expect(config.sources.cam).toBe(-10)
+      expect(config.sources.remux).toBe(DEFAULT_RANKING_CONFIG.sources.remux)
+      expect(config.sources['web-dl']).toBe(DEFAULT_RANKING_CONFIG.sources['web-dl'])
+    })
+
+    it('merges stored resolutions per-key over defaults', async () => {
+      mockGetSetting.mockReturnValue(JSON.stringify({ resolutions: { '480p': 10 } }))
+      const config = await getRankingConfig()
+      expect(config.resolutions['480p']).toBe(10)
+      expect(config.resolutions['1080p']).toBe(DEFAULT_RANKING_CONFIG.resolutions['1080p'])
+    })
+
     it('returns defaults when JSON is invalid', async () => {
       mockGetSetting.mockReturnValue('invalid-json')
       const config = await getRankingConfig()

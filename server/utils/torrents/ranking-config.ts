@@ -100,8 +100,9 @@ export async function getRankingConfig(): Promise<RankingConfig> {
 
     return {
       weights: { ...DEFAULT_RANKING_CONFIG.weights, ...parsed.weights },
-      resolutions: parsed.resolutions ?? DEFAULT_RANKING_CONFIG.resolutions,
-      sources: parsed.sources ?? DEFAULT_RANKING_CONFIG.sources,
+      // Per-key merge so stored overrides survive new default entries
+      resolutions: { ...DEFAULT_RANKING_CONFIG.resolutions, ...parsed.resolutions },
+      sources: { ...DEFAULT_RANKING_CONFIG.sources, ...parsed.sources },
       languageProfiles,
       knownGroups: parsed.knownGroups ?? DEFAULT_RANKING_CONFIG.knownGroups,
       sizeThresholds: {
