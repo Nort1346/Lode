@@ -219,8 +219,8 @@
         v-else-if="visibleTorrents.length === 0"
         class="rounded-xl bg-zinc-100/50 py-8 text-center text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
       >
-        <p>{{ t('browse.filters.noMatches') }}</p>
-        <p class="mt-1 text-xs">{{ t('browse.filters.hiddenCount', { count: hiddenTorrents }) }}</p>
+        <p>{{ t('browse.torrentFilters.noMatches') }}</p>
+        <p class="mt-1 text-xs">{{ t('browse.torrentFilters.hiddenCount', { count: hiddenTorrents }) }}</p>
       </div>
 
       <TransitionGroup v-else appear name="filter-list" tag="div" class="relative space-y-2 torrent-list">

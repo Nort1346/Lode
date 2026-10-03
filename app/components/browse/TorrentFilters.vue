@@ -16,7 +16,7 @@
         icon="i-lucide-sliders-horizontal"
         trailing-icon="i-lucide-chevron-down"
         :ui="{ trailingIcon: open ? 'rotate-180 transition-transform' : 'transition-transform' }"
-        :label="active ? `${t('browse.filters.title')} (${activeCount})` : t('browse.filters.title')"
+        :label="active ? `${t('browse.torrentFilters.title')} (${activeCount})` : t('browse.torrentFilters.title')"
         :class="
           active
             ? 'cursor-pointer border border-primary/30 shadow-sm backdrop-blur-md'
@@ -26,14 +26,14 @@
       <template #content>
         <div class="max-h-[24rem] overflow-y-auto p-4">
           <div class="mb-3 flex items-center justify-between gap-2">
-            <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ t('browse.filters.title') }}</p>
+            <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ t('browse.torrentFilters.title') }}</p>
             <UButton
               v-if="active"
               color="neutral"
               variant="ghost"
               size="xs"
               class="cursor-pointer"
-              :label="t('browse.filters.reset')"
+              :label="t('browse.torrentFilters.reset')"
               @click="reset"
             />
           </div>
@@ -44,7 +44,7 @@
               :class="index > 0 ? 'border-t border-zinc-200 pt-4 dark:border-zinc-700/70' : ''"
             >
               <p class="mb-1.5 px-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                {{ t(`browse.filters.groups.${row.group}`) }}
+                {{ t(`browse.torrentFilters.groups.${row.group}`) }}
               </p>
               <UCheckboxGroup
                 :model-value="props.modelValue[row.group]"
@@ -65,7 +65,7 @@
                 :model-value="props.modelValue.hideCapture"
                 size="sm"
                 class="cursor-pointer"
-                :label="t('browse.filters.hideCapture')"
+                :label="t('browse.torrentFilters.hideCapture')"
                 @update:model-value="(v) => setHideCapture(v === true)"
               />
             </div>
@@ -96,19 +96,19 @@
             :label="chip.label"
             trailing-icon="i-lucide-x"
             class="cursor-pointer bg-white/60 font-medium dark:bg-zinc-900/40"
-            :aria-label="t('browse.filters.remove', { tag: chip.label })"
+            :aria-label="t('browse.torrentFilters.remove', { tag: chip.label })"
             @click="chip.remove"
           />
         </TransitionGroup>
         <span class="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-          {{ t('browse.filters.showing', { shown: visibleCount, total: props.items.length }) }}
+          {{ t('browse.torrentFilters.showing', { shown: visibleCount, total: props.items.length }) }}
         </span>
         <UButton
           color="neutral"
           variant="ghost"
           size="xs"
           class="cursor-pointer"
-          :label="t('browse.filters.reset')"
+          :label="t('browse.torrentFilters.reset')"
           @click="reset"
         />
       </div>
@@ -198,7 +198,7 @@ const activeChips = computed<ActiveChip[]>(() => {
   if (props.modelValue.hideCapture === true) {
     chips.push({
       key: 'capture',
-      label: t('browse.filters.hideCapture'),
+      label: t('browse.torrentFilters.hideCapture'),
       remove: () => setHideCapture(false)
     })
   }

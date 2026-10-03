@@ -286,8 +286,8 @@
           v-else
           class="rounded-xl bg-zinc-100/50 py-8 text-center text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
         >
-          <p>{{ t('browse.filters.noMatches') }}</p>
-          <p class="mt-1 text-xs">{{ t('browse.filters.hiddenCount', { count: hiddenCount }) }}</p>
+          <p>{{ t('browse.torrentFilters.noMatches') }}</p>
+          <p class="mt-1 text-xs">{{ t('browse.torrentFilters.hiddenCount', { count: hiddenCount }) }}</p>
         </div>
       </div>
     </div>
