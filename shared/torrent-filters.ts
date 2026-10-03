@@ -70,7 +70,11 @@ export function emptyFilters(): TorrentFiltersState {
 
 export function hasActiveFilters(state: TorrentFiltersState): boolean {
   return (
-    state.source.length > 0 || state.resolution.length > 0 || state.video.length > 0 || state.audio.length > 0 || state.hideCapture
+    state.source.length > 0 ||
+    state.resolution.length > 0 ||
+    state.video.length > 0 ||
+    state.audio.length > 0 ||
+    state.hideCapture
   )
 }
 
@@ -95,7 +99,9 @@ export function matchesFilters(item: TorrentFilterItem, state: TorrentFiltersSta
     { selected: state.audio, available: item.tags.filter((tag) => TAG_GROUP[tag] === 'audio') }
   ]
 
-  return groups.every((group) => group.selected.length === 0 || group.selected.some((value) => group.available.includes(value)))
+  return groups.every(
+    (group) => group.selected.length === 0 || group.selected.some((value) => group.available.includes(value))
+  )
 }
 
 export interface TorrentFilterOption {
@@ -134,4 +140,19 @@ export function collectFilterOptions(items: TorrentFilterItem[]): TorrentFilterO
     }
   }
   return result
+}
+
+// Stable identity for list rendering (TransitionGroup keys on the browse
+// pages). Prefers the indexer-provided identifiers; falls back to indexer +
+// title when a result carries none.
+export interface TorrentIdentity {
+  guid: string | null
+  magnetLink: string | null
+  downloadUrl: string | null
+  indexer: string
+  title: string
+}
+
+export function torrentKey(torrent: TorrentIdentity): string {
+  return torrent.guid ?? torrent.magnetLink ?? torrent.downloadUrl ?? `${torrent.indexer}:${torrent.title}`
 }

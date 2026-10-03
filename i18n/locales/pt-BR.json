@@ -87,6 +87,8 @@
     "plLektor": "PL Áudio",
     "releaseTags": "Tags da versão",
     "filters": {
+      "title": "Filtros",
+      "remove": "Remover {tag}",
       "groups": {
         "source": "Fonte",
         "resolution": "Resolução",

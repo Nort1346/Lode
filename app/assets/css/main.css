@@ -363,35 +363,92 @@ button:not(:disabled):not([aria-disabled='true']),
   }
 }
 
-.torrent-list > * {
+/* Filterable torrent lists: enter/leave/reorder when filters change.
+   Same language as v-reveal (opacity + translate only, no size animation).
+   Per-item stagger comes from the --i custom property set on each card. */
+.filter-list-move {
+  transition: transform 0.3s ease-out;
+}
+
+.filter-list-enter-active {
+  transition:
+    opacity 0.35s ease-out,
+    transform 0.35s ease-out;
+  transition-delay: calc(min(var(--i, 0), 8) * 30ms);
+}
+
+.filter-list-enter-from {
   opacity: 0;
-  animation: torrent-reveal 0.35s ease-out forwards;
+  transform: translateY(12px);
 }
 
-.torrent-list > *:nth-child(1) {
-  animation-delay: 0s;
+.filter-list-leave-active {
+  position: absolute;
+  inset-inline: 0;
+  transition:
+    opacity 0.2s ease-in,
+    transform 0.2s ease-in;
 }
 
-.torrent-list > *:nth-child(2) {
-  animation-delay: 0.05s;
+.filter-list-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
-.torrent-list > *:nth-child(3) {
-  animation-delay: 0.1s;
+/* Filter chips: pop in/out */
+.filter-chip-enter-active {
+  transition:
+    opacity 0.15s ease-out,
+    transform 0.15s ease-out;
 }
 
-.torrent-list > *:nth-child(n + 4) {
-  animation-delay: 0.15s;
+.filter-chip-enter-from {
+  opacity: 0;
+  transform: scale(0.85);
 }
 
-@keyframes torrent-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+.filter-chip-leave-active {
+  transition: opacity 0.12s ease-in;
+}
+
+.filter-chip-leave-to {
+  opacity: 0;
+}
+
+.filter-chip-move {
+  transition: transform 0.2s ease-out;
+}
+
+/* Status strip: gentle drop-in */
+.filter-strip-enter-active {
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.2s ease-out;
+}
+
+.filter-strip-enter-from {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.filter-strip-leave-active {
+  transition: opacity 0.15s ease-in;
+}
+
+.filter-strip-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-list-enter-active,
+  .filter-list-leave-active,
+  .filter-list-move,
+  .filter-chip-enter-active,
+  .filter-chip-leave-active,
+  .filter-chip-move,
+  .filter-strip-enter-active,
+  .filter-strip-leave-active {
+    transition: none;
   }
 }
 

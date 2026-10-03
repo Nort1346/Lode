@@ -162,16 +162,23 @@
     <div class="relative z-10 mt-10">
       <ServiceHealthBanner />
 
-      <div class="mb-6 flex items-center gap-4">
+      <div class="mb-6 flex flex-wrap items-center gap-4">
         <h2 class="text-xl font-bold text-zinc-900 dark:text-white">{{ t('tv.seasons') }}</h2>
         <USelect v-model="selectedSeason" :items="seasonOptions" size="md" class="w-48" />
+        <BrowseTorrentFilters
+          v-if="!searching && seasonLimitInfo === null && seasonItems.length > 0"
+          v-model="filterState"
+          :items="seasonItems"
+          part="trigger"
+          class="ml-auto"
+        />
       </div>
 
       <BrowseTorrentFilters
         v-if="!searching && seasonLimitInfo === null && seasonItems.length > 0"
         v-model="filterState"
         :items="seasonItems"
-        class="mb-6"
+        part="status"
       />
 
       <BrowseSearchProgress
@@ -206,10 +213,11 @@
       <div v-else-if="seasonPayload">
         <div v-if="visiblePacks.length > 0" class="mb-6">
           <h3 class="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ t('tv.seasonPacks') }}</h3>
-          <div class="flex flex-col gap-4 torrent-list">
+          <TransitionGroup appear name="filter-list" tag="div" class="relative flex flex-col gap-4 torrent-list">
             <BrowseSeasonPackCard
               v-for="(pack, idx) in visiblePacks"
-              :key="'pack-' + idx"
+              :key="torrentKey(pack)"
+              :style="`--i: ${idx}`"
               :pack="pack"
               :loading="downloadingPackIdx === idx"
               :disabled="
@@ -235,13 +243,20 @@
               "
               @toggle-debug="toggleDebug(`pack-${idx}`)"
             />
-          </div>
+          </TransitionGroup>
         </div>
 
-        <div v-if="visibleEpisodes.length > 0" class="flex flex-col gap-4 torrent-list">
+        <TransitionGroup
+          v-if="visibleEpisodes.length > 0"
+          appear
+          name="filter-list"
+          tag="div"
+          class="relative flex flex-col gap-4 torrent-list"
+        >
           <BrowseEpisodeCard
-            v-for="ep in visibleEpisodes"
+            v-for="(ep, epIdx) in visibleEpisodes"
             :key="ep.id"
+            :style="`--i: ${epIdx}`"
             :episode="ep"
             :show-name="show?.name ?? ''"
             :selected-season="selectedSeason"
@@ -265,7 +280,7 @@
             "
             @toggle-debug="(key) => toggleDebug(key)"
           />
-        </div>
+        </TransitionGroup>
 
         <div
           v-else
@@ -310,7 +325,7 @@
 import type { ShowData, SeasonData } from '~/types/browse'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
-import { emptyFilters, matchesFilters } from '#shared/torrent-filters'
+import { emptyFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
 import type { TorrentFilterItem, TorrentFiltersState } from '#shared/torrent-filters'
 
 const route = useRoute()

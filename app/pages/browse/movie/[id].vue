@@ -160,16 +160,25 @@
     <div class="relative z-10 mt-10">
       <ServiceHealthBanner />
 
-      <h2 class="mb-4 text-xl font-bold text-zinc-900 dark:text-white">
-        <UIcon name="i-lucide-download" class="mr-2 inline size-5" />
-        {{ t('movie.availableTorrents') }}
-      </h2>
+      <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 class="flex items-center text-xl font-bold text-zinc-900 dark:text-white">
+          <UIcon name="i-lucide-download" class="mr-2 size-5" />
+          {{ t('movie.availableTorrents') }}
+        </h2>
+        <BrowseTorrentFilters
+          v-if="!searching && limitInfo === null && torrents.length > 0"
+          v-model="filterState"
+          :items="torrents"
+          part="trigger"
+          class="ml-auto"
+        />
+      </div>
 
       <BrowseTorrentFilters
         v-if="!searching && limitInfo === null && torrents.length > 0"
         v-model="filterState"
         :items="torrents"
-        class="mb-4"
+        part="status"
       />
 
       <BrowseSearchProgress
@@ -214,10 +223,11 @@
         <p class="mt-1 text-xs">{{ t('browse.filters.hiddenCount', { count: hiddenTorrents }) }}</p>
       </div>
 
-      <div v-else class="space-y-2 torrent-list">
+      <TransitionGroup v-else appear name="filter-list" tag="div" class="relative space-y-2 torrent-list">
         <div
           v-for="(torrent, idx) in visibleTorrents"
-          :key="idx"
+          :key="torrentKey(torrent)"
+          :style="`--i: ${idx}`"
           class="flex flex-col gap-3 rounded-xl border p-4 transition-all sm:flex-row sm:items-center sm:justify-between"
           :class="
             torrent.recommended
@@ -226,30 +236,19 @@
           "
         >
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <span v-if="torrent.recommended" class="flex items-center gap-1 text-xs font-bold text-amber-500">
+            <div class="flex flex-wrap items-center gap-1">
+              <span
+                v-if="torrent.recommended"
+                class="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-xs font-bold whitespace-nowrap text-amber-600 dark:text-amber-400"
+              >
                 <UIcon name="i-lucide-star" class="size-3" />
                 {{ t('movie.recommended') }}
               </span>
-              <span
-                v-if="torrent.resolution"
-                class="rounded px-1.5 py-0.5 text-xs font-bold"
-                :class="
-                  torrent.resolution === '1080p'
-                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                    : torrent.resolution === '4k' || torrent.resolution === '2160p'
-                      ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                      : 'bg-zinc-500/20 text-zinc-600 dark:text-zinc-400'
-                "
-              >
-                {{ torrent.resolution?.toUpperCase() }}
-              </span>
-              <span
-                v-if="torrent.language"
-                class="rounded bg-zinc-200/50 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-700/50 dark:text-zinc-400"
-              >
-                {{ formatLanguage(torrent.language) }}
-              </span>
+              <BrowseReleaseTags
+                :tags="torrent.tags"
+                :resolution="torrent.resolution"
+                :language-label="torrent.language ? formatLanguage(torrent.language) : null"
+              />
             </div>
             <BrowseTorrentTitle class="mt-1" :text="torrent.title" />
             <div class="mt-1 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
@@ -264,7 +263,6 @@
               </span>
               <span>{{ torrent.indexer }}</span>
             </div>
-            <BrowseReleaseTags v-if="torrent.tags.length > 0" :tags="torrent.tags" class="mt-1" />
           </div>
 
           <div class="flex items-center gap-3">
@@ -371,7 +369,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
     </div>
 
     <UModal v-model:open="requestModalOpen">
@@ -409,7 +407,7 @@ import type { MovieData } from '~/types/browse'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
 import { useCopyToClipboard } from '~/composables/useClipboard'
-import { emptyFilters, matchesFilters } from '#shared/torrent-filters'
+import { emptyFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
 import type { TorrentFiltersState } from '#shared/torrent-filters'
 
 const route = useRoute()

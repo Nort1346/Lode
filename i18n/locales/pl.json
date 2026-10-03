@@ -87,6 +87,8 @@
     "plLektor": "PL Lektor",
     "releaseTags": "Tagi wydania",
     "filters": {
+      "title": "Filtry",
+      "remove": "Usuń {tag}",
       "groups": {
         "source": "Źródło",
         "resolution": "Rozdzielczość",
