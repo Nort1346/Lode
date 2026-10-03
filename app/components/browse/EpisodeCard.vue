@@ -1,5 +1,8 @@
 <template>
-  <div class="rounded-xl border border-zinc-200 bg-white/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+  <div
+    class="rounded-xl border border-zinc-200 bg-white/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50"
+    :class="episode.torrents.length === 0 ? 'opacity-60' : ''"
+  >
     <div class="flex gap-4">
       <div v-if="episode.stillUrl" class="hidden w-32 shrink-0 lg:block">
         <img :src="episode.stillUrl" :alt="episode.name" class="w-full rounded-lg object-cover" loading="lazy" />

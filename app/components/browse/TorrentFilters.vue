@@ -54,7 +54,9 @@
                 size="sm"
                 :ui="{
                   fieldset: 'gap-y-1',
-                  base: 'rounded-md',
+                  base: 'rounded-md cursor-pointer',
+                  wrapper: 'cursor-pointer',
+                  label: 'cursor-pointer',
                   item: 'w-full cursor-pointer rounded-lg px-2 py-2 transition-colors hover:bg-zinc-500/10 has-data-[state=checked]:bg-primary/10'
                 }"
                 @update:model-value="(v) => setGroup(row.group, v)"
@@ -65,6 +67,7 @@
                 :model-value="props.modelValue.hideCapture"
                 size="sm"
                 class="cursor-pointer"
+                :ui="{ base: 'cursor-pointer' }"
                 :label="t('browse.torrentFilters.hideCapture')"
                 @update:model-value="(v) => setHideCapture(v === true)"
               />

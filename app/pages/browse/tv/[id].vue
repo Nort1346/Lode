@@ -162,9 +162,20 @@
     <div class="relative z-10 mt-10">
       <ServiceHealthBanner />
 
-      <div class="mb-6 flex flex-wrap items-center gap-4">
-        <h2 class="text-xl font-bold text-zinc-900 dark:text-white">{{ t('tv.seasons') }}</h2>
-        <USelect v-model="selectedSeason" :items="seasonOptions" size="md" class="w-48" />
+      <div class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 class="flex items-center text-xl font-bold text-zinc-900 dark:text-white">
+          <UIcon name="i-lucide-download" class="mr-2 size-5" />
+          {{ t('tv.seasons') }}
+        </h2>
+        <USelect
+          v-model="selectedSeason"
+          :items="seasonOptions"
+          size="md"
+          class="w-48 cursor-pointer"
+          :ui="{
+            base: 'border border-zinc-200/70 bg-white/60 text-sm shadow-sm ring-0 backdrop-blur-md hover:bg-white/80 dark:border-zinc-700/60 dark:bg-zinc-800/60 dark:hover:bg-zinc-800/80'
+          }"
+        />
         <BrowseTorrentFilters
           v-if="!searching && seasonLimitInfo === null && seasonItems.length > 0"
           v-model="filterState"
@@ -325,7 +336,7 @@
 import type { ShowData, SeasonData } from '~/types/browse'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
-import { emptyFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
+import { emptyFilters, hasActiveFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
 import type { TorrentFilterItem, TorrentFiltersState } from '#shared/torrent-filters'
 
 const route = useRoute()
@@ -444,14 +455,17 @@ const visiblePacks = computed(() => {
   return payload.seasonPacks.filter((pack) => matchesFilters(pack, filterState.value))
 })
 
-// Episodes with zero visible torrents are hidden entirely (an empty episode
-// card would just say "no torrents"); their torrents still count as hidden
+// Hybrid visibility: with no filters active, episodes without any found
+// torrents stay visible in a dimmed "no sources" state (the card already
+// renders tv.noTorrents for them); once the user filters, only matching
+// episodes show. Their (zero) torrents still count as hidden either way
 const visibleEpisodes = computed(() => {
   const payload = seasonPayload.value
   if (payload === null) return []
+  const strict = hasActiveFilters(filterState.value)
   return payload.episodes
     .map((ep) => ({ ...ep, torrents: ep.torrents.filter((torrent) => matchesFilters(torrent, filterState.value)) }))
-    .filter((ep) => ep.torrents.length > 0)
+    .filter((ep) => ep.torrents.length > 0 || !strict)
 })
 
 const visibleCount = computed(
