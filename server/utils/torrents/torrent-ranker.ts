@@ -7,23 +7,225 @@ function getConfig(overrides?: RankingConfig): RankingConfig {
   return DEFAULT_RANKING_CONFIG
 }
 
+// Token-based release tag detection. Titles are split on the common release
+// separators (". _ - : [ ] ( )" and whitespace), so "WEB.DL", "WEB-DL",
+// "WEB DL" and "WEBDL" all resolve to the same tag, and short tags (ts, cam,
+// tc, scr) only ever match whole tokens - never inside longer words like
+// "DTS", "camera" or "webster".
+
+const TOKEN_SPLIT = /[._:\-\s[\]()]+/
+
+const YEAR_TOKEN = /^\d{4}$/
+
+interface SourceMatch {
+  // Scoring key looked up in config.sources
+  key: string
+  seq: string[]
+}
+
+interface SourceTagDef {
+  tag: string
+  matches: SourceMatch[]
+  // Ambiguous tags (cam/ts/tc/scr) are only accepted when they appear after
+  // the first year or resolution token and are not the trailing group token -
+  // a leading "Cam" is a title word, not a capture tag.
+  guarded?: boolean
+}
+
+interface TagDef {
+  tag: string
+  sequences: string[][]
+  guarded?: boolean
+}
+
+interface ResolutionDef {
+  key: string
+  sequences: string[][]
+}
+
+// Priority order = display order = scoring winner (best source wins on
+// conflict, e.g. a name containing both "BluRay" and "CAM" scores as BluRay;
+// every detected source still shows up in the tag list)
+const SOURCE_TAG_DEFS: SourceTagDef[] = [
+  { tag: 'Remux', matches: [{ key: 'remux', seq: ['remux'] }, { key: 'remux', seq: ['bdremux'] }] },
+  { tag: 'BluRay', matches: [{ key: 'bluray', seq: ['bluray'] }, { key: 'blu-ray', seq: ['blu', 'ray'] }] },
+  { tag: 'BDRip', matches: [{ key: 'bdrip', seq: ['bdrip'] }] },
+  { tag: 'BRRip', matches: [{ key: 'brrip', seq: ['brrip'] }] },
+  { tag: 'WEB-DL', matches: [{ key: 'web-dl', seq: ['web', 'dl'] }, { key: 'webdl', seq: ['webdl'] }] },
+  { tag: 'WEBRip', matches: [{ key: 'webrip', seq: ['webrip'] }, { key: 'webrip', seq: ['web', 'rip'] }] },
+  { tag: 'WEB', matches: [{ key: 'web', seq: ['web'] }] },
+  { tag: 'HDTV', matches: [{ key: 'hdtv', seq: ['hdtv'] }] },
+  { tag: 'HDRip', matches: [{ key: 'hdrip', seq: ['hdrip'] }, { key: 'hdrip', seq: ['hd', 'rip'] }] },
+  { tag: 'DVDRip', matches: [{ key: 'dvdrip', seq: ['dvdrip'] }, { key: 'dvdrip', seq: ['dvd', 'rip'] }] },
+  // DVDScr is checked before DVD so the multi-token "dvd scr" form wins
+  { tag: 'DVDScr', matches: [{ key: 'dvdscr', seq: ['dvdscr'] }, { key: 'dvdscr', seq: ['dvd', 'scr'] }] },
+  { tag: 'DVD', matches: [{ key: 'dvd', seq: ['dvd'] }] },
+  { tag: 'SCR', matches: [{ key: 'scr', seq: ['scr'] }, { key: 'scr', seq: ['screener'] }], guarded: true },
+  { tag: 'TC', matches: [{ key: 'tc', seq: ['tc'] }, { key: 'tc', seq: ['telecine'] }], guarded: true },
+  { tag: 'HDTS', matches: [{ key: 'hdts', seq: ['hdts'] }] },
+  { tag: 'TS', matches: [{ key: 'ts', seq: ['ts'] }, { key: 'ts', seq: ['telesync'] }], guarded: true },
+  { tag: 'CAM', matches: [{ key: 'cam', seq: ['cam'] }], guarded: true },
+  { tag: 'HDCAM', matches: [{ key: 'hdcam', seq: ['hdcam'] }] }
+]
+
+const RESOLUTION_DEFS: ResolutionDef[] = [
+  { key: '8k', sequences: [['8k']] },
+  { key: '2160p', sequences: [['2160p'], ['uhd']] },
+  { key: '4k', sequences: [['4k']] },
+  { key: '1080p', sequences: [['1080p']] },
+  { key: '720p', sequences: [['720p']] },
+  { key: '576p', sequences: [['576p']] },
+  { key: '480p', sequences: [['480p']] }
+]
+
+const VIDEO_TAG_DEFS: TagDef[] = [
+  { tag: 'HDR10+', sequences: [['hdr10+'], ['hdr10plus']] },
+  { tag: 'HDR10', sequences: [['hdr10']] },
+  { tag: 'DV', sequences: [['dv'], ['dvhdr10'], ['dolby', 'vision']] },
+  { tag: 'SDR', sequences: [['sdr']] },
+  { tag: 'x264', sequences: [['x264'], ['h264'], ['avc']] },
+  { tag: 'x265', sequences: [['x265'], ['h265'], ['hevc']] },
+  { tag: 'AV1', sequences: [['av1']] },
+  { tag: '10-bit', sequences: [['10bit'], ['10', 'bit']] },
+  { tag: 'XviD', sequences: [['xvid']] }
+]
+
+const AUDIO_TAG_DEFS: TagDef[] = [
+  { tag: 'DTS-HD', sequences: [['dts', 'hd']] },
+  { tag: 'DTS:X', sequences: [['dts', 'x'], ['dtsex'], ['dtsx']] },
+  { tag: 'DTS', sequences: [['dts']] },
+  { tag: 'TrueHD', sequences: [['truehd'], ['true', 'hd']] },
+  { tag: 'Atmos', sequences: [['atmos']] },
+  { tag: 'DD+', sequences: [['dd+'], ['ddp'], ['ddp5'], ['dd5'], ['eac3'], ['dd']] },
+  { tag: 'AAC', sequences: [['aac']] }
+]
+
+const OTHER_TAG_DEFS: TagDef[] = [
+  { tag: 'Proper', sequences: [['proper']] },
+  { tag: 'Repack', sequences: [['repack']] },
+  { tag: '3D', sequences: [['3d']] },
+  { tag: 'Multi', sequences: [['multi'], ['dual', 'audio'], ['multi', 'audio']] },
+  { tag: 'LINE', sequences: [['line'], ['lnc']] },
+  { tag: 'HC', sequences: [['hc'], ['hcs'], ['hardsub']], guarded: true }
+]
+
+export const SOURCE_TAGS: readonly string[] = SOURCE_TAG_DEFS.map((d) => d.tag)
+
+export const CODEC_TAGS: readonly string[] = ['x264', 'x265', 'AV1', 'XviD']
+
+function tokenize(title: string): string[] {
+  return title
+    .toLowerCase()
+    .split(TOKEN_SPLIT)
+    .filter((t) => t.length > 0)
+}
+
+interface SeqMatch {
+  index: number
+  length: number
+}
+
+function findSequence(tokens: string[], seq: string[], valid?: (index: number) => boolean): number | null {
+  for (let i = 0; i + seq.length <= tokens.length; i++) {
+    if (valid !== undefined && !valid(i)) continue
+    let matched = true
+    for (let j = 0; j < seq.length; j++) {
+      if (tokens[i + j] !== seq[j]) {
+        matched = false
+        break
+      }
+    }
+    if (matched) return i
+  }
+  return null
+}
+
+function findFirstSequence(tokens: string[], sequences: string[][], valid?: (index: number) => boolean): SeqMatch | null {
+  for (const seq of sequences) {
+    const index = findSequence(tokens, seq, valid)
+    if (index !== null) return { index, length: seq.length }
+  }
+  return null
+}
+
+function consume(consumed: Set<number>, match: SeqMatch): void {
+  for (let j = 0; j < match.length; j++) {
+    consumed.add(match.index + j)
+  }
+}
+
 export function parseTorrentTitle(title: string, config?: RankingConfig): ParsedTitle {
   const cfg = getConfig(config)
-  const lower = title.toLowerCase()
+  const tokens = tokenize(title)
 
-  let resolution: string | null = null
-  for (const key of Object.keys(cfg.resolutions)) {
-    if (lower.includes(key)) {
-      resolution = key
-      break
+  const yearIndex = tokens.findIndex((t) => YEAR_TOKEN.test(t) && Number(t) >= 1900 && Number(t) <= 2099)
+
+  // The anchor is the later of the first year token and the first resolution
+  // token: guarded source tags must come after both
+  let resolutionKey: string | null = null
+  let resolutionIndex = -1
+  for (const def of RESOLUTION_DEFS) {
+    const match = findFirstSequence(tokens, def.sequences)
+    if (match === null) continue
+    if (resolutionKey === null) resolutionKey = def.key
+    if (resolutionIndex === -1 || match.index < resolutionIndex) resolutionIndex = match.index
+  }
+  const anchor = Math.max(yearIndex, resolutionIndex)
+
+  const consumed = new Set<number>()
+  const isFree = (index: number): boolean => !consumed.has(index)
+  const guard = (index: number): boolean => index > anchor && index !== tokens.length - 1
+
+  const tags: string[] = []
+
+  let source: string | null = null
+  for (const def of SOURCE_TAG_DEFS) {
+    const valid = (i: number): boolean => (def.guarded === true ? guard(i) && isFree(i) : isFree(i))
+    let match: SeqMatch | null = null
+    let key: string | null = null
+    for (const option of def.matches) {
+      const m = findSequence(tokens, option.seq, valid)
+      if (m !== null) {
+        match = { index: m, length: option.seq.length }
+        key = option.key
+        break
+      }
+    }
+    if (match === null || key === null) continue
+    consume(consumed, match)
+    tags.push(def.tag)
+    if (source === null) source = key
+  }
+
+  for (const def of [...VIDEO_TAG_DEFS, ...AUDIO_TAG_DEFS, ...OTHER_TAG_DEFS]) {
+    const valid = (i: number): boolean => (def.guarded === true ? guard(i) && isFree(i) : isFree(i))
+    const match = findFirstSequence(tokens, def.sequences, valid)
+    if (match !== null) {
+      consume(consumed, match)
+      tags.push(def.tag)
     }
   }
 
-  let source: string | null = null
-  for (const key of Object.keys(cfg.sources)) {
-    if (lower.includes(key)) {
-      source = key
-      break
+  // Admin-defined custom keys (added in the ranking admin page) keep working:
+  // they are matched as whole token sequences when the fixed vocabulary did not
+  if (source === null) {
+    for (const key of Object.keys(cfg.sources)) {
+      const seq = key.split('-').filter((p) => p !== '')
+      const match = findFirstSequence(tokens, [seq], (i) => isFree(i))
+      if (match !== null) {
+        source = key
+        break
+      }
+    }
+  }
+  if (resolutionKey === null) {
+    for (const key of Object.keys(cfg.resolutions)) {
+      const seq = key.split('-').filter((p) => p !== '')
+      const match = findFirstSequence(tokens, [seq], (i) => isFree(i))
+      if (match !== null) {
+        resolutionKey = key
+        break
+      }
     }
   }
 
@@ -52,7 +254,7 @@ export function parseTorrentTitle(title: string, config?: RankingConfig): Parsed
     group = groupMatch[1].toLowerCase()
   }
 
-  return { resolution, source, language, group }
+  return { resolution: resolutionKey, source, language, group, tags }
 }
 
 function scoreResolution(parsed: ParsedTitle, config: RankingConfig): number {

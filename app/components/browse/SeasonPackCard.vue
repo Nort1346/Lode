@@ -17,6 +17,7 @@
         <UIcon v-if="pack.recommended" name="i-lucide-star" class="size-3 text-amber-500" />
       </span>
       <BrowseTorrentTitle class="mt-1" :text="pack.title" />
+      <BrowseReleaseTags v-if="pack.tags.length > 0" :tags="pack.tags" class="mt-1" />
       <div class="mt-1 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
         <span>{{ pack.sizeFormatted }}</span>
         <span class="flex items-center gap-1 text-emerald-500">

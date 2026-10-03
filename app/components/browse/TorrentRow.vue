@@ -34,6 +34,7 @@
             <span class="marquee-sep" aria-hidden="true">•</span>
           </span>
         </div>
+        <BrowseReleaseTags v-if="torrent.tags.length > 0" :tags="torrent.tags" class="mt-1" />
       </div>
       <span class="hidden text-xs text-zinc-500 sm:inline">{{ torrent.sizeFormatted }}</span>
       <span class="flex items-center gap-1 text-xs text-emerald-500">

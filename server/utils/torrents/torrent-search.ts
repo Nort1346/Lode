@@ -99,6 +99,7 @@ function toTorrentPayload(t: RankedTorrent): TorrentSearchTorrent {
     resolution: t.parsed.resolution,
     source: t.parsed.source,
     language: t.parsed.language,
+    tags: t.parsed.tags,
     isPrivate: t.isPrivate
   }
 }
@@ -119,6 +120,8 @@ function toEpisodePayload(t: RankedTorrent): EpisodeTorrentPayload {
     recommended: t.recommended,
     resolution: t.parsed.resolution,
     language: t.parsed.language,
+    source: t.parsed.source,
+    tags: t.parsed.tags,
     isPrivate: t.isPrivate
   }
 }

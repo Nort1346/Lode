@@ -20,6 +20,9 @@ export interface ParsedTitle {
   source: string | null
   language: string | null
   group: string | null
+  // Display-ready release tags in fixed order (sources first, then video,
+  // audio, other) - e.g. ['WEB-DL', 'x265', '10-bit', 'Atmos']
+  tags: string[]
 }
 
 export interface RankedTorrent extends ProwlarrResult {

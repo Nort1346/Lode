@@ -249,6 +249,7 @@
               </span>
               <span>{{ torrent.indexer }}</span>
             </div>
+            <BrowseReleaseTags v-if="torrent.tags.length > 0" :tags="torrent.tags" class="mt-1" />
           </div>
 
           <div class="flex items-center gap-3">

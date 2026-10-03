@@ -90,6 +90,7 @@ export default defineEventHandler(async (event) => {
       resolution: t.parsed.resolution,
       source: t.parsed.source,
       language: t.parsed.language,
+      tags: t.parsed.tags,
       isPrivate: t.isPrivate
     }))
   }

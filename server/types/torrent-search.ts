@@ -72,6 +72,7 @@ export interface TorrentSearchTorrent {
   resolution: string | null
   source: string | null
   language: string | null
+  tags: string[]
   isPrivate: boolean
 }
 
@@ -90,6 +91,8 @@ export interface EpisodeTorrentPayload {
   recommended: boolean
   resolution: string | null
   language: string | null
+  source: string | null
+  tags: string[]
   isPrivate: boolean
 }
 

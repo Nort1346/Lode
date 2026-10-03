@@ -15,6 +15,7 @@ import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
 import type { DiscordLocale } from '#server/types/i18n'
 import type { DownloadCompleteData, TmdbMeta, RequestPendingData } from '#server/types/discord'
 import type { TorrentMeta } from '#server/types/torrent'
+import { parseTorrentTitle, SOURCE_TAGS, CODEC_TAGS } from '#server/utils/torrents/torrent-ranker'
 import { formatSize } from '#server/utils/format'
 
 const log = createLogger('Discord')
@@ -89,40 +90,27 @@ function addSeparator(container: ContainerBuilder): void {
   container.addSeparatorComponents((sep: SeparatorBuilder) => sep.setSpacing(2))
 }
 
+// Maps the shared release parser (torrent-ranker.ts) onto the Discord meta
+// display strings - one implementation for all tag detection
 function parseTorrentName(name: string): TorrentMeta {
-  const lower = name.toLowerCase()
+  const parsed = parseTorrentTitle(name)
+  const tags = parsed.tags
 
   let resolution: string | null = null
-  if (/\b(2160p|4k|uhd)\b/.test(lower)) resolution = '4K'
-  else if (/\b1080p\b/.test(lower)) resolution = '1080p'
-  else if (/\b720p\b/.test(lower)) resolution = '720p'
-  else if (/\b480p\b/.test(lower)) resolution = '480p'
+  if (parsed.resolution !== null) {
+    if (parsed.resolution === '4k' || parsed.resolution === '2160p') resolution = '4K'
+    else if (parsed.resolution === '8k') resolution = '8K'
+    else resolution = parsed.resolution
+  }
 
-  let source: string | null = null
-  if (/\b(bluray|blu-ray|bdrip|bdremux)\b/.test(lower)) source = 'BluRay'
-  else if (/\b(web-dl|webdl)\b/.test(lower)) source = 'WEB-DL'
-  else if (/\b(webrip|web-rip)\b/.test(lower)) source = 'WEBRip'
-  else if (/\b(hdrip)\b/.test(lower)) source = 'HDRip'
-  else if (/\b(dvdrip|dvd)\b/.test(lower)) source = 'DVD'
-  else if (/\b(hdtv)\b/.test(lower)) source = 'HDTV'
-  else if (/\b(remux)\b/.test(lower)) source = 'Remux'
+  const source = tags.find((tag) => SOURCE_TAGS.includes(tag)) ?? null
+  const codec = tags.find((tag) => CODEC_TAGS.includes(tag)) ?? null
 
   let language: string | null = null
-  if (/\b(pldub|polish)\b/.test(lower)) language = 'PL'
-  else if (/\b(lektor|pl)\b/.test(lower)) language = 'PL'
-  else if (/\b(dual[\s.]?audio|dual[\s.]?audio)\b/.test(lower)) language = 'Dual'
-  else if (/\b(eng|english)\b/.test(lower)) language = 'EN'
-  else if (/\b(hun|hungarian)\b/.test(lower)) language = 'HU'
-  else if (/\b(french)\b/.test(lower)) language = 'FR'
-  else if (/\b(german)\b/.test(lower)) language = 'DE'
-  else if (/\b(italian)\b/.test(lower)) language = 'IT'
-  else if (/\b(spanish)\b/.test(lower)) language = 'ES'
-
-  let codec: string | null = null
-  if (/\bx264|h\.?264|avc\b/.test(lower)) codec = 'x264'
-  else if (/\bx265|h\.?265|hevc\b/.test(lower)) codec = 'x265'
-  else if (/\bxvid\b/.test(lower)) codec = 'XviD'
-  else if (/\bav1\b/.test(lower)) codec = 'AV1'
+  if (parsed.language !== null) {
+    const code = parsed.language.split('-')[0] ?? ''
+    language = code === 'other' ? null : code.toUpperCase()
+  }
 
   return { resolution, source, language, codec }
 }

@@ -25,6 +25,7 @@ export interface BaseTorrentInfo {
   indexer: string
   resolution: string | null
   language: string | null
+  tags: string[]
   isPrivate: boolean
   percentage: number
 }

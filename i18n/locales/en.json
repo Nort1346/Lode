@@ -85,6 +85,7 @@
     "plDubbing": "PL Dubbing",
     "plSubtitles": "PL Subtitles",
     "plLektor": "PL Audio",
+    "releaseTags": "Release tags",
     "searchProgress": {
       "connecting": "Searching for downloads...",
       "searching": "Searching trackers for '{title}'...",
