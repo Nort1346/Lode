@@ -15,7 +15,9 @@ import { checkForDangerousFiles } from '#server/utils/torrents/safe-download'
 import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { extractMagnetInfoHashes, primaryTorrentHash } from '#server/utils/clients/qbittorrent'
-import { computeTorrentInfoHashes, computeTorrentTotalSize } from '#server/utils/torrents/info-hash'
+import { computeTorrentInfoHashes, computeTorrentTotalSize, hasUsableHash } from '#server/utils/torrents/info-hash'
+import { resolveUrlTorrentHashes } from '#server/utils/torrents/url-torrent'
+import { findLiveDuplicateByLink } from '#server/utils/torrents/live-duplicate'
 import { applySeedingPolicy } from '#server/utils/torrents/seeding'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
@@ -514,12 +516,34 @@ export default defineEventHandler(async (event) => {
       } else {
         // ── 8b: QBIT addTorrent (magnet/downloadUrl) ─────────────
         storedMagnetLink = hasDownloadUrl ? `download:${downloadUrl}` : torrentUrl
+        // Hash unknown and no usable magnet: try resolving it from the URL
+        // bytes so the live qBittorrent pre-check can detect duplicates.
+        // Fail-open: any failure falls through to the checks below.
+        let urlHashes: MagnetInfoHashes | null = null
+        if (!hasUsableHash(magnetHashes) && hasDownloadUrl) {
+          urlHashes = await resolveUrlTorrentHashes(downloadUrl)
+          if (urlHashes === null) {
+            log.info(`[Download:8:QBIT] could not resolve torrent hash from URL, proceeding without pre-check`)
+          }
+        }
+        const effectiveHashes = hasUsableHash(magnetHashes) ? magnetHashes : (urlHashes ?? magnetHashes)
+        if (!hasUsableHash(effectiveHashes)) {
+          // Still unknown: nominate old rows by stored link, but let live
+          // qBittorrent state decide. Read-only, never touches old rows.
+          const live = await findLiveDuplicateByLink(db, qbit, userId, storedMagnetLink)
+          if (live !== null) {
+            log.info(`[Download:8:QBIT] already in qBittorrent (live check): name="${live.name}" complete=${live.complete}`)
+            return live.complete
+              ? { alreadyComplete: true, name: live.name }
+              : { alreadyDownloading: true, name: live.name }
+          }
+        }
         setCooldown(userId)
         log.info(`[Download:8:QBIT] addTorrent (magnet/url): url=${torrentUrl.substring(0, 100)}, tag=${dlTag}`)
         const t3 = Date.now()
         let outcome: TorrentAddOutcome
         try {
-          outcome = await qbit.addTorrent(torrentUrl, targetPath, savePath, dlTag, magnetHashes)
+          outcome = await qbit.addTorrent(torrentUrl, targetPath, savePath, dlTag, effectiveHashes)
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
           if (msg.includes('already exists')) {

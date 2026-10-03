@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { BencodeValue } from '#server/types/torrent'
+import type { BencodeValue, MagnetInfoHashes } from '#server/types/torrent'
 
 function isBencodeDict(value: BencodeValue): value is { [key: string]: BencodeValue } {
   return typeof value === 'object' && !Array.isArray(value) && !Buffer.isBuffer(value)
@@ -178,6 +178,14 @@ export function computeTorrentInfoHashes(fileBuffer: Buffer): { v1: string; v2: 
     v2 = createHash('sha256').update(infoBytes).digest('hex')
   }
   return { v1, v2 }
+}
+
+/**
+ * Whether hashes were resolved far enough for the live qBittorrent pre-check
+ * (at least one of v1/v2 is known).
+ */
+export function hasUsableHash(hashes: MagnetInfoHashes | null): boolean {
+  return hashes !== null && (hashes.v1 !== null || hashes.v2 !== null)
 }
 
 /**

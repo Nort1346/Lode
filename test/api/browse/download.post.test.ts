@@ -98,7 +98,8 @@ const mockQbit = {
   addTorrentFile: vi.fn(),
   deleteTorrent: vi.fn().mockResolvedValue(undefined),
   moveToTop: vi.fn().mockResolvedValue(undefined),
-  getTorrentFiles: vi.fn()
+  getTorrentFiles: vi.fn(),
+  findTorrentByHash: vi.fn()
 }
 const mockDb = {
   select: vi.fn(() => ({
@@ -190,6 +191,7 @@ describe('browse/download.post', () => {
     mockQbit.addTorrent.mockResolvedValue(addedOutcome(torrentResult))
     mockQbit.addTorrentFile.mockResolvedValue(addedOutcome({ ...torrentResult, name: 'Test.torrent' }))
     mockQbit.getTorrentFiles.mockResolvedValue([{ name: 'file.mkv', size: 1000000 }])
+    mockQbit.findTorrentByHash.mockResolvedValue(undefined)
     mockApplySeedingPolicy.mockResolvedValue(undefined)
   })
 
@@ -416,6 +418,108 @@ describe('browse/download.post', () => {
     expect(mockQbit.addTorrent).toHaveBeenCalled()
     expect(mockDb.insert).toHaveBeenCalled()
     expect(mockDb.update).not.toHaveBeenCalled()
+  })
+
+  it('resolves the torrent hash from the download URL and blocks when present in qBittorrent', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(Buffer.from(TORRENT_FIXTURE_HEX, 'hex'), {
+        status: 200,
+        headers: { 'content-type': 'application/x-bittorrent' }
+      })
+    )
+    mockQbit.addTorrent.mockResolvedValue({
+      status: 'existing',
+      complete: false,
+      torrent: { ...torrentResult, state: 'downloading', progress: 0.2, amount_left: 800000000 }
+    })
+    mockReadBody.mockResolvedValue({
+      downloadUrl: 'https://prowlarr.example/5/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'https://prowlarr.example/5/download?apikey=xyz',
+      '/data/series',
+      'series',
+      expect.any(String),
+      { v1: expect.any(String), v2: null }
+    )
+    expect(result).toEqual({ alreadyDownloading: true, name: 'Test.Torrent.1080p' })
+    expect(mockDb.insert).not.toHaveBeenCalled()
+    expect(mockDb.update).not.toHaveBeenCalled()
+    vi.mocked(global.fetch).mockReset()
+  })
+
+  it('blocks via live duplicate check when the URL hash is unresolvable but the old row is live', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+    const allQueue: unknown[][] = [
+      [],
+      [],
+      [{ id: 'old-1', label: 'test', torrentHash: 'a'.repeat(40), status: 'completed' }]
+    ]
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => allQueue.shift() ?? []),
+          get: vi.fn(() => undefined)
+        }))
+      }))
+    } as never)
+    mockQbit.findTorrentByHash.mockResolvedValue({
+      hash: 'a'.repeat(40),
+      name: 'Live',
+      state: 'downloading',
+      progress: 0.2,
+      amount_left: 1
+    })
+    mockReadBody.mockResolvedValue({
+      downloadUrl: 'https://prowlarr.example/5/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(mockQbit.findTorrentByHash).toHaveBeenCalledWith('a'.repeat(40))
+    expect(result).toEqual({ alreadyDownloading: true, name: 'Live' })
+    expect(mockQbit.addTorrent).not.toHaveBeenCalled()
+    expect(mockDb.insert).not.toHaveBeenCalled()
+    expect(mockDb.update).not.toHaveBeenCalled()
+    vi.mocked(global.fetch).mockReset()
+  })
+
+  it('allows the add when the URL hash is unresolvable and the old row is gone', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+    const allQueue: unknown[][] = [
+      [],
+      [],
+      [{ id: 'old-1', label: 'test', torrentHash: 'a'.repeat(40), status: 'completed' }]
+    ]
+    mockDb.select.mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          all: vi.fn(() => allQueue.shift() ?? []),
+          get: vi.fn(() => undefined)
+        }))
+      }))
+    } as never)
+    mockQbit.findTorrentByHash.mockResolvedValue(undefined)
+    mockReadBody.mockResolvedValue({
+      downloadUrl: 'https://prowlarr.example/5/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrent).toHaveBeenCalled()
+    expect(mockDb.insert).toHaveBeenCalled()
+    expect(mockDb.update).not.toHaveBeenCalled()
+    vi.mocked(global.fetch).mockReset()
   })
 
 
