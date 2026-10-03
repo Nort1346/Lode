@@ -10,6 +10,8 @@ const mockRepos = vi.hoisted(() => ({
 
 const mockHash = vi.hoisted(() => vi.fn(() => Promise.resolve('hashed-password')))
 
+const mockLog = vi.hoisted(() => ({ info: vi.fn() }))
+
 vi.mock('#server/repositories', () => ({
   getReposAsync: vi.fn(() => Promise.resolve(mockRepos))
 }))
@@ -28,7 +30,7 @@ vi.mock('node:crypto', () => ({
 }))
 
 vi.mock('#server/utils/logger', () => ({
-  createLogger: vi.fn(() => ({ info: vi.fn() }))
+  createLogger: vi.fn(() => mockLog)
 }))
 
 import { ensureAdminExists } from '#server/utils/seed'
@@ -68,5 +70,45 @@ describe('ensureAdminExists', () => {
     mockRepos.users.findByRole.mockResolvedValue([{ id: 'admin-1', isActive: false }])
     await ensureAdminExists()
     expect(mockRepos.users.update).toHaveBeenCalledWith('admin-1', { isActive: true })
+  })
+
+  it('logs the temp password on first run', async () => {
+    mockRepos.users.findByRole.mockResolvedValue([])
+    await ensureAdminExists()
+    const calls = mockLog.info.mock.calls.map((args) => args.join(' '))
+    expect(calls.some((line) => line.startsWith('Admin password: '))).toBe(true)
+    expect(calls).toContain('Change this password after first login!')
+  })
+
+  it('regenerates the temp password on restart when the bootstrap admin never changed it', async () => {
+    mockRepos.users.findByRole.mockResolvedValue([
+      { id: 'admin-1', username: 'admin', isActive: true, mustChangePassword: true }
+    ])
+    await ensureAdminExists()
+    expect(mockHash).toHaveBeenCalledWith(expect.any(String), 12)
+    expect(mockRepos.users.update).toHaveBeenCalledWith('admin-1', { password: 'hashed-password' })
+    const calls = mockLog.info.mock.calls.map((args) => args.join(' '))
+    expect(calls.some((line) => line.startsWith('Admin password: '))).toBe(true)
+    expect(mockRepos.users.create).not.toHaveBeenCalled()
+  })
+
+  it('does not regenerate the password once the bootstrap admin changed it', async () => {
+    mockRepos.users.findByRole.mockResolvedValue([
+      { id: 'admin-1', username: 'admin', isActive: true, mustChangePassword: false }
+    ])
+    await ensureAdminExists()
+    expect(mockHash).not.toHaveBeenCalled()
+    expect(mockRepos.users.update).not.toHaveBeenCalled()
+    expect(mockLog.info).not.toHaveBeenCalled()
+  })
+
+  it('leaves non-bootstrap users with the must-change flag untouched', async () => {
+    mockRepos.users.findByRole.mockResolvedValue([
+      { id: 'other-1', username: 'otheradmin', isActive: true, mustChangePassword: true }
+    ])
+    await ensureAdminExists()
+    expect(mockHash).not.toHaveBeenCalled()
+    expect(mockRepos.users.update).not.toHaveBeenCalled()
+    expect(mockLog.info).not.toHaveBeenCalled()
   })
 })
