@@ -86,6 +86,19 @@
     "plSubtitles": "PL Napisy",
     "plLektor": "PL Lektor",
     "releaseTags": "Tagi wydania",
+    "filters": {
+      "groups": {
+        "source": "Źródło",
+        "resolution": "Rozdzielczość",
+        "video": "Video/HDR",
+        "audio": "Audio"
+      },
+      "hideCapture": "Ukryj CAM/TS",
+      "reset": "Wyczyść filtry",
+      "showing": "Pokazano {shown} z {total}",
+      "noMatches": "Brak wyników pasujących do wybranych filtrów",
+      "hiddenCount": "Ukryto: {count}"
+    },
     "searchProgress": {
       "connecting": "Szukam pobrań...",
       "searching": "Szukam w trackerach dla „{title}”...",

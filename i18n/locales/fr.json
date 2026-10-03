@@ -86,6 +86,19 @@
     "plSubtitles": "PL Sous-titres",
     "plLektor": "PL Audio",
     "releaseTags": "Tags du release",
+    "filters": {
+      "groups": {
+        "source": "Source",
+        "resolution": "Résolution",
+        "video": "Video/HDR",
+        "audio": "Audio"
+      },
+      "hideCapture": "Masquer CAM/TS",
+      "reset": "Réinitialiser les filtres",
+      "showing": "Affichage de {shown} sur {total}",
+      "noMatches": "Aucun résultat ne correspond aux filtres sélectionnés",
+      "hiddenCount": "Masqués : {count}"
+    },
     "searchProgress": {
       "connecting": "Recherche de téléchargements...",
       "searching": "Recherche sur les trackeurs pour « {title} »...",

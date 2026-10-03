@@ -167,6 +167,13 @@
         <USelect v-model="selectedSeason" :items="seasonOptions" size="md" class="w-48" />
       </div>
 
+      <BrowseTorrentFilters
+        v-if="!searching && seasonLimitInfo === null && seasonItems.length > 0"
+        v-model="filterState"
+        :items="seasonItems"
+        class="mb-6"
+      />
+
       <BrowseSearchProgress
         v-if="searching"
         :phase="searchPhase"
@@ -197,11 +204,11 @@
       </div>
 
       <div v-else-if="seasonPayload">
-        <div v-if="seasonPayload.seasonPacks.length > 0" class="mb-6">
+        <div v-if="visiblePacks.length > 0" class="mb-6">
           <h3 class="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ t('tv.seasonPacks') }}</h3>
           <div class="flex flex-col gap-4 torrent-list">
             <BrowseSeasonPackCard
-              v-for="(pack, idx) in seasonPayload.seasonPacks"
+              v-for="(pack, idx) in visiblePacks"
               :key="'pack-' + idx"
               :pack="pack"
               :loading="downloadingPackIdx === idx"
@@ -231,9 +238,9 @@
           </div>
         </div>
 
-        <div class="flex flex-col gap-4 torrent-list">
+        <div v-if="visibleEpisodes.length > 0" class="flex flex-col gap-4 torrent-list">
           <BrowseEpisodeCard
-            v-for="ep in seasonPayload.episodes"
+            v-for="ep in visibleEpisodes"
             :key="ep.id"
             :episode="ep"
             :show-name="show?.name ?? ''"
@@ -258,6 +265,14 @@
             "
             @toggle-debug="(key) => toggleDebug(key)"
           />
+        </div>
+
+        <div
+          v-else
+          class="rounded-xl bg-zinc-100/50 py-8 text-center text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
+        >
+          <p>{{ t('browse.filters.noMatches') }}</p>
+          <p class="mt-1 text-xs">{{ t('browse.filters.hiddenCount', { count: hiddenCount }) }}</p>
         </div>
       </div>
     </div>
@@ -295,16 +310,24 @@
 import type { ShowData, SeasonData } from '~/types/browse'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
+import { emptyFilters, matchesFilters } from '#shared/torrent-filters'
+import type { TorrentFilterItem, TorrentFiltersState } from '#shared/torrent-filters'
 
 const route = useRoute()
 const selectedSeason = ref(1)
 
 // The component is reused when navigating show -> show: a show with fewer seasons must
 // not keep requesting the previous show's selected season
+// Filters are display-only: they hide items from the already ranked payload
+// but never reorder it or affect downloads. They persist across season
+// switches (in-page navigation) and reset only when the show changes -
+// same pattern as selectedSeason above
+const filterState = ref<TorrentFiltersState>(emptyFilters())
 watch(
   () => route.params.id,
   () => {
     selectedSeason.value = 1
+    filterState.value = emptyFilters()
   }
 )
 const downloadingKey = ref<string | null>(null)
@@ -391,6 +414,35 @@ watch(
   },
   { immediate: true }
 )
+
+// Everything in the loaded season payload (season packs + every episode's
+// torrents) is one flat filterable list
+const seasonItems = computed<TorrentFilterItem[]>(() => {
+  const payload = seasonPayload.value
+  if (payload === null) return []
+  return [...payload.seasonPacks, ...payload.episodes.flatMap((ep) => ep.torrents)]
+})
+
+const visiblePacks = computed(() => {
+  const payload = seasonPayload.value
+  if (payload === null) return []
+  return payload.seasonPacks.filter((pack) => matchesFilters(pack, filterState.value))
+})
+
+// Episodes with zero visible torrents are hidden entirely (an empty episode
+// card would just say "no torrents"); their torrents still count as hidden
+const visibleEpisodes = computed(() => {
+  const payload = seasonPayload.value
+  if (payload === null) return []
+  return payload.episodes
+    .map((ep) => ({ ...ep, torrents: ep.torrents.filter((torrent) => matchesFilters(torrent, filterState.value)) }))
+    .filter((ep) => ep.torrents.length > 0)
+})
+
+const visibleCount = computed(
+  () => visiblePacks.value.length + visibleEpisodes.value.reduce((sum, ep) => sum + ep.torrents.length, 0)
+)
+const hiddenCount = computed(() => seasonItems.value.length - visibleCount.value)
 
 function isPrivateLimitExceeded(isPrivate: boolean): boolean {
   if (!isPrivate) return false

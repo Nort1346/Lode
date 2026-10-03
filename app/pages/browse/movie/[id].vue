@@ -165,6 +165,13 @@
         {{ t('movie.availableTorrents') }}
       </h2>
 
+      <BrowseTorrentFilters
+        v-if="!searching && limitInfo === null && torrents.length > 0"
+        v-model="filterState"
+        :items="torrents"
+        class="mb-4"
+      />
+
       <BrowseSearchProgress
         v-if="searching"
         :phase="searchPhase"
@@ -199,9 +206,17 @@
         <p>{{ t('movie.noTorrents') }}</p>
       </div>
 
+      <div
+        v-else-if="visibleTorrents.length === 0"
+        class="rounded-xl bg-zinc-100/50 py-8 text-center text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
+      >
+        <p>{{ t('browse.filters.noMatches') }}</p>
+        <p class="mt-1 text-xs">{{ t('browse.filters.hiddenCount', { count: hiddenTorrents }) }}</p>
+      </div>
+
       <div v-else class="space-y-2 torrent-list">
         <div
-          v-for="(torrent, idx) in torrents"
+          v-for="(torrent, idx) in visibleTorrents"
           :key="idx"
           class="flex flex-col gap-3 rounded-xl border p-4 transition-all sm:flex-row sm:items-center sm:justify-between"
           :class="
@@ -394,6 +409,8 @@ import type { MovieData } from '~/types/browse'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
 import { useCopyToClipboard } from '~/composables/useClipboard'
+import { emptyFilters, matchesFilters } from '#shared/torrent-filters'
+import type { TorrentFiltersState } from '#shared/torrent-filters'
 
 const route = useRoute()
 const downloadingIdx = ref<number | null>(null)
@@ -458,6 +475,19 @@ const torrents = computed(() => torrentPayload.value?.torrents ?? [])
 const searching = computed(
   () => searchPhase.value === 'connecting' || searchPhase.value === 'searching' || searchPhase.value === 'finishing'
 )
+
+// Client-side display filter over the loaded (already ranked) list: it only
+// hides items, never reorders them. Per media - navigating to another movie
+// starts with no filters (same reset pattern as the TV page's selectedSeason)
+const filterState = ref<TorrentFiltersState>(emptyFilters())
+watch(
+  () => route.params.id,
+  () => {
+    filterState.value = emptyFilters()
+  }
+)
+const visibleTorrents = computed(() => torrents.value.filter((torrent) => matchesFilters(torrent, filterState.value)))
+const hiddenTorrents = computed(() => torrents.value.length - visibleTorrents.value.length)
 
 const torrentStreamUrl = computed(
   () => `/api/browse/movie/${mediaId.value}/torrents-stream?locale=${mediaLanguage.value}`
