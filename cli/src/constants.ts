@@ -16,7 +16,10 @@ export const STATE_VERSION = 1
 
 export const MEDIA_DIRS = ['media/Movies', 'media/Series'] as const
 
+export const DEFAULT_TIMEZONE = 'UTC'
+
 export const ENV_KEYS = {
+  timezone: 'TZ',
   sessionPassword: 'NUXT_SESSION_PASSWORD',
   trackerEncryptionKey: 'NUXT_TRACKER_ENCRYPTION_KEY',
   postgresPassword: 'POSTGRES_PASSWORD',
@@ -68,7 +71,7 @@ export const PASSWORD_LENGTH = 32
 
 export const TRACKER_KEY_BYTES = 32
 
-export const TOTAL_STEPS = 15
+export const TOTAL_STEPS = 16
 
 export const DOCS_LINKS = {
   dockerMac: 'https://docs.docker.com/desktop/install/mac-install/',

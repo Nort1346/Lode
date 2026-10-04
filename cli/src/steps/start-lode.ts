@@ -17,7 +17,7 @@ export function extractAdminPassword(logs: string): string {
 }
 
 export async function startLode(ctx: StepContext): Promise<void> {
-  stepHeader(15, 'Starting Lode')
+  stepHeader(16, 'Starting Lode')
   const dir = process.cwd()
   const files = ctx.composeFiles
   const { selection, urls } = ctx

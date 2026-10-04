@@ -5,7 +5,7 @@ import { askSecret, instructions, log, stepHeader } from '../core/prompt'
 import type { StepContext } from '../types'
 
 export async function prowlarrApiKey(ctx: StepContext): Promise<void> {
-  stepHeader(12, 'Prowlarr API key')
+  stepHeader(13, 'Prowlarr API key')
   const dir = process.cwd()
   if (ctx.selection.prowlarr === 'local') {
     instructions('Follow these steps to get your Prowlarr API key', [

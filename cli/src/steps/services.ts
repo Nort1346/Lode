@@ -87,7 +87,7 @@ function portWaitPhase(label: string, port: number, timeoutMs: number): WaitPhas
 }
 
 export async function startServices(ctx: StepContext): Promise<void> {
-  stepHeader(9, 'Starting selected services')
+  stepHeader(10, 'Starting selected services')
   const files = ctx.composeFiles
   const { selection } = ctx
 

@@ -7,7 +7,7 @@ import { askSecret, instructions, log, stepHeader } from '../core/prompt'
 import type { StepContext } from '../types'
 
 export async function qbittorrentSetup(ctx: StepContext): Promise<void> {
-  stepHeader(11, 'qBittorrent WebUI + API key')
+  stepHeader(12, 'qBittorrent WebUI + API key')
   const dir = process.cwd()
   if (ctx.selection.qbittorrent === 'local') {
     if (ctx.qbitTempPass) {

@@ -4,7 +4,7 @@ import { hyperlink } from '../core/hyperlink'
 import { askSelect, askSecret, instructions, log, stepHeader } from '../core/prompt'
 
 export async function tmdbApiKey(): Promise<void> {
-  stepHeader(13, 'TMDB API key')
+  stepHeader(14, 'TMDB API key')
   const choice = await askSelect<'builtin' | 'own'>(
     'TMDB API key (for movie/TV metadata)',
     [

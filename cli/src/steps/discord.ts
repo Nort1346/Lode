@@ -3,7 +3,7 @@ import { updateEnv } from '../core/env'
 import { askConfirm, askSecret, instructions, log, stepHeader } from '../core/prompt'
 
 export async function discordWebhook(): Promise<void> {
-  stepHeader(14, 'Discord Webhook (optional)')
+  stepHeader(15, 'Discord Webhook (optional)')
   if (!(await askConfirm('Get notified in Discord when downloads complete. Set up a webhook now?'))) {
     log.info('Skipped - set NUXT_DISCORD_WEBHOOK_URL in .env later if you change your mind.')
     return

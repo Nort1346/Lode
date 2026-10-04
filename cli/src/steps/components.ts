@@ -15,7 +15,7 @@ export function externalUrlDefault(dir: string, key: string, internalUrl: string
 }
 
 export async function chooseComponents(ctx: StepContext): Promise<void> {
-  stepHeader(6, 'Selecting components')
+  stepHeader(7, 'Selecting components')
   log.message('Lode and Redis are always deployed. Choose the rest:')
   const dir = process.cwd()
 

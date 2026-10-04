@@ -8,7 +8,7 @@ import { saveSelection } from '../core/state'
 import type { LodeTag, StepContext } from '../types'
 
 export async function chooseLodeVersion(ctx: StepContext): Promise<void> {
-  stepHeader(8, 'Lode version')
+  stepHeader(9, 'Lode version')
   const tag = await askSelect<LodeTag>(
     'Select version:',
     [

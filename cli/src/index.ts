@@ -9,6 +9,7 @@ import { setupEnvFile } from './steps/env-file'
 import { detectExistingSetup } from './steps/detect'
 import { generateSecrets } from './steps/secrets-gen'
 import { chooseDatabase } from './steps/database'
+import { chooseTimezone } from './steps/timezone'
 import { chooseComponents } from './steps/components'
 import { downloadComposeFiles } from './steps/compose-files'
 import { chooseLodeVersion } from './steps/lode-version'
@@ -44,6 +45,7 @@ async function main(): Promise<void> {
   await detectExistingSetup(ctx)
   generateSecrets()
   await chooseDatabase(ctx)
+  await chooseTimezone()
   await chooseComponents(ctx)
   await downloadComposeFiles(ctx)
   await chooseLodeVersion(ctx)

@@ -7,7 +7,7 @@ import { askConfirm, log, spinner, stepHeader } from '../core/prompt'
 import type { StepContext } from '../types'
 
 export async function downloadComposeFiles(ctx: StepContext): Promise<void> {
-  stepHeader(7, 'Downloading compose files')
+  stepHeader(8, 'Downloading compose files')
   const existing = ctx.composeFiles.filter((file) => existsSync(file))
   const missing = ctx.composeFiles.filter((file) => !existsSync(file))
 
