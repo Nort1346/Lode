@@ -89,7 +89,7 @@
     "@vite-pwa/assets-generator": "^2.0.0",
     "@vite-pwa/nuxt": "^1.1.1",
     "@vitest/coverage-v8": "5.0.0",
-    "discord-api-types": "^0.38.55",
+    "discord-api-types": "^0.38.56",
     "drizzle-kit": "^0.31.11",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
