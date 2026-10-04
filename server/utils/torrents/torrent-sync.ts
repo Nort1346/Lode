@@ -217,7 +217,8 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
             dl.posterUrl,
             dl.sizeBytes,
             dl.savePath,
-            dl.tmdbId
+            dl.tmdbId,
+            dl.torrentName
           )
         }
       } else {
@@ -309,7 +310,8 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           dl.posterUrl,
           dl.sizeBytes,
           dl.savePath,
-          dl.tmdbId
+          dl.tmdbId,
+          dl.torrentName
         )
       }
     } else {
@@ -417,7 +419,8 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
           dl.posterUrl,
           dl.sizeBytes,
           dl.savePath,
-          dl.tmdbId
+          dl.tmdbId,
+          dl.torrentName
         )
       }
       await dbRun(db.update(downloads).set({ notifiedAt: new Date().toISOString() }).where(eq(downloads.id, dl.id)))

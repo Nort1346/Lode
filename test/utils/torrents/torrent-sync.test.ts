@@ -416,7 +416,8 @@ describe('syncTorrentStatus', () => {
       'https://image.tmdb.org/p/avengers.jpg',
       expect.any(Number),
       'movies',
-      299536
+      299536,
+      'Avengers 2012'
     )
     expect(mockNotifyDownloadComplete).toHaveBeenCalledWith(
       'u1',
@@ -426,7 +427,8 @@ describe('syncTorrentStatus', () => {
       'https://image.tmdb.org/p/sheep.jpg',
       expect.any(Number),
       'movies',
-      123456
+      123456,
+      'The Sheep Detectives 2023'
     )
   })
 

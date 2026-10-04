@@ -6,6 +6,8 @@ import { sendPushToUser } from './push'
 import { createLogger } from '#server/utils/logger'
 import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
+import { parseEpisodeInfo } from '#server/utils/torrents/release-episode'
+import { formatEpisodeSuffix, truncateText } from '#server/utils/notifications/discord'
 
 import type { NotificationDataMap, NotificationItem, NotificationType as NotifType } from '#server/types/notifications'
 import type { DiscordLocale } from '#server/types/i18n'
@@ -130,7 +132,8 @@ export async function notifyDownloadComplete(
   posterUrl: string | null,
   sizeBytes: number,
   savePath: string,
-  tmdbId: number | null
+  tmdbId: number | null,
+  torrentName: string | null
 ): Promise<void> {
   const t = createT(await getNotificationLocale())
   const link =
@@ -138,11 +141,16 @@ export async function notifyDownloadComplete(
       ? `/browse/${mediaType === 'movie' ? 'movie' : 'tv'}/${tmdbId}`
       : ROUTE_DOWNLOADS
 
-  const title = mediaTitle || t('notifications.download_complete.title')
-  const message = t('notifications.download_complete.message').replace(
-    '{title}',
-    mediaTitle || t('notifications.download_complete.title')
-  )
+  const baseTitle = mediaTitle || t('notifications.download_complete.title')
+  // Same name-of-truth rule as the Discord webhook: the torrent name carries
+  // the season/episode info, the add-time label is the fallback for bare names.
+  let info = parseEpisodeInfo(torrentName ?? '')
+  if (info.kind === 'unknown' && baseTitle.length > 0) {
+    info = parseEpisodeInfo(baseTitle)
+  }
+  const suffix = formatEpisodeSuffix(info, t)
+  const title = suffix !== null ? truncateText(`${baseTitle}, ${suffix}`, 200) : baseTitle
+  const message = t('notifications.download_complete.message').replace('{title}', title)
 
   await createNotification(
     userId,
