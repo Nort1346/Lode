@@ -5,6 +5,40 @@ All notable changes to Lode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.6] - 2026-10-04
+
+Release-tag detection with badges and manual filters, duplicate-torrent protection backed by live qBittorrent lookups, a timezone step in setup, human-friendly localized API errors, and a rebalanced media-source scoring - alongside Prowlarr timeout hardening, a per-torrent seeding setting, and a docs consistency pass.
+
+### Added
+
+- Setup: timezone detection step - the installer detects the system timezone and asks for confirmation, with validated manual entry as fallback; re-runs keep an already-set `TZ` untouched
+- Browse: release-tag badges - source, codec, HDR, and audio tags parsed from release titles are shown on torrent rows and season-pack cards
+- Browse: manual release-tag filters on movie and TV pages, including a hide-capture toggle for low-quality sources
+- Torrents: shared episode parser - one parser for season/episode detection serves torrent search, Discord webhooks, and push notifications
+- UI: human-friendly localized API errors instead of raw status codes across admin, browse, dashboard, and settings pages
+- qBittorrent: per-torrent "Seeding" admin setting, enabled by default
+- TV: episodes without sources are shown dimmed instead of being hidden
+
+### Changed
+
+- Ranking: media-source scoring rescaled - capture sources now score negative, so a high-seeder CAM can no longer outrank a low-seeder WEB-DL
+- Browse: minimalist filter popover with unified badges and animated torrent lists
+- i18n: typed translation keys enforced by ESLint, so missing or renamed locale keys fail lint instead of rendering blank strings
+- Dependencies: updated across UI, lint, test, and icon packages, plus a `http-cache-semantics` floor (`>=4.3.0`) fixing a transitive cache-disclosure advisory
+- Docs: updated alongside the features above, plus a consistency review pass
+
+### Fixed
+
+- Torrents: adding an already-present torrent no longer creates a duplicate - the API checks live qBittorrent presence instead of relying on stale local state
+- qBittorrent: an HTTP 200 `"Fails."` add response is treated as "torrent already exists" instead of an error
+- Prowlarr: slow indexers no longer stall the whole search - timed-out queries are reported as skipped in the search progress UI
+- Auth: forced password change now applies only to the first-boot seeded admin
+- Seed: the temporary admin password regenerates on restart until the first login is completed
+- API: ranking config reset moved to the nested `config/reset` route, fixing the 404
+- i18n: restored the missing `browse.filters` label and renamed the filter object to `torrentFilters`
+- Setup script: falls back to the newest release that ships CLI binaries when `latest` has none
+- Setup CLI: optional add-ons can now be deselected entirely
+
 ## [1.0.5] - 2026-09-28
 
 A patch release repairing the PostgreSQL migration chain - download label columns that were missing from PostgreSQL databases, and 32-bit byte counters that overflowed on files above 2.1 GB - plus hardened binary download in the setup script.

@@ -17,7 +17,7 @@ bun build src/index.ts --compile --minify --target=bun-linux-x64 --define BUILD_
 
 ```
 src/
-├── index.ts          # Entry: TTY gate + 18-step pipeline + error handling
+├── index.ts          # Entry: TTY gate + 16-step pipeline + error handling
 ├── types.ts          # All shared types (no inline types in implementation files)
 ├── constants.ts      # Env keys, ports, timeouts, option labels, compose file selection
 ├── core/             # clack prompt wrappers, docker compose helpers, env/state file
