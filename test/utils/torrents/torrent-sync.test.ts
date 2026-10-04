@@ -219,6 +219,27 @@ describe('syncTorrentStatus', () => {
     )
   })
 
+  it('sends exactly one discord notification for overlapping sync runs', async () => {
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ progress: 1, completion_on: 1 })])
+
+    let resolveWebhook: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      resolveWebhook = resolve
+    })
+    mockSendWebhook.mockReturnValueOnce(gate)
+
+    const first = syncTorrentStatus()
+    const second = syncTorrentStatus()
+    await vi.waitFor(() => expect(mockSendWebhook).toHaveBeenCalledTimes(1))
+    resolveWebhook()
+    await first
+    await second
+
+    expect(mockSendWebhook).toHaveBeenCalledTimes(1)
+  })
+
   it('marks torrent paused when qBittorrent reports pausedDL', async () => {
     mockActiveAll.mockReturnValue([makeDl()])
     mockGetAllTorrents.mockReturnValue([makeQbit({ state: 'pausedDL', dlspeed: 0, dlspeed_avg: 0, upspeed: 0 })])
@@ -395,7 +416,8 @@ describe('syncTorrentStatus', () => {
       'https://image.tmdb.org/p/avengers.jpg',
       expect.any(Number),
       'movies',
-      299536
+      299536,
+      'Avengers 2012'
     )
     expect(mockNotifyDownloadComplete).toHaveBeenCalledWith(
       'u1',
@@ -405,7 +427,8 @@ describe('syncTorrentStatus', () => {
       'https://image.tmdb.org/p/sheep.jpg',
       expect.any(Number),
       'movies',
-      123456
+      123456,
+      'The Sheep Detectives 2023'
     )
   })
 

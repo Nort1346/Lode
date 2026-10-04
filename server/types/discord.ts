@@ -1,3 +1,6 @@
+import type { APIContainerComponent, APITextDisplayComponent } from 'discord-api-types/v10'
+import type { I18nKey } from '#shared/i18n-keys'
+
 export interface DownloadCompleteData {
   id: string
   label: string
@@ -9,6 +12,7 @@ export interface DownloadCompleteData {
   tmdbId: number | null
   mediaType: string | null
   discordId: string | null
+  resolution: string | null
 }
 
 export interface TmdbMeta {
@@ -30,4 +34,32 @@ export interface RequestPendingData {
   mediaPoster: string | null
   username: string
   userNote: string | null
+}
+
+export type TextTranslator = (key: I18nKey) => string
+
+export interface ComponentsPayload {
+  components: (APIContainerComponent | APITextDisplayComponent)[]
+  flags: number
+  allowed_mentions: { parse: string[]; users?: string[] }
+}
+
+export interface OutgoingFile {
+  data: Buffer
+  name: string
+  contentType: 'image/png'
+}
+
+/** Minimal download row projection needed to dispatch a completion webhook. */
+export interface DiscordDownloadNotifyInput {
+  id: string
+  label: string
+  torrentName: string
+  savePath: string
+  sizeBytes: number
+  completedAt: string | null
+  tmdbId: number | null
+  mediaType: string | null
+  userId: string
+  resolution: string | null
 }

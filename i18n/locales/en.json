@@ -636,7 +636,15 @@
     "resolution": "Resolution",
     "source": "Source",
     "language": "Language",
-    "codec": "Codec"
+    "codec": "Codec",
+    "completed": "Download completed",
+    "release": "Release",
+    "seasonFull": "Season {season} (full season)",
+    "fullSeason": "full season",
+    "seasonsPack": "Seasons {from}-{to} (pack)",
+    "completeSeries": "(complete series)",
+    "airedOn": "aired {date}",
+    "episodeN": "Episode {n}"
   },
   "time": {
     "justNow": "just now",

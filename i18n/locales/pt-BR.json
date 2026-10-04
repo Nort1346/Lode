@@ -636,7 +636,15 @@
     "resolution": "Resolução",
     "source": "Origem",
     "language": "Idioma",
-    "codec": "Codec"
+    "codec": "Codec",
+    "completed": "Download concluído",
+    "release": "Versão",
+    "seasonFull": "Temporada {season} (completa)",
+    "fullSeason": "temporada completa",
+    "seasonsPack": "Temporadas {from}-{to} (pack)",
+    "completeSeries": "(série completa)",
+    "airedOn": "exibido em {date}",
+    "episodeN": "Episódio {n}"
   },
   "time": {
     "justNow": "agora mesmo",

@@ -2,6 +2,7 @@ import { downloads, users, settings } from '#server/database/schema'
 import { eq, inArray } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 import { sendDownloadCompleteWebhook } from '#server/utils/notifications/discord'
+import type { DiscordDownloadNotifyInput } from '#server/types/discord'
 import { notifyDownloadComplete } from '#server/utils/notifications/notifications'
 import { createLogger } from '#server/utils/logger'
 import { normalizeEta } from '#server/utils/torrents/eta'
@@ -26,9 +27,16 @@ const NEW_DOWNLOAD_GRACE_MS = 2 * 60 * 1000
 let firstSyncReported = false
 const zeroSeedDownloads = new Set<string>()
 
+// Downloads whose completion webhook is currently being dispatched. The sync
+// runs on a timer and is also triggered by API reads, so two overlapping runs
+// can observe the same newly-completed row; the guard keeps the notification
+// exactly-once without touching notifiedAt (which the Jellyfin pass owns).
+const discordInflight = new Set<string>()
+
 export function resetSyncDiagnostics(): void {
   firstSyncReported = false
   zeroSeedDownloads.clear()
+  discordInflight.clear()
 }
 
 async function isPrepCountdownEnabled(): Promise<boolean> {
@@ -46,20 +54,15 @@ async function getPrepSpeedMb(): Promise<number> {
 }
 
 function notifyDiscord(
-  dl: {
-    id: string
-    label: string
-    torrentName: string
-    savePath: string
-    sizeBytes: number
-    completedAt: string | null
-    tmdbId: number | null
-    mediaType: string | null
-    userId: string
-  },
+  dl: DiscordDownloadNotifyInput,
   userMap: Map<string, string>,
   discordIdMap: Map<string, string | null>
 ): void {
+  if (discordInflight.has(dl.id)) {
+    log.info(`skipping duplicate discord notify: id=${dl.id}`)
+    return
+  }
+  discordInflight.add(dl.id)
   const completedAt = dl.completedAt ?? new Date().toISOString()
   void sendDownloadCompleteWebhook({
     id: dl.id,
@@ -71,8 +74,13 @@ function notifyDiscord(
     username: userMap.get(dl.userId) ?? 'unknown',
     tmdbId: dl.tmdbId,
     mediaType: dl.mediaType,
-    discordId: discordIdMap.get(dl.userId) ?? null
-  }).catch((err) => log.error(err, 'webhook failed'))
+    discordId: discordIdMap.get(dl.userId) ?? null,
+    resolution: dl.resolution ?? null
+  })
+    .catch((err) => log.error(err, 'webhook failed'))
+    .finally(() => {
+      discordInflight.delete(dl.id)
+    })
 }
 
 export async function syncTorrentStatus(): Promise<SyncResult> {
@@ -209,7 +217,8 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
             dl.posterUrl,
             dl.sizeBytes,
             dl.savePath,
-            dl.tmdbId
+            dl.tmdbId,
+            dl.torrentName
           )
         }
       } else {
@@ -301,7 +310,8 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           dl.posterUrl,
           dl.sizeBytes,
           dl.savePath,
-          dl.tmdbId
+          dl.tmdbId,
+          dl.torrentName
         )
       }
     } else {
@@ -409,7 +419,8 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
           dl.posterUrl,
           dl.sizeBytes,
           dl.savePath,
-          dl.tmdbId
+          dl.tmdbId,
+          dl.torrentName
         )
       }
       await dbRun(db.update(downloads).set({ notifiedAt: new Date().toISOString() }).where(eq(downloads.id, dl.id)))

@@ -194,7 +194,8 @@ describe('notifications', () => {
         'https://image.tmdb.org/p/avengers.jpg',
         1000,
         'movies',
-        299536
+        299536,
+        'Avengers.2012.1080p.WEB-DL'
       )
 
       expect(inserted).toHaveLength(1)
@@ -232,7 +233,8 @@ describe('notifications', () => {
         'https://image.tmdb.org/p/sheep.jpg',
         2000,
         'movies',
-        123456
+        123456,
+        'The.Sheep.Detectives.2023.720p.HDTV'
       )
 
       expect(updated).toHaveLength(1)
@@ -251,6 +253,50 @@ describe('notifications', () => {
       expect(secondData).toEqual(
         expect.objectContaining({ posterUrl: 'https://image.tmdb.org/p/sheep.jpg', downloadId: 'dl-sheep' })
       )
+    })
+  })
+
+  describe('notifyDownloadComplete episode suffix', () => {
+    async function insertedTitle(mediaTitle: string, torrentName: string | null): Promise<string> {
+      const inserted: Record<string, unknown>[] = []
+      mockDbSelect.mockReturnValue({
+        from: vi.fn(() => ({ where: vi.fn(() => ({ get: vi.fn(() => undefined) })) }))
+      })
+      mockDbInsert.mockReturnValue({
+        values: vi.fn((values: Record<string, unknown>) => {
+          inserted.push(values)
+          return { run: vi.fn(() => ({ changes: 1 })) }
+        })
+      })
+
+      await notifyDownloadComplete('user1', 'dl-1', 'tv', mediaTitle, null, 1000, 'series', 7, torrentName)
+
+      return String(inserted[0]?.title ?? '')
+    }
+
+    it('appends SxxExx for a single episode', async () => {
+      await expect(insertedTitle('Breaking Bad', 'Breaking.Bad.S02E05.1080p.WEB-DL')).resolves.toBe(
+        'Breaking Bad, S02E05'
+      )
+    })
+
+    it('appends the range for multi-episode releases', async () => {
+      await expect(insertedTitle('Show', 'Show.S01E01-E03.1080p.WEB-DL')).resolves.toBe('Show, S01E01-E03')
+    })
+
+    it('appends the pack suffix for season packs', async () => {
+      // The i18n mock returns keys as-is, so the localized pack template shows up as its key.
+      await expect(insertedTitle('Show', 'Show.S01.1080p.WEB-DL')).resolves.toBe('Show, discord.seasonFull')
+    })
+
+    it('falls back to the add-time label when the torrent name is bare', async () => {
+      await expect(insertedTitle('Show S02E05 Pilot', 'Show.2024.1080p.WEB-DL')).resolves.toBe(
+        'Show S02E05 Pilot, S02E05'
+      )
+    })
+
+    it('keeps the bare title when nothing is detected', async () => {
+      await expect(insertedTitle('Dune', 'Dune.Part.Two.2024.1080p.WEB-DL')).resolves.toBe('Dune')
     })
   })
 
