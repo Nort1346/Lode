@@ -277,23 +277,35 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
   return UNKNOWN
 }
 
-/** Season-aware matcher used by the torrent search: single source of truth, delegates to the shared parser. */
+/**
+ * Episode-bucket matcher used by the torrent search: only true single episodes
+ * land under an episode. Multi-episode ranges are packs (see titleIsSeasonPack),
+ * so picking E02 never silently matches a torrent holding E01-E03. Daily
+ * releases carry air dates, not episode numbers, so they never match here.
+ */
 export function titleMatchesEpisode(title: string, seasonNumber: number, episodeNumber: number): boolean {
   const info = parseEpisodeInfo(title)
-  if (info.kind === 'episode' || info.kind === 'multi-episode') {
+  if (info.kind === 'episode') {
     return info.seasons.includes(seasonNumber) && info.episodes.includes(episodeNumber)
   }
-  if (info.kind === 'absolute' || info.kind === 'daily') {
+  if (info.kind === 'absolute') {
     return info.episodes.includes(episodeNumber)
   }
   return false
 }
 
-/** Season-pack matcher used by the torrent search: single source of truth, delegates to the shared parser. */
+/**
+ * Pack matcher used by the torrent search: anything spanning more than one
+ * episode (season packs, multi-season packs, multi-episode ranges, complete
+ * series) is a pack. A range matches each season it spans.
+ */
 export function titleIsSeasonPack(title: string, seasonNumber: number): boolean {
   const info = parseEpisodeInfo(title)
   if (info.kind === 'season-pack' || info.kind === 'multiseason-pack') {
     return info.seasons.length === 0 || info.seasons.includes(seasonNumber)
+  }
+  if (info.kind === 'multi-episode') {
+    return info.seasons.includes(seasonNumber)
   }
   if (info.kind === 'complete-series') return true
   return false

@@ -26,7 +26,10 @@
       />
     </div>
 
-    <div v-if="hasActiveFilters(props.modelValue)" class="flex flex-wrap items-center gap-3 border-t border-zinc-200 pt-3 dark:border-zinc-700">
+    <div
+      v-if="hasActiveFilters(props.modelValue)"
+      class="flex flex-wrap items-center gap-3 border-t border-zinc-200 pt-3 dark:border-zinc-700"
+    >
       <UButton
         color="neutral"
         variant="ghost"
@@ -72,14 +75,12 @@ const options = computed(() => collectFilterOptions(props.items))
 const groupRows = computed(() =>
   GROUP_ORDER.map((group) => ({
     group,
-    items: options.value
-      .filter((o) => o.group === group)
-      .map((o) => ({ label: `${o.tag} (${o.count})`, value: o.tag }))
+    items: options.value.filter((o) => o.group === group).map((o) => ({ label: `${o.tag} (${o.count})`, value: o.tag }))
   })).filter((row) => row.items.length > 0)
 )
 
-const captureCount = computed(
-  () => options.value.filter((o) => o.group === 'source' && CAPTURE_TAGS.includes(o.tag)).reduce((sum, o) => sum + o.count, 0)
+const captureCount = computed(() =>
+  options.value.filter((o) => o.group === 'source' && CAPTURE_TAGS.includes(o.tag)).reduce((sum, o) => sum + o.count, 0)
 )
 
 const visibleCount = computed(() => props.items.filter((item) => matchesFilters(item, props.modelValue)).length)

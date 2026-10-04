@@ -230,9 +230,10 @@ export async function searchSeasonTorrents(
     }
   })
 
-  // This isSeasonPack filter is the single source of pack classification -
-  // the ranker is told the bucket kind explicitly and no longer re-guesses it
-  // from the title (which broke episode-range packs like S01E01-E10).
+  // Pack rule: anything spanning more than one episode (season packs and
+  // multi-episode ranges alike) lands here; per-episode buckets only get true
+  // single episodes. The ranker is told the bucket kind explicitly and never
+  // re-guesses it from the title.
   const seasonPackTorrents = rawTorrents.filter((t) => isSeasonPack(t.title, seasonNumber))
   if (seasonPackTorrents.length > 0) {
     log.info(`Season packs: ${seasonPackTorrents.length} found`)

@@ -532,7 +532,9 @@ export default defineEventHandler(async (event) => {
           // qBittorrent state decide. Read-only, never touches old rows.
           const live = await findLiveDuplicateByLink(db, qbit, userId, storedMagnetLink)
           if (live !== null) {
-            log.info(`[Download:8:QBIT] already in qBittorrent (live check): name="${live.name}" complete=${live.complete}`)
+            log.info(
+              `[Download:8:QBIT] already in qBittorrent (live check): name="${live.name}" complete=${live.complete}`
+            )
             return live.complete
               ? { alreadyComplete: true, name: live.name }
               : { alreadyDownloading: true, name: live.name }

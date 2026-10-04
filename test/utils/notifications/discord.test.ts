@@ -590,7 +590,7 @@ describe('notifications/discord', () => {
         string,
         { body: { components: unknown[]; allowed_mentions: unknown } }
       ]
-      expect(options.body.allowed_mentions).toEqual({ users: ['999'] })
+      expect(options.body.allowed_mentions).toEqual({ parse: [], users: ['999'] })
     })
 
     it('retries a 429 honoring retry_after and then succeeds', async () => {

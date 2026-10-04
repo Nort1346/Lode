@@ -13,7 +13,14 @@ import { getMovieDetails, getSeasonDetails, getTvShowDetails, getImageUrl } from
 import { createLogger } from '#server/utils/logger'
 import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
 import type { DiscordLocale } from '#server/types/i18n'
-import type { DownloadCompleteData, TmdbMeta, RequestPendingData } from '#server/types/discord'
+import type {
+  ComponentsPayload,
+  DownloadCompleteData,
+  OutgoingFile,
+  RequestPendingData,
+  TextTranslator,
+  TmdbMeta
+} from '#server/types/discord'
 import type { TorrentMeta } from '#server/types/torrent'
 import { parseTorrentTitle, SOURCE_TAGS, CODEC_TAGS } from '#server/utils/torrents/torrent-ranker'
 import type { EpisodeInfo } from '#server/types/release-episode'
@@ -44,8 +51,6 @@ export const REQUEST_ACCENT = 0x3b82f6
 const WEBHOOK_TIMEOUT_MS = 8000
 const RATE_LIMIT_MAX_RETRIES = 2
 const RATE_LIMIT_MAX_WAIT_MS = 10_000
-
-export type TextTranslator = (key: string) => string
 
 export function truncateText(value: string, max: number): string {
   const chars = [...value]
@@ -133,12 +138,14 @@ export function buildDisplayTitle(
 ): string {
   const base = baseTitle.trim()
   const suffix = formatEpisodeSuffix(info, t)
-  if (suffix === null) return escapeDiscordText(truncateText(base, DISCORD_TITLE_LIMIT))
+  // Escape first: escaping expands the text (backslashes, zero-width spaces),
+  // so truncating the escaped string is what keeps us within the limit.
+  if (suffix === null) return truncateText(escapeDiscordText(base), DISCORD_TITLE_LIMIT)
   let title = `${base}, ${suffix}`
   if (episodeName !== null && episodeName.trim().length > 0 && (info.kind === 'episode' || info.kind === 'absolute')) {
     title += ` - ${episodeName.trim()}`
   }
-  return escapeDiscordText(truncateText(title, DISCORD_TITLE_LIMIT))
+  return truncateText(escapeDiscordText(title), DISCORD_TITLE_LIMIT)
 }
 
 export async function isDiscordMentionsEnabled(): Promise<boolean> {
@@ -265,18 +272,6 @@ function getHttpStatus(err: unknown): number | null {
   return typeof status === 'number' ? status : null
 }
 
-interface ComponentsPayload {
-  components: (APIContainerComponent | APITextDisplayComponent)[]
-  flags: number
-  allowed_mentions: { parse: string[] } | { users: string[] }
-}
-
-interface OutgoingFile {
-  data: Buffer
-  name: string
-  contentType: 'image/png'
-}
-
 async function postWebhook(webhookUrl: string, body: ComponentsPayload, files: OutgoingFile[]): Promise<void> {
   const match = webhookUrl.match(/\/webhooks\/(\d+)\/(.+?)(?:\/|$)/)
   const webhookId = match?.[1]
@@ -349,10 +344,12 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   let episodeName: string | null = null
   const season = episode.seasons[0]
   const episodeNo = episode.episodes[0]
+  // Only true single episodes get a TMDB episode-name lookup: packs span
+  // several episodes and absolute numbering carries no season to query by.
   if (
     data.tmdbId !== null &&
     data.mediaType === 'tv' &&
-    (episode.kind === 'episode' || episode.kind === 'absolute') &&
+    episode.kind === 'episode' &&
     season !== undefined &&
     episodeNo !== undefined
   ) {
@@ -392,7 +389,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
     const fixedEstimate = title.length + data.torrentName.length + data.username.length + data.label.length + 1500
     const overviewBudget = Math.max(500, Math.min(DISCORD_TEXT_LIMIT, DISCORD_TOTAL_LIMIT - fixedEstimate))
     container.addTextDisplayComponents((text: TextDisplayBuilder) =>
-      text.setContent(escapeDiscordText(truncateText(overview, overviewBudget)))
+      text.setContent(truncateText(escapeDiscordText(overview), overviewBudget))
     )
   }
 
@@ -400,9 +397,9 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
     addSeparator(container)
 
     if (tmdb.genres.length > 0) {
-      const genres = truncateText(tmdb.genres.join(', '), 300)
+      const genres = truncateText(escapeDiscordText(tmdb.genres.join(', ')), 300)
       container.addTextDisplayComponents((text: TextDisplayBuilder) =>
-        text.setContent(`${bold(t('discord.genres'))}: ${escapeDiscordText(genres)}`)
+        text.setContent(`${bold(t('discord.genres'))}: ${genres}`)
       )
     }
 
@@ -439,7 +436,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   if (data.torrentName.length > 0) {
     container.addTextDisplayComponents((text: TextDisplayBuilder) =>
       text.setContent(
-        `${bold(t('discord.release'))}: ${escapeDiscordText(truncateText(data.torrentName, DISCORD_RELEASE_LIMIT))}`
+        `${bold(t('discord.release'))}: ${truncateText(escapeDiscordText(data.torrentName), DISCORD_RELEASE_LIMIT)}`
       )
     )
   }
@@ -450,7 +447,7 @@ export async function sendDownloadCompleteWebhook(data: DownloadCompleteData): P
   if (data.discordId !== null && data.discordId.length > 0 && (await isDiscordMentionsEnabled())) {
     const mentionText = new TextDisplayBuilder().setContent(`<@${data.discordId}>`)
     components.unshift(mentionText.toJSON())
-    allowedMentions = { users: [data.discordId] }
+    allowedMentions = { parse: [], users: [data.discordId] }
   }
 
   const payload: ComponentsPayload = {
@@ -481,7 +478,7 @@ export async function notifyRequestPending(data: RequestPendingData): Promise<vo
   }
 
   const rawTitle = (tmdb?.title ?? data.mediaTitle ?? '').trim() || data.mediaTitle
-  const title = escapeDiscordText(truncateText(rawTitle, DISCORD_TITLE_LIMIT))
+  const title = truncateText(escapeDiscordText(rawTitle), DISCORD_TITLE_LIMIT)
   const typeEmoji = data.mediaType === 'movie' ? t('discord.movies') : t('discord.series')
 
   const container = new ContainerBuilder()
@@ -509,7 +506,7 @@ export async function notifyRequestPending(data: RequestPendingData): Promise<vo
     `${bold(t('discord.requestedBy'))}: ${escapeDiscordText(data.username)}`
   ]
   if (data.userNote !== null && data.userNote.length > 0) {
-    infoParts.push(`${bold(t('discord.message'))}: ${escapeDiscordText(truncateText(data.userNote, 500))}`)
+    infoParts.push(`${bold(t('discord.message'))}: ${truncateText(escapeDiscordText(data.userNote), 500)}`)
   }
   container.addTextDisplayComponents((text: TextDisplayBuilder) => text.setContent(infoParts.join('\n')))
 

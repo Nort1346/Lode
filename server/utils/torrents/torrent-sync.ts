@@ -2,6 +2,7 @@ import { downloads, users, settings } from '#server/database/schema'
 import { eq, inArray } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 import { sendDownloadCompleteWebhook } from '#server/utils/notifications/discord'
+import type { DiscordDownloadNotifyInput } from '#server/types/discord'
 import { notifyDownloadComplete } from '#server/utils/notifications/notifications'
 import { createLogger } from '#server/utils/logger'
 import { normalizeEta } from '#server/utils/torrents/eta'
@@ -53,18 +54,7 @@ async function getPrepSpeedMb(): Promise<number> {
 }
 
 function notifyDiscord(
-  dl: {
-    id: string
-    label: string
-    torrentName: string
-    savePath: string
-    sizeBytes: number
-    completedAt: string | null
-    tmdbId: number | null
-    mediaType: string | null
-    userId: string
-    resolution: string | null
-  },
+  dl: DiscordDownloadNotifyInput,
   userMap: Map<string, string>,
   discordIdMap: Map<string, string | null>
 ): void {

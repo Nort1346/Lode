@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  parseEpisodeInfo,
-  titleIsSeasonPack,
-  titleMatchesEpisode
-} from '#server/utils/torrents/release-episode'
+import { parseEpisodeInfo, titleIsSeasonPack, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
 
 describe('release-episode/parseEpisodeInfo', () => {
   const cases: Array<{ name: string; kind: string; seasons: number[]; episodes: number[]; airDate: string | null }> = [
@@ -78,9 +74,10 @@ describe('release-episode/titleMatchesEpisode', () => {
     { title: 'Show.S01E02.1080p', season: 1, episode: 2, expected: true },
     { title: 'Show.S01E02.1080p', season: 1, episode: 3, expected: false },
     { title: 'Show.S01E02.1080p', season: 2, episode: 2, expected: false },
-    { title: 'Show.S04E01-E03.1080p', season: 4, episode: 2, expected: true },
+    // Multi-episode ranges are packs, never single-episode matches.
+    { title: 'Show.S04E01-E03.1080p', season: 4, episode: 2, expected: false },
     { title: 'Show.S04E01-E03.1080p', season: 4, episode: 4, expected: false },
-    { title: 'Show.S01E01E02.1080p', season: 1, episode: 2, expected: true },
+    { title: 'Show.S01E01E02.1080p', season: 1, episode: 2, expected: false },
     { title: 'Show.4x01.HDTV', season: 4, episode: 1, expected: true },
     { title: 'Show.Odc.12.1080p', season: 3, episode: 12, expected: true },
     { title: 'Show.Episode.5.720p', season: 1, episode: 5, expected: true },
@@ -105,7 +102,9 @@ describe('release-episode/titleIsSeasonPack', () => {
     { title: 'Show.Complete.Series.720p', season: 5, expected: true },
     { title: 'Show.Complete.Season.1080p', season: 1, expected: true },
     { title: 'Show.S01E02.1080p', season: 1, expected: false },
-    { title: 'Show.S01E01-E03.1080p', season: 1, expected: false },
+    { title: 'Show.S01E01-E03.1080p', season: 1, expected: true },
+    { title: 'Show.S01E01-E03.1080p', season: 2, expected: false },
+    { title: 'Show.S01E01E02.1080p', season: 1, expected: true },
     { title: 'Dune.Part.Two.2024.1080p', season: 1, expected: false }
   ]
 

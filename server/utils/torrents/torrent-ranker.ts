@@ -47,23 +47,86 @@ interface ResolutionDef {
 // conflict, e.g. a name containing both "BluRay" and "CAM" scores as BluRay;
 // every detected source still shows up in the tag list)
 const SOURCE_TAG_DEFS: SourceTagDef[] = [
-  { tag: 'Remux', matches: [{ key: 'remux', seq: ['remux'] }, { key: 'remux', seq: ['bdremux'] }] },
-  { tag: 'BluRay', matches: [{ key: 'bluray', seq: ['bluray'] }, { key: 'blu-ray', seq: ['blu', 'ray'] }] },
+  {
+    tag: 'Remux',
+    matches: [
+      { key: 'remux', seq: ['remux'] },
+      { key: 'remux', seq: ['bdremux'] }
+    ]
+  },
+  {
+    tag: 'BluRay',
+    matches: [
+      { key: 'bluray', seq: ['bluray'] },
+      { key: 'blu-ray', seq: ['blu', 'ray'] }
+    ]
+  },
   { tag: 'BDRip', matches: [{ key: 'bdrip', seq: ['bdrip'] }] },
   { tag: 'BRRip', matches: [{ key: 'brrip', seq: ['brrip'] }] },
-  { tag: 'WEB-DL', matches: [{ key: 'web-dl', seq: ['web', 'dl'] }, { key: 'webdl', seq: ['webdl'] }] },
-  { tag: 'WEBRip', matches: [{ key: 'webrip', seq: ['webrip'] }, { key: 'webrip', seq: ['web', 'rip'] }] },
+  {
+    tag: 'WEB-DL',
+    matches: [
+      { key: 'web-dl', seq: ['web', 'dl'] },
+      { key: 'webdl', seq: ['webdl'] }
+    ]
+  },
+  {
+    tag: 'WEBRip',
+    matches: [
+      { key: 'webrip', seq: ['webrip'] },
+      { key: 'webrip', seq: ['web', 'rip'] }
+    ]
+  },
   { tag: 'WEB', matches: [{ key: 'web', seq: ['web'] }] },
   { tag: 'HDTV', matches: [{ key: 'hdtv', seq: ['hdtv'] }] },
-  { tag: 'HDRip', matches: [{ key: 'hdrip', seq: ['hdrip'] }, { key: 'hdrip', seq: ['hd', 'rip'] }] },
-  { tag: 'DVDRip', matches: [{ key: 'dvdrip', seq: ['dvdrip'] }, { key: 'dvdrip', seq: ['dvd', 'rip'] }] },
+  {
+    tag: 'HDRip',
+    matches: [
+      { key: 'hdrip', seq: ['hdrip'] },
+      { key: 'hdrip', seq: ['hd', 'rip'] }
+    ]
+  },
+  {
+    tag: 'DVDRip',
+    matches: [
+      { key: 'dvdrip', seq: ['dvdrip'] },
+      { key: 'dvdrip', seq: ['dvd', 'rip'] }
+    ]
+  },
   // DVDScr is checked before DVD so the multi-token "dvd scr" form wins
-  { tag: 'DVDScr', matches: [{ key: 'dvdscr', seq: ['dvdscr'] }, { key: 'dvdscr', seq: ['dvd', 'scr'] }] },
+  {
+    tag: 'DVDScr',
+    matches: [
+      { key: 'dvdscr', seq: ['dvdscr'] },
+      { key: 'dvdscr', seq: ['dvd', 'scr'] }
+    ]
+  },
   { tag: 'DVD', matches: [{ key: 'dvd', seq: ['dvd'] }] },
-  { tag: 'SCR', matches: [{ key: 'scr', seq: ['scr'] }, { key: 'scr', seq: ['screener'] }], guarded: true },
-  { tag: 'TC', matches: [{ key: 'tc', seq: ['tc'] }, { key: 'tc', seq: ['telecine'] }], guarded: true },
+  {
+    tag: 'SCR',
+    matches: [
+      { key: 'scr', seq: ['scr'] },
+      { key: 'scr', seq: ['screener'] }
+    ],
+    guarded: true
+  },
+  {
+    tag: 'TC',
+    matches: [
+      { key: 'tc', seq: ['tc'] },
+      { key: 'tc', seq: ['telecine'] }
+    ],
+    guarded: true
+  },
   { tag: 'HDTS', matches: [{ key: 'hdts', seq: ['hdts'] }] },
-  { tag: 'TS', matches: [{ key: 'ts', seq: ['ts'] }, { key: 'ts', seq: ['telesync'] }], guarded: true },
+  {
+    tag: 'TS',
+    matches: [
+      { key: 'ts', seq: ['ts'] },
+      { key: 'ts', seq: ['telesync'] }
+    ],
+    guarded: true
+  },
   { tag: 'CAM', matches: [{ key: 'cam', seq: ['cam'] }], guarded: true },
   { tag: 'HDCAM', matches: [{ key: 'hdcam', seq: ['hdcam'] }] }
 ]
@@ -140,7 +203,11 @@ function findSequence(tokens: string[], seq: string[], valid?: (index: number) =
   return null
 }
 
-function findFirstSequence(tokens: string[], sequences: string[][], valid?: (index: number) => boolean): SeqMatch | null {
+function findFirstSequence(
+  tokens: string[],
+  sequences: string[][],
+  valid?: (index: number) => boolean
+): SeqMatch | null {
   for (const seq of sequences) {
     const index = findSequence(tokens, seq, valid)
     if (index !== null) return { index, length: seq.length }

@@ -5,7 +5,9 @@
     :aria-label="t('browse.releaseTags')"
     class="flex flex-wrap items-center gap-1"
   >
-    <span v-for="tag in shown" :key="tag" class="rounded px-1.5 py-0.5 text-xs" :class="badgeClass(tag)">{{ tag }}</span>
+    <span v-for="tag in shown" :key="tag" class="rounded px-1.5 py-0.5 text-xs" :class="badgeClass(tag)">{{
+      tag
+    }}</span>
     <span
       v-if="hidden.length > 0"
       class="rounded bg-zinc-200/50 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-700/50 dark:text-zinc-400"
