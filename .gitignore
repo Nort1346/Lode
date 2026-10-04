@@ -39,7 +39,9 @@ prowlarr-config
 data
 media
 
+# Agents
 .agents
+.opencode
 
 # Husky generated hook shims
 .husky/_

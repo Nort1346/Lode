@@ -5,6 +5,7 @@
 # (pnpm >= 12 no longer reads the "pnpm" field of package.json, so overrides live here.)
 overrides:
   esbuild: '>=0.28.0'
+  http-cache-semantics: '>=4.3.0'
 
 allowBuilds:
   '@parcel/watcher': true
@@ -19,3 +20,4 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - '@vite-pwa/assets-generator@1.0.4 || 2.0.0'
+  - http-cache-semantics@4.3.0
