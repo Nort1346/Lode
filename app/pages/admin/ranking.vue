@@ -120,8 +120,8 @@ async function saveConfig() {
     await $fetch('/api/admin/ranking/config', { method: 'PUT', body: sanitizeConfig(config.value) })
     originalConfig.value = JSON.stringify(config.value)
     toast.add({ title: t('ranking.saved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('ranking.saveError'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('ranking.saveError'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -133,8 +133,8 @@ async function resetConfig() {
     config.value = data.config
     originalConfig.value = JSON.stringify(data.config)
     toast.add({ title: t('ranking.resetDone'), color: 'success' })
-  } catch {
-    toast.add({ title: t('ranking.saveError'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('ranking.saveError'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 

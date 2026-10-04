@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { mapApiError } from '~/composables/useApiError'
-
 // Blocking modal: no close button, no backdrop/escape dismiss, no cancel action.
 // It is only removed when the parent re-fetches /api/user/me after a successful change.
 const emit = defineEmits<{
@@ -52,8 +50,7 @@ async function submit() {
     })
     emit('changed')
   } catch (e: unknown) {
-    const data = mapApiError(e).data
-    serverError.value = data?.statusMessage ?? t('profile.error')
+    serverError.value = describeApiError(e, t).description
   } finally {
     loading.value = false
   }

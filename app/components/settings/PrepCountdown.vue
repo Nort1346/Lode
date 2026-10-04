@@ -26,8 +26,8 @@ async function saveEnabled(val: boolean) {
     await $fetch('/api/admin/prep-config', { method: 'PUT', body: { enabled: val } })
     enabled.value = val
     toast.add({ title: t('settings.prepCountdownSaved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('settings.prepCountdownError'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('settings.prepCountdownError'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -41,8 +41,8 @@ async function saveSpeed(val: number | undefined) {
     await $fetch('/api/admin/prep-config', { method: 'PUT', body: { speedMb: clamped } })
     speedMb.value = clamped
     toast.add({ title: t('settings.prepCountdownSaved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('settings.prepCountdownError'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('settings.prepCountdownError'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     saving.value = false
   }

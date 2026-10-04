@@ -113,10 +113,9 @@ async function testLogin() {
     )
     testResult.value = { success: res.success, message: res.message }
   } catch (e: unknown) {
-    const err = mapApiError(e)
     testResult.value = {
       success: false,
-      message: err.data?.statusMessage ?? err.statusMessage ?? t('admin.unknownError')
+      message: describeApiError(e, t).description
     }
   } finally {
     testingLogin.value = false
@@ -163,8 +162,7 @@ async function saveTracker() {
     showModal.value = false
     await fetchTrackers()
   } catch (e: unknown) {
-    const err = mapApiError(e)
-    error.value = err.data?.statusMessage ?? err.statusMessage ?? t('trackers.saveFailed')
+    error.value = describeApiError(e, t).description
   } finally {
     saving.value = false
   }
@@ -182,8 +180,8 @@ async function deleteTracker(tracker: CustomTracker) {
   try {
     await $fetch(`/api/admin/trackers/${tracker.id}`, { method: 'DELETE' })
     await fetchTrackers()
-  } catch {
-    toast.add({ title: t('common.error'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('common.error'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 
@@ -194,8 +192,8 @@ async function toggleEnabled(tracker: CustomTracker) {
       body: { enabled: !tracker.enabled }
     })
     await fetchTrackers()
-  } catch {
-    toast.add({ title: t('common.error'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('common.error'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 

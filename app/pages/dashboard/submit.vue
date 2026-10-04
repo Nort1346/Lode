@@ -168,7 +168,7 @@ async function handleSubmit() {
         color: 'info'
       })
     } else {
-      toast.add({ title: err.data?.statusMessage ?? t('submit.failed'), color: 'error' })
+      toast.add({ title: t('submit.failed'), description: describeApiError(e, t).description, color: 'error' })
     }
   } finally {
     loading.value = false

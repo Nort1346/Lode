@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { mapApiError } from '~/composables/useApiError'
-
 definePageMeta({
   layout: false
 })
@@ -39,8 +37,7 @@ async function handleLogin() {
     await fetchSession()
     await navigateTo('/dashboard')
   } catch (e: unknown) {
-    const err = mapApiError(e)
-    error.value = err.data?.statusMessage ?? t('login.failed')
+    error.value = describeApiError(e, t).description
     loading.value = false
   }
 }
