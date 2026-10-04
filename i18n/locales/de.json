@@ -86,7 +86,6 @@
     "plSubtitles": "PL Untertitel",
     "plLektor": "PL Ton",
     "releaseTags": "Release-Tags",
-    "filters": "Filter",
     "torrentFilters": {
       "title": "Filter",
       "remove": "{tag} entfernen",

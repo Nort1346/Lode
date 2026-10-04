@@ -56,6 +56,13 @@ function parseCount(message: string | undefined, pattern: RegExp): number | unde
 // translate function, injected so the mapping stays pure and unit-testable.
 // The site-level title (e.g. download.error) always wins; use the returned
 // description for the toast body.
+function devLog(...args: unknown[]): void {
+  if (import.meta.dev) {
+    // eslint-disable-next-line no-console
+    console.debug(...args)
+  }
+}
+
 export function describeApiError(e: unknown, t: ApiErrorTranslator): FriendlyApiError {
   if (e !== null && typeof e === 'object' && (e as { name?: unknown }).name === 'AbortError') {
     return { title: t('apiError.abortedTitle'), description: t('apiError.abortedDesc') }
@@ -68,14 +75,10 @@ export function describeApiError(e: unknown, t: ApiErrorTranslator): FriendlyApi
   if (status === undefined) {
     const message = e instanceof Error ? e.message : typeof e === 'string' ? e : ''
     if (/network|failed to fetch|load failed|timed? ?out/i.test(message)) {
-      if (import.meta.dev) {
-        console.debug('[api-error] network failure:', e)
-      }
+      devLog('[api-error] network failure:', e)
       return { title: t('apiError.networkTitle'), description: t('apiError.networkDesc') }
     }
-    if (import.meta.dev) {
-      console.debug('[api-error] unrecognized error:', e)
-    }
+    devLog('[api-error] unrecognized error:', e)
     return { title: t('apiError.genericTitle'), description: t('apiError.genericDesc') }
   }
 
@@ -113,9 +116,7 @@ export function describeApiError(e: unknown, t: ApiErrorTranslator): FriendlyApi
   const mapped = byStatus[status]
   if (mapped !== undefined) {
     if (safeMessage === undefined && rawMessage !== undefined && rawMessage.length > 0) {
-      if (import.meta.dev) {
-        console.debug('[api-error] filtered server message:', rawMessage)
-      }
+      devLog('[api-error] filtered server message:', rawMessage)
     }
     return { title: mapped.title, description: safeMessage ?? mapped.description }
   }

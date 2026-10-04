@@ -86,7 +86,6 @@
     "plSubtitles": "PL Napisy",
     "plLektor": "PL Lektor",
     "releaseTags": "Tagi wydania",
-    "filters": "Filtry",
     "torrentFilters": {
       "title": "Filtry",
       "remove": "Usuń {tag}",

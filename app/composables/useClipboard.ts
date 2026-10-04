@@ -15,6 +15,7 @@ export function useCopyToClipboard() {
         textarea.style.opacity = '0'
         document.body.appendChild(textarea)
         textarea.select()
+        // eslint-disable-next-line @typescript-eslint/no-deprecated -- only sync copy for plain-HTTP deployments
         const ok = document.execCommand('copy')
         document.body.removeChild(textarea)
         if (!ok) throw new Error('copy failed')

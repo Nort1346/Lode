@@ -79,7 +79,7 @@ export function useMediaLanguage() {
   }
 
   function getLanguageOptions(originalLanguage?: string) {
-    const origName = originalLanguage ? (LANGUAGE_NAMES[originalLanguage] ?? originalLanguage) : ''
+    const origName = originalLanguage !== undefined ? (LANGUAGE_NAMES[originalLanguage] ?? originalLanguage) : ''
     return MEDIA_LANGUAGE_OPTIONS.map((opt) => {
       if (opt.value === 'original') {
         return { ...opt, label: originalLabel(origName) }
@@ -90,7 +90,7 @@ export function useMediaLanguage() {
 
   function getCurrentLanguageLabel(originalLanguage?: string): string {
     if (mediaLanguage.value === 'original') {
-      const origName = originalLanguage ? (LANGUAGE_NAMES[originalLanguage] ?? originalLanguage) : ''
+      const origName = originalLanguage !== undefined ? (LANGUAGE_NAMES[originalLanguage] ?? originalLanguage) : ''
       return originalLabel(origName)
     }
     return LANGUAGE_NAMES[mediaLanguage.value] ?? mediaLanguage.value
