@@ -61,8 +61,8 @@ async function selectAvatar(styleName: string, seed: string, bgColor: string) {
     avatarVersion.value++
     void refreshNuxtData()
     toast.add({ title: t('profile.saved'), color: 'success' })
-  } catch (err) {
-    toast.add({ title: t('profile.error'), description: describeApiError(err, t).description, color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('profile.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -90,8 +90,8 @@ async function onFileChange(event: Event) {
     avatarVersion.value++
     void refreshNuxtData()
     toast.add({ title: t('profile.uploaded'), color: 'success' })
-  } catch (err) {
-    toast.add({ title: t('profile.error'), description: describeApiError(err, t).description, color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('profile.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     uploading.value = false
     if (fileInputRef.value) fileInputRef.value.value = ''
@@ -109,8 +109,8 @@ async function removeAvatar() {
     avatarVersion.value++
     void refreshNuxtData()
     toast.add({ title: t('profile.removed'), color: 'success' })
-  } catch (err) {
-    toast.add({ title: t('profile.error'), description: describeApiError(err, t).description, color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('profile.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -140,8 +140,8 @@ async function changePassword() {
     newPassword.value = ''
     confirmPassword.value = ''
     toast.add({ title: t('profile.passwordChanged'), color: 'success' })
-  } catch (err) {
-    toast.add({ title: t('profile.error'), description: describeApiError(err, t).description, color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('profile.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     changingPassword.value = false
   }

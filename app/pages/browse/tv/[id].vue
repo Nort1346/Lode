@@ -461,18 +461,18 @@ async function downloadTorrent(
     }
     toast.add({ title: t('download.added'), description: t('download.addedDesc', { label }), color: 'success' })
     await navigateTo('/dashboard/downloads')
-  } catch (err) {
-    const status = getApiStatusCode(err)
+  } catch (e: unknown) {
+    const status = getApiStatusCode(e)
     if (status === 507) {
       toast.add({
         title: t('download.diskFull'),
-        description: err instanceof Error ? err.message : undefined,
+        description: e instanceof Error ? e.message : undefined,
         color: 'warning'
       })
     } else if (status === 413) {
       toast.add({
         title: t('download.sizeLimit'),
-        description: err instanceof Error ? err.message : undefined,
+        description: e instanceof Error ? e.message : undefined,
         color: 'warning'
       })
     } else if (status === 409) {
@@ -482,7 +482,7 @@ async function downloadTorrent(
         color: 'info'
       })
     } else {
-      toast.add({ title: t('download.error'), description: describeApiError(err, t).description, color: 'error' })
+      toast.add({ title: t('download.error'), description: describeApiError(e, t).description, color: 'error' })
     }
   } finally {
     downloadingKey.value = null
@@ -540,8 +540,13 @@ async function submitRequest() {
       description: t('requests.requestSuccessDesc'),
       color: 'success'
     })
-  } catch (err) {
-    toast.add({ title: t('requests.alreadyRequested'), description: describeApiError(err, t).description, color: 'warning' })
+  } catch (e: unknown) {
+    const friendly = describeApiError(e, t)
+    if (getApiStatusCode(e) === 409) {
+      toast.add({ title: t('requests.alreadyRequested'), description: friendly.description, color: 'warning' })
+    } else {
+      toast.add({ title: friendly.title, description: friendly.description, color: 'error' })
+    }
   } finally {
     requesting.value = false
   }
@@ -590,8 +595,8 @@ async function toggleWishlist() {
         color: 'success'
       })
     }
-  } catch (err) {
-    toast.add({ title: t('wishlist.failed'), description: describeApiError(err, t).description, color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('wishlist.failed'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 </script>

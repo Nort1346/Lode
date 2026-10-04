@@ -7,7 +7,8 @@ vi.spyOn(console, 'debug').mockImplementation(() => {})
 // Records the key (and params) instead of translating, so tests can assert
 // exactly which i18n key the mapping produced.
 function fakeT() {
-  return (key: string, params?: number | Record<string, unknown>) => `${key}(${params === undefined ? '' : JSON.stringify(params)})`
+  return (key: string, params?: number | Record<string, unknown>) =>
+    `${key}(${params === undefined ? '' : JSON.stringify(params)})`
 }
 
 // Mimics the shape of an ofetch FetchError wrapping an h3 createError body.
@@ -35,13 +36,10 @@ describe('describeApiError', () => {
     [502, 'apiError.upstreamTitle', 'apiError.upstreamDesc'],
     [503, 'apiError.unavailableTitle', 'apiError.unavailableDesc'],
     [504, 'apiError.timeoutTitle', 'apiError.timeoutDesc']
-  ] as Array<[number, string, string]>)(
-    'maps HTTP %i to the %s pair',
-    (status, titleKey, descKey) => {
-      const result = describeApiError(ofetchError(status), fakeT())
-      expect(result).toEqual({ title: `${titleKey}()`, description: `${descKey}()` })
-    }
-  )
+  ] as Array<[number, string, string]>)('maps HTTP %i to the %s pair', (status, titleKey, descKey) => {
+    const result = describeApiError(ofetchError(status), fakeT())
+    expect(result).toEqual({ title: `${titleKey}()`, description: `${descKey}()` })
+  })
 
   it('falls back to the 4xx catch-all for unmapped client errors', () => {
     const result = describeApiError(ofetchError(418), fakeT())
@@ -51,6 +49,15 @@ describe('describeApiError', () => {
   it('falls back to the 5xx catch-all for unmapped server errors', () => {
     const result = describeApiError(ofetchError(599), fakeT())
     expect(result).toEqual({ title: 'apiError.server5xxTitle()', description: 'apiError.server5xxDesc({"code":599})' })
+  })
+
+  it('prefers a safe server message in the catch-all pairs', () => {
+    const client = describeApiError(ofetchError(418, 'The torrent file is corrupted'), fakeT())
+    expect(client.title).toBe('apiError.client4xxTitle()')
+    expect(client.description).toBe('The torrent file is corrupted')
+    const server = describeApiError(ofetchError(599, 'The torrent file is corrupted'), fakeT())
+    expect(server.title).toBe('apiError.server5xxTitle()')
+    expect(server.description).toBe('The torrent file is corrupted')
   })
 
   it('uses a safe server statusMessage verbatim as the description', () => {
@@ -68,14 +75,11 @@ describe('describeApiError', () => {
     ['Your api-key was rejected', 'api-key'],
     ['at handleRequest (api.ts:12:5)', 'stack frame'],
     ['a'.repeat(141), 'too long']
-  ] as Array<[string, string]>)(
-    'filters unsafe server messages (%s)',
-    (message) => {
-      const result = describeApiError(ofetchError(502, message), fakeT())
-      expect(result.description).toBe('apiError.upstreamDesc()')
-      expect(result.description).not.toContain(message)
-    }
-  )
+  ] as Array<[string, string]>)('filters unsafe server messages (%s)', (message) => {
+    const result = describeApiError(ofetchError(502, message), fakeT())
+    expect(result.description).toBe('apiError.upstreamDesc()')
+    expect(result.description).not.toContain(message)
+  })
 
   it('never leaks service names from the raw message into the description', () => {
     const result = describeApiError(ofetchError(500, 'qbittorrent responded with a bad secret'), fakeT())
@@ -93,7 +97,10 @@ describe('describeApiError', () => {
     })
 
     it('uses structured limit data for active-limit', () => {
-      const result = describeApiError(ofetchError(429, 'Too many requests', { code: 'active-limit', limit: 5 }), fakeT())
+      const result = describeApiError(
+        ofetchError(429, 'Too many requests', { code: 'active-limit', limit: 5 }),
+        fakeT()
+      )
       expect(result).toEqual({ title: 'apiError.limitTitle()', description: 'apiError.limitDesc({"limit":5})' })
     })
 
@@ -113,6 +120,16 @@ describe('describeApiError', () => {
     it('parses the limit from the message when there is no structured data', () => {
       const result = describeApiError(ofetchError(429, 'Daily download limit reached (10)'), fakeT())
       expect(result).toEqual({ title: 'apiError.limitTitle()', description: 'apiError.limitDesc({"limit":10})' })
+    })
+
+    it('parses a reworded cooldown message without exact English phrasing', () => {
+      const result = describeApiError(ofetchError(429, 'Please wait about 90 seconds'), fakeT())
+      expect(result).toEqual({ title: 'apiError.cooldownTitle()', description: 'apiError.cooldownDesc({"count":90})' })
+    })
+
+    it('parses a bare parenthesized limit without exact English phrasing', () => {
+      const result = describeApiError(ofetchError(429, 'Too many (7)'), fakeT())
+      expect(result).toEqual({ title: 'apiError.limitTitle()', description: 'apiError.limitDesc({"limit":7})' })
     })
 
     it('falls back to the generic rate-limit message when nothing is parseable', () => {
@@ -145,13 +162,10 @@ describe('describeApiError', () => {
     ['null', null],
     ['an unknown object', { weird: true }],
     ['a number', 42]
-  ] as Array<[string, unknown]>)(
-    'maps %s to the generic pair',
-    (_, thrown) => {
-      const result = describeApiError(thrown, fakeT())
-      expect(result).toEqual({ title: 'apiError.genericTitle()', description: 'apiError.genericDesc()' })
-    }
-  )
+  ] as Array<[string, unknown]>)('maps %s to the generic pair', (_, thrown) => {
+    const result = describeApiError(thrown, fakeT())
+    expect(result).toEqual({ title: 'apiError.genericTitle()', description: 'apiError.genericDesc()' })
+  })
 })
 
 describe('getApiStatusCode', () => {
@@ -190,12 +204,9 @@ describe('isSafeServerMessage', () => {
     [undefined, undefined],
     ['', undefined],
     ['   ', undefined]
-  ] as Array<[string | undefined, string | undefined]>)(
-    'rejects missing or empty input',
-    (input, expected) => {
-      expect(isSafeServerMessage(input)).toBe(expected)
-    }
-  )
+  ] as Array<[string | undefined, string | undefined]>)('rejects missing or empty input', (input, expected) => {
+    expect(isSafeServerMessage(input)).toBe(expected)
+  })
 
   it('accepts a short plain message', () => {
     expect(isSafeServerMessage('Looks good')).toBe('Looks good')

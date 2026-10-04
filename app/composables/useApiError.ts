@@ -33,7 +33,8 @@ export function isSafeServerMessage(message: string | undefined): string | undef
   if (message.length > 140) return undefined
   if (/https?:\/\//i.test(message)) return undefined
   if (/[\n\r`\\]/.test(message)) return undefined
-  if (/\b(prowlarr|qbittorrent|tmdb|jellyfin|flaresolverr|indexer|api[_ -]?key|token|secret)\b/i.test(message)) return undefined
+  if (/\b(prowlarr|qbittorrent|tmdb|jellyfin|flaresolverr|indexer|api[_ -]?key|token|secret)\b/i.test(message))
+    return undefined
   if (/\bat \w+ \(/.test(message)) return undefined
   if (/\.(ts|js|mjs|cjs)(:\d+)?\b/.test(message)) return undefined
   return message
@@ -67,20 +68,27 @@ export function describeApiError(e: unknown, t: ApiErrorTranslator): FriendlyApi
   if (status === undefined) {
     const message = e instanceof Error ? e.message : typeof e === 'string' ? e : ''
     if (/network|failed to fetch|load failed|timed? ?out/i.test(message)) {
-      console.debug('[api-error] network failure:', e)
+      if (import.meta.dev) {
+        console.debug('[api-error] network failure:', e)
+      }
       return { title: t('apiError.networkTitle'), description: t('apiError.networkDesc') }
     }
-    console.debug('[api-error] unrecognized error:', e)
+    if (import.meta.dev) {
+      console.debug('[api-error] unrecognized error:', e)
+    }
     return { title: t('apiError.genericTitle'), description: t('apiError.genericDesc') }
   }
 
   if (status === 429) {
     const payload = getRateLimitPayload(e)
-    const cooldownSeconds = payload?.cooldownSeconds ?? parseCount(rawMessage, /Please wait (\d+)s\b/)
+    // Structured `data` from the server is the primary source. The message
+    // regexes below are legacy best-effort fallbacks for old responses, so
+    // they intentionally match loosely instead of exact English phrasing.
+    const cooldownSeconds = payload?.cooldownSeconds ?? parseCount(rawMessage, /wait[^\d]*(\d+)\s*s(?:econds?)?\b/i)
     if (cooldownSeconds !== undefined) {
       return { title: t('apiError.cooldownTitle'), description: t('apiError.cooldownDesc', { count: cooldownSeconds }) }
     }
-    const limit = payload?.limit ?? parseCount(rawMessage, /limit reached \((\d+)\)/i)
+    const limit = payload?.limit ?? parseCount(rawMessage, /\((\d+)\)/)
     if (limit !== undefined) {
       return { title: t('apiError.limitTitle'), description: t('apiError.limitDesc', { limit }) }
     }
@@ -105,13 +113,21 @@ export function describeApiError(e: unknown, t: ApiErrorTranslator): FriendlyApi
   const mapped = byStatus[status]
   if (mapped !== undefined) {
     if (safeMessage === undefined && rawMessage !== undefined && rawMessage.length > 0) {
-      console.debug('[api-error] filtered server message:', rawMessage)
+      if (import.meta.dev) {
+        console.debug('[api-error] filtered server message:', rawMessage)
+      }
     }
     return { title: mapped.title, description: safeMessage ?? mapped.description }
   }
 
   if (status >= 400 && status < 500) {
-    return { title: t('apiError.client4xxTitle'), description: t('apiError.client4xxDesc', { code: status }) }
+    return {
+      title: t('apiError.client4xxTitle'),
+      description: safeMessage ?? t('apiError.client4xxDesc', { code: status })
+    }
   }
-  return { title: t('apiError.server5xxTitle'), description: t('apiError.server5xxDesc', { code: status }) }
+  return {
+    title: t('apiError.server5xxTitle'),
+    description: safeMessage ?? t('apiError.server5xxDesc', { code: status })
+  }
 }
