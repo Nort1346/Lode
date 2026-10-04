@@ -48,8 +48,8 @@ async function unblockIp(ip: string) {
     await $fetch('/api/admin/brute-force/blocked-ips', { method: 'DELETE', body: { ip } })
     toast.add({ title: t('bruteForce.unblocked'), color: 'success' })
     await fetchAll()
-  } catch {
-    toast.add({ title: t('common.error'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('common.error'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 
@@ -71,8 +71,8 @@ async function saveConfig() {
       }
     })
     toast.add({ title: t('bruteForce.saved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('bruteForce.saveError'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('bruteForce.saveError'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     savingConfig.value = false
   }

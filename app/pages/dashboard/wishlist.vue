@@ -17,8 +17,8 @@ async function removeFromWishlist(item: WishlistItem) {
     await $fetch('/api/wishlist', { method: 'DELETE', body: { id: item.id } })
     await refresh()
     toast.add({ title: t('wishlist.removedFromWishlist'), color: 'success' })
-  } catch {
-    toast.add({ title: t('wishlist.failed'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('wishlist.failed'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 

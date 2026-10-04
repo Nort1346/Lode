@@ -1,4 +1,5 @@
 import type { APIContainerComponent, APITextDisplayComponent } from 'discord-api-types/v10'
+import type { I18nKey } from '#shared/i18n-keys'
 
 export interface DownloadCompleteData {
   id: string
@@ -35,7 +36,7 @@ export interface RequestPendingData {
   userNote: string | null
 }
 
-export type TextTranslator = (key: string) => string
+export type TextTranslator = (key: I18nKey) => string
 
 export interface ComponentsPayload {
   components: (APIContainerComponent | APITextDisplayComponent)[]

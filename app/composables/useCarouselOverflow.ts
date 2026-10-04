@@ -44,7 +44,7 @@ export function useCarouselOverflow(scrollRef: Ref<HTMLElement | null>, options?
   }
 
   onMounted(() => {
-    nextTick(setupObserver)
+    void nextTick(setupObserver)
   })
 
   onUnmounted(() => {
@@ -59,7 +59,7 @@ export function useCarouselOverflow(scrollRef: Ref<HTMLElement | null>, options?
 
   if (options?.watchSource !== undefined) {
     watch(options.watchSource, () => {
-      nextTick(() => {
+      void nextTick(() => {
         checkOverflow()
         setupObserver()
       })

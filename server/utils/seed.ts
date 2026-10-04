@@ -50,5 +50,14 @@ export async function ensureAdminExists() {
       await repos.users.update(admin.id, { isActive: true })
       log.info('Admin user re-activated')
     }
+
+    const bootstrapAdmin = admins.find((a) => a.username === 'admin')
+    if (bootstrapAdmin !== undefined && bootstrapAdmin.mustChangePassword) {
+      const adminPassword = generateAdminPassword()
+      const password = await hash(adminPassword, 12)
+      await repos.users.update(bootstrapAdmin.id, { password })
+      log.info(`Admin password: ${adminPassword}`)
+      log.info('Change this password after first login!')
+    }
   }
 }

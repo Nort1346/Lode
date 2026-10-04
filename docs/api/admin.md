@@ -252,7 +252,7 @@ Full `RankingConfig` object (see [Ranking System](../features/ranking-system.md)
 
 ### Reset Config
 ```
-POST /api/admin/ranking/config.reset
+POST /api/admin/ranking/config/reset
 ```
 
 ---

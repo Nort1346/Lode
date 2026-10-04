@@ -49,9 +49,11 @@ export default defineEventHandler(async (event) => {
 
     const cooldown = checkCooldown(session.user.id)
     if (!cooldown.ok) {
+      const cooldownSeconds = Math.ceil(cooldown.remainingMs / 1000)
       throw createError({
         statusCode: 429,
-        statusMessage: `Please wait ${Math.ceil(cooldown.remainingMs / 1000)}s before adding another torrent`
+        statusMessage: `Please wait ${cooldownSeconds}s before adding another torrent`,
+        data: { code: 'cooldown', cooldownSeconds }
       })
     }
 
@@ -168,7 +170,8 @@ export default defineEventHandler(async (event) => {
         if (userDownloads.length >= freshUser.activeTorrentLimit) {
           throw createError({
             statusCode: 429,
-            statusMessage: `Active torrent limit reached (${freshUser.activeTorrentLimit})`
+            statusMessage: `Active torrent limit reached (${freshUser.activeTorrentLimit})`,
+            data: { code: 'active-limit', limit: freshUser.activeTorrentLimit }
           })
         }
 
@@ -186,7 +189,8 @@ export default defineEventHandler(async (event) => {
         if (todayActive.length >= freshUser.dailyDownloadLimit) {
           throw createError({
             statusCode: 429,
-            statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`
+            statusMessage: `Daily download limit reached (${freshUser.dailyDownloadLimit})`,
+            data: { code: 'daily-limit', limit: freshUser.dailyDownloadLimit }
           })
         }
 
@@ -196,7 +200,8 @@ export default defineEventHandler(async (event) => {
           if (todayPrivate.length >= freshUser.privateTrackerLimit) {
             throw createError({
               statusCode: 429,
-              statusMessage: `Private tracker daily limit reached (${freshUser.privateTrackerLimit})`
+              statusMessage: `Private tracker daily limit reached (${freshUser.privateTrackerLimit})`,
+              data: { code: 'private-tracker-limit', limit: freshUser.privateTrackerLimit }
             })
           }
         }

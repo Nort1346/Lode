@@ -115,7 +115,7 @@ export function useNotifications() {
 
           if (hasCorrectKey) {
             const sub = existing.toJSON()
-            if (sub.endpoint && sub.keys) {
+            if (sub.endpoint !== undefined && sub.endpoint !== '' && sub.keys !== undefined) {
               await $fetch(API_NOTIFICATIONS_SUBSCRIBE, {
                 method: 'POST',
                 body: {
@@ -137,7 +137,7 @@ export function useNotifications() {
       })
 
       const sub = subscription.toJSON()
-      if (!sub.endpoint || !sub.keys) return false
+      if (sub.endpoint === undefined || sub.endpoint === '' || sub.keys === undefined) return false
 
       await $fetch(API_NOTIFICATIONS_SUBSCRIBE, {
         method: 'POST',
@@ -179,7 +179,9 @@ export function useNotifications() {
 
     eventSource.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data) as {
+        const rawData: unknown = event.data
+        if (typeof rawData !== 'string') return
+        const data = JSON.parse(rawData) as {
           type: string
           unreadCount?: number
           notification?: NotificationItem

@@ -44,7 +44,7 @@ export function useMarquee() {
   let mounted = true
 
   onMounted(() => {
-    nextTick(() => {
+    void nextTick(() => {
       requestAnimationFrame(() => {
         if (!mounted) return
         measure()

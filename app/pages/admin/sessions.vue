@@ -39,8 +39,12 @@ async function revokeSession(id: string, targetUserId: string) {
       return
     }
     await fetchSessions()
-  } catch {
-    toast.add({ title: t('admin.sessionRevokeFailed'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({
+      title: t('admin.sessionRevokeFailed'),
+      description: describeApiError(e, t).description,
+      color: 'error'
+    })
   }
 }
 
@@ -61,8 +65,12 @@ async function revokeAllForUser(userId: string, username: string) {
       return
     }
     await fetchSessions()
-  } catch {
-    toast.add({ title: t('admin.sessionRevokeFailed'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({
+      title: t('admin.sessionRevokeFailed'),
+      description: describeApiError(e, t).description,
+      color: 'error'
+    })
   }
 }
 

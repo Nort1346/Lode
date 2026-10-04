@@ -16,7 +16,12 @@ interface TagCase {
 const cases: TagCase[] = [
   // Basic sources
   { title: 'Movie.2024.1080p.BluRay.x264-GROUP', tags: ['BluRay', 'x264'], resolution: '1080p', source: 'bluray' },
-  { title: 'Movie.2024.2160p.BluRay.Remux.DV.HDR10+.TrueHD.Atmos-GRP', tags: ['Remux', 'BluRay', 'HDR10+', 'DV', 'TrueHD', 'Atmos'], resolution: '2160p', source: 'remux' },
+  {
+    title: 'Movie.2024.2160p.BluRay.Remux.DV.HDR10+.TrueHD.Atmos-GRP',
+    tags: ['Remux', 'BluRay', 'HDR10+', 'DV', 'TrueHD', 'Atmos'],
+    resolution: '2160p',
+    source: 'remux'
+  },
   { title: 'Movie.2024.1080p.BDRip.x264-GRP', tags: ['BDRip', 'x264'], resolution: '1080p', source: 'bdrip' },
   { title: 'Movie.2024.1080p.BRRip.x264-GRP', tags: ['BRRip', 'x264'], resolution: '1080p', source: 'brrip' },
   { title: 'Movie.2024.1080p.WEBRip.AAC-GROUP', tags: ['WEBRip', 'AAC'], resolution: '1080p', source: 'webrip' },
@@ -32,7 +37,12 @@ const cases: TagCase[] = [
   { title: 'Movie.2024.1080p.WEB.x264-GRP', tags: ['WEB', 'x264'], resolution: '1080p', source: 'web' },
 
   // WEB-DL separator and alias variants
-  { title: 'Movie.2024.2160p.WEB-DL.x265.DV.10bit.Atmos-GRP', tags: ['WEB-DL', 'DV', 'x265', '10-bit', 'Atmos'], resolution: '2160p', source: 'web-dl' },
+  {
+    title: 'Movie.2024.2160p.WEB-DL.x265.DV.10bit.Atmos-GRP',
+    tags: ['WEB-DL', 'DV', 'x265', '10-bit', 'Atmos'],
+    resolution: '2160p',
+    source: 'web-dl'
+  },
   { title: 'Movie 2024 WEB DL 1080p x264 GROUP', tags: ['WEB-DL', 'x264'], resolution: '1080p', source: 'web-dl' },
   { title: 'Movie.2024.WEBDL.1080p.x264-GRP', tags: ['WEB-DL', 'x264'], resolution: '1080p', source: 'webdl' },
   { title: 'Movie.2024.UHD.WEB-DL.x265-GRP', tags: ['WEB-DL', 'x265'], resolution: '2160p', source: 'web-dl' },
@@ -46,7 +56,12 @@ const cases: TagCase[] = [
   { title: 'Movie.2024.1080p.WEB-DL.x264-TS', tags: ['WEB-DL', 'x264'], resolution: '1080p', source: 'web-dl' },
   { title: 'Movie.2024.1080p.WEB-DL.x264-CAMRIP', tags: ['WEB-DL', 'x264'], resolution: '1080p', source: 'web-dl' },
   // DTS audio must not parse as a TS/TC capture source
-  { title: 'Movie.2024.1080p.DTS-HD.MA.TrueHD.Atmos-GROUP', tags: ['DTS-HD', 'TrueHD', 'Atmos'], resolution: '1080p', source: null },
+  {
+    title: 'Movie.2024.1080p.DTS-HD.MA.TrueHD.Atmos-GROUP',
+    tags: ['DTS-HD', 'TrueHD', 'Atmos'],
+    resolution: '1080p',
+    source: null
+  },
 
   // Capture tags after the year/resolution anchor (legit), without anchor (episodes)
   { title: 'Show.S01E05.720p.CAM.x264-GROUP', tags: ['CAM', 'x264'], resolution: '720p', source: 'cam' },
@@ -54,26 +69,91 @@ const cases: TagCase[] = [
   { title: 'Movie.2024.720p.CAM.x264-GROUP', tags: ['CAM', 'x264'], resolution: '720p', source: 'cam' },
 
   // Conflict: best source wins for scoring, both tags stay visible
-  { title: 'Movie.2024.1080p.BluRay.CAM.x264-GROUP', tags: ['BluRay', 'CAM', 'x264'], resolution: '1080p', source: 'bluray' },
+  {
+    title: 'Movie.2024.1080p.BluRay.CAM.x264-GROUP',
+    tags: ['BluRay', 'CAM', 'x264'],
+    resolution: '1080p',
+    source: 'bluray'
+  },
 
   // Video tags
-  { title: 'Movie.2024.1080p.WEB-DL.HDR10.x264-GRP', tags: ['WEB-DL', 'HDR10', 'x264'], resolution: '1080p', source: 'web-dl' },
-  { title: 'Movie.2024.1080p.WEB-DL.SDR.x264-GRP', tags: ['WEB-DL', 'SDR', 'x264'], resolution: '1080p', source: 'web-dl' },
-  { title: 'Movie.2024.1080p.WEB-DL.HEVC.10bit-GRP', tags: ['WEB-DL', 'x265', '10-bit'], resolution: '1080p', source: 'web-dl' },
-  { title: 'Movie.2024.1080p.WEB-DL.10-Bit.x264-GRP', tags: ['WEB-DL', 'x264', '10-bit'], resolution: '1080p', source: 'web-dl' },
+  {
+    title: 'Movie.2024.1080p.WEB-DL.HDR10.x264-GRP',
+    tags: ['WEB-DL', 'HDR10', 'x264'],
+    resolution: '1080p',
+    source: 'web-dl'
+  },
+  {
+    title: 'Movie.2024.1080p.WEB-DL.SDR.x264-GRP',
+    tags: ['WEB-DL', 'SDR', 'x264'],
+    resolution: '1080p',
+    source: 'web-dl'
+  },
+  {
+    title: 'Movie.2024.1080p.WEB-DL.HEVC.10bit-GRP',
+    tags: ['WEB-DL', 'x265', '10-bit'],
+    resolution: '1080p',
+    source: 'web-dl'
+  },
+  {
+    title: 'Movie.2024.1080p.WEB-DL.10-Bit.x264-GRP',
+    tags: ['WEB-DL', 'x264', '10-bit'],
+    resolution: '1080p',
+    source: 'web-dl'
+  },
 
   // Audio tags
-  { title: 'Movie.2024.1080p.WEB-DL.DDP5.1.x264-GRP', tags: ['WEB-DL', 'x264', 'DD+'], resolution: '1080p', source: 'web-dl' },
-  { title: 'Movie.2024.1080p.WEB-DL.EAC3.x264-GRP', tags: ['WEB-DL', 'x264', 'DD+'], resolution: '1080p', source: 'web-dl' },
-  { title: 'Movie.2024.1080p.WEB-DL.DTS.X.x264-GRP', tags: ['WEB-DL', 'x264', 'DTS:X'], resolution: '1080p', source: 'web-dl' },
+  {
+    title: 'Movie.2024.1080p.WEB-DL.DDP5.1.x264-GRP',
+    tags: ['WEB-DL', 'x264', 'DD+'],
+    resolution: '1080p',
+    source: 'web-dl'
+  },
+  {
+    title: 'Movie.2024.1080p.WEB-DL.EAC3.x264-GRP',
+    tags: ['WEB-DL', 'x264', 'DD+'],
+    resolution: '1080p',
+    source: 'web-dl'
+  },
+  {
+    title: 'Movie.2024.1080p.WEB-DL.DTS.X.x264-GRP',
+    tags: ['WEB-DL', 'x264', 'DTS:X'],
+    resolution: '1080p',
+    source: 'web-dl'
+  },
   { title: 'Movie.2024.1080p.WEB-DL.DTS.HD.MA-GRP', tags: ['WEB-DL', 'DTS-HD'], resolution: '1080p', source: 'web-dl' },
 
   // Other tags
-  { title: 'Movie.2024.1080p.WEBRip.x264.PROPER-GRP', tags: ['WEBRip', 'x264', 'Proper'], resolution: '1080p', source: 'webrip' },
-  { title: 'Movie.2024.1080p.WEB-DL.x264.REPACK-GRP', tags: ['WEB-DL', 'x264', 'Repack'], resolution: '1080p', source: 'web-dl' },
-  { title: 'Movie.2024.1080p.BluRay.3D.x264-GRP', tags: ['BluRay', 'x264', '3D'], resolution: '1080p', source: 'bluray' },
-  { title: 'Movie.2024.1080p.WEB-DL.MULTI.x264-GRP', tags: ['WEB-DL', 'x264', 'Multi'], resolution: '1080p', source: 'web-dl' },
-  { title: 'Movie.2024.1080p.WEB-DL.LINE.x264-GRP', tags: ['WEB-DL', 'x264', 'LINE'], resolution: '1080p', source: 'web-dl' },
+  {
+    title: 'Movie.2024.1080p.WEBRip.x264.PROPER-GRP',
+    tags: ['WEBRip', 'x264', 'Proper'],
+    resolution: '1080p',
+    source: 'webrip'
+  },
+  {
+    title: 'Movie.2024.1080p.WEB-DL.x264.REPACK-GRP',
+    tags: ['WEB-DL', 'x264', 'Repack'],
+    resolution: '1080p',
+    source: 'web-dl'
+  },
+  {
+    title: 'Movie.2024.1080p.BluRay.3D.x264-GRP',
+    tags: ['BluRay', 'x264', '3D'],
+    resolution: '1080p',
+    source: 'bluray'
+  },
+  {
+    title: 'Movie.2024.1080p.WEB-DL.MULTI.x264-GRP',
+    tags: ['WEB-DL', 'x264', 'Multi'],
+    resolution: '1080p',
+    source: 'web-dl'
+  },
+  {
+    title: 'Movie.2024.1080p.WEB-DL.LINE.x264-GRP',
+    tags: ['WEB-DL', 'x264', 'LINE'],
+    resolution: '1080p',
+    source: 'web-dl'
+  },
   { title: 'Movie.2024.720p.WEBRip.HC.x264-GRP', tags: ['WEBRip', 'x264', 'HC'], resolution: '720p', source: 'webrip' },
 
   // No tags at all
@@ -94,8 +174,24 @@ describe('release tag detection', () => {
 describe('tag vocabulary', () => {
   it('SOURCE_TAGS covers every source display tag', () => {
     expect(SOURCE_TAGS).toEqual([
-      'Remux', 'BluRay', 'BDRip', 'BRRip', 'WEB-DL', 'WEBRip', 'WEB', 'HDTV', 'HDRip', 'DVDRip', 'DVDScr',
-      'DVD', 'SCR', 'TC', 'HDTS', 'TS', 'CAM', 'HDCAM'
+      'Remux',
+      'BluRay',
+      'BDRip',
+      'BRRip',
+      'WEB-DL',
+      'WEBRip',
+      'WEB',
+      'HDTV',
+      'HDRip',
+      'DVDRip',
+      'DVDScr',
+      'DVD',
+      'SCR',
+      'TC',
+      'HDTS',
+      'TS',
+      'CAM',
+      'HDCAM'
     ])
   })
 

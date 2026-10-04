@@ -365,9 +365,9 @@ describe('QBittorrentClient', () => {
       } as unknown as Response
       mockFetch.mockResolvedValueOnce(failsResponse).mockResolvedValue(okResponse([]))
 
-      await expect(
-        client.addTorrent('https://example.com/file.torrent', '/save', 'movies', 'u1')
-      ).rejects.toThrow('Torrent already exists in qBittorrent')
+      await expect(client.addTorrent('https://example.com/file.torrent', '/save', 'movies', 'u1')).rejects.toThrow(
+        'Torrent already exists in qBittorrent'
+      )
     })
 
     it('proceeds with the add when the pre-check itself fails', async () => {

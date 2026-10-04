@@ -28,9 +28,7 @@ describe('admin/qbit-config.get', () => {
 
   it('returns autoRemoveCompleted as true when enabled', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
-    mockGetSetting.mockImplementation((key: string) =>
-      key === 'qbit_auto_remove_completed' ? 'true' : 'true'
-    )
+    mockGetSetting.mockImplementation((key: string) => (key === 'qbit_auto_remove_completed' ? 'true' : 'true'))
 
     const result = await handler(mockEvent)
 
@@ -41,9 +39,7 @@ describe('admin/qbit-config.get', () => {
 
   it('returns autoRemoveCompleted as false when unset', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
-    mockGetSetting.mockImplementation((key: string) =>
-      key === 'qbit_auto_remove_completed' ? undefined : undefined
-    )
+    mockGetSetting.mockImplementation((key: string) => (key === 'qbit_auto_remove_completed' ? undefined : undefined))
 
     const result = await handler(mockEvent)
 
@@ -52,9 +48,7 @@ describe('admin/qbit-config.get', () => {
 
   it('returns seedingEnabled as false when explicitly disabled', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
-    mockGetSetting.mockImplementation((key: string) =>
-      key === 'qbit_seeding_enabled' ? 'false' : undefined
-    )
+    mockGetSetting.mockImplementation((key: string) => (key === 'qbit_seeding_enabled' ? 'false' : undefined))
 
     const result = await handler(mockEvent)
 
@@ -67,9 +61,7 @@ describe('admin/qbit-config.get', () => {
 
     const result = await handler(mockEvent)
 
-    expect(result).toEqual(
-      expect.objectContaining({ seedingEnabled: true })
-    )
+    expect(result).toEqual(expect.objectContaining({ seedingEnabled: true }))
   })
 
   it('throws 403 for non-admin', async () => {

@@ -31,8 +31,8 @@ async function toggleDiskCheck() {
     await $fetch('/api/admin/disk-status', { method: 'PUT', body: { checkEnabled: newValue } })
     diskCheckEnabled.value = newValue
     toast.add({ title: t('settings.diskCheckSaved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('common.error'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('common.error'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 
@@ -50,8 +50,8 @@ async function changeMinFreeGb(event: Event) {
     diskMinFreeGb.value = data.minFreeSpaceGb
     diskCheckEnabled.value = data.checkEnabled
     toast.add({ title: t('settings.diskMinFreeSaved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('common.error'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('common.error'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 

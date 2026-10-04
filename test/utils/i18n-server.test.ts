@@ -38,6 +38,7 @@ vi.mock('@@/i18n/locales/pt-BR.json', () => ({
 }))
 
 import { createT, DISCORD_LOCALE_OPTIONS } from '#server/utils/i18n-server'
+import type { I18nKey } from '#shared/i18n-keys'
 
 describe('i18n-server', () => {
   it('resolves known key for English locale', () => {
@@ -60,9 +61,9 @@ describe('i18n-server', () => {
     expect(t('nav.dashboard')).toBe('Painel')
   })
 
-  it('returns key when key does not exist', () => {
+  it('returns key when key does not exist (runtime fallback)', () => {
     const t = createT('en')
-    expect(t('nonexistent.key')).toBe('nonexistent.key')
+    expect(t('nonexistent.key' as I18nKey)).toBe('nonexistent.key')
   })
 
   it('navigates nested objects correctly', () => {

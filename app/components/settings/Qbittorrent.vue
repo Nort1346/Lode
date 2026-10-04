@@ -26,8 +26,12 @@ async function saveAutoRemove(val: boolean) {
     await $fetch('/api/admin/qbit-config', { method: 'PUT', body: { autoRemoveCompleted: val } })
     autoRemove.value = val
     toast.add({ title: t('settings.qbittorrentSaved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('settings.qbittorrentError'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({
+      title: t('settings.qbittorrentError'),
+      description: describeApiError(e, t).description,
+      color: 'error'
+    })
   } finally {
     saving.value = false
   }
@@ -39,8 +43,12 @@ async function saveSeedingEnabled(val: boolean) {
     await $fetch('/api/admin/qbit-config', { method: 'PUT', body: { seedingEnabled: val } })
     seedingEnabled.value = val
     toast.add({ title: t('settings.qbittorrentSaved'), color: 'success' })
-  } catch {
-    toast.add({ title: t('settings.qbittorrentError'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({
+      title: t('settings.qbittorrentError'),
+      description: describeApiError(e, t).description,
+      color: 'error'
+    })
   } finally {
     saving.value = false
   }

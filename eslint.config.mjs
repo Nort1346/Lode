@@ -56,11 +56,11 @@ export default withNuxt(
       '@typescript-eslint/no-non-null-assertion': 'error',
       '@typescript-eslint/no-non-null-asserted-optional-chain': 'warn',
       '@typescript-eslint/require-array-sort-compare': 'error',
-      '@typescript-eslint/no-deprecated': 'warn'
+      '@typescript-eslint/no-deprecated': 'error'
     }
   },
 
-  // Strict TypeScript - app files
+  // Strict TypeScript - app files (same strictness as server)
   {
     files: ['app/**/*.ts'],
     languageOptions: {
@@ -73,9 +73,24 @@ export default withNuxt(
       'no-console': 'warn',
       eqeqeq: ['error', 'always'],
 
+      // Safety
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unsafe-assignment': 'error',
       '@typescript-eslint/no-unsafe-member-access': 'error',
+      '@typescript-eslint/no-unsafe-return': 'error',
+      '@typescript-eslint/no-unsafe-call': 'error',
+      '@typescript-eslint/no-unsafe-argument': 'error',
+
+      // Strict boolean / expressions
+      '@typescript-eslint/strict-boolean-expressions': 'warn',
+      '@typescript-eslint/restrict-plus-operands': 'error',
+      '@typescript-eslint/restrict-template-expressions': 'warn',
+
+      // Promises
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
@@ -86,7 +101,56 @@ export default withNuxt(
       ],
       '@typescript-eslint/consistent-type-assertions': 'error',
       '@typescript-eslint/no-non-null-assertion': 'error',
-      '@typescript-eslint/no-non-null-asserted-optional-chain': 'warn'
+      '@typescript-eslint/no-non-null-asserted-optional-chain': 'warn',
+      '@typescript-eslint/require-array-sort-compare': 'error',
+      '@typescript-eslint/no-deprecated': 'error'
+    }
+  },
+
+  // Strict TypeScript - shared files (used by both app and server)
+  {
+    files: ['shared/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir
+      }
+    },
+    rules: {
+      'no-console': 'warn',
+      eqeqeq: ['error', 'always'],
+
+      // Safety
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'error',
+      '@typescript-eslint/no-unsafe-member-access': 'error',
+      '@typescript-eslint/no-unsafe-return': 'error',
+      '@typescript-eslint/no-unsafe-call': 'error',
+      '@typescript-eslint/no-unsafe-argument': 'error',
+
+      // Strict boolean / expressions
+      '@typescript-eslint/strict-boolean-expressions': 'warn',
+      '@typescript-eslint/restrict-plus-operands': 'error',
+      '@typescript-eslint/restrict-template-expressions': 'warn',
+
+      // Promises
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ],
+      '@typescript-eslint/consistent-type-assertions': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'error',
+      '@typescript-eslint/no-non-null-asserted-optional-chain': 'warn',
+      '@typescript-eslint/require-array-sort-compare': 'error',
+      '@typescript-eslint/no-deprecated': 'error'
     }
   },
 
@@ -138,7 +202,7 @@ export default withNuxt(
       '@typescript-eslint/no-non-null-assertion': 'error',
       '@typescript-eslint/no-non-null-asserted-optional-chain': 'warn',
       '@typescript-eslint/require-array-sort-compare': 'error',
-      '@typescript-eslint/no-deprecated': 'warn'
+      '@typescript-eslint/no-deprecated': 'error'
     }
   },
 
@@ -181,13 +245,16 @@ export default withNuxt(
   {
     files: ['i18n/locales/*.json'],
     rules: {
-      '@intlify/vue-i18n/no-missing-keys-in-other-locales': 'error'
+      '@intlify/vue-i18n/no-missing-keys-in-other-locales': 'error',
+      '@intlify/vue-i18n/no-duplicate-keys-in-locale': 'error',
+      '@intlify/vue-i18n/no-unknown-locale': 'error',
+      '@intlify/vue-i18n/valid-message-syntax': 'error'
     }
   },
 
-  // vue-i18n: t()/tc() calls must reference keys that exist in the locale files
+  // vue-i18n: t() calls must reference existing keys (app + server share locale files)
   {
-    files: ['app/**/*.vue', 'app/**/*.ts'],
+    files: ['app/**/*.vue', 'app/**/*.ts', 'server/**/*.ts'],
     rules: {
       '@intlify/vue-i18n/no-missing-keys': 'error'
     }

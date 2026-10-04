@@ -141,3 +141,18 @@ export function collectFilterOptions(items: TorrentFilterItem[]): TorrentFilterO
   }
   return result
 }
+
+// Stable identity for list rendering (TransitionGroup keys on the browse
+// pages). Prefers the indexer-provided identifiers; falls back to indexer +
+// title when a result carries none.
+export interface TorrentIdentity {
+  guid: string | null
+  magnetLink: string | null
+  downloadUrl: string | null
+  indexer: string
+  title: string
+}
+
+export function torrentKey(torrent: TorrentIdentity): string {
+  return torrent.guid ?? torrent.magnetLink ?? torrent.downloadUrl ?? `${torrent.indexer}:${torrent.title}`
+}

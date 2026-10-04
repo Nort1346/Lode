@@ -162,16 +162,34 @@
     <div class="relative z-10 mt-10">
       <ServiceHealthBanner />
 
-      <div class="mb-6 flex items-center gap-4">
-        <h2 class="text-xl font-bold text-zinc-900 dark:text-white">{{ t('tv.seasons') }}</h2>
-        <USelect v-model="selectedSeason" :items="seasonOptions" size="md" class="w-48" />
+      <div class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 class="flex items-center text-xl font-bold text-zinc-900 dark:text-white">
+          <UIcon name="i-lucide-download" class="mr-2 size-5" />
+          {{ t('tv.seasons') }}
+        </h2>
+        <USelect
+          v-model="selectedSeason"
+          :items="seasonOptions"
+          size="md"
+          class="w-48 cursor-pointer"
+          :ui="{
+            base: 'border border-zinc-200/70 bg-white/60 text-sm shadow-sm ring-0 backdrop-blur-md hover:bg-white/80 dark:border-zinc-700/60 dark:bg-zinc-800/60 dark:hover:bg-zinc-800/80'
+          }"
+        />
+        <BrowseTorrentFilters
+          v-if="!searching && seasonLimitInfo === null && seasonItems.length > 0"
+          v-model="filterState"
+          :items="seasonItems"
+          part="trigger"
+          class="ml-auto"
+        />
       </div>
 
       <BrowseTorrentFilters
         v-if="!searching && seasonLimitInfo === null && seasonItems.length > 0"
         v-model="filterState"
         :items="seasonItems"
-        class="mb-6"
+        part="status"
       />
 
       <BrowseSearchProgress
@@ -206,10 +224,11 @@
       <div v-else-if="seasonPayload">
         <div v-if="visiblePacks.length > 0" class="mb-6">
           <h3 class="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ t('tv.seasonPacks') }}</h3>
-          <div class="flex flex-col gap-4 torrent-list">
+          <TransitionGroup appear name="filter-list" tag="div" class="relative flex flex-col gap-4 torrent-list">
             <BrowseSeasonPackCard
               v-for="(pack, idx) in visiblePacks"
-              :key="'pack-' + idx"
+              :key="torrentKey(pack)"
+              :style="`--i: ${idx}`"
               :pack="pack"
               :loading="downloadingPackIdx === idx"
               :disabled="
@@ -235,13 +254,20 @@
               "
               @toggle-debug="toggleDebug(`pack-${idx}`)"
             />
-          </div>
+          </TransitionGroup>
         </div>
 
-        <div v-if="visibleEpisodes.length > 0" class="flex flex-col gap-4 torrent-list">
+        <TransitionGroup
+          v-if="visibleEpisodes.length > 0"
+          appear
+          name="filter-list"
+          tag="div"
+          class="relative flex flex-col gap-4 torrent-list"
+        >
           <BrowseEpisodeCard
-            v-for="ep in visibleEpisodes"
+            v-for="(ep, epIdx) in visibleEpisodes"
             :key="ep.id"
+            :style="`--i: ${epIdx}`"
             :episode="ep"
             :show-name="show?.name ?? ''"
             :selected-season="selectedSeason"
@@ -265,14 +291,14 @@
             "
             @toggle-debug="(key) => toggleDebug(key)"
           />
-        </div>
+        </TransitionGroup>
 
         <div
           v-else
           class="rounded-xl bg-zinc-100/50 py-8 text-center text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
         >
-          <p>{{ t('browse.filters.noMatches') }}</p>
-          <p class="mt-1 text-xs">{{ t('browse.filters.hiddenCount', { count: hiddenCount }) }}</p>
+          <p>{{ t('browse.torrentFilters.noMatches') }}</p>
+          <p class="mt-1 text-xs">{{ t('browse.torrentFilters.hiddenCount', { count: hiddenCount }) }}</p>
         </div>
       </div>
     </div>
@@ -310,7 +336,7 @@
 import type { ShowData, SeasonData } from '~/types/browse'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
-import { emptyFilters, matchesFilters } from '#shared/torrent-filters'
+import { emptyFilters, hasActiveFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
 import type { TorrentFilterItem, TorrentFiltersState } from '#shared/torrent-filters'
 
 const route = useRoute()
@@ -429,14 +455,17 @@ const visiblePacks = computed(() => {
   return payload.seasonPacks.filter((pack) => matchesFilters(pack, filterState.value))
 })
 
-// Episodes with zero visible torrents are hidden entirely (an empty episode
-// card would just say "no torrents"); their torrents still count as hidden
+// Hybrid visibility: with no filters active, episodes without any found
+// torrents stay visible in a dimmed "no sources" state (the card already
+// renders tv.noTorrents for them); once the user filters, only matching
+// episodes show. Their (zero) torrents still count as hidden either way
 const visibleEpisodes = computed(() => {
   const payload = seasonPayload.value
   if (payload === null) return []
+  const strict = hasActiveFilters(filterState.value)
   return payload.episodes
     .map((ep) => ({ ...ep, torrents: ep.torrents.filter((torrent) => matchesFilters(torrent, filterState.value)) }))
-    .filter((ep) => ep.torrents.length > 0)
+    .filter((ep) => ep.torrents.length > 0 || !strict)
 })
 
 const visibleCount = computed(
@@ -513,18 +542,18 @@ async function downloadTorrent(
     }
     toast.add({ title: t('download.added'), description: t('download.addedDesc', { label }), color: 'success' })
     await navigateTo('/dashboard/downloads')
-  } catch (err) {
-    const status = getApiStatusCode(err)
+  } catch (e: unknown) {
+    const status = getApiStatusCode(e)
     if (status === 507) {
       toast.add({
         title: t('download.diskFull'),
-        description: err instanceof Error ? err.message : undefined,
+        description: e instanceof Error ? e.message : undefined,
         color: 'warning'
       })
     } else if (status === 413) {
       toast.add({
         title: t('download.sizeLimit'),
-        description: err instanceof Error ? err.message : undefined,
+        description: e instanceof Error ? e.message : undefined,
         color: 'warning'
       })
     } else if (status === 409) {
@@ -534,8 +563,7 @@ async function downloadTorrent(
         color: 'info'
       })
     } else {
-      const msg = err instanceof Error ? err.message : t('download.errorDesc')
-      toast.add({ title: t('download.error'), description: msg, color: 'error' })
+      toast.add({ title: t('download.error'), description: describeApiError(e, t).description, color: 'error' })
     }
   } finally {
     downloadingKey.value = null
@@ -593,9 +621,13 @@ async function submitRequest() {
       description: t('requests.requestSuccessDesc'),
       color: 'success'
     })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : t('requests.alreadyRequested')
-    toast.add({ title: t('requests.alreadyRequested'), description: msg, color: 'warning' })
+  } catch (e: unknown) {
+    const friendly = describeApiError(e, t)
+    if (getApiStatusCode(e) === 409) {
+      toast.add({ title: t('requests.alreadyRequested'), description: friendly.description, color: 'warning' })
+    } else {
+      toast.add({ title: friendly.title, description: friendly.description, color: 'error' })
+    }
   } finally {
     requesting.value = false
   }
@@ -644,8 +676,8 @@ async function toggleWishlist() {
         color: 'success'
       })
     }
-  } catch {
-    toast.add({ title: t('wishlist.failed'), color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('wishlist.failed'), description: describeApiError(e, t).description, color: 'error' })
   }
 }
 </script>

@@ -61,9 +61,8 @@ async function selectAvatar(styleName: string, seed: string, bgColor: string) {
     avatarVersion.value++
     void refreshNuxtData()
     toast.add({ title: t('profile.saved'), color: 'success' })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : t('profile.error')
-    toast.add({ title: t('profile.error'), description: msg, color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('profile.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -91,9 +90,8 @@ async function onFileChange(event: Event) {
     avatarVersion.value++
     void refreshNuxtData()
     toast.add({ title: t('profile.uploaded'), color: 'success' })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : t('profile.error')
-    toast.add({ title: t('profile.error'), description: msg, color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('profile.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     uploading.value = false
     if (fileInputRef.value) fileInputRef.value.value = ''
@@ -111,9 +109,8 @@ async function removeAvatar() {
     avatarVersion.value++
     void refreshNuxtData()
     toast.add({ title: t('profile.removed'), color: 'success' })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : t('profile.error')
-    toast.add({ title: t('profile.error'), description: msg, color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('profile.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     saving.value = false
   }
@@ -143,10 +140,8 @@ async function changePassword() {
     newPassword.value = ''
     confirmPassword.value = ''
     toast.add({ title: t('profile.passwordChanged'), color: 'success' })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : t('profile.error')
-    const data = mapApiError(err).data
-    toast.add({ title: t('profile.error'), description: data?.statusMessage ?? msg, color: 'error' })
+  } catch (e: unknown) {
+    toast.add({ title: t('profile.error'), description: describeApiError(e, t).description, color: 'error' })
   } finally {
     changingPassword.value = false
   }

@@ -95,7 +95,7 @@ export function useDicebear() {
     const style = getStyle(styleName)
     if (!style) return ''
     const options: Record<string, unknown> = { seed, size: 96, borderRadius: 50 }
-    if (bgColor) options.backgroundColor = bgColor
+    if (bgColor !== undefined && bgColor.length > 0) options.backgroundColor = bgColor
     const avatar = new Avatar(style, options)
     return avatar.toDataUri()
   }

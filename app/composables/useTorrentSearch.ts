@@ -142,7 +142,9 @@ export function useTorrentSearch<T>() {
       if (terminal) return
       let data: TorrentStreamEvent
       try {
-        data = JSON.parse(msg.data) as TorrentStreamEvent
+        const rawData: unknown = msg.data
+        if (typeof rawData !== 'string') return
+        data = JSON.parse(rawData) as TorrentStreamEvent
       } catch {
         return
       }

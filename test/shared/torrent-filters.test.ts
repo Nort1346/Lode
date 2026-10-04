@@ -4,10 +4,11 @@ import {
   hasActiveFilters,
   matchesFilters,
   collectFilterOptions,
+  torrentKey,
   CAPTURE_TAGS,
   TAG_GROUP
 } from '#shared/torrent-filters'
-import type { TorrentFilterItem, TorrentFiltersState } from '#shared/torrent-filters'
+import type { TorrentFilterItem, TorrentFiltersState, TorrentIdentity } from '#shared/torrent-filters'
 
 const item = (tags: string[], resolution: string | null = null): TorrentFilterItem => ({ tags, resolution })
 
@@ -134,6 +135,30 @@ describe('collectFilterOptions', () => {
   })
 })
 
+describe('torrentKey', () => {
+  const base: TorrentIdentity = {
+    guid: null,
+    magnetLink: null,
+    downloadUrl: null,
+    indexer: 'IndexerA',
+    title: 'Some.Release.2024.1080p'
+  }
+
+  it('prefers guid, then magnet, then download url', () => {
+    expect(torrentKey({ ...base, guid: 'g1', magnetLink: 'm1', downloadUrl: 'd1' })).toBe('g1')
+    expect(torrentKey({ ...base, magnetLink: 'm1', downloadUrl: 'd1' })).toBe('m1')
+    expect(torrentKey({ ...base, downloadUrl: 'd1' })).toBe('d1')
+  })
+
+  it('falls back to indexer + title when no identifier exists', () => {
+    expect(torrentKey(base)).toBe('IndexerA:Some.Release.2024.1080p')
+  })
+
+  it('differs between indexers for the same title', () => {
+    expect(torrentKey(base)).not.toBe(torrentKey({ ...base, indexer: 'IndexerB' }))
+  })
+})
+
 describe('tag vocabulary', () => {
   it('every capture tag is mapped to the source group', () => {
     for (const tag of CAPTURE_TAGS) {
@@ -144,10 +169,40 @@ describe('tag vocabulary', () => {
   it('covers the full parser display vocabulary (sources, video, audio)', () => {
     expect(Object.keys(TAG_GROUP).sort()).toEqual(
       [
-        'Remux', 'BluRay', 'BDRip', 'BRRip', 'WEB-DL', 'WEBRip', 'WEB', 'HDTV', 'HDRip', 'DVDRip', 'DVD',
-        'DVDScr', 'SCR', 'TC', 'HDTS', 'TS', 'CAM', 'HDCAM',
-        'HDR10+', 'HDR10', 'DV', 'SDR', 'x264', 'x265', 'AV1', '10-bit', 'XviD',
-        'DTS-HD', 'DTS:X', 'DTS', 'TrueHD', 'Atmos', 'DD+', 'AAC'
+        'Remux',
+        'BluRay',
+        'BDRip',
+        'BRRip',
+        'WEB-DL',
+        'WEBRip',
+        'WEB',
+        'HDTV',
+        'HDRip',
+        'DVDRip',
+        'DVD',
+        'DVDScr',
+        'SCR',
+        'TC',
+        'HDTS',
+        'TS',
+        'CAM',
+        'HDCAM',
+        'HDR10+',
+        'HDR10',
+        'DV',
+        'SDR',
+        'x264',
+        'x265',
+        'AV1',
+        '10-bit',
+        'XviD',
+        'DTS-HD',
+        'DTS:X',
+        'DTS',
+        'TrueHD',
+        'Atmos',
+        'DD+',
+        'AAC'
       ].sort()
     )
   })

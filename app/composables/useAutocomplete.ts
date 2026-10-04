@@ -7,6 +7,21 @@ export function useAutocomplete(query: Ref<string>, type: Ref<string>, locale: R
   // Invalidates in-flight requests: only the latest query may write its results
   let requestId = 0
 
+  async function runFetch(id: number): Promise<void> {
+    try {
+      const data = await $fetch<{ suggestions: AutocompleteSuggestion[] }>('/api/browse/autocomplete', {
+        query: { q: query.value, type: type.value, locale: locale.value }
+      })
+      if (id !== requestId) return
+      suggestions.value = data.suggestions
+      isOpen.value = data.suggestions.length > 0
+    } catch {
+      if (id !== requestId) return
+      suggestions.value = []
+      isOpen.value = false
+    }
+  }
+
   function fetchSuggestions() {
     if (debounceTimer !== null) clearTimeout(debounceTimer)
     requestId++
@@ -16,19 +31,8 @@ export function useAutocomplete(query: Ref<string>, type: Ref<string>, locale: R
       return
     }
     const id = requestId
-    debounceTimer = setTimeout(async () => {
-      try {
-        const data = await $fetch<{ suggestions: AutocompleteSuggestion[] }>('/api/browse/autocomplete', {
-          query: { q: query.value, type: type.value, locale: locale.value }
-        })
-        if (id !== requestId) return
-        suggestions.value = data.suggestions
-        isOpen.value = data.suggestions.length > 0
-      } catch {
-        if (id !== requestId) return
-        suggestions.value = []
-        isOpen.value = false
-      }
+    debounceTimer = setTimeout(() => {
+      void runFetch(id)
     }, 300)
   }
 
