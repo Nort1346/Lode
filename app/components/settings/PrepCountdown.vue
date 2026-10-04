@@ -27,7 +27,11 @@ async function saveEnabled(val: boolean) {
     enabled.value = val
     toast.add({ title: t('settings.prepCountdownSaved'), color: 'success' })
   } catch (e: unknown) {
-    toast.add({ title: t('settings.prepCountdownError'), description: describeApiError(e, t).description, color: 'error' })
+    toast.add({
+      title: t('settings.prepCountdownError'),
+      description: describeApiError(e, t).description,
+      color: 'error'
+    })
   } finally {
     saving.value = false
   }
@@ -42,7 +46,11 @@ async function saveSpeed(val: number | undefined) {
     speedMb.value = clamped
     toast.add({ title: t('settings.prepCountdownSaved'), color: 'success' })
   } catch (e: unknown) {
-    toast.add({ title: t('settings.prepCountdownError'), description: describeApiError(e, t).description, color: 'error' })
+    toast.add({
+      title: t('settings.prepCountdownError'),
+      description: describeApiError(e, t).description,
+      color: 'error'
+    })
   } finally {
     saving.value = false
   }

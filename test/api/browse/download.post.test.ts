@@ -341,9 +341,7 @@ describe('browse/download.post', () => {
     // Old downloads rows never block an add: only a live qBittorrent presence
     // (reported by the client as alreadyComplete/alreadyDownloading) blocks.
     // The get queue below is inert - no dedup query runs anymore.
-    const getQueue: unknown[] = [
-      { id: 'old-1', label: 'test', torrentHash: 'a'.repeat(40), status: 'completed' }
-    ]
+    const getQueue: unknown[] = [{ id: 'old-1', label: 'test', torrentHash: 'a'.repeat(40), status: 'completed' }]
     mockDb.select.mockReturnValue({
       from: vi.fn(() => ({
         where: vi.fn(() => ({
@@ -367,9 +365,7 @@ describe('browse/download.post', () => {
   })
 
   it('still blocks via the live check when the torrent is present despite an old row', async () => {
-    const getQueue: unknown[] = [
-      { id: 'old-1', label: 'test', torrentHash: 'a'.repeat(40), status: 'completed' }
-    ]
+    const getQueue: unknown[] = [{ id: 'old-1', label: 'test', torrentHash: 'a'.repeat(40), status: 'completed' }]
     mockDb.select.mockReturnValue({
       from: vi.fn(() => ({
         where: vi.fn(() => ({
@@ -521,8 +517,6 @@ describe('browse/download.post', () => {
     expect(mockDb.update).not.toHaveBeenCalled()
     vi.mocked(global.fetch).mockReset()
   })
-
-
 
   it('returns alreadyComplete when the torrent is already seeding in qBittorrent', async () => {
     mockQbit.addTorrent.mockResolvedValue({

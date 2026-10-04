@@ -102,7 +102,11 @@ async function savePresets() {
     })
     toast.add({ title: t('admin.jellyfinPresetsSaved'), color: 'success' })
   } catch (e: unknown) {
-    toast.add({ title: t('admin.jellyfinPresetsError'), description: describeApiError(e, t).description, color: 'error' })
+    toast.add({
+      title: t('admin.jellyfinPresetsError'),
+      description: describeApiError(e, t).description,
+      color: 'error'
+    })
   } finally {
     saving.value = false
   }

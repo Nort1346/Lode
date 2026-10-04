@@ -24,7 +24,8 @@ function flattenKeys(value: Json, prefix = ''): string[] {
 
 function getApiError(locale: Locale): { [key: string]: Json } {
   const root = loadLocale(locale)
-  if (root === null || typeof root !== 'object' || Array.isArray(root)) throw new Error(`${locale}: root is not an object`)
+  if (root === null || typeof root !== 'object' || Array.isArray(root))
+    throw new Error(`${locale}: root is not an object`)
   const apiError = root.apiError
   if (apiError === null || typeof apiError !== 'object' || Array.isArray(apiError)) {
     throw new Error(`${locale}: missing apiError object`)

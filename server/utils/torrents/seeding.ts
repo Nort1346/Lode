@@ -9,10 +9,7 @@ export async function isSeedingEnabled(): Promise<boolean> {
   return (await getSetting(SETTINGS.QBIT_SEEDING_ENABLED)) !== 'false'
 }
 
-export async function applySeedingPolicy(
-  qbit: Pick<QBittorrentClient, 'setShareLimits'>,
-  hash: string
-): Promise<void> {
+export async function applySeedingPolicy(qbit: Pick<QBittorrentClient, 'setShareLimits'>, hash: string): Promise<void> {
   if (await isSeedingEnabled()) return
   try {
     await qbit.setShareLimits(hash, 0, 0, 0)

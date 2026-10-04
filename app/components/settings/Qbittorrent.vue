@@ -27,7 +27,11 @@ async function saveAutoRemove(val: boolean) {
     autoRemove.value = val
     toast.add({ title: t('settings.qbittorrentSaved'), color: 'success' })
   } catch (e: unknown) {
-    toast.add({ title: t('settings.qbittorrentError'), description: describeApiError(e, t).description, color: 'error' })
+    toast.add({
+      title: t('settings.qbittorrentError'),
+      description: describeApiError(e, t).description,
+      color: 'error'
+    })
   } finally {
     saving.value = false
   }
@@ -40,7 +44,11 @@ async function saveSeedingEnabled(val: boolean) {
     seedingEnabled.value = val
     toast.add({ title: t('settings.qbittorrentSaved'), color: 'success' })
   } catch (e: unknown) {
-    toast.add({ title: t('settings.qbittorrentError'), description: describeApiError(e, t).description, color: 'error' })
+    toast.add({
+      title: t('settings.qbittorrentError'),
+      description: describeApiError(e, t).description,
+      color: 'error'
+    })
   } finally {
     saving.value = false
   }
