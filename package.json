@@ -73,7 +73,7 @@
     "nuxt-auth-utils": "^0.5.30",
     "pino": "^10.3.1",
     "postgres": "^3.4.9",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "web-push": "^3.6.7",
     "zod": "^4.6.5"
