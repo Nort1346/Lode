@@ -14,7 +14,7 @@ GET /api/browse/search?q=matrix&type=movie&page=1&locale=pl&movieGenre=28,12
 | `q` | string | required | Search query (min 2 chars) |
 | `type` | string | `all` | `movie`, `tv`, or `all` |
 | `page` | number | `1` | Page number |
-| `locale` | string | `en` | TMDB locale (`en`, `pl`, `de`, `fr`, `es`) |
+| `locale` | string | `en` | TMDB locale (`en`, `pl`, `de`, `fr`, `es`, `pt-BR`) |
 | `movieGenre` | string | - | Comma-separated movie genre IDs |
 | `tvGenre` | string | - | Comma-separated TV genre IDs |
 
@@ -137,7 +137,7 @@ GET /api/browse/genre?genreId=28&mediaType=movie&locale=pl
 |-------|------|---------|-------------|
 | `genreId` | number | required | TMDB genre ID |
 | `mediaType` | string | `movie` | `movie` or `tv` |
-| `locale` | string | `en` | TMDB locale (`en`, `pl`, `de`, `fr`, `es`) |
+| `locale` | string | `en` | TMDB locale (`en`, `pl`, `de`, `fr`, `es`, `pt-BR`) |
 
 ---
 
@@ -227,6 +227,7 @@ GET /api/browse/movie/550/torrents?locale=pl
       "resolution": "1080p",
       "source": "blu-ray",
       "language": "en",
+      "tags": ["BluRay", "x264"],
       "isPrivate": false
     }
   ]
@@ -242,6 +243,27 @@ Search for TV show torrents via Prowlarr.
 ```
 GET /api/browse/tv/1399/torrents?locale=pl
 ```
+
+---
+
+## Torrents Stream (SSE)
+
+The same torrent search, streamed with live Prowlarr progress. Returns `text/event-stream`; the final `done` event carries the same payload as the non-streaming endpoint.
+
+```
+GET /api/browse/movie/550/torrents-stream?locale=pl
+GET /api/browse/tv/1399/season/1/torrents-stream?locale=pl
+```
+
+Events:
+
+| Event | Description |
+|-------|-------------|
+| `query` | A Prowlarr query started (`state: start`), finished (`state: done`, with `results` count), was skipped after the per-request timeout (`state: skipped`), or failed (`state: failed`) |
+| `done` | Search finished; `data` is the torrent payload (`found: false` when nothing matched) |
+| `error` | `code: limit` (429, download limit reached) or `code: details` (502, TMDB details failed) |
+
+Keepalives are sent as `:keepalive` comments. The search keeps running after a client disconnect so finished queries land in the Prowlarr cache.
 
 ---
 

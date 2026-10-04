@@ -26,6 +26,10 @@ Lode has a role-based user system with configurable limits, session management, 
 - **Jellyfin**: Plain text sent first, then bcrypt for Lode
 - Password order is critical for sync to work
 
+### Forced Password Change
+
+The seeded `admin` account is created with `must_change_password` set. On first login the user is forced into a password change dialog before using the app. Until the password is changed, every Lode restart regenerates the temporary admin password (printed to the logs) so a leaked placeholder stops working.
+
 ### Session Management
 - Cookie-based sessions via `nuxt-auth-utils`
 - Session validation middleware checks DB on every API request

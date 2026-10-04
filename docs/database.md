@@ -40,6 +40,7 @@ Core user accounts.
 | `created_at` | text | Creation timestamp (ISO 8601) |
 | `discord_id` | text | Discord user ID (for mentions) |
 | `can_submit` | boolean | Can submit torrent requests (default false) |
+| `must_change_password` | boolean | Force password change on next login (default false; set for the seeded admin) |
 | `max_sessions` | integer | Max concurrent sessions (0 = unlimited) |
 | `avatar_url` | text | Path to avatar image |
 | `expires_at` | text | Auto-disable date (ISO 8601) |
@@ -56,7 +57,7 @@ Torrent download records.
 | `torrent_name` | text | Tracker torrent title |
 | `magnet_link` | text | Magnet, download URL, or `guid:` prefix |
 | `save_path` | text enum | `movies`, `series`, `games`, `books`, `music` |
-| `status` | text enum | `pending`, `downloading`, `completed`, `failed`, `paused`, `removed`, `disk_full` (default `pending`) |
+| `status` | text enum | `pending`, `checking`, `downloading`, `completed`, `failed`, `paused`, `removed`, `disk_full` (default `pending`) |
 | `torrent_hash` | text | qBittorrent hash |
 | `progress` | real | 0.0 to 1.0 |
 | `eta_seconds` | integer | Estimated time remaining |
@@ -65,10 +66,14 @@ Torrent download records.
 | `num_seeds` / `num_leechs` | integer | Seeder/leecher counts |
 | `created_at` | text | Creation timestamp (ISO 8601) |
 | `completed_at` | text | Completion timestamp (ISO 8601) |
+| `notified_at` | text | When the completion notifications were sent (Jellyfin library update, Discord, in-app) |
 | `tmdb_id` | integer | TMDB media ID |
 | `media_type` | text enum | `movie` or `tv` |
 | `poster_url` | text | Poster image URL |
 | `is_private` | boolean | From a private tracker (default false) |
+| `indexer_name` | text | Indexer the release came from |
+| `resolution` | text | Detected release resolution |
+| `qbit_tag` | text | qBittorrent tag applied to the torrent |
 
 Indexed on `(user_id, status)`, `(status)`, and `(user_id, created_at)`.
 

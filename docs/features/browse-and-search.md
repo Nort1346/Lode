@@ -83,8 +83,16 @@ All carousels are animated with the globally registered `v-reveal` Vue directive
 
 ## TMDB Locale
 
-Search results are localized based on the current i18n locale:
-- `pl` → Polish titles and overviews
-- `en` → English titles and overviews
+Browse results are localized based on the current i18n locale. Each app locale maps to a TMDB language code (`pl` → `pl-PL`, `en` → `en-US`, `de` → `de-DE`, `fr` → `fr-FR`, `es` → `es-ES`, `pt-BR` → `pt-BR`); unknown locales fall back to `en-US`.
 
 The locale is passed as a query parameter to all browse API endpoints.
+
+## Release Tags & Filters
+
+Torrent titles on the movie/TV detail pages are parsed into release tags (source, video, and audio tokens such as `WEB-DL`, `x265`, `Atmos`) shown as badges on each torrent row.
+
+A filter popover on the movie/TV detail pages narrows the loaded list by these tags and resolution: OR within a group, AND across groups, plus a toggle to hide capture-source releases (`CAM`, `HDCAM`, `TS`, `HDTS`, `TC`). Filtering is client-side (see `shared/torrent-filters.ts`).
+
+## Torrent Search Progress
+
+Torrent search on the movie/TV detail pages streams live Prowlarr progress over SSE (`/api/browse/movie/[id]/torrents-stream`, `/api/browse/tv/[id]/season/[season]/torrents-stream`): the UI shows each query as it runs, including queries that were skipped after the per-request timeout. The search keeps running after a disconnect so results land in the Prowlarr cache for the next request.

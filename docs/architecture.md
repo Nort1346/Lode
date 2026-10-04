@@ -9,7 +9,7 @@
 | Database | Drizzle ORM - SQLite (default) or PostgreSQL |
 | Auth | `nuxt-auth-utils` (cookie sessions) |
 | Icons | Lucide + Simple Icons (via `@iconify-json/*`) |
-| i18n | `@nuxtjs/i18n` v10 - English (default) + pl, de, fr, es (5 locales) |
+| i18n | `@nuxtjs/i18n` v10 - English (default) + pl, de, fr, es, pt-BR (6 locales) |
 | PWA | `@vite-pwa/nuxt` - auto-update, service worker |
 | Logging | Pino with ring buffer for SSE live logs |
 
@@ -59,7 +59,7 @@
 │   │   ├── database.ts         # SqliteDb, PgDb, AppDb types
 │   │   └── settings.ts         # SETTINGS constant system
 │   └── utils/                  # Server utilities (30+ files)
-├── i18n/locales/               # pl, en, de, fr, es (5 locales)
+├── i18n/locales/               # pl, en, de, fr, es, pt-BR (6 locales)
 ├── shared/                     # Shared code (auth.d.ts type augmentations, ranking.ts default config)
 ├── docs/                       # This documentation
 ├── scripts/                    # Migration scripts

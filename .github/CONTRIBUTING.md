@@ -4,8 +4,8 @@ Thanks for your interest in improving Lode! This guide covers local setup, the d
 
 ## Prerequisites
 
-- Node.js 22+
-- pnpm 11+
+- Node.js 24+
+- pnpm 12+
 - Docker (optional, for the full stack)
 
 ## Local setup
@@ -19,12 +19,12 @@ pnpm dev               # runs migrations, then starts on http://localhost:5757
 ```
 
 For the full Docker stack (qBittorrent, Prowlarr, Jellyfin, etc.) see
-[docs/getting-started.md](./docs/getting-started.md) and the `setup.sh` / `setup.ps1` scripts.
+[docs/getting-started.md](../docs/getting-started.md) and the `setup.sh` / `setup.ps1` scripts.
 
 ## Development workflow
 
 1. Create a feature branch from `main`: `git checkout -b feat/my-change`.
-2. Make your change. Follow the conventions in [AGENTS.md](./AGENTS.md):
+2. Make your change. Follow the conventions in [AGENTS.md](../AGENTS.md):
    - No semicolons, single quotes, 2-space indent (Prettier).
    - All types in dedicated `types.ts` files - never inline.
    - No `any`; use `unknown` and narrow with type guards.

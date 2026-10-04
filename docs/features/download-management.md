@@ -22,6 +22,7 @@ The download management system tracks torrent progress from qBittorrent, provide
 | Status | Description |
 |--------|-------------|
 | `pending` | Added to qBittorrent, waiting for metadata |
+| `checking` | qBittorrent is checking the torrent (metadata/seed check) |
 | `downloading` | Actively downloading |
 | `completed` | Download finished |
 | `failed` | Download failed or was removed |

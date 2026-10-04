@@ -113,6 +113,15 @@ Configure the simulated file preparation countdown:
 
 ## Discord Settings
 
-- Locale selection (Polish/English)
+- Locale selection (`pl`, `en`, `de`, `fr`, `es`, `pt-BR`)
 - User mention toggle
 - Webhook URL (configured via env)
+
+## Service Health Notices
+
+User-facing outage notices for the services a session depends on (TMDB, Prowlarr, qBittorrent):
+
+- `GET /api/health/services` (requires login) checks the three core services; the client caches results for 30s and only re-checks on TTL expiry or an explicit retry
+- A blocking banner (`ServiceHealthBanner`) appears while Prowlarr or qBittorrent is down/invalid/not configured - it blocks browse search and downloads until the service is back or the notice is dismissed
+- A down/invalid TMDB blocks the browse pages the same way
+- Dismissal is per issue kind, so a changed status (e.g. down → no indexers) resurfaces

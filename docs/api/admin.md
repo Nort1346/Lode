@@ -54,6 +54,18 @@ DELETE /api/admin/users/[id]
 
 Cannot delete admin users. Jellyfin delete must succeed before local delete. All active sessions for the deleted user are also removed.
 
+### Force Sync User
+```
+POST /api/admin/users/[id]/sync
+```
+
+Re-syncs the user with Jellyfin: updates the existing Jellyfin user, or creates one with a generated temporary password (returned in the response) when no mapping exists. The avatar is re-synced when present.
+
+### Response
+```json
+{ "success": true, "action": "created", "tempPassword": "Ab12..." }
+```
+
 ---
 
 ## Admin Defaults
@@ -300,6 +312,13 @@ DELETE /api/admin/jellyfin/avatar
 { "userId": "uuid" }
 ```
 
+### Jellyfin Status
+```
+GET /api/admin/jellyfin/status
+```
+
+Jellyfin-only health check (cheap - no other service calls). See [Admin Features](../features/admin-features.md#system-status) for the check semantics.
+
 ---
 
 ## Discord
@@ -398,6 +417,31 @@ PUT /api/admin/prep-config
   "enabled": true,
   "speedMb": 15
 }
+```
+
+### qBittorrent Config
+```
+GET /api/admin/qbit-config
+```
+
+### Response
+```json
+{ "autoRemoveCompleted": false, "seedingEnabled": true }
+```
+
+- `autoRemoveCompleted` - treat a torrent as completed when it disappears from qBittorrent at ≥90% progress
+- `seedingEnabled` - when `false`, Lode-added torrents get per-torrent share limits (ratio 0, seeding time 0)
+
+### Update qBittorrent Config
+```
+PUT /api/admin/qbit-config
+```
+
+### Body
+Both fields are optional - only provided fields are updated.
+
+```json
+{ "autoRemoveCompleted": true, "seedingEnabled": false }
 ```
 
 ---

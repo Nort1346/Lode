@@ -114,7 +114,7 @@ docs: documentation changes
 
 ## Testing
 
-The project uses **Vitest** (`vitest` 4.x) with `@nuxt/test-utils` and `@vitest/coverage-v8`.
+The project uses **Vitest** (`vitest` 5.x) with `@nuxt/test-utils` and `@vitest/coverage-v8`.
 
 ### Configuration
 
@@ -133,8 +133,11 @@ test/
 ├── setup.ts              # Global h3 stubs
 ├── tsconfig.json         # Dedicated typecheck config for tests
 ├── api/                  # Route handlers (auth, browse, torrents, requests, wishlist, notifications, admin/*)
+├── app/                  # Composables and client-side logic (useApiError, useTorrentSearch, etc.)
+├── i18n/                 # Locale key parity and server i18n tests
 ├── middleware/           # Session validation + brute force middleware
 ├── repositories/         # Data access layer (settings, login-attempts, sync-user-settings)
+├── shared/               # Shared modules (torrent-filters, ranking, i18n keys)
 ├── utils/                # Server utils (ranking, disk, limits, auth, format, etc.)
 └── types/                # Shared test type helpers
 ```

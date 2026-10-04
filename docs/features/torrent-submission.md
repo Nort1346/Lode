@@ -12,12 +12,10 @@ Standard `magnet:?xt=urn:btih:...` links. The most common method.
 ### 2. Download URL
 Direct HTTP/HTTPS links to `.torrent` files. Downloaded directly from the URL.
 
-### 3. GUID (Private Tracker)
-For private trackers that require authentication:
-- Cookie-based: Uses stored session cookie
-- Login-based: Auto-login with credentials, fetch torrent file
-- Uses `got-scraping` with Chrome TLS impersonation
-- Automatic retry on session expiry (re-login + retry once)
+### 3. Torrent File
+Direct `.torrent` file upload (sent as base64, max 5MB).
+
+Private tracker results (GUID download links) go through the browse download flow instead - see [Private Trackers](./private-trackers.md).
 
 ## Download Flow
 
@@ -30,7 +28,7 @@ For private trackers that require authentication:
    - Daily download limit
    - Private tracker daily limit
 6. **Mutex lock** - Serializes torrent additions globally
-7. **qBittorrent add** - Via qui proxy (magnet or torrent file)
+7. **qBittorrent add** - Via the qBittorrent WebUI API (magnet, URL, or torrent file)
 8. **Dangerous file check** - Scans file list for executables/scripts
 9. **Size check** - Compared against user's `maxTorrentSizeGb`
 10. **Disk check** - Verifies sufficient free space
@@ -60,6 +58,9 @@ Blocks torrents containing:
 - **Global mutex**: Serializes all torrent additions
 - **Daily limits**: Per-user configurable
 - **Active limits**: Max concurrent downloading torrents
+
+### Duplicate Detection
+Before adding, Lode checks whether the torrent is already in qBittorrent - a live lookup by info hash (parsed from the magnet, the uploaded file, or the downloaded torrent bytes), falling back to the stored link when no hash is available. When the torrent exists, the endpoint returns `{ alreadyDownloading: true, name }` or `{ alreadyComplete: true, name }` instead of creating a duplicate record. If qBittorrent itself rejects the add, a 409 (`Torrent already exists in qBittorrent`) is returned.
 
 ## Save Paths
 

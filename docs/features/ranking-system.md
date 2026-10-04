@@ -17,7 +17,7 @@ The torrent ranking system scores and ranks search results from Prowlarr based o
 ### Resolution (weight: 40)
 | Resolution | Score |
 |-----------|-------|
-| 2160p / 4K | 20 |
+| 8k / 2160p / 4K | 20 |
 | 1080p | 40 |
 | 720p | 20 |
 | 480p / 576p | 5 |
@@ -74,18 +74,22 @@ Threshold-based scoring varies by content type:
 | 4-8 GB | 12 |
 | 8+ GB | 5 |
 
-### Source (weight: 10)
+### Source (weight: 70)
 | Source | Score |
 |--------|-------|
-| Remux | 10 |
-| Blu-ray | 9 |
-| BDRip | 8 |
-| WEB-DL | 8 |
-| WEBRip | 7 |
-| HDRip | 6 |
-| HDTV | 5 |
-| DVDRip | 4 |
-| CAM/TS/TC | 1 |
+| Remux | 70 |
+| Blu-ray | 63 |
+| BDRip / BRRip | 56 |
+| WEB-DL | 56 |
+| WEBRip | 42 |
+| HDTV | 35 |
+| HDRip | 28 |
+| DVDRip / DVD | 21 |
+| DVDScr / SCR / Screener | 14 |
+| TC / TS / Telecine / Telesync | -14 |
+| CAM / HDCAM | -35 |
+
+Capture sources score negative: a high-seeder CAM must not outrank a low-seeder WEB-DL of the same resolution.
 
 ### Group (weight: 5)
 Known release groups get bonus points. 24 known groups configured.

@@ -19,6 +19,7 @@ Sent when a torrent finishes downloading (from the torrent-sync plugin). Include
 - Genres, runtime, rating, and release/air date
 - File size, save path category, and downloading user
 - Parsed torrent metadata: resolution, source, language, codec
+- Detected episode info (`S02E05`, multi-episode ranges, season packs) plus the TMDB episode name for single episodes
 
 ### New Request (Pending)
 Sent when a user submits a media request. Includes:
@@ -39,7 +40,7 @@ Notifications use Discord's Components V2 format with:
 
 ## Locale Support
 
-Discord notifications respect the configured locale. Supported values: `pl`, `en`, `de`, `fr`, `es` (default `en` when unset).
+Discord notifications respect the configured locale. Supported values: `pl`, `en`, `de`, `fr`, `es`, `pt-BR` (default `en` when unset).
 
 Configured via admin panel → Discord Locale.
 

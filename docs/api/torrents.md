@@ -9,12 +9,14 @@ POST /api/torrents/add
 ```
 
 ### Body
+Exactly one of `magnetLink`, `downloadUrl`, or `torrentFile` (+ `fileName`) is required.
+
 ```json
 {
   "magnetLink": "magnet:?xt=...",
   "downloadUrl": "https://...",
-  "guid": "https://...",
-  "indexer": "TrackerName",
+  "torrentFile": "<base64 .torrent, max 5MB>",
+  "fileName": "release.torrent",
   "label": "Movie Name",
   "savePath": "movies",
   "tmdbId": 550,
@@ -24,8 +26,16 @@ POST /api/torrents/add
 
 ### Response
 ```json
-{ "success": true, "id": "uuid" }
+{ "success": true, "id": "uuid", "torrent": { "hash": "...", "name": "..." } }
 ```
+
+If the torrent is already in qBittorrent, no new record is created and the response is:
+
+```json
+{ "alreadyDownloading": true, "name": "..." }
+```
+
+or `{ "alreadyComplete": true, "name": "..." }` when the existing torrent has finished.
 
 ---
 
@@ -42,7 +52,7 @@ GET /api/torrents/list?page=1&limit=10&status=downloading
 |-------|------|---------|-------------|
 | `page` | number | `1` | Page number |
 | `limit` | number | `10` | Items per page (max 100) |
-| `status` | string | - | Filter: `pending`, `downloading`, `completed`, `failed`, `paused`, `removed`, `disk_full` |
+| `status` | string | - | Filter: `pending`, `checking`, `downloading`, `completed`, `failed`, `paused`, `removed`, `disk_full` |
 
 ### Response
 ```json
@@ -99,7 +109,7 @@ GET /api/torrents/stats
 
 | Field | Description |
 |-------|-------------|
-| `active` | Downloads currently in `downloading` status |
+| `active` | Downloads currently in `checking`, `downloading`, or `paused` status |
 | `createdSince` | Downloads created since `sinceIso` |
 | `completedSince` | Downloads completed since `sinceIso` |
 | `sinceIso` | Local start-of-day (ISO 8601) used for the `*Since` counts |

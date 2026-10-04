@@ -18,6 +18,7 @@ GET /api/user/me
   "role": "user",
   "isActive": true,
   "canSubmit": false,
+  "mustChangePassword": false,
   "dailyDownloadLimit": 5,
   "activeTorrentLimit": 3,
   "maxTorrentSizeGb": 20,

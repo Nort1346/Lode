@@ -52,10 +52,10 @@ refactor: organize server/utils into subdirectories
 chore: disable nuxt devtools and add migrations to preview script
 ```
 
-The project uses **Vitest** (`vitest` 4.x) with `@nuxt/test-utils` and `@vitest/coverage-v8`:
+The project uses **Vitest** (`vitest` 5.x) with `@nuxt/test-utils` and `@vitest/coverage-v8`:
 
-- Config: `vitest.config.ts` (node environment, `test/**/*.test.ts`, setup via `test/setup.ts`). Path aliases `#server`, `#db`, `#utils`, `#server/types` are mapped to `server/`.
-- Tests cover API route handlers (`test/api/`), middleware (`test/middleware/`), and server utils (`test/utils/`). External services (TMDB, Prowlarr, qBittorrent, Jellyfin, Discord) are mocked; API handlers are invoked directly with a mocked `event`.
+- Config: `vitest.config.ts` (node environment, `test/**/*.test.ts`, setup via `test/setup.ts`). Path aliases `#server`, `#db`, `#utils`, `#server/types` are mapped to `server/`; `#shared` maps to `shared/`.
+- Tests cover API route handlers (`test/api/`), middleware (`test/middleware/`), server utils (`test/utils/`), app composables (`test/app/`), shared modules (`test/shared/`), and i18n key parity (`test/i18n/`). External services (TMDB, Prowlarr, qBittorrent, Jellyfin, Discord) are mocked; API handlers are invoked directly with a mocked `event`.
 - `pnpm typecheck` runs `nuxt typecheck` plus `vue-tsc --noEmit -p test/tsconfig.json`.
 
 See [docs/development.md](./docs/development.md#testing) for the full testing guide.
@@ -190,7 +190,7 @@ server/utils/
 
 ### i18n
 - Default locale is `en` (set in `nuxt.config.ts` `defaultLocale: 'en'`) - NOT Polish, despite what some docs prose claim.
-- Five locales exist: `pl`, `en`, `de`, `fr`, `es` (files in `i18n/locales/`).
+- Six locales exist: `pl`, `en`, `de`, `fr`, `es`, `pt-BR` (files in `i18n/locales/`).
 - Polish translations MUST still be in Polish - no English fallbacks for the `pl` locale.
 - Use `t('key')` from `useI18n()` in Vue, `useI18nServer()` in server code
 - When changing locale: `setLocale($event)` - NOT `locale.value = $event`

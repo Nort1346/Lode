@@ -68,7 +68,7 @@ The [auto-setup script](../README.md#quick-start) selects these overlays for you
 
 ### 1. `base`
 - Node.js 24 trixie-slim (`NODE_VERSION=24` arg)
-- pnpm 11.18.0 via corepack
+- pnpm 11.22.0 via corepack
 
 ### 2. `deps`
 - Installs **production dependencies only** (with native addon build tools)

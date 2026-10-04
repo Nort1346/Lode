@@ -122,7 +122,7 @@ The main difference is who controls the release selection and download flow. Lod
 Requirements:
 
 - Node.js 24+
-- pnpm 11+
+- pnpm 12+
 - qBittorrent with WebUI API key enabled
 - Prowlarr
 - TMDB (optional API key - Lode ships a built-in shared key, so most users can skip this)
