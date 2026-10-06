@@ -153,129 +153,120 @@ if (-not $archName) {
 }
 
 $asset = "lode-setup-windows-${archName}.exe"
-$url = "${BaseUrl}/releases/latest/download/${asset}"
+$latestUrl = "${BaseUrl}/releases/latest/download/${asset}"
+$userAgent = 'lode-setup-bootstrap'
 
-# The cheap path first: releases/latest/download/<asset> redirects to the
-# asset in the current latest release; the tag is recoverable from the
-# Location header. One request, and it covers the common case.
-$tag = 'latest'
-$haveTag = $false
-try {
-  Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
-  $handler = [System.Net.Http.HttpClientHandler]::new()
-  $handler.AllowAutoRedirect = $false
-  $http = [System.Net.Http.HttpClient]::new($handler)
-  $response = $http.GetAsync($url, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
+if ($BaseUrl -eq "https://github.com/${Repo}") {
+  $apiBase = "https://api.github.com/repos/${Repo}"
+  $apiIsGitHub = $true
+}
+else {
+  $apiBase = "${BaseUrl}/api/v1/repos/${Repo}"
+  $apiIsGitHub = $false
+}
+
+function Get-ApiHeaders {
+  $headers = @{ Accept = 'application/vnd.github+json'; 'User-Agent' = $userAgent }
+  # Unauthenticated api.github.com calls are rate-limited per IP; a token
+  # (gh auth, CI) lifts the quota. Only ever sent to api.github.com, never
+  # to mirrors.
+  if ($apiIsGitHub) {
+    $token = $env:GH_TOKEN
+    if (-not $token) { $token = $env:GITHUB_TOKEN }
+    if ($token) { $headers['Authorization'] = "Bearer $token" }
+  }
+  return $headers
+}
+
+# Resolves the latest tag from the releases/latest/download redirect.
+# GitHub redirects blindly even when the asset is missing (404 only on GET),
+# so a returned tag is a hint, not proof - the download decides.
+function Get-LatestTag {
   try {
-    if ($response.Headers.Location) {
-      $suffix = [string]$response.Headers.Location -replace '.*releases/download/', ''
-      $tag = ($suffix -split '/')[0]
-      $haveTag = $true
-    }
-  }
-  finally {
-    $response.Dispose()
-  }
-  $http.Dispose()
-}
-catch {
-}
-
-if (-not $haveTag) {
-  # The latest release does not ship $asset (empty tag, notes-only, assets
-  # still uploading, wrong names): walk the public releases API newest-first
-  # and take the first non-prerelease release whose assets include $asset
-  # (drafts are never public; skipping prereleases matches `releases/latest`).
-  # Mirrors set via LODE_BASE_URL keep serving the bytes; the API base is
-  # derived so a Gitea-style mirror can answer the walk too.
-  if ($BaseUrl -eq "https://github.com/${Repo}") {
-    $apiBase = "https://api.github.com/repos/${Repo}"
-  }
-  else {
-    $apiBase = "${BaseUrl}/api/v1/repos/${Repo}"
-  }
-
-  $foundTag = $null
-  $walkComplete = $false
-  $triedTags = @()
-  for ($page = 1; $page -le 3; $page++) {
+    Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
+    $handler = [System.Net.Http.HttpClientHandler]::new()
+    $handler.AllowAutoRedirect = $false
+    $http = [System.Net.Http.HttpClient]::new($handler)
+    $http.DefaultRequestHeaders.UserAgent.ParseAdd($userAgent)
+    $response = $http.GetAsync($latestUrl, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
     try {
-      $releases = Invoke-RestMethod -Uri "${apiBase}/releases?per_page=30&page=$page" -Headers @{ Accept = 'application/vnd.github+json' }
+      if ($response.Headers.Location) {
+        $location = [string]$response.Headers.Location
+        if ($location -like '*releases/download/*') {
+          $suffix = $location -replace '.*releases/download/', ''
+          return ($suffix -split '/')[0]
+        }
+      }
     }
-    catch {
-      break
+    finally {
+      $response.Dispose()
     }
-    # A mirror without a releases API may answer 200 with HTML (which
-    # Invoke-RestMethod parses to an XmlDocument) or other non-release
-    # payloads; only an array of release objects is a usable answer.
+    $http.Dispose()
+  }
+  catch {
+  }
+  return $null
+}
+
+# Newest-first tags of non-prerelease releases shipping $asset.
+# Returns $null when the API is unreachable (vs. answered-but-empty).
+function Find-ReleaseTagsWithAsset {
+  $tags = @()
+  $tried = @()
+  for ($page = 1; $page -le 3; $page++) {
+    $releases = $null
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+      try {
+        $releases = Invoke-RestMethod -Uri "${apiBase}/releases?per_page=30&page=$page" -Headers (Get-ApiHeaders)
+        break
+      }
+      catch {
+        if ($attempt -eq 3) { return $null }
+        Start-Sleep -Seconds $attempt
+      }
+    }
+    # A mirror without a releases API answers 200 with HTML (parsed to
+    # XmlDocument) - only release objects are a usable answer.
     if ($null -eq $releases) {
-      $walkComplete = $true
       break
     }
     $releases = @($releases)
     if ($releases.Count -eq 0) {
-      $walkComplete = $true
       break
     }
-    if ($null -eq $releases[0].tag_name) { break }
+    if ($null -eq $releases[0].tag_name) { return $null }
     foreach ($release in $releases) {
       if ($null -eq $release.tag_name) { continue }
-      $triedTags += $release.tag_name
+      $tried += $release.tag_name
       if ($release.draft -or $release.prerelease) { continue }
       if (@($release.assets | Where-Object { $_.name -eq $asset }).Count -gt 0) {
-        $foundTag = $release.tag_name
-        break
+        $tags += $release.tag_name
       }
     }
-    if ($null -ne $foundTag) { break }
-    if ($page -eq 3) { $walkComplete = $true }
   }
-
-  if ($null -ne $foundTag) {
-    $tag = $foundTag
-    $url = "${BaseUrl}/releases/download/${tag}/${asset}"
-  }
-  elseif ($walkComplete -and $triedTags.Count -gt 0) {
-    Stop-WithError "no GitHub release ships ${asset} (tried: $($triedTags -join ', '))"
-  }
-  # The API is unreachable (mirror without a releases API, network, rate
-  # limit): keep $url (releases/latest) - the download fails with the usual
-  # error below.
+  return @{ Tags = $tags; Tried = $tried }
 }
 
-$cacheDir = Join-Path $env:LOCALAPPDATA "LodeSetup\$tag"
-$bin = Join-Path $cacheDir $asset
-
-if (-not (Test-Path $bin)) {
-  if ($script:UseColor) {
-    Write-Host 'Downloading ' -NoNewline
-    Write-Host (Format-Hyperlink $url $asset) -ForegroundColor Cyan -NoNewline
-    Write-Host " ($tag)..."
-  }
-  else {
-    Write-Host "Downloading $(Format-Hyperlink $url $asset) ($tag)..."
-  }
-  New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
-  $tmp = Join-Path $cacheDir "$asset.tmp"
-  # Stream the download with a real-time percentage indicator. HttpClient
-  # with ResponseHeadersRead avoids buffering the full file in memory and
-  # lets us count bytes as they arrive over the wire.
+# Downloads $Url to $TmpPath. Returns $true on success, $false (partial
+# removed) on any failure so the caller can try an older release.
+function Invoke-AssetDownload([string]$Url, [string]$TmpPath) {
+  Remove-Item -LiteralPath $TmpPath -Force -ErrorAction SilentlyContinue
   try {
     Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
     $handler = [System.Net.Http.HttpClientHandler]::new()
     $http = [System.Net.Http.HttpClient]::new($handler)
-    $response = $http.GetAsync($url, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
-    # Never cache an error page as the binary (a 404 body is not an exe).
+    $http.DefaultRequestHeaders.UserAgent.ParseAdd($userAgent)
+    $response = $http.GetAsync($Url, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
     if ([int]$response.StatusCode -ge 400) {
       $response.Dispose()
       $http.Dispose()
-      Stop-WithError "download failed: $url"
+      return $false
     }
     $total = if ($response.Content.Headers.ContentLength) { [long]$response.Content.Headers.ContentLength } else { 0 }
     $net = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
     $buf = New-Object byte[] 65536
     $got = 0
-    $out = [System.IO.File]::Create($tmp)
+    $out = [System.IO.File]::Create($TmpPath)
     try {
       while (($n = $net.Read($buf, 0, $buf.Length)) -gt 0) {
         $out.Write($buf, 0, $n)
@@ -297,11 +288,94 @@ if (-not (Test-Path $bin)) {
       $http.Dispose()
     }
     Write-Host ''
+    # Reject error pages and truncated downloads: size + MZ magic.
+    if ($got -lt 1MB) {
+      Remove-Item -LiteralPath $TmpPath -Force -ErrorAction SilentlyContinue
+      return $false
+    }
+    $fs = [System.IO.File]::OpenRead($TmpPath)
+    try {
+      $magic = New-Object byte[] 2
+      $read = $fs.Read($magic, 0, 2)
+    }
+    finally {
+      $fs.Close()
+    }
+    if (($read -lt 2) -or ($magic[0] -ne 0x4D) -or ($magic[1] -ne 0x5A)) {
+      Remove-Item -LiteralPath $TmpPath -Force -ErrorAction SilentlyContinue
+      return $false
+    }
+    return $true
   }
   catch {
-    Stop-WithError "download failed: $url"
+    Remove-Item -LiteralPath $TmpPath -Force -ErrorAction SilentlyContinue
+    return $false
   }
-  Move-Item -Force $tmp $bin
+}
+
+function Write-DownloadLine([string]$Url, [string]$Tag) {
+  if ($script:UseColor) {
+    Write-Host 'Downloading ' -NoNewline
+    Write-Host (Format-Hyperlink $Url $asset) -ForegroundColor Cyan -NoNewline
+    Write-Host " ($Tag)..."
+  }
+  else {
+    Write-Host "Downloading $(Format-Hyperlink $Url $asset) ($Tag)..."
+  }
+}
+
+$tag = Get-LatestTag
+if (-not $tag) { $tag = 'latest' }
+$url = $latestUrl
+
+$cacheDir = Join-Path $env:LOCALAPPDATA "LodeSetup\$tag"
+$bin = Join-Path $cacheDir $asset
+$downloaded = Test-Path $bin
+
+if (-not $downloaded) {
+  New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
+  $tmp = Join-Path $cacheDir "$asset.tmp"
+  Write-DownloadLine $url $tag
+  if (Invoke-AssetDownload $url $tmp) {
+    Move-Item -Force $tmp $bin
+    $downloaded = $true
+  }
+}
+
+if (-not $downloaded) {
+  # Latest failed (no binaries yet, CDN race, broken transfer): try every
+  # older release shipping $asset, newest first.
+  Write-Host "Latest download failed, looking for an older release with $asset..."
+  $walk = Find-ReleaseTagsWithAsset
+  if ($null -eq $walk) {
+    Stop-WithError "download failed: $url (and the releases API is unreachable, so no older release could be tried)"
+  }
+  $triedTags = @($tag)
+  foreach ($candidate in $walk.Tags) {
+    $candidateUrl = "${BaseUrl}/releases/download/${candidate}/${asset}"
+    $triedTags += $candidate
+    $tag = $candidate
+    $url = $candidateUrl
+    $cacheDir = Join-Path $env:LOCALAPPDATA "LodeSetup\$tag"
+    $bin = Join-Path $cacheDir $asset
+    if (Test-Path $bin) {
+      $downloaded = $true
+      break
+    }
+    New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
+    $tmp = Join-Path $cacheDir "$asset.tmp"
+    Write-DownloadLine $url $tag
+    if (Invoke-AssetDownload $url $tmp) {
+      Move-Item -Force $tmp $bin
+      $downloaded = $true
+      break
+    }
+  }
+  if (-not $downloaded) {
+    # $triedTags always holds at least the head tag, so $seen is never empty.
+    $seen = @($triedTags + $walk.Tried | Select-Object -Unique)
+    Stop-WithError "no working download for ${asset} (tried releases: $($seen -join ', '))"
+  }
 }
 
 # The binary runs as a child process; its interactive session happens in

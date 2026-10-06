@@ -42,47 +42,54 @@ case "$(uname -m)" in
 esac
 
 ASSET="lode-setup-${OS}-${ARCH}"
-# The cheap path first: releases/latest/download/<asset> redirects to the
-# asset in the current latest release; the tag is recoverable from the
-# Location header. One request, and it covers the common case.
-TAG="latest"
-ASSET_URL="${BASE_URL}/releases/latest/download/${ASSET}"
-HAVE_TAG=0
-LOCATION="$(curl -fsSI --connect-timeout 15 --retry 2 "$ASSET_URL" 2>/dev/null | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }' | head -n 1 || true)"
-if [[ "${LOCATION:-}" == *"releases/download/"* ]]; then
-  TAG="${LOCATION##*releases/download/}"
-  TAG="${TAG%%/*}"
-  HAVE_TAG=1
+LATEST_URL="${BASE_URL}/releases/latest/download/${ASSET}"
+USER_AGENT="lode-setup-bootstrap"
+
+if [ "$BASE_URL" = "https://github.com/${REPO}" ]; then
+  API_BASE="https://api.github.com/repos/${REPO}"
+  API_IS_GITHUB=1
+else
+  API_BASE="${BASE_URL}/api/v1/repos/${REPO}"
+  API_IS_GITHUB=0
 fi
 
-# The latest release does not ship $ASSET (empty tag, notes-only, assets
-# still uploading, wrong names): walk the public releases API newest-first
-# and take the first non-prerelease release whose assets include $ASSET
-# (drafts are never public; skipping prereleases matches `releases/latest`).
-# Mirrors set via LODE_BASE_URL keep serving the bytes; the API base is
-# derived so a Gitea-style mirror can answer the walk too.
-#
-# Walks up to WALK_MAX_PAGES pages, newest first. Sets WALK_TAG to the
-# chosen tag and WALK_TRIED to the tags seen. Returns 0 when the API
-# answered (a match was found or the list was exhausted), 1 when it is
-# unreachable. Works with both pretty-printed (GitHub) and compact (Gitea)
-# JSON: each release segment runs from its "tag_name" key to the next one,
-# which always contains its assets array, and JSON escaping guarantees the
-# probes only match real object keys, never string values.
+# Resolves the latest tag from the releases/latest/download redirect.
+# GitHub redirects blindly even when the asset is missing (404 only on GET),
+# so a returned tag is a hint, not proof - the download decides.
+latest_tag() {
+  local location tag
+  location="$(curl -fsSI --connect-timeout 15 --retry 2 -A "$USER_AGENT" "$LATEST_URL" 2>/dev/null | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }' | head -n 1 || true)"
+  case "${location:-}" in
+    *releases/download/*)
+      tag="${location##*releases/download/}"
+      tag="${tag%%/*}"
+      [ -n "$tag" ] && printf '%s' "$tag"
+      ;;
+  esac
+}
+
+# Newest-first tags of non-prerelease releases shipping $ASSET. Sets
+# WALK_TAGS (hits) and WALK_TRIED (seen); return 1 = API unreachable. The awk
+# only matches real JSON keys, pretty or compact. Token only to api.github.com.
 WALK_MAX_PAGES=3
-WALK_TAG=""
+WALK_TAGS=""
 WALK_TRIED=""
 walk_releases() {
-  local page=1 body page_tags
+  local page=1 body page_tags page_matches
+  local -a api_args=(-A "$USER_AGENT" -H 'Accept: application/vnd.github+json')
+  if [ "$API_IS_GITHUB" -eq 1 ] && [ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ]; then
+    api_args+=(-H "Authorization: Bearer ${GH_TOKEN:-${GITHUB_TOKEN:-}}")
+  fi
+  WALK_TAGS=""
+  WALK_TRIED=""
   while [ "$page" -le "$WALK_MAX_PAGES" ]; do
-    body="$(curl -fsS --connect-timeout 15 --retry 2 -H 'Accept: application/vnd.github+json' "${API_BASE}/releases?per_page=30&page=${page}" 2>/dev/null)" || return 1
-    # A mirror without a releases API answers with HTML; only a JSON array
-    # is a usable answer.
+    body="$(curl -fsS --connect-timeout 15 --retry 2 "${api_args[@]}" "${API_BASE}/releases?per_page=30&page=${page}" 2>/dev/null)" || return 1
+    # A mirror without a releases API answers HTML - only release objects count.
     [ "$(printf '%s' "$body" | head -c 1)" = "[" ] || return 1
     page_tags="$(printf '%s\n' "$body" | grep -oE '"tag_name": *"[^"]+"' | cut -d'"' -f4 | tr '\n' ' ' || true)"
     [ -n "$page_tags" ] || return 0
     WALK_TRIED="${WALK_TRIED}${page_tags}"
-    WALK_TAG="$(printf '%s' "$body" | awk -v asset="$ASSET" '
+    page_matches="$(printf '%s' "$body" | awk -v asset="$ASSET" '
       { doc = doc $0 " " }
       END {
         probeA = "\"name\":\"" asset "\""
@@ -102,42 +109,45 @@ walk_releases() {
           if (seg ~ /"draft" *: *true/) skip = 1
           if (!skip && (index(seg, probeA) > 0 || index(seg, probeB) > 0)) {
             print tail
-            exit
           }
           if (np == 0) break
           p = p + length(key) + np - 1
         }
       }
     ' || true)"
-    if [ -n "$WALK_TAG" ]; then
-      return 0
+    if [ -n "$page_matches" ]; then
+      WALK_TAGS="${WALK_TAGS}$(printf '%s' "$page_matches" | tr '\n' ' ')"
     fi
     page=$((page + 1))
   done
   return 0
 }
 
-if [ "$HAVE_TAG" -eq 0 ]; then
-  if [ "$BASE_URL" = "https://github.com/${REPO}" ]; then
-    API_BASE="https://api.github.com/repos/${REPO}"
+# Downloads $1 (URL) to $2 (tmp path), validated. Returns 1 (partial removed)
+# on any failure so the caller can try an older release.
+try_download() {
+  local url="$1" tmp="$2" size magic
+  rm -f "$tmp"
+  # Hang guards: bounded connect, retries, abort below ~1KB/s for 60s.
+  if [ -t 2 ] && [ "${TERM:-}" != "dumb" ]; then
+    # No -s: it would suppress the meter; CI uses the quiet branch.
+    curl -fL --progress-bar --connect-timeout 15 --retry 3 --retry-delay 2 \
+      --speed-limit 1024 --speed-time 60 -A "$USER_AGENT" -o "$tmp" "$url" || { rm -f "$tmp"; return 1; }
   else
-    API_BASE="${BASE_URL}/api/v1/repos/${REPO}"
+    curl -fsSL --connect-timeout 15 --retry 3 --retry-delay 2 \
+      --speed-limit 1024 --speed-time 60 -A "$USER_AGENT" -o "$tmp" "$url" || { rm -f "$tmp"; return 1; }
   fi
-  if walk_releases; then
-    if [ -n "$WALK_TAG" ]; then
-      TAG="$WALK_TAG"
-      ASSET_URL="${BASE_URL}/releases/download/${TAG}/${ASSET}"
-    elif [ -n "$WALK_TRIED" ]; then
-      die "no GitHub release ships ${ASSET} (tried: ${WALK_TRIED% })"
-    fi
-  fi
-  # The API is unreachable (mirror without a releases API, network, rate
-  # limit): keep ASSET_URL (releases/latest) - the download fails with the
-  # usual error below.
-fi
-
-CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/lode-setup/${TAG}"
-BIN="${CACHE_DIR}/${ASSET}"
+  # Reject error pages and truncated downloads: size + ELF/Mach-O magic.
+  size=$(($(wc -c < "$tmp")))
+  if [ "$size" -lt 1048576 ]; then rm -f "$tmp"; return 1; fi
+  magic="$(head -c 4 "$tmp" | od -An -tx1 | tr -d ' \n')"
+  case "$magic" in
+    7f454c46 | cffaedfe | cefaedfe | feedface | feedfacf) ;;
+    *) rm -f "$tmp"; return 1 ;;
+  esac
+  chmod +x "$tmp"
+  return 0
+}
 
 # -- Terminal helpers --------------------------------------------------
 # SGR colors and the OSC 8 hyperlink are dropped for NO_COLOR,
@@ -157,35 +167,79 @@ hyperlink() {
   fi
 }
 
-if [ ! -x "$BIN" ]; then
+print_downloading() {
   if [ -n "$CYAN" ]; then
-    printf 'Downloading \033[0;36m%s\033[0m (%s)...\n' "$(hyperlink "$ASSET_URL" "$ASSET")" "$TAG"
+    printf 'Downloading \033[0;36m%s\033[0m (%s)...\n' "$(hyperlink "$1" "$ASSET")" "$2"
   else
-    printf 'Downloading %s (%s)...\n' "$ASSET" "$TAG"
+    printf 'Downloading %s (%s)...\n' "$ASSET" "$2"
   fi
+}
+
+TAG="$(latest_tag || true)"
+if [ -z "${TAG:-}" ]; then TAG="latest"; fi
+ASSET_URL="$LATEST_URL"
+CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/lode-setup/${TAG}"
+BIN="${CACHE_DIR}/${ASSET}"
+
+DOWNLOADED=0
+if [ -x "$BIN" ]; then
+  DOWNLOADED=1
+else
+  print_downloading "$ASSET_URL" "$TAG"
   mkdir -p "$CACHE_DIR"
-  # Both branches share the hang guards: bounded connect, transient retries,
-  # and an abort if the transfer crawls below ~1KB/s for a minute.
-  if [ -t 2 ] && [ "${TERM:-}" != "dumb" ]; then
-    # Single-line progress bar. No -s here: it suppresses the meter, and
-    # --progress-bar cannot override it. CI and logs get the quiet path below.
-    curl -fL --progress-bar --connect-timeout 15 --retry 3 --retry-delay 2 \
-      --speed-limit 1024 --speed-time 60 -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
-  else
-    curl -fsSL --connect-timeout 15 --retry 3 --retry-delay 2 \
-      --speed-limit 1024 --speed-time 60 -o "${BIN}.tmp" "$ASSET_URL" || die "download failed: ${ASSET_URL}"
+  if try_download "$ASSET_URL" "${BIN}.tmp"; then
+    mv -f "${BIN}.tmp" "$BIN"
+    DOWNLOADED=1
   fi
-  # Never execute a cached error page or a truncated download: require a
-  # plausible size and a real ELF (Linux) or Mach-O (macOS) magic number.
-  SIZE=$(($(wc -c < "${BIN}.tmp")))
-  [ "$SIZE" -ge 1048576 ] || die "download failed: only ${SIZE} bytes received - not a valid binary"
-  MAGIC="$(head -c 4 "${BIN}.tmp" | od -An -tx1 | tr -d ' \n')"
-  case "$MAGIC" in
-    7f454c46 | cffaedfe | cefaedfe | feedface | feedfacf) ;;
-    *) die "download failed: file is not an ELF/Mach-O binary (magic: ${MAGIC:-empty})" ;;
-  esac
-  chmod +x "${BIN}.tmp"
-  mv -f "${BIN}.tmp" "$BIN"
+fi
+
+if [ "$DOWNLOADED" -eq 0 ]; then
+  # Latest failed (no binaries yet, CDN race, broken transfer): try every
+  # older release shipping $ASSET, newest first.
+  echo "Latest download failed, looking for an older release with ${ASSET}..." >&2
+  if walk_releases; then
+    if [ -z "${WALK_TAGS:-}" ]; then
+      if [ -n "${WALK_TRIED:-}" ]; then
+        die "no GitHub release ships ${ASSET} (tried: ${WALK_TRIED% })"
+      else
+        die "download failed: ${ASSET_URL}"
+      fi
+    fi
+    TRIED="$TAG"
+    for candidate in $WALK_TAGS; do
+      candidate_url="${BASE_URL}/releases/download/${candidate}/${ASSET}"
+      TRIED="${TRIED} ${candidate}"
+      TAG="$candidate"
+      ASSET_URL="$candidate_url"
+      CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/lode-setup/${TAG}"
+      BIN="${CACHE_DIR}/${ASSET}"
+      if [ -x "$BIN" ]; then
+        DOWNLOADED=1
+        break
+      fi
+      print_downloading "$ASSET_URL" "$TAG"
+      mkdir -p "$CACHE_DIR"
+      if try_download "$ASSET_URL" "${BIN}.tmp"; then
+        mv -f "${BIN}.tmp" "$BIN"
+        DOWNLOADED=1
+        break
+      fi
+    done
+    if [ "$DOWNLOADED" -eq 0 ]; then
+      # TRIED can repeat the head tag (retried via its versioned URL) - dedup
+      # keeping order for a readable message.
+      seen=""
+      for t in $TRIED; do
+        case " $seen " in
+          *" $t "*) ;;
+          *) seen="$seen $t" ;;
+        esac
+      done
+      die "no working download for ${ASSET} (tried releases:${seen})"
+    fi
+  else
+    die "download failed: ${ASSET_URL} (and the releases API is unreachable, so no older release could be tried)"
+  fi
 fi
 
 # curl never sets the quarantine attribute, but the cache can hold a binary
