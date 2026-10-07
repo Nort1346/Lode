@@ -6,6 +6,8 @@
 overrides:
   esbuild: '>=0.28.0'
   http-cache-semantics: '>=4.3.0'
+  simple-git: '>=4.0.2'
+  '@simple-git/argv-parser': '>=2.0.1'
 
 allowBuilds:
   '@parcel/watcher': true
