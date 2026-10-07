@@ -1,5 +1,5 @@
 ARG NODE_VERSION=24
-ARG PNPM_VERSION=11.22.0
+ARG PNPM_VERSION=12.4.1
 
 # ── Base: Node + pnpm via corepack ─────────────────────────────
 FROM node:${NODE_VERSION}-trixie-slim AS base
@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends build-essential python3
 
 COPY --link package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY --link scripts/prepare.mjs ./scripts/
+COPY --link scripts/prepare.mjs scripts/nuxt-prepare.mjs ./scripts/
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     NODE_ENV=production pnpm install --frozen-lockfile --prod
