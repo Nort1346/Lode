@@ -37,7 +37,7 @@
     "dev": "node scripts/migrate.mjs && nuxt dev",
     "build:preview": "pnpm run build && pnpm run preview --host",
     "preview": "node scripts/migrate.mjs && nuxt preview",
-    "postinstall": "nuxt prepare",
+    "postinstall": "node scripts/nuxt-prepare.mjs",
     "prepare": "node scripts/prepare.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
