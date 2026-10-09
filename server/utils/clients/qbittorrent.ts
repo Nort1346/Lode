@@ -385,6 +385,48 @@ export class QBittorrentClient {
     return data
   }
 
+  async renameTorrent(hash: string, name: string): Promise<void> {
+    await this.request('/api/v2/torrents/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `hash=${encodeURIComponent(hash)}&name=${encodeURIComponent(name)}`
+    })
+  }
+
+  async renameFile(hash: string, oldPath: string, newPath: string): Promise<void> {
+    await this.request('/api/v2/torrents/renameFile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `hash=${encodeURIComponent(hash)}&oldPath=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`
+    })
+  }
+
+  async renameFolder(hash: string, oldPath: string, newPath: string): Promise<void> {
+    await this.request('/api/v2/torrents/renameFolder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `hash=${encodeURIComponent(hash)}&oldPath=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`
+    })
+  }
+
+  async setLocation(hashes: string[], location: string): Promise<void> {
+    if (hashes.length === 0) return
+    await this.request('/api/v2/torrents/setLocation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `hashes=${hashes.join('|')}&location=${encodeURIComponent(location)}`
+    })
+  }
+
+  async setCategory(hashes: string[], category: string): Promise<void> {
+    if (hashes.length === 0) return
+    await this.request('/api/v2/torrents/setCategory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `hashes=${hashes.join('|')}&category=${encodeURIComponent(category)}`
+    })
+  }
+
   async moveToTop(hashes: string[]): Promise<void> {
     if (hashes.length === 0) return
     await this.request('/api/v2/torrents/topPrio', {

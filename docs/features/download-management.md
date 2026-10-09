@@ -55,6 +55,25 @@ When a download completes, a simulated "file preparation" countdown is shown:
 - **Disableable**: Can be turned off in admin settings
 - **Purpose**: Gives users a sense of completion even though files are already on disk
 
+## Media Organization (optional, *arr-style import)
+
+Disabled by default. When enabled, finished downloads are renamed and
+imported into the library folders, attached to the completion detection in
+`torrent-sync` (nothing runs until a torrent actually completes).
+
+| Feature | Default | What it does |
+|---------|---------|--------------|
+| Master switch (`media_manage_enabled`) | `false` (off) | Enables the whole import. Off = today's behaviour, files stay exactly where qBittorrent put them |
+| Staging dirs (`NUXT_DOWNLOAD_PATH_MOVIES` / `NUXT_DOWNLOAD_PATH_SERIES`) | empty (off) | qBittorrent landing zone; `NUXT_SAVE_PATH_*` stays the library. Empty = direct-to-library, files are only renamed in place via the qBittorrent `renameFile` API |
+| Import mode (`media_import_mode`) | `hardlink` | `hardlink` keeps seeding with zero extra space but needs staging + library on one filesystem; cross-device setups (separate `/mnt` disks, SFTP mounts) answer `EXDEV` and auto-fall back to `copy`. `copy` duplicates bytes, `move` relocates and breaks seeding (only with seeding disabled) |
+| Movie naming | on when enabled | `Title (Year)/Title (Year) Resolution Source.ext`, title/year from TMDB when `tmdbId` is known, otherwise the request label |
+| Series naming | on when enabled | `Series/Season 02/Series - S02E02 Resolution Source.ext`, daily releases fall back to the air date |
+| Main-file pick | always | Largest video file of the torrent wins, `sample` files are skipped, games/books/music are left untouched (`skipped`) |
+| Status tracking | always | Each download row carries `organized_path`, `organize_status` (`pending`/`done`/`failed`/`skipped`) and `organize_error`; failures never break the sync loop |
+| Jellyfin targeting | always | On success Jellyfin is notified against the organized folder instead of the library root, so scans pick up the file faster |
+| Quality choice | manual | The release is always picked by the user - there is no automatic quality selection or upgrading |
+| Admin API | - | `GET/PUT /api/admin/media-config` (`enabled`, `importMode`) |
+
 ## Real-Time Updates
 
 ### Torrent Sync Plugin

@@ -1,6 +1,10 @@
+import { dirname, join } from 'node:path'
 import { downloads, users, settings } from '#server/database/schema'
 import { eq, inArray } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
+import { organizeCompletedDownload } from '#server/utils/library/organize-completed'
+import { getMediaImportMode, isMediaManageEnabled } from '#server/utils/library/media-settings'
+import type { OrganizeJobInput } from '#server/types/media-organize'
 import { sendDownloadCompleteWebhook } from '#server/utils/notifications/discord'
 import type { DiscordDownloadNotifyInput } from '#server/types/discord'
 import { notifyDownloadComplete } from '#server/utils/notifications/notifications'
@@ -37,6 +41,62 @@ export function resetSyncDiagnostics(): void {
   firstSyncReported = false
   zeroSeedDownloads.clear()
   discordInflight.clear()
+}
+
+interface OrganizeSource {
+  id: string
+  savePath: string
+  torrentName: string
+  label: string
+  tmdbId: number | null
+  mediaType: 'movie' | 'tv' | null
+  resolution: string | null
+}
+
+// Best-effort library import for a freshly completed download. Never throws:
+// any failure is persisted on the row as organizeStatus='failed' so the sync
+// loop keeps working and the admin can see the reason.
+async function organizeAfterComplete(source: OrganizeSource, hash: string): Promise<void> {
+  const db = await useDbAsync()
+  try {
+    if (!(await isMediaManageEnabled())) {
+      await dbRun(db.update(downloads).set({ organizeStatus: 'skipped' }).where(eq(downloads.id, source.id)))
+      return
+    }
+    const config = useRuntimeConfig()
+    const job: OrganizeJobInput = {
+      downloadId: source.id,
+      savePath: source.savePath,
+      torrentName: source.torrentName,
+      label: source.label,
+      tmdbId: source.tmdbId,
+      mediaType: source.mediaType,
+      resolution: source.resolution
+    }
+    const result = await organizeCompletedDownload(hash, job, {
+      qbit: useQBittorrent(),
+      libraryMovies: config.savePathMovies as string,
+      librarySeries: config.savePathSeries as string,
+      importMode: await getMediaImportMode()
+    })
+    await dbRun(
+      db
+        .update(downloads)
+        .set({
+          organizedPath: result.targetRelativePath,
+          organizeStatus: result.status,
+          organizeError: result.error
+        })
+        .where(eq(downloads.id, source.id))
+    )
+    log.info(`organize ${result.status}: id=${source.id} target=${result.targetRelativePath ?? 'none'}`)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    log.warn(`organize failed: id=${source.id}: ${msg}`)
+    await dbRun(
+      db.update(downloads).set({ organizeStatus: 'failed', organizeError: msg }).where(eq(downloads.id, source.id))
+    ).catch(() => {})
+  }
 }
 
 async function isPrepCountdownEnabled(): Promise<boolean> {
@@ -197,7 +257,10 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
               downloadSpeed: 0,
               uploadSpeed: 0,
               status: 'completed',
-              completedAt: new Date().toISOString()
+              completedAt: new Date().toISOString(),
+              // The torrent is gone from qBittorrent, so its files cannot be
+              // located reliably - nothing to organize.
+              organizeStatus: 'skipped'
             })
             .where(eq(downloads.id, dl.id))
         )
@@ -300,6 +363,18 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           .where(eq(downloads.id, dl.id))
       )
       result.completed++
+      void organizeAfterComplete(
+        {
+          id: dl.id,
+          savePath: dl.savePath,
+          torrentName: qbitTorrent.name || dl.torrentName,
+          label: dl.label,
+          tmdbId: dl.tmdbId,
+          mediaType: dl.mediaType,
+          resolution: dl.resolution
+        },
+        qbitTorrent.hash
+      )
       if (!countdownEnabled) {
         void notifyDiscord(dl, userMap, discordIdMap)
         void notifyDownloadComplete(
@@ -405,7 +480,13 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
       if (jellyfin !== null) {
         const targetPath = savePathMap[dl.savePath]
         if (targetPath !== undefined) {
-          await jellyfin.notifyMediaUpdated([targetPath]).catch(() => {})
+          // Point Jellyfin at the organized file folder when the import ran,
+          // otherwise fall back to the library root.
+          const notifyPath =
+            typeof dl.organizedPath === 'string' && dl.organizedPath !== ''
+              ? join(targetPath, dirname(dl.organizedPath))
+              : targetPath
+          await jellyfin.notifyMediaUpdated([notifyPath]).catch(() => {})
           needsCacheInvalidation = true
         }
       }

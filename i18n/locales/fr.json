@@ -416,7 +416,8 @@
     "action_ranking_config_update": "Mise à jour configuration classement",
     "action_ranking_config_reset": "Réinitialisation configuration classement",
     "action_prep_config_update": "Mise à jour paramètres décompte",
-    "action_qbit_config_update": "Mise à jour paramètres qBittorrent"
+    "action_qbit_config_update": "Mise à jour paramètres qBittorrent",
+    "action_media_config_update": "Mise à jour organisation des médias"
   },
   "settings": {
     "title": "Paramètres",
@@ -464,6 +465,17 @@
     "qbitAutoRemoveHint": "Activez cette option si qBittorrent retire les torrents de la liste dès leur achèvement (sans seed). Un téléchargement dont le torrent a disparu mais qui était à au moins 90 % sera marqué comme terminé au lieu d'échoué.",
     "qbitSeedingEnabled": "Seed",
     "qbitSeedingEnabledHint": "Si désactivé, les torrents ajoutés par Lode arrêtent le partage dès la fin du téléchargement. Concerne uniquement les torrents ajoutés par Lode, les réglages globaux de qBittorrent ne sont pas modifiés.",
+    "mediaTitle": "Organisation des médias",
+    "mediaDesc": "Renomme les téléchargements terminés et les importe dans les dossiers de la bibliothèque, façon Radarr.",
+    "mediaEnabled": "Organiser les fichiers après téléchargement",
+    "mediaEnabledHint": "Si activé, les films et séries terminés sont renommés et importés (hardlink/copie) dans la bibliothèque. Désactivé = comportement actuel - les fichiers restent où qBittorrent les a mis.",
+    "mediaImportMode": "Mode d'import",
+    "mediaImportModeHint": "Le hardlink continue le seed sans espace supplémentaire mais exige staging et bibliothèque sur un même système de fichiers (bascule vers la copie entre disques). La copie duplique les fichiers. Le déplacement casse le seed.",
+    "mediaModeHardlink": "Hardlink (repli copie)",
+    "mediaModeCopy": "Copie",
+    "mediaModeMove": "Déplacement (casse le seed)",
+    "mediaSaved": "Organisation des médias enregistrée",
+    "mediaError": "Échec de l'enregistrement",
     "qbittorrentSaved": "Paramètres de qBittorrent enregistrés",
     "qbittorrentError": "Échec de l'enregistrement des paramètres de qBittorrent",
     "liveLogs": "Journaux en direct",

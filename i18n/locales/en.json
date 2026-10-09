@@ -416,7 +416,8 @@
     "action_ranking_config_update": "Ranking Config Update",
     "action_ranking_config_reset": "Ranking Config Reset",
     "action_prep_config_update": "Prep Countdown Config Update",
-    "action_qbit_config_update": "qBittorrent Config Update"
+    "action_qbit_config_update": "qBittorrent Config Update",
+    "action_media_config_update": "Media Config Update"
   },
   "settings": {
     "title": "Settings",
@@ -464,6 +465,17 @@
     "qbitAutoRemoveHint": "Enable this if qBittorrent removes torrents from the list right after they finish (no seeding). A download whose torrent has disappeared but was at least 90% complete is marked as completed instead of failed.",
     "qbitSeedingEnabled": "Seeding",
     "qbitSeedingEnabledHint": "When disabled, torrents added by Lode stop sharing immediately after completion. Only affects torrents added by Lode, global qBittorrent settings are not changed.",
+    "mediaTitle": "Media organization",
+    "mediaDesc": "Rename finished downloads and import them into the library folders, Radarr-style.",
+    "mediaEnabled": "Organize files after download",
+    "mediaEnabledHint": "When enabled, completed movies and series are renamed and hardlinked/copied into the library. Disabled keeps the current behaviour - files stay where qBittorrent put them.",
+    "mediaImportMode": "Import mode",
+    "mediaImportModeHint": "Hardlink keeps seeding with no extra space but needs staging and library on one filesystem (falls back to copy across disks). Copy duplicates files. Move breaks seeding.",
+    "mediaModeHardlink": "Hardlink (fallback to copy)",
+    "mediaModeCopy": "Copy",
+    "mediaModeMove": "Move (breaks seeding)",
+    "mediaSaved": "Media organization settings saved",
+    "mediaError": "Failed to save media organization settings",
     "qbittorrentSaved": "qBittorrent settings saved",
     "qbittorrentError": "Failed to save qBittorrent settings",
     "liveLogs": "Live Logs",

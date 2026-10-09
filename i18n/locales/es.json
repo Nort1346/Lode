@@ -416,7 +416,8 @@
     "action_ranking_config_update": "Actualizar configuración de clasificación",
     "action_ranking_config_reset": "Restablecer configuración de clasificación",
     "action_prep_config_update": "Actualizar configuración de cuenta regresiva",
-    "action_qbit_config_update": "Actualizar configuración de qBittorrent"
+    "action_qbit_config_update": "Actualizar configuración de qBittorrent",
+    "action_media_config_update": "Actualizar organización de medios"
   },
   "settings": {
     "title": "Configuración",
@@ -464,6 +465,17 @@
     "qbitAutoRemoveHint": "Activa esto si qBittorrent elimina los torrents de la lista en cuanto terminan (sin seeding). Una descarga cuyo torrent ha desaparecido pero estaba al menos al 90 % se marcará como completada en lugar de fallida.",
     "qbitSeedingEnabled": "Seeding",
     "qbitSeedingEnabledHint": "Si se desactiva, los torrents añadidos por Lode dejan de compartirse justo al completarse. Solo afecta a los torrents añadidos por Lode, no cambia los ajustes globales de qBittorrent.",
+    "mediaTitle": "Organización de medios",
+    "mediaDesc": "Renombra las descargas terminadas y las importa a las carpetas de la biblioteca, al estilo Radarr.",
+    "mediaEnabled": "Organizar archivos tras la descarga",
+    "mediaEnabledHint": "Si se activa, las películas y series terminadas se renombran e importan (hardlink/copia) a la biblioteca. Desactivado = comportamiento actual - los archivos se quedan donde los puso qBittorrent.",
+    "mediaImportMode": "Modo de importación",
+    "mediaImportModeHint": "El hardlink sigue compartiendo sin espacio extra pero exige staging y biblioteca en el mismo sistema de archivos (cambia a copia entre discos). La copia duplica archivos. Mover rompe el seeding.",
+    "mediaModeHardlink": "Hardlink (respaldo copia)",
+    "mediaModeCopy": "Copia",
+    "mediaModeMove": "Mover (rompe el seeding)",
+    "mediaSaved": "Organización de medios guardada",
+    "mediaError": "No se pudo guardar la organización de medios",
     "qbittorrentSaved": "Ajustes de qBittorrent guardados",
     "qbittorrentError": "No se pudieron guardar los ajustes de qBittorrent",
     "liveLogs": "Registros en vivo",

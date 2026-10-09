@@ -416,7 +416,8 @@
     "action_ranking_config_update": "Aktualizacja konfiguracji rankingu",
     "action_ranking_config_reset": "Reset konfiguracji rankingu",
     "action_prep_config_update": "Aktualizacja ustawień odliczania",
-    "action_qbit_config_update": "Aktualizacja ustawień qBittorrent"
+    "action_qbit_config_update": "Aktualizacja ustawień qBittorrent",
+    "action_media_config_update": "Aktualizacja organizacji plików"
   },
   "settings": {
     "title": "Ustawienia",
@@ -464,6 +465,17 @@
     "qbitAutoRemoveHint": "Włącz to, jeśli qBittorrent usuwa torrenty z listy tuż po zakończeniu pobierania (bez seedowania). Pobranie, którego torrent zniknął, ale było ukończone w co najmniej 90%, zostanie oznaczone jako ukończone zamiast nieudane.",
     "qbitSeedingEnabled": "Seedowanie",
     "qbitSeedingEnabledHint": "Po wyłączeniu torrenty dodane przez Lode przestają udostępniać natychmiast po ukończeniu. Dotyczy tylko torrentów dodanych przez Lode, globalne ustawienia qBittorrent nie są zmieniane.",
+    "mediaTitle": "Organizacja plików",
+    "mediaDesc": "Zmieniaj nazwy ukończonych pobrań i importuj je do folderów biblioteki, w stylu Radarra.",
+    "mediaEnabled": "Organizuj pliki po pobraniu",
+    "mediaEnabledHint": "Po włączeniu ukończone filmy i seriale są przemianowywane i linkowane/kopiowane do biblioteki. Wyłączone = obecne zachowanie - pliki zostają tam, gdzie położył je qBittorrent.",
+    "mediaImportMode": "Tryb importu",
+    "mediaImportModeHint": "Hardlink seeduje dalej bez zajmowania miejsca, ale wymaga stagingu i biblioteki na jednym filesystemie (między dyskami sam spada do kopiowania). Kopiowanie duplikuje pliki. Przenoszenie przerywa seeding.",
+    "mediaModeHardlink": "Hardlink (awaryjnie kopia)",
+    "mediaModeCopy": "Kopiowanie",
+    "mediaModeMove": "Przenoszenie (przerywa seeding)",
+    "mediaSaved": "Zapisano ustawienia organizacji plików",
+    "mediaError": "Nie udało się zapisać ustawień organizacji plików",
     "qbittorrentSaved": "Zapisano ustawienia qBittorrent",
     "qbittorrentError": "Nie udało się zapisać ustawień qBittorrent",
     "liveLogs": "Logi na żywo",

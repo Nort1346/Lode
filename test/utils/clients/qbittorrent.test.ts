@@ -619,6 +619,67 @@ describe('QBittorrentClient', () => {
       })
     )
   })
+
+  it('renameTorrent posts hash and name', async () => {
+    mockFetch.mockResolvedValue(okResponse())
+
+    await client.renameTorrent(HASH, 'Dune (2021)')
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://qb:8080/api/v2/torrents/rename',
+      expect.objectContaining({ method: 'POST' })
+    )
+  })
+
+  it('renameFile posts hash with old and new paths', async () => {
+    mockFetch.mockResolvedValue(okResponse())
+
+    await client.renameFile(HASH, 'old/movie.mkv', 'new/movie.mkv')
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://qb:8080/api/v2/torrents/renameFile',
+      expect.objectContaining({ method: 'POST' })
+    )
+  })
+
+  it('renameFolder posts hash with old and new paths', async () => {
+    mockFetch.mockResolvedValue(okResponse())
+
+    await client.renameFolder(HASH, 'old', 'new')
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://qb:8080/api/v2/torrents/renameFolder',
+      expect.objectContaining({ method: 'POST' })
+    )
+  })
+
+  it('setLocation is a no-op for an empty list', async () => {
+    await client.setLocation([], '/media/Movies')
+
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('setLocation posts hashes and location', async () => {
+    mockFetch.mockResolvedValue(okResponse())
+
+    await client.setLocation(['h1', 'h2'], '/media/Movies')
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://qb:8080/api/v2/torrents/setLocation',
+      expect.objectContaining({ method: 'POST', body: 'hashes=h1|h2&location=%2Fmedia%2FMovies' })
+    )
+  })
+
+  it('setCategory posts hashes and category', async () => {
+    mockFetch.mockResolvedValue(okResponse())
+
+    await client.setCategory([HASH], 'movies')
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://qb:8080/api/v2/torrents/setCategory',
+      expect.objectContaining({ method: 'POST', body: `hashes=${HASH}&category=movies` })
+    )
+  })
 })
 
 describe('useQBittorrent', () => {

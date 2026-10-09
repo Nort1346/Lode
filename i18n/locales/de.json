@@ -416,7 +416,8 @@
     "action_ranking_config_update": "Ranglisten-Konfiguration aktualisiert",
     "action_ranking_config_reset": "Ranglisten-Konfiguration zurückgesetzt",
     "action_prep_config_update": "Countdown-Einstellungen aktualisiert",
-    "action_qbit_config_update": "qBittorrent-Einstellungen aktualisiert"
+    "action_qbit_config_update": "qBittorrent-Einstellungen aktualisiert",
+    "action_media_config_update": "Medienorganisation aktualisiert"
   },
   "settings": {
     "title": "Einstellungen",
@@ -464,6 +465,17 @@
     "qbitAutoRemoveHint": "Aktiviere dies, wenn qBittorrent Torrents nach Abschluss sofort aus der Liste entfernt (ohne Seeding). Ein Download, dessen Torrent verschwunden ist, aber zu mindestens 90 % abgeschlossen war, wird als abgeschlossen statt fehlgeschlagen markiert.",
     "qbitSeedingEnabled": "Seeding",
     "qbitSeedingEnabledHint": "Wenn deaktiviert, stoppen von Lode hinzugefügte Torrents die Freigabe sofort nach Abschluss. Betrifft nur von Lode hinzugefügte Torrents, globale qBittorrent-Einstellungen werden nicht geändert.",
+    "mediaTitle": "Medienorganisation",
+    "mediaDesc": "Benennt fertige Downloads um und importiert sie in die Bibliotheksordner, im Radarr-Stil.",
+    "mediaEnabled": "Dateien nach dem Download organisieren",
+    "mediaEnabledHint": "Wenn aktiviert, werden fertige Filme und Serien umbenannt und per Hardlink/Kopie in die Bibliothek importiert. Deaktiviert = bisheriges Verhalten - Dateien bleiben, wo qBittorrent sie abgelegt hat.",
+    "mediaImportMode": "Importmodus",
+    "mediaImportModeHint": "Hardlink seedet weiter ohne Extraspeicher, braucht aber Staging und Bibliothek auf einem Dateisystem (fällt über Disks hinweg auf Kopieren zurück). Kopieren dupliziert Dateien. Verschieben stoppt Seeding.",
+    "mediaModeHardlink": "Hardlink (Fallback Kopie)",
+    "mediaModeCopy": "Kopieren",
+    "mediaModeMove": "Verschieben (stoppt Seeding)",
+    "mediaSaved": "Medienorganisation gespeichert",
+    "mediaError": "Speichern der Medienorganisation fehlgeschlagen",
     "qbittorrentSaved": "qBittorrent-Einstellungen gespeichert",
     "qbittorrentError": "qBittorrent-Einstellungen konnten nicht gespeichert werden",
     "liveLogs": "Live-Logs",

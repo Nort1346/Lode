@@ -50,6 +50,13 @@
       "when": 1788500000000,
       "tag": "0006_alter_download_bytes_bigint",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791567803038,
+      "tag": "0007_lush_lucky_pierre",
+      "breakpoints": true
     }
   ]
 }

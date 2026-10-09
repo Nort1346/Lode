@@ -67,6 +67,8 @@ export default defineNuxtConfig({
     jellyfinApiKey: '',
     savePathMovies: '/data/Movies',
     savePathSeries: '/data/Series',
+    downloadPathMovies: '',
+    downloadPathSeries: '',
     savePathGames: '',
     savePathBooks: '',
     savePathMusic: '',

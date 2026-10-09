@@ -416,7 +416,8 @@
     "action_ranking_config_update": "Configuração de Ranking Atualizada",
     "action_ranking_config_reset": "Configuração de Ranking Restaurada",
     "action_prep_config_update": "Configuração de Preparo Atualizada",
-    "action_qbit_config_update": "Configuração do qBittorrent Atualizada"
+    "action_qbit_config_update": "Configuração do qBittorrent Atualizada",
+    "action_media_config_update": "Atualização da organização de mídia"
   },
   "settings": {
     "title": "Configurações",
@@ -464,6 +465,17 @@
     "qbitAutoRemoveHint": "Ative isso se o qBittorrent remover os torrents da lista logo após terminarem (sem seeding). Um download cujo torrent desapareceu, mas estava com pelo menos 90% de conclusão, é marcado como concluído em vez de falho.",
     "qbitSeedingEnabled": "Seeding",
     "qbitSeedingEnabledHint": "Quando desativado, os torrents adicionados pelo Lode param de compartilhar logo após a conclusão. Afeta apenas torrents adicionados pelo Lode, as configurações globais do qBittorrent não são alteradas.",
+    "mediaTitle": "Organização de mídia",
+    "mediaDesc": "Renomeia downloads concluídos e os importa para as pastas da biblioteca, no estilo Radarr.",
+    "mediaEnabled": "Organizar arquivos após o download",
+    "mediaEnabledHint": "Se ativado, filmes e séries concluídos são renomeados e importados (hardlink/cópia) para a biblioteca. Desativado = comportamento atual - os arquivos ficam onde o qBittorrent os colocou.",
+    "mediaImportMode": "Modo de importação",
+    "mediaImportModeHint": "O hardlink continua semeando sem espaço extra, mas exige staging e biblioteca no mesmo sistema de arquivos (vira cópia entre discos). A cópia duplica arquivos. Mover quebra o seeding.",
+    "mediaModeHardlink": "Hardlink (reserva cópia)",
+    "mediaModeCopy": "Cópia",
+    "mediaModeMove": "Mover (quebra o seeding)",
+    "mediaSaved": "Organização de mídia salva",
+    "mediaError": "Falha ao salvar a organização de mídia",
     "qbittorrentSaved": "Configurações do qBittorrent salvas",
     "qbittorrentError": "Falha ao salvar as configurações do qBittorrent",
     "liveLogs": "Logs ao Vivo",
