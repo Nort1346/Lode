@@ -69,7 +69,7 @@
     "drizzle-orm": "^0.45.3",
     "got-scraping": "^4.2.2",
     "ioredis": "^6.0.0",
-    "nuxt": "^4.5.2",
+    "nuxt": "^4.6.0",
     "nuxt-auth-utils": "^0.5.30",
     "pino": "^10.4.0",
     "postgres": "^3.4.9",
