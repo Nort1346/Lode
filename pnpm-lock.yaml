@@ -215,8 +215,8 @@ importers:
         specifier: ^0.45.3
         version: 0.45.3(@types/better-sqlite3@9.6.0)(better-sqlite3@13.0.3)(postgres@3.4.9)
       got-scraping:
-        specifier: ^4.2.1
-        version: 4.2.1
+        specifier: ^4.2.2
+        version: 4.2.2
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0(supports-color@10.2.2)
@@ -5144,8 +5144,8 @@ packages:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
     engines: {node: '>= 0.4'}
 
-  got-scraping@4.2.1:
-    resolution: {integrity: sha512-rhOlO1L4H4Cm31smHJqPtAaXOUrhSKsiTrbZSHKFQW1E/mkTDopnHHpRnXJpqzE0faj+zPsVQnyifIqO+K+cLQ==}
+  got-scraping@4.2.2:
+    resolution: {integrity: sha512-dboWJmjKvN5dp6bj1lD2vmgZ7sRbu6hpH3M7o4z+YW7TzkrBYxNN4dYQpG+KAkyXOk8elbr/q0qaLZhs/05OBA==}
     engines: {node: '>=16'}
 
   got@14.6.6:
@@ -13389,7 +13389,7 @@ snapshots:
 
   gopd@1.2.0: {}
 
-  got-scraping@4.2.1:
+  got-scraping@4.2.2:
     dependencies:
       got: 14.6.6
       header-generator: 2.1.88
