@@ -70,7 +70,7 @@
     "got-scraping": "^4.2.2",
     "ioredis": "^6.0.0",
     "nuxt": "^4.5.2",
-    "nuxt-auth-utils": "^0.5.30",
+    "nuxt-auth-utils": "^0.5.31",
     "pino": "^10.4.0",
     "postgres": "^3.4.9",
     "sharp": "^0.35.5",
