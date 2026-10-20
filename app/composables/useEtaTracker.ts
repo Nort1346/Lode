@@ -5,9 +5,11 @@ import type { EtaDisplay, EtaState, EtaTrackerInput, EtaTrackerRegistry, EtaTrac
 
 // Warm-up window: right after a download starts, speed data is not
 // representative yet (metadata fetch, DHT, peer connection setup), so no
-// numeric ETA is shown during that time. The window is anchored to the
-// server-side createdAt, so opening the page mid-download skips it.
-export const ETA_WARMUP_MS = 12_000
+// numeric ETA is shown during that time. 14s spans five 3s poll cycles, so
+// the first displayed value rests on a full 5-sample median window. The
+// window is anchored to the server-side createdAt, so opening the page
+// mid-download skips it.
+export const ETA_WARMUP_MS = 14_000
 
 // Minimum number of valid (progressing) samples before an ETA is shown, so a
 // stalled start cannot produce a bogus value.
@@ -20,8 +22,12 @@ export const ETA_MIN_OBSERVED_BYTES = 2 * 1024 * 1024
 // mean) is used so a single burst sample cannot skew the estimate.
 export const ETA_SPEED_WINDOW = 5
 
-// Hysteresis: the displayed ETA only changes when a new estimate deviates by
-// more than 15% (relative) or 60 seconds (absolute) from the displayed value.
+// Hysteresis is asymmetric on purpose (countdown UX): a shorter ETA is always
+// adopted, so the label ticks down smoothly poll by poll as the download
+// progresses. A longer ETA is only adopted when it deviates by more than 15%
+// (relative) or 60s (absolute) from the displayed value, which absorbs
+// sampling noise and short dips. Real sustained slowdowns always exceed the
+// band once the median settles, so they are never masked for long.
 export const ETA_HYSTERESIS_REL = 0.15
 export const ETA_HYSTERESIS_ABS_SECONDS = 60
 
@@ -112,7 +118,13 @@ function applyHysteresis(state: EtaTrackerState, candidate: number): number {
     state.lastDisplayedEta = candidate
     return candidate
   }
-  if (Math.abs(candidate - last) <= Math.max(ETA_HYSTERESIS_REL * last, ETA_HYSTERESIS_ABS_SECONDS)) return last
+  // Countdown progress: a shorter ETA always flows through.
+  if (candidate < last) {
+    state.lastDisplayedEta = candidate
+    return candidate
+  }
+  // A longer ETA is only shown once it leaves the hysteresis band.
+  if (candidate - last <= Math.max(ETA_HYSTERESIS_REL * last, ETA_HYSTERESIS_ABS_SECONDS)) return last
   state.lastDisplayedEta = candidate
   return candidate
 }

@@ -9,9 +9,15 @@ import type { Download, EtaDisplay, EtaTrackerRegistry } from '../../app/types/d
 // peer-connection phase, so the stored ETA starts huge and collapses quickly
 // (e.g. "2h" at start dropping to "1h 30m" a few seconds later).
 //
-// Spec: the UI must NOT show a numeric ETA in the first 12 seconds of a
-// download; it must stay in the neutral "collecting" state instead. The
-// server-stored `etaSeconds` is never used for display anymore.
+// Spec: the UI must NOT show a numeric ETA in the first 14 seconds of a
+// download; it must stay in the neutral "collecting" state instead. 14s
+// spans five 3s poll cycles, so the first value rests on a full 5-sample
+// median window. The server-stored `etaSeconds` is never used for display.
+//
+// Hysteresis is asymmetric (countdown UX): a shorter ETA is always adopted
+// so the label ticks down smoothly poll by poll, while a longer ETA is only
+// adopted when it moves by more than 15% / 60s (noise and short dips are
+// absorbed).
 
 const T0 = 1_700_000_000_000
 const SIZE = 1024 ** 3 // 1 GiB
@@ -83,9 +89,9 @@ function at(displays: EtaDisplay[], index: number): EtaDisplay {
 }
 
 describe('early ETA stability (regression)', () => {
-  it('shows no numeric ETA within the first 12 seconds of a download', () => {
+  it('shows no numeric ETA within the first 14 seconds of a download', () => {
     const registry = createEtaTrackerRegistry()
-    for (const tMs of [3_000, 6_000, 10_000]) {
+    for (const tMs of [3_000, 6_000, 10_000, 13_500]) {
       const row = makeDl({ downloadedBytes: fastBytes(tMs) })
       registry.trackPoll([row], T0 + tMs)
       const display = registry.displayFor(row, T0 + tMs)
@@ -99,8 +105,7 @@ describe('early ETA stability (regression)', () => {
     { tMs: 3_000, expected: 'collecting' },
     { tMs: 6_000, expected: 'collecting' },
     { tMs: 9_000, expected: 'collecting' },
-    { tMs: 11_999, expected: 'collecting' },
-    { tMs: 12_000, expected: 'ready' },
+    { tMs: 12_000, expected: 'collecting' },
     { tMs: 15_000, expected: 'ready' },
     { tMs: 30_000, expected: 'ready' }
   ]
@@ -115,6 +120,17 @@ describe('early ETA stability (regression)', () => {
     }
     expect(last.state).toBe(expected)
   })
+
+  it('warm-up ends at exactly 14s, checked at render time (not poll time)', () => {
+    const registry = createEtaTrackerRegistry()
+    for (const t of [3_000, 6_000, 9_000, 12_000]) {
+      registry.trackPoll([makeDl({ downloadedBytes: fastBytes(t) })], T0 + t)
+    }
+    // Samples already exist (4 valid, 40 MiB observed) but the window has not passed
+    expect(registry.displayFor(makeDl({ downloadedBytes: fastBytes(13_999) }), T0 + 13_999).state).toBe('collecting')
+    // At the exact boundary the estimate is ready
+    expect(registry.displayFor(makeDl({ downloadedBytes: fastBytes(14_000) }), T0 + 14_000).state).toBe('ready')
+  })
 })
 
 describe('eta tracker (stable speed)', () => {
@@ -123,12 +139,12 @@ describe('eta tracker (stable speed)', () => {
     const steps = [3000, 6000, 9000, 12000, 15000, 18000, 21000].map((t) => ({ t, bytes: fastBytes(t) }))
     const displays = drive(registry, makeDl(), steps)
 
-    // t=3/6/9s: still in the warm-up window even though samples exist
-    expect(displays.slice(0, 3).map((d) => d.state)).toEqual(['collecting', 'collecting', 'collecting'])
-    // t=12s: warm-up done, 4 valid samples -> first value (~90.4s -> 90)
-    expect(displays[3]).toEqual({ state: 'ready', etaSeconds: 90 })
-    // t=15/18/21s: estimate drifts < 15% / 60s, hysteresis holds the value
-    expect(displays.slice(4, 7).map((d) => d.etaSeconds)).toEqual([90, 90, 90])
+    // t=3/6/9/12s: still in the warm-up window even though samples exist
+    expect(displays.slice(0, 4).map((d) => d.state)).toEqual(['collecting', 'collecting', 'collecting', 'collecting'])
+    // t=15s: warm-up done, full 5-sample median -> first value (~87.4s -> 87)
+    expect(displays[4]).toEqual({ state: 'ready', etaSeconds: 87 })
+    // t=18/21s: countdown progress - a shorter estimate is adopted immediately
+    expect(displays.slice(5, 7).map((d) => d.etaSeconds)).toEqual([84, 81])
   })
 })
 
@@ -150,13 +166,16 @@ describe('eta tracker (speed changes)', () => {
     ]
     const displays = drive(registry, makeDl(), steps)
 
-    // First value at t=12s: (1GiB - 12 MiB) / 1 MiB/s = 1012s
-    expect(displays[3]).toEqual({ state: 'ready', etaSeconds: 1012 })
-    // Burst and following slow samples must not move the display
-    expect(displays.slice(4, 8).map((d) => d.etaSeconds)).toEqual([1012, 1012, 1012, 1012])
+    // t=12s: still in the 14s warm-up window
+    expect(displays[3]).toEqual({ state: 'collecting', etaSeconds: null })
+    // First value at t=15s: (1GiB - 42 MiB) / 1 MiB/s = 982s, burst excluded by the median
+    expect(displays[4]).toEqual({ state: 'ready', etaSeconds: 982 })
+    // The burst must not spike the estimate: the label only ticks down with countdown progress
+    expect(displays.slice(5, 8).map((d) => d.etaSeconds)).toEqual([979, 976, 970])
     // Sustained 2x speed: median flips at t=27s and the estimate updates
     expect(displays[8]).toEqual({ state: 'ready', etaSeconds: 482 })
-    expect(at(displays, 9).etaSeconds).toBe(482)
+    // Countdown continues ticking after the flip
+    expect(at(displays, 9).etaSeconds).toBe(479)
   })
 
   it('shows no number once the speed drops to zero for several polls (stall)', () => {
@@ -192,11 +211,36 @@ describe('eta tracker (speed changes)', () => {
     ]
     const displays = drive(registry, makeDl(), steps)
 
-    expect(at(displays, 3).etaSeconds).toBe(90) // t=12s first value
-    expect(displays.slice(4, 7).map((d) => d.etaSeconds)).toEqual([90, 90, 90]) // 50% slower, median still 10 MiB/s
-    // Median flips to 5 MiB/s at t=27s -> estimate ~160s, change > threshold -> shown
+    // t=12s: still in the 14s warm-up window
+    expect(at(displays, 3).state).toBe('collecting')
+    // t=15s first value, then countdown ticks down (shorter estimates always flow through)
+    expect(displays.slice(4, 7).map((d) => d.etaSeconds)).toEqual([87, 84, 83])
+    // Median flips to 5 MiB/s at t=27s -> estimate ~160s, change > 60s band -> shown
     expect(at(displays, 8).etaSeconds).toBe(160)
-    expect(at(displays, 9).etaSeconds).toBe(160)
+    // Countdown continues ticking down after the upward flip
+    expect(at(displays, 9).etaSeconds).toBe(157)
+  })
+
+  it('absorbs small upward estimate changes (inside the hysteresis band)', () => {
+    const registry = createEtaTrackerRegistry()
+    const dip = FAST * 0.6 // 6 MiB/s
+    const bytesAt18 = fastBytes(18000)
+    const steps: Step[] = [
+      ...[3000, 6000, 9000, 12000, 15000, 18000].map((t) => ({ t, bytes: fastBytes(t) })),
+      { t: 21000, bytes: bytesAt18 + dip * 3 },
+      { t: 24000, bytes: bytesAt18 + dip * 6 },
+      { t: 27000, bytes: bytesAt18 + dip * 9 },
+      { t: 30000, bytes: bytesAt18 + dip * 12 }
+    ]
+    const displays = drive(registry, makeDl(), steps)
+
+    // t=24s: last countdown tick before the median flips
+    expect(at(displays, 7).etaSeconds).toBe(81)
+    // t=27s: median flips to 6 MiB/s -> candidate ~132s, but only ~51s above the
+    // displayed value (inside the 60s band) -> the label holds instead of jumping
+    expect(at(displays, 8).etaSeconds).toBe(81)
+    // t=30s: still inside the band -> held
+    expect(at(displays, 9).etaSeconds).toBe(81)
   })
 })
 
@@ -216,7 +260,7 @@ describe('eta tracker (lifecycle)', () => {
     const displays = drive(registry, makeDl(), steps)
 
     expect(at(displays, 5).state).toBe('ready') // t=18s before pause
-    expect(displays[7]).toEqual({ state: 'ready', etaSeconds: 90 }) // t=24s still paused, window frozen
+    expect(displays[7]).toEqual({ state: 'ready', etaSeconds: 81 }) // t=24s still paused, window frozen
     expect(displays[8]).toEqual({ state: 'calculating', etaSeconds: null }) // t=27s resume poll re-anchors
     expect(at(displays, 9).state).toBe('calculating') // 1 fresh sample
     expect(at(displays, 10).state).toBe('calculating') // 2 fresh samples
@@ -250,7 +294,7 @@ describe('eta tracker (lifecycle)', () => {
 
   it('tracks concurrent downloads independently', () => {
     const registry = createEtaTrackerRegistry()
-    for (const t of [3000, 6000, 9000, 12000]) {
+    for (const t of [3000, 6000, 9000, 12000, 15000]) {
       registry.trackPoll(
         [
           makeDl({ id: 'dl-fast', downloadedBytes: fastBytes(t) }),
@@ -260,28 +304,28 @@ describe('eta tracker (lifecycle)', () => {
       )
     }
 
-    expect(registry.displayFor(makeDl({ id: 'dl-fast', downloadedBytes: fastBytes(12000) }), T0 + 12000)).toEqual({
+    expect(registry.displayFor(makeDl({ id: 'dl-fast', downloadedBytes: fastBytes(15000) }), T0 + 15000)).toEqual({
       state: 'ready',
-      etaSeconds: 90
+      etaSeconds: 87
     })
-    expect(registry.displayFor(makeDl({ id: 'dl-slow', downloadedBytes: slowBytes(12000) }), T0 + 12000)).toEqual({
+    expect(registry.displayFor(makeDl({ id: 'dl-slow', downloadedBytes: slowBytes(15000) }), T0 + 15000)).toEqual({
       state: 'ready',
-      etaSeconds: 1012
+      etaSeconds: 1009
     })
 
     // A burst on dl-fast must not affect dl-slow
-    registry.trackPoll([makeDl({ id: 'dl-fast', downloadedBytes: fastBytes(12000) + 90 * 1024 * 1024 })], T0 + 15000)
+    registry.trackPoll([makeDl({ id: 'dl-fast', downloadedBytes: fastBytes(15000) + 90 * 1024 * 1024 })], T0 + 18000)
     expect(
-      registry.displayFor(makeDl({ id: 'dl-slow', downloadedBytes: slowBytes(15000) }), T0 + 15000).etaSeconds
-    ).toBe(1012)
+      registry.displayFor(makeDl({ id: 'dl-slow', downloadedBytes: slowBytes(18000) }), T0 + 18000).etaSeconds
+    ).toBe(1006)
   })
 
   it('re-anchors after a poll gap larger than the allowed gap', () => {
     const registry = createEtaTrackerRegistry()
-    for (const t of [3000, 6000, 9000, 12000]) {
+    for (const t of [3000, 6000, 9000, 12000, 15000]) {
       registry.trackPoll([makeDl({ downloadedBytes: fastBytes(t) })], T0 + t)
     }
-    expect(registry.displayFor(makeDl({ downloadedBytes: fastBytes(12000) }), T0 + 12000).state).toBe('ready')
+    expect(registry.displayFor(makeDl({ downloadedBytes: fastBytes(15000) }), T0 + 15000).state).toBe('ready')
 
     // 33s without a poll (page switch), then the row comes back
     const gapBytes = fastBytes(45000)
@@ -330,8 +374,8 @@ describe('eta tracker (false positives and error paths)', () => {
     }))
     const displays = drive(registry, makeDl(), steps)
 
-    expect(displays.slice(0, 3).map((d) => d.state)).toEqual(['collecting', 'collecting', 'collecting'])
-    for (const d of displays.slice(3)) {
+    expect(displays.slice(0, 4).map((d) => d.state)).toEqual(['collecting', 'collecting', 'collecting', 'collecting'])
+    for (const d of displays.slice(4)) {
       expect(d).toEqual({ state: 'calculating', etaSeconds: null })
     }
   })
@@ -341,7 +385,7 @@ describe('eta tracker (false positives and error paths)', () => {
     const steps = [3000, 6000, 9000, 12000, 15000].map((t) => ({ t, bytes: fastBytes(t), sizeBytes: 0 }))
     const displays = drive(registry, makeDl(), steps)
 
-    expect(displays[3]).toEqual({ state: 'calculating', etaSeconds: null })
+    expect(displays[3]).toEqual({ state: 'collecting', etaSeconds: null }) // t=12s still warming up
     expect(displays[4]).toEqual({ state: 'calculating', etaSeconds: null })
   })
 
@@ -355,8 +399,7 @@ describe('eta tracker (false positives and error paths)', () => {
     }))
     const displays = drive(registry, makeDl(), steps)
 
-    expect(displays.slice(0, 3).map((d) => d.state)).toEqual(['collecting', 'collecting', 'collecting'])
-    expect(displays[3]).toEqual({ state: 'waiting-seeders', etaSeconds: null })
+    expect(displays.slice(0, 4).map((d) => d.state)).toEqual(['collecting', 'collecting', 'collecting', 'collecting'])
     expect(displays[4]).toEqual({ state: 'waiting-seeders', etaSeconds: null })
   })
 
