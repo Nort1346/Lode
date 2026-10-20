@@ -1,13 +1,8 @@
 <script setup lang="ts">
 import type { MediaCarouselItem } from '~/types/media'
 import type { Download } from '~/types/downloads'
-import {
-  formatSpeed,
-  formatSize,
-  getTorrentQuality,
-  useQualityConfig,
-  useEtaLabel
-} from '~/composables/useTorrentUtils'
+import { formatSpeed, formatSize, getTorrentQuality, useQualityConfig } from '~/composables/useTorrentUtils'
+import { useEtaTracker } from '~/composables/useEtaTracker'
 
 definePageMeta({
   middleware: 'auth'
@@ -48,6 +43,8 @@ async function fetchData() {
       completedToday: statsRes.completedSince
     }
     activeList.value = listRes.downloads ?? []
+    // Feed the ETA tracker before the next render so labels/borders are fresh
+    trackPoll(listRes.downloads ?? [])
     lastFetchOk = true
   } catch (e: unknown) {
     // Keep previous data on failure; toast only on the first failure so the poll loop does not spam
@@ -135,7 +132,15 @@ function getDisplayName(dl: Download): string {
 }
 
 const { qualityConfig } = useQualityConfig()
-const etaLabel = useEtaLabel()
+const { trackPoll, etaState, etaLabel } = useEtaTracker()
+
+function cardBorderClass(dl: Download): string {
+  if (dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok') {
+    return qualityConfig.value[getTorrentQuality(dl)].border
+  }
+  if (dl.status === 'downloading' && etaState(dl) === 'collecting') return 'border-amber-500/40'
+  return 'border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/10'
+}
 
 const statusColors: Record<string, string> = {
   checking: 'bg-teal-500/15 text-teal-700 dark:text-teal-400',
@@ -260,11 +265,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
           v-for="dl in activeDownloads"
           :key="dl.id"
           class="flex gap-3 p-3 rounded-xl border transition-all bg-zinc-50 dark:bg-white/2 sm:gap-4 sm:p-4"
-          :class="
-            dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok'
-              ? qualityConfig[getTorrentQuality(dl)].border
-              : 'border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/10'
-          "
+          :class="cardBorderClass(dl)"
         >
           <div
             class="shrink-0 w-12 h-18 rounded-lg overflow-hidden bg-zinc-200 dark:bg-white/5 shadow-sm dark:shadow-black/20 sm:w-20 sm:h-30"
@@ -353,7 +354,13 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   </span>
                   <span v-if="dl.status !== 'paused' && dl.status !== 'checking'"
                     >{{ t('common.eta') }}:
-                    <span class="text-zinc-900 dark:text-white">
+                    <span
+                      :class="
+                        etaState(dl) === 'collecting'
+                          ? 'animate-pulse text-amber-600 dark:text-amber-400'
+                          : 'text-zinc-900 dark:text-white'
+                      "
+                    >
                       {{ etaLabel(dl) }}
                     </span></span
                   >

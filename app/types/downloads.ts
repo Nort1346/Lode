@@ -37,9 +37,49 @@ export interface AddTorrentResponse {
 
 export type TorrentQuality = 'dead' | 'poor' | 'slow' | 'ok'
 
-export type EtaState = 'waiting-seeders' | 'calculating' | 'ready'
+// 'collecting' = the warm-up window is still running (no numeric ETA yet,
+// the card shows the neutral "collecting data" state).
+export type EtaState = 'collecting' | 'waiting-seeders' | 'calculating' | 'ready'
 
 export type EtaInput = Pick<Download, 'etaSeconds' | 'numSeeds' | 'downloadSpeed'>
+
+// What the ETA tracker needs from a download row.
+export type EtaTrackerInput = Pick<
+  Download,
+  'id' | 'status' | 'createdAt' | 'sizeBytes' | 'downloadedBytes' | 'numSeeds' | 'downloadSpeed'
+>
+
+// Result of the ETA display pipeline for one download row.
+export interface EtaDisplay {
+  state: EtaState
+  etaSeconds: number | null
+}
+
+// Client-side speed-sampling registry: one EtaTrackerState per active download,
+// in-memory only (nothing is persisted).
+export interface EtaTrackerRegistry {
+  trackPoll(downloads: readonly EtaTrackerInput[], nowMs: number): void
+  displayFor(dl: EtaTrackerInput, nowMs: number): EtaDisplay
+  size(): number
+}
+
+// Per-download speed sampling state (in-memory, client-side only).
+export interface EtaTrackerState {
+  createdAtMs: number | null
+  lastBytes: number | null
+  lastSampleAt: number | null
+  lastStatus: string | null
+  // Recent speed samples in bytes/s (0 = no progress during that poll);
+  // at most ETA_SPEED_WINDOW entries, oldest first.
+  window: number[]
+  // Samples with actual progress since the last anchor reset.
+  validSamples: number
+  // Progress observed (bytes) since the last anchor reset.
+  bytesObserved: number
+  // Last candidate ETA in seconds that was shown (hysteresis anchor), raw value.
+  lastDisplayedEta: number | null
+  lastSeenAt: number
+}
 
 export const STATUS_COLORS: Record<string, string> = {
   checking: 'text-teal-500',
