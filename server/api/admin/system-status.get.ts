@@ -4,6 +4,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import Redis from 'ioredis'
 import type { ServiceStatus } from '#server/types/admin'
 import { checkJellyfinStatus } from '#server/utils/clients/jellyfin'
+import { checkPlexStatus } from '#server/utils/clients/plex'
 import { checkQbittorrent, checkProwlarr, checkTmdb } from '#server/utils/health'
 import { useDbAsync } from '#server/utils/db'
 import { createLogger } from '#server/utils/logger'
@@ -141,6 +142,7 @@ export default defineEventHandler(async (event: H3Event) => {
     checkQbittorrent(config),
     checkProwlarr(config),
     checkJellyfinStatus(),
+    checkPlexStatus(),
     checkTmdb(config),
     checkRedis(config),
     checkDiscord(config),

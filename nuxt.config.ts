@@ -65,6 +65,8 @@ export default defineNuxtConfig({
     qbittorrentApiKey: '',
     jellyfinUrl: '',
     jellyfinApiKey: '',
+    plexUrl: '',
+    plexToken: '',
     savePathMovies: '/data/Movies',
     savePathSeries: '/data/Series',
     savePathGames: '',
