@@ -25,7 +25,7 @@ export async function ensureAdminExists() {
   if (admins.length === 0) {
     const id = randomUUID()
     const adminPassword = generateAdminPassword()
-    const password = await hash(adminPassword, 12)
+    const password = await hash(adminPassword, { cost: 12 })
 
     await repos.users.create({
       id,
@@ -54,7 +54,7 @@ export async function ensureAdminExists() {
     const bootstrapAdmin = admins.find((a) => a.username === 'admin')
     if (bootstrapAdmin !== undefined && bootstrapAdmin.mustChangePassword) {
       const adminPassword = generateAdminPassword()
-      const password = await hash(adminPassword, 12)
+      const password = await hash(adminPassword, { cost: 12 })
       await repos.users.update(bootstrapAdmin.id, { password })
       log.info(`Admin password: ${adminPassword}`)
       log.info('Change this password after first login!')

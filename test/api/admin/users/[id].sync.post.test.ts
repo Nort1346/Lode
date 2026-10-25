@@ -164,7 +164,7 @@ describe('admin/users/[id]/sync.post', () => {
     expect(result.action).toBe('created')
     expect(typeof result.tempPassword).toBe('string')
     expect(result.tempPassword).toHaveLength(16)
-    expect(mockHash).toHaveBeenCalledWith(result.tempPassword, 12)
+    expect(mockHash).toHaveBeenCalledWith(result.tempPassword, { cost: 12 })
     expect(mockDb._mocks.runMock).toHaveBeenCalled()
     expect(mockSyncUserCreate).toHaveBeenCalledWith(
       'u1',

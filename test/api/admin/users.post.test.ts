@@ -96,7 +96,7 @@ describe('admin/users.post', () => {
 
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true, id: 'new-id-1' })
-    expect(mockHash).toHaveBeenCalledWith('pass1234', 12)
+    expect(mockHash).toHaveBeenCalledWith('pass1234', { cost: 12 })
     expect(mockSyncNewUser).toHaveBeenCalled()
   })
 

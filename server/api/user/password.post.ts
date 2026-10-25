@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid current password' })
   }
 
-  const hashedPassword = await hash(body.newPassword, 12)
+  const hashedPassword = await hash(body.newPassword, { cost: 12 })
   await dbRun(
     db.update(users).set({ password: hashedPassword, mustChangePassword: false }).where(eq(users.id, session.user.id))
   )

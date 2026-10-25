@@ -73,7 +73,7 @@ describe('auth/register.post', () => {
 
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true, id: 'user-uuid' })
-    expect(vi.mocked(hash)).toHaveBeenCalledWith('pass1234', 12)
+    expect(vi.mocked(hash)).toHaveBeenCalledWith('pass1234', { cost: 12 })
     expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: false }))
     expect(mockRun).toHaveBeenCalled()
   })
