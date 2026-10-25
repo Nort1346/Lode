@@ -130,7 +130,7 @@ async function fetchLogs() {
 onMounted(async () => {
   await fetchLogs()
   try {
-    users.value = await $fetch('/api/admin/users')
+    users.value = await $fetch<{ id: string; username: string }[]>('/api/admin/users')
   } catch {
     // silently fail
   }
