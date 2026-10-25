@@ -63,7 +63,7 @@ describe('ensureAdminExists', () => {
   it('uses bcrypt hash for password', async () => {
     mockRepos.users.findByRole.mockResolvedValue([])
     await ensureAdminExists()
-    expect(mockHash).toHaveBeenCalledWith(expect.any(String), 12)
+    expect(mockHash).toHaveBeenCalledWith(expect.any(String), { cost: 12 })
   })
 
   it('re-activates inactive admin', async () => {
@@ -85,7 +85,7 @@ describe('ensureAdminExists', () => {
       { id: 'admin-1', username: 'admin', isActive: true, mustChangePassword: true }
     ])
     await ensureAdminExists()
-    expect(mockHash).toHaveBeenCalledWith(expect.any(String), 12)
+    expect(mockHash).toHaveBeenCalledWith(expect.any(String), { cost: 12 })
     expect(mockRepos.users.update).toHaveBeenCalledWith('admin-1', { password: 'hashed-password' })
     const calls = mockLog.info.mock.calls.map((args) => args.join(' '))
     expect(calls.some((line) => line.startsWith('Admin password: '))).toBe(true)

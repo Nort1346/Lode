@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
     maxActiveSessions: body.jellyfinMaxActiveSessions
   })
 
-  const hashedPassword = await hash(password, 12)
+  const hashedPassword = await hash(password, { cost: 12 })
 
   await dbRun(
     db.insert(users).values({

@@ -130,7 +130,7 @@ describe('user/password.post', () => {
     const result = await handler(mockEvent)
 
     expect(result).toEqual({ success: true })
-    expect(mockHash).toHaveBeenCalledWith('newpass123', 12)
+    expect(mockHash).toHaveBeenCalledWith('newpass123', { cost: 12 })
     expect(mockDb._mocks.setMock).toHaveBeenCalledWith({ password: 'hashed', mustChangePassword: false })
     expect(mockDb._mocks.runMock).toHaveBeenCalled()
     expect(mockSyncUserUpdate).not.toHaveBeenCalled()

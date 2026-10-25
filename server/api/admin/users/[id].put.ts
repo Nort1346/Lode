@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
   let plainPassword: string | null = null
   if (body.password !== undefined && body.password.trim()) {
     plainPassword = body.password.trim()
-    updates.password = await hash(plainPassword, 12)
+    updates.password = await hash(plainPassword, { cost: 12 })
     updates.mustChangePassword = false
     changedFields.push('password')
   }
