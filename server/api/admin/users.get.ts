@@ -18,6 +18,13 @@ export default defineEventHandler(async (event) => {
           .where(and(eq(syncUserSettings.userId, u.id), eq(syncUserSettings.providerName, 'jellyfin')))
       )
 
+      const plexSettingsRow = await dbGet(
+        db
+          .select()
+          .from(syncUserSettings)
+          .where(and(eq(syncUserSettings.userId, u.id), eq(syncUserSettings.providerName, 'plex')))
+      )
+
       return {
         id: u.id,
         username: u.username,
@@ -50,7 +57,12 @@ export default defineEventHandler(async (event) => {
         jellyfinEnableRemuxing: settingsRow?.enableRemuxing ?? true,
         jellyfinEnableLiveTvAccess: settingsRow?.enableLiveTvAccess ?? true,
         jellyfinEnableLiveTvManagement: settingsRow?.enableLiveTvManagement ?? false,
-        jellyfinMaxActiveSessions: settingsRow?.maxActiveSessions ?? 0
+        jellyfinMaxActiveSessions: settingsRow?.maxActiveSessions ?? 0,
+        plexLibraryAccess: plexSettingsRow
+          ? (JSON.parse(plexSettingsRow.libraryAccess) as string[] | 'all')
+          : ('all' as string[] | 'all'),
+        plexEnableLiveTvAccess: plexSettingsRow?.enableLiveTvAccess ?? true,
+        plexEnableSync: plexSettingsRow?.enableSync ?? true
       }
     })
   )

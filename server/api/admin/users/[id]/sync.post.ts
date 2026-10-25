@@ -40,6 +40,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const syncSettings = await getSyncUserSettings(id, 'jellyfin')
+  // The sync loop applies settings to every enabled provider; Plex needs its
+  // own (its section keys are not Jellyfin library IDs), so pass them along.
+  const plexSettings = await getSyncUserSettings(id, 'plex')
   const existingMapping = await getProviderUserId(id, 'jellyfin')
 
   let action: 'synced' | 'created'
@@ -48,7 +51,7 @@ export default defineEventHandler(async (event) => {
   if (existingMapping !== null) {
     action = 'synced'
     try {
-      await syncUserUpdate(id, { username: user.username, password: '' }, syncSettings)
+      await syncUserUpdate(id, { username: user.username, password: '' }, syncSettings, { plex: plexSettings })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       log.error(`Force sync failed for user ${user.username}:`, message)
@@ -61,7 +64,9 @@ export default defineEventHandler(async (event) => {
     await dbRun(db.update(users).set({ password: hashedPassword }).where(eq(users.id, id)))
 
     try {
-      await syncUserCreate(id, { username: user.username, password: tempPassword }, syncSettings)
+      await syncUserCreate(id, { username: user.username, password: tempPassword }, syncSettings, {
+        plex: plexSettings
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       log.error(`Force sync failed for user ${user.username}:`, message)

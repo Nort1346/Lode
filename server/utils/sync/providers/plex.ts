@@ -125,7 +125,7 @@ export class PlexSyncProvider implements SyncProvider {
     const machineId = await clients.pms.getMachineIdentifier()
     const sectionIds = await this.resolveSectionIds(clients, settings.libraryAccess)
     const allowTuners = settings.enableLiveTvAccess
-    const allowSync = (await getSetting(SETTINGS.PLEX_DEFAULT_SYNC)) !== 'false'
+    const allowSync = settings.enableSync ?? (await getSetting(SETTINGS.PLEX_DEFAULT_SYNC)) !== 'false'
 
     try {
       await clients.tv.removeShare(userId)
@@ -145,17 +145,19 @@ export class PlexSyncProvider implements SyncProvider {
 
   // Server-wide defaults used when re-granting access on enable (the caller has
   // no per-user settings in scope). Fields Plex does not use are set to harmless
-  // values so the shared SyncUserSettings shape stays complete.
+  // values so the shared SyncUserSettings shape stays complete. Kept separate
+  // from getPlexSyncSettings() (server/utils/sync/index.ts) to avoid a circular
+  // import between the orchestrator and this provider.
   private async defaultShareSettings(): Promise<SyncUserSettings> {
     return {
       libraryAccess: JSON.parse((await getSetting(SETTINGS.PLEX_DEFAULT_LIBRARY_ACCESS)) ?? '"all"') as
-        | string[]
-        | 'all',
+        string[] | 'all',
       enableVideoTranscoding: true,
       enableAudioTranscoding: true,
       enableRemuxing: true,
       enableLiveTvAccess: (await getSetting(SETTINGS.PLEX_DEFAULT_LIVE_TV_ACCESS)) !== 'false',
       enableLiveTvManagement: false,
+      enableSync: (await getSetting(SETTINGS.PLEX_DEFAULT_SYNC)) !== 'false',
       maxActiveSessions: 0
     }
   }

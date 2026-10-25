@@ -93,6 +93,32 @@ describe('admin/users.get', () => {
     expect(users[0]!.mustChangePassword).toBe(true)
   })
 
+  it('includes the plex per-user settings in user responses', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubDb([{ id: 'u1', username: 'user1', role: 'user' }], [], {
+      libraryAccess: '["1"]',
+      enableLiveTvAccess: false,
+      enableSync: false
+    })
+
+    const result = await handler(mockEvent)
+    const users = result as Array<Record<string, unknown>>
+    expect(users[0]!.plexLibraryAccess).toEqual(['1'])
+    expect(users[0]!.plexEnableLiveTvAccess).toBe(false)
+    expect(users[0]!.plexEnableSync).toBe(false)
+  })
+
+  it('falls back to plex defaults when no plex row exists', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubDb([{ id: 'u1', username: 'user1', role: 'user' }], [])
+
+    const result = await handler(mockEvent)
+    const users = result as Array<Record<string, unknown>>
+    expect(users[0]!.plexLibraryAccess).toBe('all')
+    expect(users[0]!.plexEnableLiveTvAccess).toBe(true)
+    expect(users[0]!.plexEnableSync).toBe(true)
+  })
+
   it('throws 403 for non-admin', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
 

@@ -57,6 +57,13 @@
       "when": 1788300000000,
       "tag": "0007_add_must_change_password",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792955207083,
+      "tag": "0008_breezy_deadpool",
+      "breakpoints": true
     }
   ]
 }

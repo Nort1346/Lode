@@ -83,6 +83,7 @@ vi.mock('#server/database/schema', () => ({
 
 import {
   getDefaultSyncSettings,
+  getPlexSyncSettings,
   getSyncUserSettings,
   upsertSyncUserSettings,
   getProviderUserId,
@@ -106,8 +107,10 @@ interface DbState {
 
 function makeDb(state: DbState = {}) {
   const runMock = vi.fn(() => ({ changes: 1 }))
-  const updateMock = vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => ({ run: runMock })) })) }))
+  const setMock = vi.fn(() => ({ where: vi.fn(() => ({ run: runMock })) }))
+  const updateMock = vi.fn(() => ({ set: setMock }))
   const deleteMock = vi.fn(() => ({ where: vi.fn(() => ({ run: runMock })) }))
+  const valuesMock = vi.fn(() => ({ run: runMock }))
   const db = {
     select: vi.fn(() => ({
       from: vi.fn((table: unknown) => ({
@@ -117,11 +120,11 @@ function makeDb(state: DbState = {}) {
         }))
       }))
     })),
-    insert: vi.fn(() => ({ values: vi.fn(() => ({ run: runMock })) })),
+    insert: vi.fn(() => ({ values: valuesMock })),
     update: updateMock,
     delete: deleteMock
   }
-  return { db, runMock, updateMock, deleteMock }
+  return { db, runMock, updateMock, deleteMock, setMock, valuesMock }
 }
 
 let current: ReturnType<typeof makeDb>
@@ -210,6 +213,39 @@ describe('getDefaultSyncSettings', () => {
   })
 })
 
+describe('getPlexSyncSettings', () => {
+  it('builds settings from the plex default settings', async () => {
+    mockGetSetting.mockImplementation((key: string | undefined) =>
+      key === 'plex_default_library_access' ? '["1","2"]' : key === 'plex_default_sync' ? 'false' : undefined
+    )
+
+    const result = await getPlexSyncSettings()
+
+    expect(result.libraryAccess).toEqual(['1', '2'])
+    expect(result.enableLiveTvAccess).toBe(true)
+    expect(result.enableSync).toBe(false)
+    // Fields Plex has no control for are harmless filler on the shared shape.
+    expect(result.enableLiveTvManagement).toBe(false)
+    expect(result.maxActiveSessions).toBe(0)
+  })
+
+  it('prefers explicit overrides over the stored defaults', async () => {
+    const result = await getPlexSyncSettings({ libraryAccess: ['9'], enableLiveTvAccess: false, enableSync: false })
+
+    expect(result.libraryAccess).toEqual(['9'])
+    expect(result.enableLiveTvAccess).toBe(false)
+    expect(result.enableSync).toBe(false)
+  })
+
+  it('defaults to all libraries with sync and live TV on when nothing is set', async () => {
+    const result = await getPlexSyncSettings()
+
+    expect(result.libraryAccess).toBe('all')
+    expect(result.enableLiveTvAccess).toBe(true)
+    expect(result.enableSync).toBe(true)
+  })
+})
+
 describe('getSyncUserSettings', () => {
   it('returns the stored row when present', async () => {
     current = makeDb({
@@ -236,6 +272,48 @@ describe('getSyncUserSettings', () => {
 
     expect(result).toEqual(settings)
   })
+
+  it('falls back to plex defaults (not jellyfin ones) when no plex row exists', async () => {
+    mockGetSetting.mockImplementation((key: string | undefined) =>
+      key === 'jellyfin_default_library_access' ? '["jf-lib"]' : undefined
+    )
+
+    const result = await getSyncUserSettings('u1', 'plex')
+
+    // The jellyfin default library IDs mean nothing on a Plex server.
+    expect(result.libraryAccess).toBe('all')
+    expect(result.enableSync).toBe(true)
+  })
+
+  it('includes the per-user enableSync when reading a plex row', async () => {
+    current = makeDb({
+      settingsRow: {
+        id: 's1',
+        libraryAccess: '["1"]',
+        enableVideoTranscoding: true,
+        enableAudioTranscoding: true,
+        enableRemuxing: true,
+        enableLiveTvAccess: false,
+        enableLiveTvManagement: false,
+        maxActiveSessions: 0,
+        enableSync: false
+      }
+    })
+
+    const result = await getSyncUserSettings('u1', 'plex')
+
+    expect(result.libraryAccess).toEqual(['1'])
+    expect(result.enableLiveTvAccess).toBe(false)
+    expect(result.enableSync).toBe(false)
+  })
+
+  it('treats a plex row without enableSync as sync-on (column default)', async () => {
+    current = makeDb({ settingsRow: { id: 's1', libraryAccess: '"all"', enableLiveTvAccess: true } })
+
+    const result = await getSyncUserSettings('u1', 'plex')
+
+    expect(result.enableSync).toBe(true)
+  })
 })
 
 describe('upsertSyncUserSettings', () => {
@@ -253,6 +331,30 @@ describe('upsertSyncUserSettings', () => {
 
     expect(current.db.insert).toHaveBeenCalled()
     expect(current.runMock).toHaveBeenCalled()
+  })
+
+  it('persists the plex per-user enableSync on insert', async () => {
+    await upsertSyncUserSettings('u1', 'plex', { ...settings, enableSync: false })
+
+    expect(current.valuesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ providerName: 'plex', enableSync: false })
+    )
+  })
+
+  it('persists the plex per-user enableSync on update', async () => {
+    current = makeDb({ settingsRow: { id: 's1', enableSync: false } })
+
+    await upsertSyncUserSettings('u1', 'plex', { ...settings, enableSync: false })
+
+    expect(current.setMock).toHaveBeenCalledWith(expect.objectContaining({ enableSync: false }))
+  })
+
+  it('keeps the stored enableSync when the payload does not carry one', async () => {
+    current = makeDb({ settingsRow: { id: 's1', enableSync: false } })
+
+    await upsertSyncUserSettings('u1', 'plex', settings)
+
+    expect(current.setMock).toHaveBeenCalledWith(expect.objectContaining({ enableSync: false }))
   })
 })
 
@@ -706,5 +808,48 @@ describe('provider matrix: both active, one failing', () => {
     expect(providerMocks.createUser).toHaveBeenCalled()
     expect(plexProviderMocks.createUser).toHaveBeenCalled()
     expect(current.updateMock).toHaveBeenCalled()
+  })
+})
+
+describe('provider overrides (per-provider settings)', () => {
+  // Plex section keys are not Jellyfin library IDs, so handlers pass the plex
+  // settings as an override while the primary object serves jellyfin.
+  const plexSettings = { ...settings, libraryAccess: ['1', '2'], enableSync: false }
+
+  beforeEach(() => {
+    providerMocks.isEnabled.mockResolvedValue(true)
+    plexProviderMocks.isEnabled.mockResolvedValue(true)
+  })
+
+  it('applies the plex override to plex and the primary settings to jellyfin on create', async () => {
+    await syncUserCreate('u1', { username: 'bob', password: 'pw' }, settings, { plex: plexSettings })
+
+    expect(providerMocks.updateUserSettings).toHaveBeenCalledWith('jf-new', settings)
+    expect(plexProviderMocks.updateUserSettings).toHaveBeenCalledWith('px-new', plexSettings)
+  })
+
+  it('applies the plex override on update', async () => {
+    current = makeDb({ providerRow: { providerUserId: 'x1' } })
+
+    await syncUserUpdate('u1', { username: 'bob', password: 'pw' }, settings, { plex: plexSettings })
+
+    expect(providerMocks.updateUserSettings).toHaveBeenCalledWith('x1', settings)
+    expect(plexProviderMocks.updateUserSettings).toHaveBeenCalledWith('x1', plexSettings)
+  })
+
+  it('falls back to the primary settings for a provider without an override', async () => {
+    await syncUserCreate('u1', { username: 'bob', password: 'pw' }, settings, { jellyfin: settings })
+
+    expect(providerMocks.updateUserSettings).toHaveBeenCalledWith('jf-new', settings)
+    expect(plexProviderMocks.updateUserSettings).toHaveBeenCalledWith('px-new', settings)
+  })
+
+  it('does not route the plex override when plex is disabled', async () => {
+    plexProviderMocks.isEnabled.mockResolvedValue(false)
+
+    await syncUserCreate('u1', { username: 'bob', password: 'pw' }, settings, { plex: plexSettings })
+
+    expect(providerMocks.updateUserSettings).toHaveBeenCalledWith('jf-new', settings)
+    expect(plexProviderMocks.updateUserSettings).not.toHaveBeenCalled()
   })
 })
