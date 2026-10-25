@@ -6,11 +6,18 @@ const toast = useToast()
 
 const { configured: jellyfinConfigured, loading: jellyfinConfigLoading } = useJellyfinConfigured()
 const { status: jellyfinStatus, refresh: refreshJellyfinStatus } = useJellyfinStatus()
+const { configured: plexConfigured, loading: plexConfigLoading } = usePlexConfigured()
+const { status: plexStatus, refresh: refreshPlexStatus } = usePlexStatus()
 
 const loading = ref(true)
 const saving = ref(false)
 const libraries = ref<JellyfinLibrary[]>([])
 const librariesLoading = ref(true)
+
+const plexSaving = ref(false)
+const plexLoading = ref(true)
+const plexLibraries = ref<JellyfinLibrary[]>([])
+const plexLibrariesLoading = ref(true)
 
 const presets = reactive({
   syncEnabled: true,
@@ -23,7 +30,16 @@ const presets = reactive({
   maxActiveSessions: 0
 })
 
+// The Plex preset surface is only: enable sync, library access, Live TV, downloads.
+const plexPresets = reactive({
+  syncEnabled: true,
+  libraryAccess: 'all' as string[] | 'all',
+  liveTvAccess: true,
+  sync: true
+})
+
 const allLibrariesSelected = computed(() => presets.libraryAccess === 'all')
+const allPlexLibrariesSelected = computed(() => plexPresets.libraryAccess === 'all')
 
 function isSelected(libraryId: string): boolean {
   return (
@@ -50,6 +66,36 @@ function toggleLibrary(libraryId: string) {
   }
 
   presets.libraryAccess = current
+}
+
+function isPlexSelected(libraryId: string): boolean {
+  return (
+    allPlexLibrariesSelected.value ||
+    (Array.isArray(plexPresets.libraryAccess) && plexPresets.libraryAccess.includes(libraryId))
+  )
+}
+
+function togglePlexLibraryAccess() {
+  if (allPlexLibrariesSelected.value) {
+    plexPresets.libraryAccess = []
+  } else {
+    plexPresets.libraryAccess = 'all'
+  }
+}
+
+function togglePlexLibrary(libraryId: string) {
+  const current = Array.isArray(plexPresets.libraryAccess)
+    ? [...plexPresets.libraryAccess]
+    : plexLibraries.value.map((l) => l.id)
+
+  const index = current.indexOf(libraryId)
+  if (index >= 0) {
+    current.splice(index, 1)
+  } else {
+    current.push(libraryId)
+  }
+
+  plexPresets.libraryAccess = current
 }
 
 async function fetchLibraries() {
@@ -112,6 +158,50 @@ async function savePresets() {
   }
 }
 
+async function fetchPlexLibraries() {
+  try {
+    const res = await $fetch('/api/admin/sync/libraries')
+    const data = res as Array<{ name: string; libraries: JellyfinLibrary[] }>
+    const plex = data.find((p) => p.name === 'plex')
+    plexLibraries.value = plex?.libraries ?? []
+  } catch {
+    // silently fail
+  } finally {
+    plexLibrariesLoading.value = false
+  }
+}
+
+async function fetchPlexPresets() {
+  plexLoading.value = true
+  try {
+    const res = await $fetch('/api/admin/plex/presets')
+    Object.assign(plexPresets, res)
+  } catch {
+    // silently fail
+  } finally {
+    plexLoading.value = false
+  }
+}
+
+async function savePlexPresets() {
+  plexSaving.value = true
+  try {
+    await $fetch('/api/admin/plex/presets', {
+      method: 'PUT',
+      body: { ...plexPresets }
+    })
+    toast.add({ title: t('admin.plexPresetsSaved'), color: 'success' })
+  } catch (e: unknown) {
+    toast.add({
+      title: t('admin.plexPresetsError'),
+      description: describeApiError(e, t).description,
+      color: 'error'
+    })
+  } finally {
+    plexSaving.value = false
+  }
+}
+
 watch(jellyfinConfigured, (configured) => {
   if (configured) {
     void fetchPresets()
@@ -123,139 +213,259 @@ watch(jellyfinConfigured, (configured) => {
     librariesLoading.value = false
   }
 })
+
+watch(plexConfigured, (configured) => {
+  if (configured) {
+    void fetchPlexPresets()
+    void fetchPlexLibraries()
+    void refreshPlexStatus()
+  } else {
+    plexLoading.value = false
+    plexLibraries.value = []
+    plexLibrariesLoading.value = false
+  }
+})
 </script>
 
 <template>
-  <div class="card p-6 mb-4">
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-2">
-        <UIcon name="i-simple-icons-jellyfin" class="w-5 h-5 text-blue-500" />
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('admin.jellyfinPresets') }}</h3>
+  <div>
+    <div class="card p-6 mb-4">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <UIcon name="i-simple-icons-jellyfin" class="w-5 h-5 text-blue-500" />
+          <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('admin.jellyfinPresets') }}</h3>
+        </div>
+        <USwitch v-model="presets.syncEnabled" :disabled="jellyfinConfigLoading || !jellyfinConfigured" />
       </div>
-      <USwitch v-model="presets.syncEnabled" :disabled="jellyfinConfigLoading || !jellyfinConfigured" />
-    </div>
 
-    <JellyfinStatusBanner v-if="jellyfinConfigured" :status="jellyfinStatus" />
+      <MediaServerStatusBanner v-if="jellyfinConfigured" :status="jellyfinStatus" />
 
-    <div v-if="jellyfinConfigLoading || (jellyfinConfigured && loading)" class="space-y-4">
-      <div class="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <div
-          v-for="i in 6"
-          :key="i"
-          class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-2"
-        >
-          <div class="flex items-center justify-between">
-            <div class="h-4 w-28 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-            <div class="h-5 w-9 rounded-full bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-          </div>
-          <div class="h-3 w-40 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-        </div>
-      </div>
-    </div>
-
-    <UAlert
-      v-else-if="!jellyfinConfigured"
-      color="neutral"
-      variant="subtle"
-      icon="i-lucide-circle-alert"
-      :title="t('admin.jellyfinNotConfigured')"
-      :description="t('admin.jellyfinNotConfiguredDesc')"
-    />
-
-    <div v-else-if="presets.syncEnabled" class="space-y-4">
-      <div>
-        <h4 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
-          {{ t('admin.jellyfinLibraries') }}
-        </h4>
-        <div v-if="librariesLoading" class="space-y-1.5">
-          <div v-for="i in 3" :key="i" class="flex items-center gap-2 px-2 py-1.5">
-            <div class="size-4 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
-            <div
-              class="h-4 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse"
-              :class="i === 1 ? 'w-20' : i === 2 ? 'w-28' : 'w-24'"
-            />
-          </div>
-        </div>
-        <div v-else-if="libraries.length === 0" class="text-sm text-zinc-400 py-2">
-          {{ t('admin.jellyfinNoLibraries') }}
-        </div>
-        <div v-else class="space-y-2">
-          <button
-            type="button"
-            class="text-xs text-blue-500 hover:text-blue-400 transition-colors"
-            @click="toggleLibraryAccess"
-          >
-            {{ allLibrariesSelected ? t('admin.jellyfinSelectLibraries') : t('admin.jellyfinAllLibraries') }}
-          </button>
+      <div v-if="jellyfinConfigLoading || (jellyfinConfigured && loading)" class="space-y-4">
+        <div class="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div
-            class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10"
+            v-for="i in 6"
+            :key="i"
+            class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-2"
           >
-            <label
-              v-for="lib in libraries"
-              :key="lib.id"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+            <div class="flex items-center justify-between">
+              <div class="h-4 w-28 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              <div class="h-5 w-9 rounded-full bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            </div>
+            <div class="h-3 w-40 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+          </div>
+        </div>
+      </div>
+
+      <UAlert
+        v-else-if="!jellyfinConfigured"
+        color="neutral"
+        variant="subtle"
+        icon="i-lucide-circle-alert"
+        :title="t('admin.jellyfinNotConfigured')"
+        :description="t('admin.jellyfinNotConfiguredDesc')"
+      />
+
+      <div v-else-if="presets.syncEnabled" class="space-y-4">
+        <div>
+          <h4 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+            {{ t('admin.jellyfinLibraries') }}
+          </h4>
+          <div v-if="librariesLoading" class="space-y-1.5">
+            <div v-for="i in 3" :key="i" class="flex items-center gap-2 px-2 py-1.5">
+              <div class="size-4 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              <div
+                class="h-4 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse"
+                :class="i === 1 ? 'w-20' : i === 2 ? 'w-28' : 'w-24'"
+              />
+            </div>
+          </div>
+          <div v-else-if="libraries.length === 0" class="text-sm text-zinc-400 py-2">
+            {{ t('admin.jellyfinNoLibraries') }}
+          </div>
+          <div v-else class="space-y-2">
+            <button
+              type="button"
+              class="text-xs text-blue-500 hover:text-blue-400 transition-colors"
+              @click="toggleLibraryAccess"
             >
-              <UCheckbox :model-value="isSelected(lib.id)" @update:model-value="toggleLibrary(lib.id)" />
-              {{ lib.name }}
-            </label>
+              {{ allLibrariesSelected ? t('admin.jellyfinSelectLibraries') : t('admin.jellyfinAllLibraries') }}
+            </button>
+            <div
+              class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10"
+            >
+              <label
+                v-for="lib in libraries"
+                :key="lib.id"
+                class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+              >
+                <UCheckbox :model-value="isSelected(lib.id)" @update:model-value="toggleLibrary(lib.id)" />
+                {{ lib.name }}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+                t('admin.jellyfinVideoTranscoding')
+              }}</span>
+              <USwitch v-model="presets.videoTranscoding" />
+            </div>
+            <p class="text-xs text-zinc-400">{{ t('admin.jellyfinVideoTranscodingDesc') }}</p>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+                t('admin.jellyfinAudioTranscoding')
+              }}</span>
+              <USwitch v-model="presets.audioTranscoding" />
+            </div>
+            <p class="text-xs text-zinc-400">{{ t('admin.jellyfinAudioTranscodingDesc') }}</p>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+                t('admin.jellyfinRemuxing')
+              }}</span>
+              <USwitch v-model="presets.remuxing" />
+            </div>
+            <p class="text-xs text-zinc-400">{{ t('admin.jellyfinRemuxingDesc') }}</p>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+                t('admin.jellyfinLiveTvAccess')
+              }}</span>
+              <USwitch v-model="presets.liveTvAccess" />
+            </div>
+            <p class="text-xs text-zinc-400">{{ t('admin.jellyfinLiveTvAccessDesc') }}</p>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+                t('admin.jellyfinLiveTvManagement')
+              }}</span>
+              <USwitch v-model="presets.liveTvManagement" />
+            </div>
+            <p class="text-xs text-zinc-400">{{ t('admin.jellyfinLiveTvManagementDesc') }}</p>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+              t('admin.jellyfinMaxSessions')
+            }}</span>
+            <UInput v-model.number="presets.maxActiveSessions" type="number" class="mt-1 w-full" />
+            <p class="text-xs text-zinc-400">{{ t('admin.jellyfinMaxSessionsDesc') }}</p>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <UButton :loading="saving" :label="t('admin.saveChanges')" @click="savePresets" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-6 mb-4">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <UIcon name="i-simple-icons-plex" class="w-5 h-5 text-amber-500" />
+          <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('admin.plexPresets') }}</h3>
+        </div>
+        <USwitch v-model="plexPresets.syncEnabled" :disabled="plexConfigLoading || !plexConfigured" />
+      </div>
+
+      <MediaServerStatusBanner v-if="plexConfigured" :status="plexStatus" />
+
+      <div v-if="plexConfigLoading || (plexConfigured && plexLoading)" class="space-y-4">
+        <div class="h-4 w-32 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div
+            v-for="i in 3"
+            :key="i"
+            class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-2"
+          >
+            <div class="flex items-center justify-between">
+              <div class="h-4 w-28 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              <div class="h-5 w-9 rounded-full bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            </div>
+            <div class="h-3 w-40 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
-              t('admin.jellyfinVideoTranscoding')
-            }}</span>
-            <USwitch v-model="presets.videoTranscoding" />
-          </div>
-          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinVideoTranscodingDesc') }}</p>
-        </div>
-        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
-              t('admin.jellyfinAudioTranscoding')
-            }}</span>
-            <USwitch v-model="presets.audioTranscoding" />
-          </div>
-          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinAudioTranscodingDesc') }}</p>
-        </div>
-        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ t('admin.jellyfinRemuxing') }}</span>
-            <USwitch v-model="presets.remuxing" />
-          </div>
-          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinRemuxingDesc') }}</p>
-        </div>
-        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
-              t('admin.jellyfinLiveTvAccess')
-            }}</span>
-            <USwitch v-model="presets.liveTvAccess" />
-          </div>
-          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinLiveTvAccessDesc') }}</p>
-        </div>
-        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
-              t('admin.jellyfinLiveTvManagement')
-            }}</span>
-            <USwitch v-model="presets.liveTvManagement" />
-          </div>
-          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinLiveTvManagementDesc') }}</p>
-        </div>
-        <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
-          <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ t('admin.jellyfinMaxSessions') }}</span>
-          <UInput v-model.number="presets.maxActiveSessions" type="number" class="mt-1 w-full" />
-          <p class="text-xs text-zinc-400">{{ t('admin.jellyfinMaxSessionsDesc') }}</p>
-        </div>
-      </div>
+      <UAlert
+        v-else-if="!plexConfigured"
+        color="neutral"
+        variant="subtle"
+        icon="i-lucide-circle-alert"
+        :title="t('admin.plexNotConfigured')"
+        :description="t('admin.plexNotConfiguredDesc')"
+      />
 
-      <div class="flex justify-end pt-2">
-        <UButton :loading="saving" :label="t('admin.saveChanges')" @click="savePresets" />
+      <div v-else-if="plexPresets.syncEnabled" class="space-y-4">
+        <div>
+          <h4 class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+            {{ t('admin.plexLibraries') }}
+          </h4>
+          <div v-if="plexLibrariesLoading" class="space-y-1.5">
+            <div v-for="i in 3" :key="i" class="flex items-center gap-2 px-2 py-1.5">
+              <div class="size-4 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+              <div
+                class="h-4 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse"
+                :class="i === 1 ? 'w-20' : i === 2 ? 'w-28' : 'w-24'"
+              />
+            </div>
+          </div>
+          <div v-else-if="plexLibraries.length === 0" class="text-sm text-zinc-400 py-2">
+            {{ t('admin.plexNoLibraries') }}
+          </div>
+          <div v-else class="space-y-2">
+            <button
+              type="button"
+              class="text-xs text-blue-500 hover:text-blue-400 transition-colors"
+              @click="togglePlexLibraryAccess"
+            >
+              {{ allPlexLibrariesSelected ? t('admin.plexSelectLibraries') : t('admin.plexAllLibraries') }}
+            </button>
+            <div
+              class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10"
+            >
+              <label
+                v-for="lib in plexLibraries"
+                :key="lib.id"
+                class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-zinc-600 dark:text-zinc-300 cursor-pointer hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+              >
+                <UCheckbox :model-value="isPlexSelected(lib.id)" @update:model-value="togglePlexLibrary(lib.id)" />
+                {{ lib.name }}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+                t('admin.plexLiveTvAccess')
+              }}</span>
+              <USwitch v-model="plexPresets.liveTvAccess" />
+            </div>
+            <p class="text-xs text-zinc-400">{{ t('admin.plexLiveTvAccessDesc') }}</p>
+          </div>
+          <div class="p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ t('admin.plexSyncAccess') }}</span>
+              <USwitch v-model="plexPresets.sync" />
+            </div>
+            <p class="text-xs text-zinc-400">{{ t('admin.plexSyncAccessDesc') }}</p>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <UButton :loading="plexSaving" :label="t('admin.saveChanges')" @click="savePlexPresets" />
+        </div>
       </div>
     </div>
   </div>
