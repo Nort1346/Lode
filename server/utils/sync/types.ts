@@ -2,9 +2,12 @@ export interface SyncProvider {
   name: string
   isEnabled(): Promise<boolean>
   createUser(data: SyncUserData): Promise<string>
-  updateUserPassword(providerUserId: string, password: string): Promise<void>
+  // Optional: not every provider can set a password (Plex accounts are managed
+  // on plex.tv and have no API-settable password). The orchestrator skips these
+  // with a debug log when a provider does not implement them.
+  updateUserPassword?(providerUserId: string, password: string): Promise<void>
   findUserByName(username: string): Promise<string | null>
-  updateUser(providerUserId: string, data: SyncUserData): Promise<void>
+  updateUser?(providerUserId: string, data: SyncUserData): Promise<void>
   deleteUser(providerUserId: string): Promise<void>
   disableUser(providerUserId: string): Promise<void>
   enableUser(providerUserId: string): Promise<void>

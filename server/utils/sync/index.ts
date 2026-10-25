@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import type { SyncProvider, SyncUserData, SyncUserSettings, SyncStatus } from './types'
 import { JellyfinSyncProvider } from './providers/jellyfin'
+import { PlexSyncProvider } from './providers/plex'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
@@ -10,7 +11,7 @@ import { createLogger } from '#server/utils/logger'
 
 const log = createLogger('Sync')
 
-const ALL_PROVIDERS: SyncProvider[] = [new JellyfinSyncProvider()]
+const ALL_PROVIDERS: SyncProvider[] = [new JellyfinSyncProvider(), new PlexSyncProvider()]
 
 async function defaultSyncSettingsOverrides(): Promise<{
   libraryAccess: string[] | 'all'
@@ -200,10 +201,14 @@ export async function syncUserCreate(userId: string, data: SyncUserData, setting
       } else {
         log.info(`${provider.name}: found existing user "${data.username}" (providerUserId: ${providerUserId})`)
         if (data.password) {
-          try {
-            await provider.updateUserPassword(providerUserId, data.password)
-          } catch (err) {
-            log.error(`${provider.name}: failed to sync password for existing user "${data.username}":`, err)
+          if (provider.updateUserPassword) {
+            try {
+              await provider.updateUserPassword(providerUserId, data.password)
+            } catch (err) {
+              log.error(`${provider.name}: failed to sync password for existing user "${data.username}":`, err)
+            }
+          } else {
+            log.debug(`${provider.name}: no password update method - skipping for "${data.username}"`)
           }
         }
       }
@@ -256,7 +261,11 @@ export async function syncUserUpdate(userId: string, data: SyncUserData, setting
 
     try {
       if (data.password) {
-        await provider.updateUserPassword(providerUserId, data.password)
+        if (provider.updateUserPassword) {
+          await provider.updateUserPassword(providerUserId, data.password)
+        } else {
+          log.debug(`${provider.name}: no password update method - skipping for user ${userId}`)
+        }
       }
       await provider.updateUserSettings(providerUserId, settings)
       await updateSyncStatus(userId, provider.name, 'synced')
