@@ -536,3 +536,51 @@ export async function checkPlexStatus(): Promise<ServiceStatus> {
     }
   }
 }
+
+// ===== Post-download refresh (D6) =====
+
+// Debounces refreshes per section key: at most one refresh per section every
+// REFRESH_DEBOUNCE_MS, so a burst of completed downloads does not hammer PMS.
+const REFRESH_DEBOUNCE_MS = 60 * 1000
+const lastRefreshAt = new Map<string, number>()
+
+function shouldRefresh(sectionKey: string, now: number): boolean {
+  const last = lastRefreshAt.get(sectionKey)
+  if (last !== undefined && now - last < REFRESH_DEBOUNCE_MS) return false
+  lastRefreshAt.set(sectionKey, now)
+  return true
+}
+
+// Clears the post-download refresh debounce state. For tests only - mirrors
+// resetSyncDiagnostics so a fresh test suite starts without stale timestamps.
+export function resetPlexRefreshDebounce(): void {
+  lastRefreshAt.clear()
+}
+
+// Maps a finished download's target path to a Plex section by prefix-matching the
+// section's `Location[].path`, then triggers that section's refresh (or refresh-all
+// when no section matches). Fire-and-forget: failures are swallowed exactly like the
+// Jellyfin `notifyMediaUpdated(...).catch(() => {})` call so a Plex hiccup never
+// affects the download flow.
+export async function notifyPlexDownloaded(targetPath: string): Promise<void> {
+  const clients = usePlex()
+  if (clients === null) return
+
+  const now = Date.now()
+  try {
+    const sections = await clients.pms.getSections()
+    const match = sections.find((section) =>
+      (section.Location ?? []).some((loc) => targetPath.startsWith(loc.path))
+    )
+
+    if (match !== undefined) {
+      if (!shouldRefresh(match.key, now)) return
+      await clients.pms.refreshSection(match.key)
+    } else {
+      if (!shouldRefresh('*', now)) return
+      await clients.pms.refreshAll()
+    }
+  } catch (error) {
+    log.debug('Plex post-download refresh failed (ignored):', error)
+  }
+}

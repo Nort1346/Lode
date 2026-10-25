@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { PlexPmsClient, PlexTvClient, checkPlexStatus, usePlex, extractTmdbId } from '#server/utils/clients/plex'
+import {
+  PlexPmsClient,
+  PlexTvClient,
+  checkPlexStatus,
+  usePlex,
+  extractTmdbId,
+  notifyPlexDownloaded,
+  resetPlexRefreshDebounce
+} from '#server/utils/clients/plex'
 
 const mockFetch = vi.fn()
 
@@ -442,5 +450,109 @@ describe('PlexTvClient', () => {
       'https://plex.tv/api/v2/sharings/42',
       expect.objectContaining({ method: 'DELETE' })
     )
+  })
+})
+
+describe('notifyPlexDownloaded', () => {
+  const sectionsResponse = {
+    MediaContainer: {
+      Directory: [
+        { key: '1', type: 'movie', title: 'Movies', Location: [{ path: '/data/Movies' }] },
+        { key: '2', type: 'show', title: 'TV', Location: [{ path: '/data/Series' }] }
+      ]
+    }
+  }
+
+  // Mocks a sections fetch followed by a refresh POST.
+  function mockSectionsThenRefresh() {
+    mockFetch
+      .mockResolvedValueOnce(okResponse(sectionsResponse))
+      .mockResolvedValueOnce(okResponse({}))
+  }
+
+  function refreshCalls() {
+    return mockFetch.mock.calls.filter(([url]) => String(url).includes('/refresh'))
+  }
+
+  beforeEach(() => {
+    stubConfig('http://plex:32400', 'test-token')
+    resetPlexRefreshDebounce()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('prefix-matches the target path and refreshes only that section', async () => {
+    mockSectionsThenRefresh()
+    await notifyPlexDownloaded('/data/Movies/Inception (2010)/file.mkv')
+
+    expect(String(refreshCalls().at(0)?.[0])).toBe('http://plex:32400/library/sections/1/refresh')
+  })
+
+  it('falls back to refresh-all when no section matches the path', async () => {
+    mockSectionsThenRefresh()
+    await notifyPlexDownloaded('/somewhere/else/file.mkv')
+
+    expect(String(refreshCalls().at(0)?.[0])).toBe('http://plex:32400/library/sections/refresh')
+  })
+
+  it('debounces a repeat refresh of the same section within the window', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+
+    mockSectionsThenRefresh()
+    await notifyPlexDownloaded('/data/Movies/a.mkv')
+    expect(refreshCalls()).toHaveLength(1)
+
+    // Second download to the same section inside the 60s window: sections are
+    // re-read but the refresh itself is suppressed.
+    mockFetch.mockClear()
+    mockFetch.mockResolvedValueOnce(okResponse(sectionsResponse))
+    await notifyPlexDownloaded('/data/Movies/b.mkv')
+
+    expect(refreshCalls()).toHaveLength(0)
+  })
+
+  it('refreshes the same section again after the debounce window elapses', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+
+    mockSectionsThenRefresh()
+    await notifyPlexDownloaded('/data/Movies/a.mkv')
+
+    vi.setSystemTime(new Date('2026-01-01T00:01:01Z')) // 61s later
+
+    mockFetch.mockClear()
+    mockSectionsThenRefresh()
+    await notifyPlexDownloaded('/data/Movies/b.mkv')
+
+    expect(refreshCalls()).toHaveLength(1)
+  })
+
+  it('keeps refresh-all under its own debounce key', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+
+    mockSectionsThenRefresh()
+    await notifyPlexDownloaded('/unknown/a.mkv') // -> refresh-all
+
+    mockFetch.mockClear()
+    mockFetch.mockResolvedValueOnce(okResponse(sectionsResponse))
+    await notifyPlexDownloaded('/unknown/b.mkv') // -> refresh-all, debounced
+
+    expect(refreshCalls()).toHaveLength(0)
+  })
+
+  it('swallows a getSections failure and never rejects', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('plex down'))
+    await expect(notifyPlexDownloaded('/data/Movies/a.mkv')).resolves.toBeUndefined()
+  })
+
+  it('does nothing when Plex is not configured', async () => {
+    stubConfig('', '')
+    await notifyPlexDownloaded('/data/Movies/a.mkv')
+
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })

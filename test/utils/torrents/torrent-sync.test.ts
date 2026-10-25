@@ -15,6 +15,8 @@ const mockSet = vi.fn((_payload: unknown) => ({ where: vi.fn(() => ({ run: mockR
 const mockSendWebhook = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 const mockNotifyDownloadComplete = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 const mockUseJellyfin = vi.hoisted(() => vi.fn(() => null as unknown))
+const mockUsePlex = vi.hoisted(() => vi.fn(() => null as unknown))
+const mockNotifyPlexDownloaded = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 const mockLog = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -85,6 +87,11 @@ vi.mock('#server/utils/settings', () => ({
 
 vi.mock('#server/utils/logger', () => ({
   createLogger: vi.fn(() => mockLog)
+}))
+
+vi.mock('#server/utils/clients/plex', () => ({
+  usePlex: mockUsePlex,
+  notifyPlexDownloaded: mockNotifyPlexDownloaded
 }))
 
 import { syncTorrentStatus, notifyJellyfinIfNeeded, resetSyncDiagnostics } from '#server/utils/torrents/torrent-sync'
@@ -712,6 +719,10 @@ describe('notifyJellyfinIfNeeded', () => {
     mockSettingGet.mockReset()
     mockUseJellyfin.mockReset()
     mockUseJellyfin.mockReturnValue(null)
+    mockUsePlex.mockReset()
+    mockUsePlex.mockReturnValue(null)
+    mockNotifyPlexDownloaded.mockReset()
+    mockNotifyPlexDownloaded.mockResolvedValue(undefined)
     mockJellyfin.notifyMediaUpdated.mockReset()
     mockJellyfin.notifyMediaUpdated.mockResolvedValue(undefined)
     mockJellyfin.invalidateLibraryCache.mockReset()
@@ -818,5 +829,59 @@ describe('notifyJellyfinIfNeeded', () => {
     expect(mockSendWebhook).toHaveBeenCalledTimes(1)
     expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
+  })
+
+  it('notifies Plex (and not Jellyfin) when only Plex is configured', async () => {
+    mockUseJellyfin.mockReturnValue(null)
+    mockUsePlex.mockReturnValue({ pms: {}, tv: {} })
+    mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: completedAtPast(), savePath: 'movies' })])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockNotifyPlexDownloaded).toHaveBeenCalledWith('/data/movies')
+    expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
+  })
+
+  it('notifies both Jellyfin and Plex when both are configured', async () => {
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockUsePlex.mockReturnValue({ pms: {}, tv: {} })
+    mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: completedAtPast(), savePath: 'movies' })])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).toHaveBeenCalledWith(['/data/movies'])
+    expect(mockNotifyPlexDownloaded).toHaveBeenCalledWith('/data/movies')
+  })
+
+  it('notifies neither when no media server is configured', async () => {
+    mockUseJellyfin.mockReturnValue(null)
+    mockUsePlex.mockReturnValue(null)
+    mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: completedAtPast(), savePath: 'movies' })])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
+    expect(mockNotifyPlexDownloaded).not.toHaveBeenCalled()
+  })
+
+  it('swallows a rejected Plex refresh without failing the download flow', async () => {
+    mockUseJellyfin.mockReturnValue(null)
+    mockUsePlex.mockReturnValue({ pms: {}, tv: {} })
+    mockNotifyPlexDownloaded.mockRejectedValueOnce(new Error('plex down'))
+    mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: completedAtPast(), savePath: 'movies' })])
+
+    await expect(notifyJellyfinIfNeeded()).resolves.toBeUndefined()
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
+  })
+
+  it('does not notify Plex when the save path is unknown', async () => {
+    mockUseJellyfin.mockReturnValue(null)
+    mockUsePlex.mockReturnValue({ pms: {}, tv: {} })
+    mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: completedAtPast(), savePath: 'unknown' })])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockNotifyPlexDownloaded).not.toHaveBeenCalled()
   })
 })
