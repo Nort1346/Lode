@@ -11,16 +11,15 @@ function buildRows(ctx: StepContext): SummaryRow[] {
   rows.push({ label: 'qBittorrent', value: qbit, url: /^https?:\/\//.test(qbit) ? qbit : undefined })
   const prowlarr = selection.prowlarr === 'local' ? 'http://localhost:9900' : urls.prowlarr
   rows.push({ label: 'Prowlarr', value: prowlarr, url: /^https?:\/\//.test(prowlarr) ? prowlarr : undefined })
+  const mediaLabel = selection.mediaProvider === 'plex' ? 'Plex' : 'Jellyfin'
   if (selection.mediaMode === 'local') {
-    rows.push({ label: 'Jellyfin', value: 'http://localhost:8096', url: 'http://localhost:8096' })
+    const localUrl = selection.mediaProvider === 'plex' ? 'http://localhost:32400' : 'http://localhost:8096'
+    rows.push({ label: mediaLabel, value: localUrl, url: localUrl })
   } else if (selection.mediaMode === 'external') {
-    rows.push({
-      label: 'Jellyfin',
-      value: urls.jellyfin,
-      url: /^https?:\/\//.test(urls.jellyfin) ? urls.jellyfin : undefined
-    })
+    const mediaUrl = selection.mediaProvider === 'plex' ? urls.plex : urls.jellyfin
+    rows.push({ label: mediaLabel, value: mediaUrl, url: /^https?:\/\//.test(mediaUrl) ? mediaUrl : undefined })
   } else {
-    rows.push({ label: 'Jellyfin', value: '(disabled)' })
+    rows.push({ label: mediaLabel, value: '(disabled)' })
   }
   if (selection.flaresolverr)
     rows.push({ label: 'FlareSolverr', value: 'http://localhost:8191', url: 'http://localhost:8191' })

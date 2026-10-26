@@ -4,9 +4,12 @@ export type LodeTag = 'latest' | 'nightly'
 
 export type ServiceMode = 'local' | 'external'
 
-export type MediaProvider = 'jellyfin' | 'none'
+export type MediaProvider = 'jellyfin' | 'plex' | 'none'
 
 export type MediaMode = 'local' | 'external' | 'none'
+
+/** Menu choice in the media server step - encodes provider and mode in one value. */
+export type MediaChoice = 'jellyfin-local' | 'jellyfin-external' | 'plex-local' | 'plex-external' | 'none'
 
 export type ComposeFileName =
   | 'docker-compose.yml'
@@ -14,6 +17,7 @@ export type ComposeFileName =
   | 'docker-compose.qbittorrent.yml'
   | 'docker-compose.prowlarr.yml'
   | 'docker-compose.jellyfin.yml'
+  | 'docker-compose.plex.yml'
   | 'docker-compose.flaresolverr.yml'
   | 'docker-compose.dozzle.yml'
 
@@ -34,6 +38,7 @@ export interface ExternalUrls {
   qbittorrent: string
   prowlarr: string
   jellyfin: string
+  plex: string
 }
 
 export interface StepContext {
