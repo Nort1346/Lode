@@ -370,7 +370,7 @@ watch(plexConfigured, (configured) => {
     <div class="card p-6 mb-4">
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
-          <UIcon name="i-simple-icons-plex" class="w-5 h-5 text-amber-500" />
+          <UIcon name="i-simple-icons-plex" class="w-7 h-7 text-amber-500" />
           <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('admin.plexPresets') }}</h3>
         </div>
         <USwitch v-model="plexPresets.syncEnabled" :disabled="plexConfigLoading || !plexConfigured" />
