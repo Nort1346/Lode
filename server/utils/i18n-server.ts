@@ -1,4 +1,4 @@
-import type { Messages } from '#server/types/i18n'
+import type { DiscordLocale, Messages } from '#server/types/i18n'
 import type { I18nKey } from '#shared/i18n-keys'
 
 import pl from '@@/i18n/locales/pl.json'
@@ -10,9 +10,7 @@ import ptBR from '@@/i18n/locales/pt-BR.json'
 
 const messages: Record<string, Messages> = { pl, en, de, fr, es, 'pt-BR': ptBR }
 
-export const DISCORD_LOCALE_OPTIONS = ['pl', 'en', 'de', 'fr', 'es', 'pt-BR'] as const
-
-export type DiscordLocale = (typeof DISCORD_LOCALE_OPTIONS)[number]
+export const DISCORD_LOCALE_OPTIONS: readonly DiscordLocale[] = ['pl', 'en', 'de', 'fr', 'es', 'pt-BR']
 
 export function createT(locale: DiscordLocale) {
   const msgs = messages[locale] ?? messages.en

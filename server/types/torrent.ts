@@ -1,4 +1,3 @@
-import type { ProwlarrResult } from '#server/types/prowlarr'
 import type { InferSelectModel } from 'drizzle-orm'
 import type { downloads } from '#server/database/schema'
 
@@ -84,24 +83,6 @@ export const COMPLETED_STATES = new Set(['uploading', 'stalledUP', 'pausedUP', '
 // (qBittorrent 5.2+) requires shareLimitAction and expects Qt meta-object enum
 // names, not numeric codes. Older instances ignore the unknown parameter.
 export type ShareLimitAction = 'Stop' | 'Remove' | 'RemoveWithContent' | 'EnableSuperSeeding'
-
-export interface RankedTorrent extends ProwlarrResult {
-  score: number
-  percentage: number
-  recommended: boolean
-  parsed: ParsedTitle
-  isSeasonPack: boolean
-}
-
-export interface ParsedTitle {
-  resolution: string | null
-  source: string | null
-  language: string | null
-  group: string | null
-  // Display-ready release tags in fixed order (sources first, then video,
-  // audio, other) - e.g. ['WEB-DL', 'x265', '10-bit', 'Atmos']
-  tags: string[]
-}
 
 export interface TorrentMeta {
   resolution: string | null
