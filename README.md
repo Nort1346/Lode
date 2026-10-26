@@ -157,6 +157,7 @@ Lode supports SQLite and PostgreSQL. The stack uses a base compose file plus opt
 | `prowlarr` | `docker-compose.prowlarr.yml` | 9900 | Indexer manager |
 | `flaresolverr` | `docker-compose.flaresolverr.yml` | 8191 | CAPTCHA solver (optional) |
 | `jellyfin` | `docker-compose.jellyfin.yml` | 8096 | Media server (optional) |
+| `plex` | `docker-compose.plex.yml` | 32400 | Media server (optional) |
 | `postgres` | `docker-compose.postgres.yml` | 5432 | Database (optional) |
 | `dozzle` | `docker-compose.dozzle.yml` | 8082 | Live log viewer (optional) |
 

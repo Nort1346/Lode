@@ -15,7 +15,7 @@ The admin panel provides comprehensive management tools for users, downloads, sy
 | Brute Force | `/admin/brute-force` | View stats, manage IP blocks |
 | Sessions | `/admin/sessions` | View and revoke active sessions |
 | Logs | `/admin/logs` | Activity logs + live log stream |
-| Settings | `/admin/settings` | System status, disk, Discord, Jellyfin |
+| Settings | `/admin/settings` | System status, disk, Discord, Jellyfin, Plex |
 
 ## User Management
 
@@ -64,6 +64,7 @@ Health checks for all integrated services:
 | qBittorrent | GET `/api/v2/app/version` with Bearer auth |
 | Prowlarr | GET `/api/v1/health` |
 | Jellyfin | GET `/System/Info` (authenticated) |
+| Plex | GET `/` with `X-Plex-Token` |
 | Redis | PING command |
 | Discord | GET webhook URL |
 | FlareSolverr | GET root URL |
@@ -83,6 +84,21 @@ The Jellyfin check is exposed as `checkJellyfinStatus()` in `server/utils/client
 - `GET /api/admin/jellyfin/status` - Jellyfin-only, cheap (no other network calls)
 
 When a configured Jellyfin is `invalid` (rejected API key), `down` (unreachable), or `error`, the Settings > Sync Providers panel and the per-user Jellyfin fields show a warning banner (`JellyfinStatusBanner`) so a broken setup is visually separated from "not configured at all".
+
+### Plex health
+
+Plex health uses the same configured/healthy split:
+
+- **Configured** (`plexConfigured`): both `NUXT_PLEX_URL` and `NUXT_PLEX_TOKEN` are set.
+- **Healthy** (`status`): live reachability/token state - `up`, `down`, `invalid`, or `error`. A rejected token is `invalid`, so a typo is visible instead of silent.
+- When up, `details` reports the PMS version and the account sign-in state (`myPlexSigninState`). A server that is not signed in to a Plex account cannot manage users, so the state is surfaced in the status endpoint and the admin banner.
+
+The Plex check is exposed as `checkPlexStatus()` in `server/utils/clients/plex.ts` and served by two endpoints:
+
+- `GET /api/admin/system-status` - includes Plex among all service checks
+- `GET /api/admin/plex/status` - Plex-only, cheap (no other network calls)
+
+The shared `MediaServerStatusBanner` component shows a warning for a broken Plex setup in the Settings > Sync Providers panel and the per-user Plex fields, mirroring the Jellyfin behavior.
 
 ## Click-to-Copy
 

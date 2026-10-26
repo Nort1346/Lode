@@ -24,6 +24,7 @@ The stack is split into a base file and per-service overlays so you deploy only 
 | `docker-compose.qbittorrent.yml` | `qbittorrent` |
 | `docker-compose.prowlarr.yml` | `prowlarr` |
 | `docker-compose.jellyfin.yml` | `jellyfin` |
+| `docker-compose.plex.yml` | `plex` |
 | `docker-compose.flaresolverr.yml` | `flaresolverr` |
 | `docker-compose.dozzle.yml` | `dozzle` |
 
@@ -47,6 +48,7 @@ The [auto-setup script](../README.md#quick-start) selects these overlays for you
 | `prowlarr` | `lscr.io/linuxserver/prowlarr` | 9900 | Indexer manager |
 | `flaresolverr` | `ghcr.io/flaresolverr/flaresolverr` | 8191 | Cloudflare bypass (optional) |
 | `jellyfin` | `jellyfin/jellyfin` | 8096 | Media server (optional) |
+| `plex` | `plexinc/pms-docker` | 32400 | Media server (optional) |
 | `postgres` | `postgres:16-alpine` | 5432 | Database (postgres compose only) |
 | `dozzle` | `amir20/dozzle:latest` | 8082 | Log viewer (optional) |
 
