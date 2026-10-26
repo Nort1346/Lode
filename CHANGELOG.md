@@ -5,6 +5,28 @@ All notable changes to Lode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-26
+
+Plex Media Server is now a first-class sync provider alongside Jellyfin: users are invited as managed home users on the owner's Plex account, with per-user library, Live TV and Sync (download) access, Plex blocks in the admin UI, and a `plex` Docker overlay. Jellyfin-only setups behave exactly as before.
+
+### Added
+
+- Sync: Plex Media Server provider - invite-based user model (no per-user passwords), per-user library access, Live TV and Sync (download) toggles
+- Admin: Plex presets routes (library access, Live TV, Sync), a Plex status endpoint reporting version and sign-in state, and per-user Plex settings on user create/edit
+- UI: Plex block in Settings > Sync Providers and per-user Plex fields in the user editor, translated for all six locales
+- Browse: "in library" now reflects every connected media server (Jellyfin and/or Plex)
+- Torrents: Plex section refresh after downloads, debounced 60 s so a slow Plex never blocks the download pipeline
+- Docker: `docker-compose.plex.yml` overlay (`plexinc/pms-docker`, config + transcode volumes, port 32400) and `scripts/setup-plex.mjs`, which auto-creates the Movies and TV Shows sections on container start
+- Setup CLI: Plex as a media server choice (local container or external) with a token step next to the Jellyfin step
+- Database: additive `enable_sync` column on per-user sync settings (SQLite and PostgreSQL migrations)
+
+### Changed
+
+- Sync: `syncNewUser` / `syncUserUpdate` accept per-provider settings overrides so registration and admin edits can carry Plex settings alongside Jellyfin's
+- Setup CLI: the media menu now offers Jellyfin and Plex (local or external); switching the local provider offers to remove the stale container
+- Admin: the force-sync button is enabled when any media server is configured, with provider-aware confirm and toast wording
+- Docs: AGENTS.md, admin API, README, deployment and admin-features docs cover Plex
+
 ## [1.0.6] - 2026-10-04
 
 Release-tag detection with badges and manual filters, duplicate-torrent protection backed by live qBittorrent lookups, a timezone step in setup, human-friendly localized API errors, and a rebalanced media-source scoring - alongside Prowlarr timeout hardening, a per-torrent seeding setting, and a docs consistency pass.

@@ -229,6 +229,10 @@ export const syncUserSettings = sqliteTable(
     enableLiveTvAccess: integer('enable_live_tv_access', { mode: 'boolean' }).notNull().default(true),
     enableLiveTvManagement: integer('enable_live_tv_management', { mode: 'boolean' }).notNull().default(false),
     maxActiveSessions: integer('max_active_sessions').notNull().default(0),
+    // Plex-only (ignored by Jellyfin): per-user "allow sync" (downloads). There
+    // is no existing column that can hold it without lying about its meaning,
+    // so it gets its own with a default matching the server-wide PLEX_DEFAULT_SYNC.
+    enableSync: integer('enable_sync', { mode: 'boolean' }).notNull().default(true),
     createdAt: text('created_at').notNull().default(''),
     updatedAt: text('updated_at').notNull().default('')
   },

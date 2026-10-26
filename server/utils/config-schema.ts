@@ -10,7 +10,9 @@ const configSchema = z.object({
   prowlarrApiKey: z.string().optional(),
   trackerEncryptionKey: z.string().min(1),
   jellyfinUrl: z.string().optional(),
-  jellyfinApiKey: z.string().optional()
+  jellyfinApiKey: z.string().optional(),
+  plexUrl: z.union([z.url(), z.literal('')]).optional(),
+  plexToken: z.string().optional()
 })
 
 export { configSchema }

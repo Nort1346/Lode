@@ -229,6 +229,10 @@ export const syncUserSettings = pgTable(
     enableLiveTvAccess: boolean('enable_live_tv_access').notNull().default(true),
     enableLiveTvManagement: boolean('enable_live_tv_management').notNull().default(false),
     maxActiveSessions: integer('max_active_sessions').notNull().default(0),
+    // Plex-only (ignored by Jellyfin): per-user "allow sync" (downloads). There
+    // is no existing column that can hold it without lying about its meaning,
+    // so it gets its own with a default matching the server-wide PLEX_DEFAULT_SYNC.
+    enableSync: boolean('enable_sync').notNull().default(true),
     createdAt: text('created_at').notNull().default(''),
     updatedAt: text('updated_at').notNull().default('')
   },

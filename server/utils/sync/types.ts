@@ -2,9 +2,12 @@ export interface SyncProvider {
   name: string
   isEnabled(): Promise<boolean>
   createUser(data: SyncUserData): Promise<string>
-  updateUserPassword(providerUserId: string, password: string): Promise<void>
+  // Optional: not every provider can set a password (Plex accounts are managed
+  // on plex.tv and have no API-settable password). The orchestrator skips these
+  // with a debug log when a provider does not implement them.
+  updateUserPassword?(providerUserId: string, password: string): Promise<void>
   findUserByName(username: string): Promise<string | null>
-  updateUser(providerUserId: string, data: SyncUserData): Promise<void>
+  updateUser?(providerUserId: string, data: SyncUserData): Promise<void>
   deleteUser(providerUserId: string): Promise<void>
   disableUser(providerUserId: string): Promise<void>
   enableUser(providerUserId: string): Promise<void>
@@ -28,6 +31,10 @@ export interface SyncUserSettings {
   enableLiveTvAccess: boolean
   enableLiveTvManagement: boolean
   maxActiveSessions: number
+  // Plex-only (ignored by Jellyfin): per-user "allow sync" (downloads). Optional
+  // so Jellyfin payloads and existing literals stay valid; the Plex provider
+  // falls back to the server-wide PLEX_DEFAULT_SYNC when it is undefined.
+  enableSync?: boolean
 }
 
 export interface SyncLibrary {
@@ -43,6 +50,15 @@ export interface SyncStatus {
   lastSyncError: string | null
 }
 
+// Optional per-provider settings overrides passed alongside the primary
+// `SyncUserSettings`. The primary object is the default for every provider;
+// an entry here wins for that provider only. Needed because `libraryAccess`
+// means different things per provider (Jellyfin library IDs vs Plex section
+// keys), so a single object cannot serve both when two servers are connected.
+export interface ProviderSettingsMap {
+  [providerName: string]: SyncUserSettings
+}
+
 export interface JellyfinPresetsBody {
   syncEnabled?: boolean
   libraryAccess?: string[] | 'all'
@@ -52,4 +68,13 @@ export interface JellyfinPresetsBody {
   liveTvAccess?: boolean
   liveTvManagement?: boolean
   maxActiveSessions?: number
+}
+
+// Plex has no per-user transcoding/remuxing/session controls: those live in the
+// Plex client settings. Only the invite-based sync toggles are configurable.
+export interface PlexPresetsBody {
+  syncEnabled?: boolean
+  libraryAccess?: string[] | 'all'
+  liveTvAccess?: boolean
+  sync?: boolean
 }

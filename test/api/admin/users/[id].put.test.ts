@@ -13,6 +13,7 @@ const mockSyncUserUpdate = vi.hoisted(() => vi.fn())
 const mockSyncUserDisable = vi.hoisted(() => vi.fn())
 const mockSyncUserEnable = vi.hoisted(() => vi.fn())
 const mockGetDefaultSyncSettings = vi.hoisted(() => vi.fn())
+const mockGetPlexSyncSettings = vi.hoisted(() => vi.fn())
 const mockUpsertSyncUserSettings = vi.hoisted(() => vi.fn())
 
 vi.mock('@node-rs/bcrypt', () => ({
@@ -24,6 +25,7 @@ vi.mock('#server/utils/sync', () => ({
   syncUserDisable: mockSyncUserDisable,
   syncUserEnable: mockSyncUserEnable,
   getDefaultSyncSettings: mockGetDefaultSyncSettings,
+  getPlexSyncSettings: mockGetPlexSyncSettings,
   upsertSyncUserSettings: mockUpsertSyncUserSettings
 }))
 
@@ -56,6 +58,7 @@ describe('admin/users/[id].put', () => {
     mockSyncUserDisable.mockReset()
     mockSyncUserEnable.mockReset()
     mockGetDefaultSyncSettings.mockReturnValue({})
+    mockGetPlexSyncSettings.mockReturnValue({})
     mockUpsertSyncUserSettings.mockReset()
     mockSyncUserUpdate.mockResolvedValue(undefined)
     mockSyncUserDisable.mockResolvedValue(undefined)
@@ -96,6 +99,30 @@ describe('admin/users/[id].put', () => {
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true })
     expect(mockLogActivity).toHaveBeenCalled()
+  })
+
+  it('persists per-provider settings and passes the plex override to sync', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockGetRouterParam.mockReturnValue('u1')
+    mockReadBody.mockResolvedValue({
+      username: 'newname',
+      jellyfinLibraryAccess: ['jf1'],
+      plexLibraryAccess: ['1'],
+      plexEnableLiveTvAccess: false,
+      plexEnableSync: false
+    })
+    stubDb({ id: 'u1', username: 'oldname', isActive: true })
+
+    await handler(mockEvent)
+
+    expect(mockGetPlexSyncSettings).toHaveBeenCalledWith({
+      libraryAccess: ['1'],
+      enableLiveTvAccess: false,
+      enableSync: false
+    })
+    expect(mockUpsertSyncUserSettings).toHaveBeenCalledWith('u1', 'jellyfin', {})
+    expect(mockUpsertSyncUserSettings).toHaveBeenCalledWith('u1', 'plex', {})
+    expect(mockSyncUserUpdate).toHaveBeenCalledWith('u1', { username: 'newname', password: '' }, {}, { plex: {} })
   })
 
   it('throws 409 when the new username is taken', async () => {

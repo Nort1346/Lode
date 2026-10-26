@@ -6,6 +6,7 @@ import {
   syncUserDisable,
   syncUserEnable,
   getDefaultSyncSettings,
+  getPlexSyncSettings,
   upsertSyncUserSettings
 } from '#server/utils/sync'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
@@ -120,8 +121,16 @@ export default defineEventHandler(async (event) => {
     enableLiveTvManagement: body.jellyfinEnableLiveTvManagement,
     maxActiveSessions: body.jellyfinMaxActiveSessions
   })
+  // Plex section keys are not Jellyfin library IDs, so its settings ride as a
+  // per-provider override instead of reusing the Jellyfin payload above.
+  const plexSettings = await getPlexSyncSettings({
+    libraryAccess: body.plexLibraryAccess,
+    enableLiveTvAccess: body.plexEnableLiveTvAccess,
+    enableSync: body.plexEnableSync
+  })
 
   await upsertSyncUserSettings(id, 'jellyfin', syncSettings)
+  await upsertSyncUserSettings(id, 'plex', plexSettings)
 
   if (body.isActive !== undefined && body.isActive !== user.isActive) {
     if (!body.isActive) {
@@ -146,7 +155,7 @@ export default defineEventHandler(async (event) => {
       password: plainPassword ?? ''
     }
     try {
-      await syncUserUpdate(id, jellyfinData, syncSettings)
+      await syncUserUpdate(id, jellyfinData, syncSettings, { plex: plexSettings })
     } catch (e) {
       log.error('Jellyfin sync failed:', e)
     }

@@ -1,8 +1,9 @@
 import { syncProviders, syncUserSettings } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import type { SyncProvider, SyncUserData, SyncUserSettings, SyncStatus } from './types'
+import type { SyncProvider, SyncUserData, SyncUserSettings, SyncStatus, ProviderSettingsMap } from './types'
 import { JellyfinSyncProvider } from './providers/jellyfin'
+import { PlexSyncProvider } from './providers/plex'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
@@ -10,7 +11,7 @@ import { createLogger } from '#server/utils/logger'
 
 const log = createLogger('Sync')
 
-const ALL_PROVIDERS: SyncProvider[] = [new JellyfinSyncProvider()]
+const ALL_PROVIDERS: SyncProvider[] = [new JellyfinSyncProvider(), new PlexSyncProvider()]
 
 async function defaultSyncSettingsOverrides(): Promise<{
   libraryAccess: string[] | 'all'
@@ -54,6 +55,29 @@ export async function getDefaultSyncSettings(overrides?: {
   }
 }
 
+// Plex defaults, mirroring getDefaultSyncSettings. The Plex model only has
+// library access, Live TV (allowTuners) and downloads (allowSync) per user -
+// the other shared-shape fields are set to harmless filler the provider ignores.
+export async function getPlexSyncSettings(overrides?: {
+  libraryAccess?: string[] | 'all'
+  enableLiveTvAccess?: boolean
+  enableSync?: boolean
+}): Promise<SyncUserSettings> {
+  return {
+    libraryAccess:
+      overrides?.libraryAccess ??
+      (JSON.parse((await getSetting(SETTINGS.PLEX_DEFAULT_LIBRARY_ACCESS)) ?? '"all"') as string[] | 'all'),
+    enableVideoTranscoding: true,
+    enableAudioTranscoding: true,
+    enableRemuxing: true,
+    enableLiveTvAccess:
+      overrides?.enableLiveTvAccess ?? (await getSetting(SETTINGS.PLEX_DEFAULT_LIVE_TV_ACCESS)) !== 'false',
+    enableLiveTvManagement: false,
+    enableSync: overrides?.enableSync ?? (await getSetting(SETTINGS.PLEX_DEFAULT_SYNC)) !== 'false',
+    maxActiveSessions: 0
+  }
+}
+
 export async function getSyncUserSettings(userId: string, providerName: string): Promise<SyncUserSettings> {
   const db = await useDbAsync()
   const row = await dbGet(
@@ -64,10 +88,12 @@ export async function getSyncUserSettings(userId: string, providerName: string):
   )
 
   if (!row) {
-    return await defaultSyncSettingsOverrides()
+    // Per-provider fallback defaults: Plex must not inherit the Jellyfin
+    // defaults, whose library IDs mean something else on a Plex server.
+    return providerName === 'plex' ? await getPlexSyncSettings() : await defaultSyncSettingsOverrides()
   }
 
-  return {
+  const settings: SyncUserSettings = {
     libraryAccess: JSON.parse(row.libraryAccess) as string[] | 'all',
     enableVideoTranscoding: row.enableVideoTranscoding,
     enableAudioTranscoding: row.enableAudioTranscoding,
@@ -76,6 +102,12 @@ export async function getSyncUserSettings(userId: string, providerName: string):
     enableLiveTvManagement: row.enableLiveTvManagement,
     maxActiveSessions: row.maxActiveSessions
   }
+  // enableSync is Plex-only; reading it back is what lets the admin UI's
+  // per-user "Sync (downloads)" toggle round-trip.
+  if (providerName === 'plex') {
+    settings.enableSync = row.enableSync ?? true
+  }
+  return settings
 }
 
 export async function upsertSyncUserSettings(
@@ -106,6 +138,9 @@ export async function upsertSyncUserSettings(
           enableLiveTvAccess: settings.enableLiveTvAccess,
           enableLiveTvManagement: settings.enableLiveTvManagement,
           maxActiveSessions: settings.maxActiveSessions,
+          // enableSync is Plex-only; a payload that does not carry it (e.g. a
+          // Jellyfin-shaped one) must not clobber the stored per-user value.
+          enableSync: settings.enableSync ?? existing.enableSync ?? true,
           updatedAt: now
         })
         .where(eq(syncUserSettings.id, existing.id))
@@ -123,6 +158,7 @@ export async function upsertSyncUserSettings(
         enableLiveTvAccess: settings.enableLiveTvAccess,
         enableLiveTvManagement: settings.enableLiveTvManagement,
         maxActiveSessions: settings.maxActiveSessions,
+        enableSync: settings.enableSync ?? true,
         createdAt: now,
         updatedAt: now
       })
@@ -166,10 +202,11 @@ export async function getUserSyncStatuses(userId: string): Promise<SyncStatus[]>
 export async function syncNewUser(
   userId: string,
   data: SyncUserData,
-  settings: SyncUserSettings
+  settings: SyncUserSettings,
+  providerOverrides?: ProviderSettingsMap
 ): Promise<'synced' | 'failed'> {
   try {
-    await syncUserCreate(userId, data, settings)
+    await syncUserCreate(userId, data, settings, providerOverrides)
     return 'synced'
   } catch (error) {
     log.error(`create failed for user ${userId}:`, error)
@@ -177,14 +214,22 @@ export async function syncNewUser(
   }
 }
 
-export async function syncUserCreate(userId: string, data: SyncUserData, settings: SyncUserSettings): Promise<void> {
+export async function syncUserCreate(
+  userId: string,
+  data: SyncUserData,
+  settings: SyncUserSettings,
+  providerOverrides?: ProviderSettingsMap
+): Promise<void> {
   const providers = await getActiveSyncProviders()
 
   for (const provider of providers) {
+    // Per-provider settings: an override wins for this provider only, otherwise
+    // the primary `settings` object is used (single-server setups are unchanged).
+    const resolvedSettings = providerOverrides?.[provider.name] ?? settings
     try {
       const existingMapping = await getProviderUserId(userId, provider.name)
       if (existingMapping !== null) {
-        await syncUserUpdate(userId, data, settings)
+        await syncUserUpdate(userId, data, settings, providerOverrides)
         continue
       }
 
@@ -200,10 +245,14 @@ export async function syncUserCreate(userId: string, data: SyncUserData, setting
       } else {
         log.info(`${provider.name}: found existing user "${data.username}" (providerUserId: ${providerUserId})`)
         if (data.password) {
-          try {
-            await provider.updateUserPassword(providerUserId, data.password)
-          } catch (err) {
-            log.error(`${provider.name}: failed to sync password for existing user "${data.username}":`, err)
+          if (provider.updateUserPassword) {
+            try {
+              await provider.updateUserPassword(providerUserId, data.password)
+            } catch (err) {
+              log.error(`${provider.name}: failed to sync password for existing user "${data.username}":`, err)
+            }
+          } else {
+            log.debug(`${provider.name}: no password update method - skipping for "${data.username}"`)
           }
         }
       }
@@ -222,8 +271,8 @@ export async function syncUserCreate(userId: string, data: SyncUserData, setting
       )
 
       try {
-        await provider.updateUserSettings(providerUserId, settings)
-        await upsertSyncUserSettings(userId, provider.name, settings)
+        await provider.updateUserSettings(providerUserId, resolvedSettings)
+        await upsertSyncUserSettings(userId, provider.name, resolvedSettings)
       } catch (settingsError) {
         const message = settingsError instanceof Error ? settingsError.message : String(settingsError)
         log.error(`${provider.name}.updateUserSettings failed for user ${userId}:`, message)
@@ -237,15 +286,23 @@ export async function syncUserCreate(userId: string, data: SyncUserData, setting
   }
 }
 
-export async function syncUserUpdate(userId: string, data: SyncUserData, settings: SyncUserSettings): Promise<void> {
+export async function syncUserUpdate(
+  userId: string,
+  data: SyncUserData,
+  settings: SyncUserSettings,
+  providerOverrides?: ProviderSettingsMap
+): Promise<void> {
   const providers = await getActiveSyncProviders()
 
   for (const provider of providers) {
+    // Per-provider settings: an override wins for this provider only (see
+    // ProviderSettingsMap); the primary `settings` remains the default.
+    const resolvedSettings = providerOverrides?.[provider.name] ?? settings
     let providerUserId = await getProviderUserId(userId, provider.name)
 
     if (providerUserId === null) {
       try {
-        await syncUserCreate(userId, data, settings)
+        await syncUserCreate(userId, data, settings, providerOverrides)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         log.error(`${provider.name}.retroactive create failed for user ${userId}:`, message)
@@ -256,11 +313,15 @@ export async function syncUserUpdate(userId: string, data: SyncUserData, setting
 
     try {
       if (data.password) {
-        await provider.updateUserPassword(providerUserId, data.password)
+        if (provider.updateUserPassword) {
+          await provider.updateUserPassword(providerUserId, data.password)
+        } else {
+          log.debug(`${provider.name}: no password update method - skipping for user ${userId}`)
+        }
       }
-      await provider.updateUserSettings(providerUserId, settings)
+      await provider.updateUserSettings(providerUserId, resolvedSettings)
       await updateSyncStatus(userId, provider.name, 'synced')
-      await upsertSyncUserSettings(userId, provider.name, settings)
+      await upsertSyncUserSettings(userId, provider.name, resolvedSettings)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       log.error(`${provider.name}.updateUser failed for user ${userId}:`, message)

@@ -50,6 +50,13 @@
       "when": 1788500000000,
       "tag": "0006_alter_download_bytes_bigint",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792955212514,
+      "tag": "0007_fair_nocturne",
+      "breakpoints": true
     }
   ]
 }

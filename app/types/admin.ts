@@ -45,6 +45,9 @@ export interface AdminUser {
   jellyfinEnableLiveTvAccess: boolean
   jellyfinEnableLiveTvManagement: boolean
   jellyfinMaxActiveSessions: number
+  plexLibraryAccess: string[] | 'all'
+  plexEnableLiveTvAccess: boolean
+  plexEnableSync: boolean
 }
 
 export interface SyncProviderStatus {

@@ -150,13 +150,15 @@ describe('user/password.post', () => {
 
     expect(result).toEqual({ success: true })
     expect(mockGetSyncUserSettings).toHaveBeenCalledWith('u1', 'jellyfin')
+    expect(mockGetSyncUserSettings).toHaveBeenCalledWith('u1', 'plex')
     expect(mockSyncUserUpdate).toHaveBeenCalledWith(
       'u1',
       { username: 'user1', password: 'newpass123' },
       {
         autoSync: true,
         syncAvatar: true
-      }
+      },
+      { plex: { autoSync: true, syncAvatar: true } }
     )
   })
 

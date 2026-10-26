@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { composeFilesFor, infraServicesFor } from '../src/constants'
+import { composeFilesFor, infraServicesFor, mediaServiceFor } from '../src/constants'
 import { DEFAULT_SELECTION } from '../src/core/state'
 import type { SetupSelection } from '../src/types'
 
@@ -31,6 +31,25 @@ describe('composeFilesFor', () => {
       'docker-compose.flaresolverr.yml',
       'docker-compose.dozzle.yml'
     ])
+  })
+
+  it('returns the plex overlay for a local plex selection', () => {
+    const selection: SetupSelection = { ...DEFAULT_SELECTION, mediaProvider: 'plex' }
+    const files = composeFilesFor(selection)
+    expect(files).toContain('docker-compose.plex.yml')
+    expect(files).not.toContain('docker-compose.jellyfin.yml')
+  })
+})
+
+describe('mediaServiceFor', () => {
+  it('returns the provider service for a local media selection', () => {
+    expect(mediaServiceFor(DEFAULT_SELECTION)).toBe('jellyfin')
+    expect(mediaServiceFor({ ...DEFAULT_SELECTION, mediaProvider: 'plex' })).toBe('plex')
+  })
+
+  it('returns empty when no local media server is selected', () => {
+    expect(mediaServiceFor({ ...DEFAULT_SELECTION, mediaMode: 'external' })).toBe('')
+    expect(mediaServiceFor({ ...DEFAULT_SELECTION, mediaMode: 'none' })).toBe('')
   })
 })
 

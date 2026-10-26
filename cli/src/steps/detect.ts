@@ -14,7 +14,8 @@ export async function detectExistingSetup(ctx: StepContext): Promise<void> {
   ctx.urls = {
     qbittorrent: readEnvValue(process.cwd(), ENV_FILE, ENV_KEYS.qbittorrentUrl),
     prowlarr: readEnvValue(process.cwd(), ENV_FILE, ENV_KEYS.prowlarrUrl),
-    jellyfin: readEnvValue(process.cwd(), ENV_FILE, ENV_KEYS.jellyfinUrl)
+    jellyfin: readEnvValue(process.cwd(), ENV_FILE, ENV_KEYS.jellyfinUrl),
+    plex: readEnvValue(process.cwd(), ENV_FILE, ENV_KEYS.plexUrl)
   }
   log.info(`Existing setup found (${STATE_FILE}):`)
   log.message([

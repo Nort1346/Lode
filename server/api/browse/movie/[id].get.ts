@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const providers = await getActiveSyncProviders()
-  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
+  const libraryProviders = providers.filter((p) => typeof p.isItemInLibrary === 'function')
 
   const id = Number(getRouterParam(event, 'id'))
   if (isNaN(id)) {
@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
     imdbId: movie.imdb_id
   }
 
-  const [marked] = await markInLibrary([rawMovie], libraryProvider)
+  const [marked] = await markInLibrary([rawMovie], libraryProviders)
 
   return { movie: marked }
 })

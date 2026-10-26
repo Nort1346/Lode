@@ -1,7 +1,7 @@
 import { composeFilesFor, ENV_FILE, ENV_KEYS, INTERNAL_URLS, OPTION_LABELS } from '../constants'
 import { readEnvValue } from '../core/env'
 import { askMultiSelect, askSelect, askText, log, stepHeader } from '../core/prompt'
-import type { MediaMode, ServiceMode, StepContext } from '../types'
+import type { MediaChoice, ServiceMode, StepContext } from '../types'
 
 export function isValidHttpUrl(value: string): boolean {
   return /^https?:\/\//.test(value)
@@ -12,6 +12,15 @@ export function isValidHttpUrl(value: string): boolean {
 export function externalUrlDefault(dir: string, key: string, internalUrl: string): string {
   const value = readEnvValue(dir, ENV_FILE, key)
   return value !== '' && value !== internalUrl ? value : ''
+}
+
+// Prefill the media menu from the persisted selection.
+function currentMediaChoice(ctx: StepContext): MediaChoice {
+  const { mediaProvider, mediaMode } = ctx.selection
+  if (mediaMode === 'local' || mediaMode === 'external') {
+    return mediaProvider === 'plex' ? `plex-${mediaMode}` : `jellyfin-${mediaMode}`
+  }
+  return 'none'
 }
 
 export async function chooseComponents(ctx: StepContext): Promise<void> {
@@ -63,29 +72,38 @@ export async function chooseComponents(ctx: StepContext): Promise<void> {
   }
   log.success(`Prowlarr: ${prowlarr}`)
 
-  const media = await askSelect<MediaMode>(
+  const mediaChoice = await askSelect<MediaChoice>(
     'Media server (library detection)?',
     [
-      { value: 'local', label: OPTION_LABELS.jellyfinLocal },
-      { value: 'external', label: OPTION_LABELS.jellyfinExternal },
+      { value: 'jellyfin-local', label: OPTION_LABELS.jellyfinLocal },
+      { value: 'jellyfin-external', label: OPTION_LABELS.jellyfinExternal },
+      { value: 'plex-local', label: OPTION_LABELS.plexLocal },
+      { value: 'plex-external', label: OPTION_LABELS.plexExternal },
       { value: 'none', label: OPTION_LABELS.mediaNone }
     ],
-    ctx.selection.mediaMode
+    currentMediaChoice(ctx)
   )
-  ctx.selection.mediaMode = media
-  ctx.selection.mediaProvider = media === 'none' ? 'none' : 'jellyfin'
-  if (media === 'external') {
+  ctx.selection.mediaProvider = mediaChoice === 'none' ? 'none' : mediaChoice.startsWith('plex') ? 'plex' : 'jellyfin'
+  ctx.selection.mediaMode = mediaChoice === 'none' ? 'none' : mediaChoice.endsWith('external') ? 'external' : 'local'
+  if (ctx.selection.mediaMode === 'external') {
+    const isPlex = ctx.selection.mediaProvider === 'plex'
     const url = await askText(
-      'External Jellyfin URL (http://host:8096)',
-      externalUrlDefault(dir, ENV_KEYS.jellyfinUrl, INTERNAL_URLS.jellyfin)
+      isPlex ? 'External Plex URL (http://host:32400)' : 'External Jellyfin URL (http://host:8096)',
+      externalUrlDefault(
+        dir,
+        isPlex ? ENV_KEYS.plexUrl : ENV_KEYS.jellyfinUrl,
+        isPlex ? INTERNAL_URLS.plex : INTERNAL_URLS.jellyfin
+      )
     )
     if (!isValidHttpUrl(url))
-      log.warn('External Jellyfin URL does not start with http(s):// - Lode will not be able to reach it')
-    ctx.urls.jellyfin = url
+      log.warn(`${isPlex ? 'Plex' : 'Jellyfin'} URL does not start with http(s):// - Lode will not be able to reach it`)
+    ctx.urls.jellyfin = isPlex ? '' : url
+    ctx.urls.plex = isPlex ? url : ''
   } else {
     ctx.urls.jellyfin = ''
+    ctx.urls.plex = ''
   }
-  log.success(`Media server: ${ctx.selection.mediaProvider} (${media})`)
+  log.success(`Media server: ${ctx.selection.mediaProvider} (${ctx.selection.mediaMode})`)
 
   const addonInitial: string[] = []
   if (ctx.selection.flaresolverr) addonInitial.push('flaresolverr')

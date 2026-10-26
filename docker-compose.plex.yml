@@ -1,0 +1,24 @@
+# Plex overlay - combine with the base:
+#   docker compose -f docker-compose.yml -f docker-compose.plex.yml up -d
+
+services:
+  plex:
+    image: plexinc/pms-docker:latest
+    container_name: lode-plex
+    restart: unless-stopped
+    hostname: plex
+    ports:
+      - '32400:32400'
+    volumes:
+      - plex-config:/config
+      - plex-transcode:/transcode
+      - ./media:/media
+    environment:
+      # Claim token from https://plex.tv/claim (expires after a few minutes).
+      # Optional once /config holds an accepted EULA - then sign in via the web UI.
+      # - PLEX_CLAIM=
+      - TZ=${TZ:-UTC}
+
+volumes:
+  plex-config:
+  plex-transcode:

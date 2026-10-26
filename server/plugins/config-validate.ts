@@ -13,7 +13,9 @@ export default defineNitroPlugin(() => {
     prowlarrApiKey: config.prowlarrApiKey,
     trackerEncryptionKey: config.trackerEncryptionKey,
     jellyfinUrl: config.jellyfinUrl || undefined,
-    jellyfinApiKey: config.jellyfinApiKey || undefined
+    jellyfinApiKey: config.jellyfinApiKey || undefined,
+    plexUrl: config.plexUrl || undefined,
+    plexToken: config.plexToken || undefined
   })
 
   const logger = createLogger('Config')
@@ -28,6 +30,13 @@ export default defineNitroPlugin(() => {
   if (!config.jellyfinUrl || !config.jellyfinApiKey) {
     logger.warn(
       'Jellyfin not configured (NUXT_JELLYFIN_URL / NUXT_JELLYFIN_API_KEY) - library browsing is disabled until configured'
+    )
+  }
+  if (!config.plexUrl || !config.plexToken) {
+    // Wording intentionally does NOT imply library browsing is disabled - browse
+    // works without any media server. Only media-server user sync is affected.
+    logger.warn(
+      'Plex not configured (NUXT_PLEX_URL / NUXT_PLEX_TOKEN) - media-server user sync for Plex is disabled until configured'
     )
   }
 })

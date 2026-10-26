@@ -9,7 +9,7 @@ All admin endpoints require admin role authentication.
 GET /api/admin/users
 ```
 
-Returns all users with Jellyfin sync info and settings.
+Returns all users with Jellyfin and Plex sync info and settings.
 
 ### Create User
 ```
@@ -36,7 +36,10 @@ POST /api/admin/users
   "jellyfinEnableRemuxing": true,
   "jellyfinEnableLiveTvAccess": true,
   "jellyfinEnableLiveTvManagement": false,
-  "jellyfinMaxActiveSessions": 0
+  "jellyfinMaxActiveSessions": 0,
+  "plexLibraryAccess": "all",
+  "plexEnableLiveTvAccess": true,
+  "plexEnableSync": true
 }
 ```
 
@@ -59,7 +62,7 @@ Cannot delete admin users. Jellyfin delete must succeed before local delete. All
 POST /api/admin/users/[id]/sync
 ```
 
-Re-syncs the user with Jellyfin: updates the existing Jellyfin user, or creates one with a generated temporary password (returned in the response) when no mapping exists. The avatar is re-synced when present.
+Re-syncs the user with every configured media server (Jellyfin, Plex, or both): updates the existing account, or creates one when no mapping exists - a Jellyfin user with a generated temporary password (returned in the response), and a Plex user invited as a managed home user. The avatar is re-synced when present (Jellyfin only - Plex has no avatar API).
 
 ### Response
 ```json
@@ -321,6 +324,39 @@ Jellyfin-only health check (cheap - no other service calls). See [Admin Features
 
 ---
 
+## Plex
+
+### Get Presets
+```
+GET /api/admin/plex/presets
+```
+
+### Update Presets
+```
+PUT /api/admin/plex/presets
+```
+
+### Body
+```json
+{
+  "syncEnabled": true,
+  "libraryAccess": "all",
+  "liveTvAccess": true,
+  "sync": true
+}
+```
+
+`libraryAccess` is `"all"` or a list of Plex section IDs. `liveTvAccess` allows watching live TV; `sync` allows downloading media (Plex Sync).
+
+### Plex Status
+```
+GET /api/admin/plex/status
+```
+
+Plex-only health check (cheap - no other service calls). When up, `details` reports the PMS version and the account sign-in state. See [Admin Features](../features/admin-features.md#system-status) for the check semantics.
+
+---
+
 ## Discord
 
 ### Get Locale
@@ -362,10 +398,14 @@ PUT /api/admin/discord-mentions
 GET /api/admin/sync/providers
 ```
 
+Reports `jellyfinConfigured` and `plexConfigured` for the media servers.
+
 ### Get Libraries
 ```
 GET /api/admin/sync/libraries
 ```
+
+One entry per configured provider (`jellyfin` and/or `plex`) with its library list.
 
 ---
 
@@ -381,7 +421,7 @@ GET /api/admin/settings
 GET /api/admin/system-status
 ```
 
-Returns health checks for qBittorrent, Prowlarr, Jellyfin, Redis, Discord, FlareSolverr.
+Returns health checks for qBittorrent, Prowlarr, Jellyfin, Plex, Redis, Discord, FlareSolverr.
 
 ### Disk Status
 ```

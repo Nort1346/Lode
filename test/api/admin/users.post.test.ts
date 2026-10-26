@@ -9,6 +9,7 @@ const mockHash = vi.hoisted(() => vi.fn())
 const mockRandomUUID = vi.hoisted(() => vi.fn())
 const mockSyncNewUser = vi.hoisted(() => vi.fn())
 const mockGetDefaultSyncSettings = vi.hoisted(() => vi.fn())
+const mockGetPlexSyncSettings = vi.hoisted(() => vi.fn())
 const mockGetSetting = vi.hoisted(() => vi.fn())
 const mockReadBody = vi.fn()
 
@@ -22,7 +23,8 @@ vi.mock('node:crypto', () => ({
 
 vi.mock('#server/utils/sync', () => ({
   syncNewUser: mockSyncNewUser,
-  getDefaultSyncSettings: mockGetDefaultSyncSettings
+  getDefaultSyncSettings: mockGetDefaultSyncSettings,
+  getPlexSyncSettings: mockGetPlexSyncSettings
 }))
 
 vi.mock('#server/utils/settings', () => ({
@@ -54,11 +56,13 @@ describe('admin/users.post', () => {
     mockRandomUUID.mockReset()
     mockSyncNewUser.mockReset()
     mockGetDefaultSyncSettings.mockReset()
+    mockGetPlexSyncSettings.mockReset()
     mockGetSetting.mockReset()
     mockGetSetting.mockResolvedValue(null)
     mockHash.mockResolvedValue('$2b$12$hashed')
     mockRandomUUID.mockReturnValue('new-id-1')
     mockGetDefaultSyncSettings.mockReturnValue({})
+    mockGetPlexSyncSettings.mockReturnValue({})
     mockSyncNewUser.mockResolvedValue('synced')
   })
 

@@ -144,7 +144,8 @@ describe('admin/users/[id]/sync.post', () => {
       {
         autoSync: true,
         syncAvatar: true
-      }
+      },
+      { plex: { autoSync: true, syncAvatar: true } }
     )
     expect(mockSyncUserCreate).not.toHaveBeenCalled()
     expect(mockHash).not.toHaveBeenCalled()
@@ -169,7 +170,8 @@ describe('admin/users/[id]/sync.post', () => {
     expect(mockSyncUserCreate).toHaveBeenCalledWith(
       'u1',
       { username: 'user1', password: result.tempPassword },
-      { autoSync: true, syncAvatar: true }
+      { autoSync: true, syncAvatar: true },
+      { plex: { autoSync: true, syncAvatar: true } }
     )
     expect(mockSyncUserUpdate).not.toHaveBeenCalled()
   })

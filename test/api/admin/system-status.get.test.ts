@@ -19,6 +19,7 @@ vi.mock('ioredis', () => {
     }
     this.ping = vi.fn().mockResolvedValue('PONG')
     this.disconnect = vi.fn()
+    this.on = vi.fn()
   }
   return { default: MockRedis }
 })
@@ -89,6 +90,8 @@ describe('admin/system-status.get', () => {
 
   it('returns all services up', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    // Configure Plex too, so it is health-checked as 'up' rather than not_configured.
+    stubConfig({ plexUrl: 'http://plex:32400', plexToken: 'test-token' })
     vi.mocked(global.fetch).mockResolvedValue({
       ok: true,
       text: () => Promise.resolve('2.0.0'),
@@ -97,7 +100,7 @@ describe('admin/system-status.get', () => {
 
     const result = await handler(mockEvent)
     expect(result).toHaveProperty('services')
-    expect(result.services).toHaveLength(8)
+    expect(result.services).toHaveLength(9)
     expect(result.services.every((s: { status: string }) => s.status === 'up')).toBe(true)
   })
 
@@ -418,7 +421,7 @@ describe('admin/system-status.get', () => {
     })
 
     const result = await handler(mockEvent)
-    expect(result.services).toHaveLength(8)
+    expect(result.services).toHaveLength(9)
     const db = result.services.find((s: { name: string }) => s.name === 'SQLite')
     expect(db).toEqual(expect.objectContaining({ status: 'up', configured: true }))
     // TMDB stays configured even with an empty key: it falls back to the
@@ -426,7 +429,7 @@ describe('admin/system-status.get', () => {
     const tmdb = result.services.find((s: { name: string }) => s.name === 'TMDB')
     expect(tmdb).toEqual(expect.objectContaining({ status: 'down', configured: true }))
     const others = result.services.filter((s: { name: string }) => s.name !== 'SQLite' && s.name !== 'TMDB')
-    expect(others).toHaveLength(6)
+    expect(others).toHaveLength(7)
     expect(others.every((s: { status: string }) => s.status === 'not_configured')).toBe(true)
   })
 
@@ -624,5 +627,111 @@ describe('admin/system-status.get', () => {
     const result = await handler(mockEvent)
     const db = result.services.find((s: { name: string }) => s.name === 'SQLite')
     expect(db).toEqual(expect.objectContaining({ status: 'down', configured: true }))
+  })
+
+  it('returns Plex up with the server version when healthy', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubConfig({ plexUrl: 'http://plex:32400', plexToken: 'test-token' })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      const u = String(url)
+      if (u.includes('plex')) {
+        return {
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ MediaContainer: { version: '1.43.3.10896', myPlexSigninState: 'ok' } })
+        } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const plex = result.services.find((s: { name: string }) => s.name === 'Plex')
+    expect(plex).toEqual(expect.objectContaining({ status: 'up', configured: true, details: '1.43.3.10896' }))
+  })
+
+  it('flags an unclaimed Plex server in the details', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubConfig({ plexUrl: 'http://plex:32400', plexToken: 'test-token' })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      const u = String(url)
+      if (u.includes('plex')) {
+        return {
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ MediaContainer: { version: '1.43.3.10896', myPlexSigninState: 'unclaimed' } })
+        } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const plex = result.services.find((s: { name: string }) => s.name === 'Plex')
+    expect(plex?.details).toContain('server not claimed')
+  })
+
+  it('detects rejected Plex token (401)', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubConfig({ plexUrl: 'http://plex:32400', plexToken: 'bad-token' })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      if (String(url).includes('plex')) {
+        return { ok: false, status: 401, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const plex = result.services.find((s: { name: string }) => s.name === 'Plex')
+    expect(plex).toEqual(expect.objectContaining({ status: 'invalid', configured: true, details: 'Token rejected' }))
+  })
+
+  it('returns not_configured when the Plex token is missing', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubConfig({ plexToken: '' })
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(''),
+      json: () => Promise.resolve({})
+    } as Response)
+
+    const result = await handler(mockEvent)
+    const plex = result.services.find((s: { name: string }) => s.name === 'Plex')
+    expect(plex).toEqual(expect.objectContaining({ status: 'not_configured', configured: false }))
+    const plexCalls = vi.mocked(global.fetch).mock.calls.filter(([url]) => String(url).includes('plex'))
+    expect(plexCalls).toHaveLength(0)
+  })
+
+  it('detects Plex down when the connection fails', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubConfig({ plexUrl: 'http://plex:32400', plexToken: 'test-token' })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      const u = String(url)
+      if (u.includes('plex')) throw new Error('Connection refused')
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const plex = result.services.find((s: { name: string }) => s.name === 'Plex')
+    expect(plex).toEqual(expect.objectContaining({ status: 'down', configured: true }))
+  })
+
+  it('returns error for a malformed Plex response', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubConfig({ plexUrl: 'http://plex:32400', plexToken: 'test-token' })
+    vi.mocked(global.fetch).mockImplementation(async (url: string | URL | Request) => {
+      const u = String(url)
+      if (u.includes('plex')) {
+        return {
+          ok: true,
+          status: 200,
+          json: () => Promise.reject(new Error('bad json')),
+          text: () => Promise.resolve('')
+        } as Response
+      }
+      return { ok: true, text: () => Promise.resolve(''), json: () => Promise.resolve({}) } as Response
+    })
+
+    const result = await handler(mockEvent)
+    const plex = result.services.find((s: { name: string }) => s.name === 'Plex')
+    expect(plex).toEqual(expect.objectContaining({ status: 'error', configured: true, details: 'Malformed response' }))
   })
 })
