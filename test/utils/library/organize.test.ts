@@ -84,7 +84,6 @@ describe('buildEpisodeRelativePath', () => {
         seriesTitle: 'Severance',
         season: 2,
         episode: 5,
-        episodeTitle: null,
         airDate: null,
         resolution: '1080p',
         source: 'WEB-DL',
@@ -93,31 +92,16 @@ describe('buildEpisodeRelativePath', () => {
     ).toBe('Severance/Season 02/Severance - S02E05 1080p WEB-DL.mkv')
   })
 
-  it('appends episode title when known', () => {
-    const result = buildEpisodeRelativePath({
-      seriesTitle: 'Severance',
-      season: 1,
-      episode: 1,
-      episodeTitle: 'Good News About Hell',
-      airDate: null,
-      resolution: null,
-      source: null,
-      extension: 'mkv'
-    })
-    expect(result).toBe('Severance/Season 01/Severance - S01E01 - Good News About Hell.mkv')
-  })
-
-  it('falls back to air date for daily releases', () => {
+  it('appends air date for daily releases', () => {
     const result = buildEpisodeRelativePath({
       seriesTitle: 'News',
       season: 2026,
       episode: 1,
-      episodeTitle: null,
       airDate: '2026-02-09',
       resolution: null,
       source: null,
       extension: 'mkv'
     })
-    expect(result).toContain('2026-02-09')
+    expect(result).toBe('News/Season 2026/News - S2026E01 - 2026-02-09.mkv')
   })
 })

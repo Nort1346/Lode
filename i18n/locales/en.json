@@ -210,6 +210,8 @@
     "server5xxDesc": "The server hit an unexpected problem (HTTP {code}). Try again in a moment."
   },
   "download": {
+    "organizeDone": "Organized",
+    "organizeFailed": "Organize failed",
     "added": "Download added",
     "addedDesc": "{label} has been added to the queue.",
     "already": "Already downloading",

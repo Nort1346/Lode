@@ -1,4 +1,4 @@
-import { copyFile, link, mkdir, rename, unlink } from 'node:fs/promises'
+import { copyFile, link, mkdir, rename, stat, unlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { createLogger } from '#server/utils/logger'
 import type { MediaImportMethod, MediaImportMode, ImportSingleFileResult } from '#server/types/media-organize'
@@ -7,6 +7,10 @@ const log = createLogger('MediaImport')
 
 function isCrossDevice(err: unknown): boolean {
   return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EXDEV'
+}
+
+async function targetSize(target: string): Promise<number> {
+  return (await stat(target)).size
 }
 
 export async function ensureDir(dir: string): Promise<void> {
@@ -44,42 +48,51 @@ export async function importSingleFile(
   if (mode === 'hardlink') {
     try {
       await link(source, target)
+      // Zero-copy: no bytes were transferred.
       return { method: 'hardlink', bytes: 0 }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       if (!isCrossDevice(err)) throw err
       log.info(`hardlink unavailable (${msg}), falling back to copy: ${target}`)
       await copyAtomic(source, target)
-      return { method: 'copy', bytes: 0 }
+      return { method: 'copy', bytes: await targetSize(target) }
     }
   }
 
   if (mode === 'move') {
     try {
       await rename(source, target)
-      return { method: 'move', bytes: 0 }
+      return { method: 'move', bytes: await targetSize(target) }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       if (!isCrossDevice(err)) throw err
       log.info(`move unavailable across devices (${msg}), falling back to copy+delete: ${target}`)
       await copyThenRemove(source, target, true)
-      return { method: 'copy', bytes: 0 }
+      return { method: 'copy', bytes: await targetSize(target) }
     }
   }
 
   await copyAtomic(source, target)
   const method: MediaImportMethod = 'copy'
-  return { method, bytes: 0 }
+  return { method, bytes: await targetSize(target) }
 }
 
+// Optional *arr-style staging dir for qBittorrent. Only movies and series
+// support one; returns null when it is not configured so the caller can fall
+// back to the library dir (direct-to-library behaviour).
 export function resolveStagingDir(
   savePath: string,
-  config: { savePathMovies: string; savePathSeries: string; downloadPathMovies: string; downloadPathSeries: string }
-): string {
+  config: { downloadPathMovies: string; downloadPathSeries: string }
+): string | null {
   if (savePath === 'series') {
-    return config.downloadPathSeries !== '' ? config.downloadPathSeries : config.savePathSeries
+    const dir = config.downloadPathSeries ?? ''
+    return dir !== '' ? dir : null
   }
-  return config.downloadPathMovies !== '' ? config.downloadPathMovies : config.savePathMovies
+  if (savePath === 'movies') {
+    const dir = config.downloadPathMovies ?? ''
+    return dir !== '' ? dir : null
+  }
+  return null
 }
 
 export function resolveLibraryDir(

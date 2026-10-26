@@ -81,12 +81,10 @@ export function buildEpisodeRelativePath(input: OrganizeEpisodeInput): string {
   const series = sanitizeFileSegment(input.seriesTitle)
   const seasonFolder = `Season ${pad2(input.season)}`
   const episodeCode = `S${pad2(input.season)}E${pad2(input.episode)}`
-  const titlePart =
-    input.episodeTitle !== null && input.episodeTitle !== '' ? ` - ${sanitizeFileSegment(input.episodeTitle)}` : ''
-  const datePart = input.episodeTitle === null && input.airDate !== null ? ` - ${input.airDate}` : ''
+  const datePart = input.airDate !== null ? ` - ${input.airDate}` : ''
   const quality = qualitySuffix(input.resolution, input.source)
   const qualityPart = quality === '' ? '' : ` ${quality}`
   const ext = sanitizeFileSegment(input.extension).toLowerCase()
-  const fileName = `${series} - ${episodeCode}${titlePart}${datePart}${qualityPart}.${ext}`
+  const fileName = `${series} - ${episodeCode}${datePart}${qualityPart}.${ext}`
   return `${series}/${seasonFolder}/${fileName}`
 }

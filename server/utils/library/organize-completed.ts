@@ -1,4 +1,4 @@
-import { dirname, join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { createLogger } from '#server/utils/logger'
 import { getMovieDetails, getTvShowDetails } from '#server/utils/tmdb'
 import { parseTorrentTitle } from '#server/utils/torrents/torrent-ranker'
@@ -89,7 +89,6 @@ async function resolveEpisodeTarget(
     seriesTitle,
     season,
     episode,
-    episodeTitle: null,
     airDate,
     resolution: job.resolution ?? parsedResolution,
     source: parsedSource,
@@ -100,9 +99,10 @@ async function resolveEpisodeTarget(
 // Organizes one freshly completed download into the library. Returns a result
 // instead of throwing so the torrent-sync loop can persist it and continue.
 // Movies/series go to `Library/Title/...`; anything else (games, books, music)
-// is skipped. When staging equals the library directory the file is renamed
-// in place via qBittorrent (seeding-safe); otherwise the main video file is
-// hardlinked/copied/moved onto the target path.
+// is skipped. When the torrent's save dir is the library dir itself (no
+// staging configured) the file is renamed in place inside the torrent via
+// qBittorrent (seeding-safe, no duplicate copy); otherwise the main video
+// file is hardlinked/copied/moved from the staging dir onto the target path.
 export async function organizeCompletedDownload(
   hash: string,
   job: OrganizeJobInput,
@@ -164,16 +164,30 @@ export async function organizeCompletedDownload(
   const target = buildAbsoluteTarget(libraryDir, relative)
 
   try {
-    if (dirname(source) === dirname(target)) {
-      const newBase = relative.split('/').pop() ?? relative
-      await deps.qbit.renameFile(hash, pick.name, newBase)
+    if (resolve(saveDir) === resolve(libraryDir)) {
+      // Direct-to-library: the file is already inside the library, so rename
+      // it in place via qBittorrent (it creates the target folder). This
+      // keeps seeding working and leaves no duplicate copy behind.
+      if (pick.name === relative) {
+        return { status: 'done', targetRelativePath: relative, error: null }
+      }
+      await deps.qbit.renameFile(hash, pick.name, relative)
       return { status: 'done', targetRelativePath: relative, error: null }
     }
     await importSingleFile(source, target, deps.importMode)
     return { status: 'done', targetRelativePath: relative, error: null }
   } catch (err) {
+    // A second download of the same release targets the same file name; the
+    // first import already placed it, so skip instead of failing.
+    if (isEexist(err)) {
+      return { status: 'skipped', targetRelativePath: relative, error: 'target already exists' }
+    }
     const msg = err instanceof Error ? err.message : String(err)
     log.warn(`organize failed for ${hash}: ${msg}`)
     return { status: 'failed', targetRelativePath: relative, error: msg }
   }
+}
+
+function isEexist(err: unknown): boolean {
+  return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EEXIST'
 }

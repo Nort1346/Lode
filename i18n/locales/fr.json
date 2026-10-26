@@ -210,6 +210,8 @@
     "server5xxDesc": "Un problème inattendu est survenu sur le serveur (HTTP {code}). Réessayez dans un instant."
   },
   "download": {
+    "organizeDone": "Classé",
+    "organizeFailed": "Échec de l'organisation",
     "added": "Téléchargement ajouté",
     "addedDesc": "{label} a été ajouté à la file d'attente.",
     "already": "Déjà en téléchargement",

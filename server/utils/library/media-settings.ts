@@ -1,11 +1,13 @@
 import { SETTINGS } from '#server/types/settings'
 import { getSetting } from '#server/utils/settings'
-import type { MediaConfig, MediaImportMode } from '#server/types/media-organize'
+import { MEDIA_IMPORT_MODES, type MediaConfig, type MediaImportMode } from '#server/types/media-organize'
 
-const IMPORT_MODES: readonly string[] = ['hardlink', 'copy', 'move']
+function isImportMode(value: string): value is MediaImportMode {
+  return (MEDIA_IMPORT_MODES as readonly string[]).includes(value)
+}
 
 export function parseImportMode(raw: string | undefined): MediaImportMode {
-  if (raw !== undefined && IMPORT_MODES.includes(raw)) return raw as MediaImportMode
+  if (raw !== undefined && isImportMode(raw)) return raw
   return 'hardlink'
 }
 

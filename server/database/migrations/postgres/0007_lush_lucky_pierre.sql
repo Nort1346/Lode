@@ -1,3 +1,4 @@
 ALTER TABLE "downloads" ADD COLUMN "organized_path" text;--> statement-breakpoint
 ALTER TABLE "downloads" ADD COLUMN "organize_status" text DEFAULT 'pending' NOT NULL;--> statement-breakpoint
-ALTER TABLE "downloads" ADD COLUMN "organize_error" text;
+ALTER TABLE "downloads" ADD COLUMN "organize_error" text;--> statement-breakpoint
+UPDATE "downloads" SET "organize_status" = 'skipped' WHERE "organize_status" = 'pending';

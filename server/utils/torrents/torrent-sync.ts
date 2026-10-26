@@ -95,7 +95,10 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
     log.warn(`organize failed: id=${source.id}: ${msg}`)
     await dbRun(
       db.update(downloads).set({ organizeStatus: 'failed', organizeError: msg }).where(eq(downloads.id, source.id))
-    ).catch(() => {})
+    ).catch((writeErr: unknown) => {
+      const writeMsg = writeErr instanceof Error ? writeErr.message : String(writeErr)
+      log.warn(`organize failure persistence failed: id=${source.id}: ${writeMsg}`)
+    })
   }
 }
 

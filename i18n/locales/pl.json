@@ -210,6 +210,8 @@
     "server5xxDesc": "Na serwerze wystąpił nieoczekiwany problem (HTTP {code}). Spróbuj ponownie za chwilę."
   },
   "download": {
+    "organizeDone": "Zorganizowany",
+    "organizeFailed": "Błąd organizacji",
     "added": "Pobranie dodane",
     "addedDesc": "{label} został dodany do kolejki.",
     "already": "Już pobierany",

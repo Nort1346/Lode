@@ -210,6 +210,8 @@
     "server5xxDesc": "Auf dem Server ist ein unerwartetes Problem aufgetreten (HTTP {code}). Versuche es gleich erneut."
   },
   "download": {
+    "organizeDone": "Organisiert",
+    "organizeFailed": "Organisation fehlgeschlagen",
     "added": "Download hinzugefügt",
     "addedDesc": "{label} wurde zur Warteschlange hinzugefügt.",
     "already": "Bereits am Herunterladen",

@@ -44,6 +44,7 @@ describe('importSingleFile', () => {
     const result = await importSingleFile(source, target, 'hardlink')
 
     expect(result.method).toBe('hardlink')
+    expect(result.bytes).toBe(0)
     expect(await readFile(target, 'utf8')).toBe('video-bytes')
     const [srcStat, dstStat] = await Promise.all([stat(source), stat(target)])
     expect(dstStat.ino).toBe(srcStat.ino)
@@ -56,6 +57,7 @@ describe('importSingleFile', () => {
     const result = await importSingleFile(source, target, 'copy')
 
     expect(result.method).toBe('copy')
+    expect(result.bytes).toBe('video-bytes'.length)
     expect(await readFile(target, 'utf8')).toBe('video-bytes')
     const [srcStat, dstStat] = await Promise.all([stat(source), stat(target)])
     expect(dstStat.ino).not.toBe(srcStat.ino)
@@ -68,6 +70,7 @@ describe('importSingleFile', () => {
     const result = await importSingleFile(source, target, 'move')
 
     expect(result.method).toBe('move')
+    expect(result.bytes).toBe('video-bytes'.length)
     expect(await readFile(target, 'utf8')).toBe('video-bytes')
     await expect(stat(source)).rejects.toThrow()
   })
@@ -84,21 +87,25 @@ describe('importSingleFile', () => {
 
 describe('resolveStagingDir', () => {
   const config = {
-    savePathMovies: '/media/Movies',
-    savePathSeries: '/media/Series',
     downloadPathMovies: '/media/downloads/movies',
     downloadPathSeries: '/media/downloads/series'
   }
 
-  it('prefers the staging dir when configured', () => {
+  it('returns the staging dir when configured', () => {
     expect(resolveStagingDir('movies', config)).toBe('/media/downloads/movies')
     expect(resolveStagingDir('series', config)).toBe('/media/downloads/series')
   })
 
-  it('falls back to the library dir without staging', () => {
-    const noStaging = { ...config, downloadPathMovies: '', downloadPathSeries: '' }
-    expect(resolveStagingDir('movies', noStaging)).toBe('/media/Movies')
-    expect(resolveStagingDir('series', noStaging)).toBe('/media/Series')
+  it('returns null without staging so callers fall back to the library dir', () => {
+    const noStaging = { downloadPathMovies: '', downloadPathSeries: '' }
+    expect(resolveStagingDir('movies', noStaging)).toBeNull()
+    expect(resolveStagingDir('series', noStaging)).toBeNull()
+  })
+
+  it('returns null for non-media categories', () => {
+    expect(resolveStagingDir('games', config)).toBeNull()
+    expect(resolveStagingDir('books', config)).toBeNull()
+    expect(resolveStagingDir('music', config)).toBeNull()
   })
 })
 

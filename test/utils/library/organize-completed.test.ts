@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -118,8 +118,7 @@ describe('organizeCompletedDownload', () => {
     expect(await readFile(join(libraryDir, result.targetRelativePath ?? ''), 'utf8')).toBe('video-bytes')
   })
 
-  it('renames in place via qBittorrent when already inside the target folder', async () => {
-    const folder = join(libraryDir, 'Dune (2021)')
+  it('renames in place via qBittorrent when the torrent sits in the library dir', async () => {
     const qbit = makeQbit(
       [makeFile('Dune (2021)/Dune.2021.1080p.WEB-DL.mkv', 11)],
       libraryDir,
@@ -132,12 +131,54 @@ describe('organizeCompletedDownload', () => {
       importMode: 'hardlink'
     })
     expect(result.status).toBe('done')
-    expect(folder.endsWith('Dune (2021)')).toBe(true)
+    // The full relative path is passed so qBittorrent creates the folder.
     expect(qbit.renameFile).toHaveBeenCalledWith(
       'h',
       'Dune (2021)/Dune.2021.1080p.WEB-DL.mkv',
-      'Dune (2021) 1080p web-dl.mkv'
+      'Dune (2021)/Dune (2021) 1080p web-dl.mkv'
     )
+  })
+
+  it('renames a loose file at the library root in place (direct-to-library mode)', async () => {
+    const renameFile = vi.fn(async () => {})
+    const qbit = makeQbit([makeFile('Dune.2021.1080p.WEB-DL.mkv', 11)], libraryDir, renameFile)
+    const result = await organizeCompletedDownload('h', makeJob(), {
+      qbit,
+      libraryMovies: libraryDir,
+      librarySeries: libraryDir,
+      importMode: 'hardlink'
+    })
+    expect(result.status).toBe('done')
+    expect(renameFile).toHaveBeenCalledWith('h', 'Dune.2021.1080p.WEB-DL.mkv', 'Dune (2021)/Dune (2021) 1080p web-dl.mkv')
+  })
+
+  it('is a no-op when the file is already at the organized path', async () => {
+    const renameFile = vi.fn(async () => {})
+    const qbit = makeQbit([makeFile('Dune (2021)/Dune (2021) 1080p web-dl.mkv', 11)], libraryDir, renameFile)
+    const result = await organizeCompletedDownload('h', makeJob(), {
+      qbit,
+      libraryMovies: libraryDir,
+      librarySeries: libraryDir,
+      importMode: 'hardlink'
+    })
+    expect(result.status).toBe('done')
+    expect(result.targetRelativePath).toBe('Dune (2021)/Dune (2021) 1080p web-dl.mkv')
+    expect(renameFile).not.toHaveBeenCalled()
+  })
+
+  it('skips when the target file already exists in staging mode', async () => {
+    await seedStaging('Dune.2021.1080p.WEB-DL.mkv')
+    await mkdir(join(libraryDir, 'Dune (2021)'), { recursive: true })
+    await writeFile(join(libraryDir, 'Dune (2021)/Dune (2021) 1080p web-dl.mkv'), 'existing')
+    const qbit = makeQbit([makeFile('Dune.2021.1080p.WEB-DL.mkv', 11)], stagingDir)
+    const result = await organizeCompletedDownload('h', makeJob(), {
+      qbit,
+      libraryMovies: libraryDir,
+      librarySeries: libraryDir,
+      importMode: 'hardlink'
+    })
+    expect(result.status).toBe('skipped')
+    expect(result.error).toBe('target already exists')
   })
 
   it('imports a tv episode with season folder', async () => {

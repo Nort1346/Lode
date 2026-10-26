@@ -210,6 +210,8 @@
     "server5xxDesc": "El servidor tuvo un problema inesperado (HTTP {code}). Inténtalo de nuevo en un momento."
   },
   "download": {
+    "organizeDone": "Organizado",
+    "organizeFailed": "Fallo al organizar",
     "added": "Descarga añadida",
     "addedDesc": "{label} se ha añadido a la cola.",
     "already": "Ya se está descargando",

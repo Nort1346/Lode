@@ -64,12 +64,12 @@ imported into the library folders, attached to the completion detection in
 | Feature | Default | What it does |
 |---------|---------|--------------|
 | Master switch (`media_manage_enabled`) | `false` (off) | Enables the whole import. Off = today's behaviour, files stay exactly where qBittorrent put them |
-| Staging dirs (`NUXT_DOWNLOAD_PATH_MOVIES` / `NUXT_DOWNLOAD_PATH_SERIES`) | empty (off) | qBittorrent landing zone; `NUXT_SAVE_PATH_*` stays the library. Empty = direct-to-library, files are only renamed in place via the qBittorrent `renameFile` API |
+| Staging dirs (`NUXT_DOWNLOAD_PATH_MOVIES` / `NUXT_DOWNLOAD_PATH_SERIES`) | empty (off) | qBittorrent landing zone; `NUXT_SAVE_PATH_*` stays the library. When set, finished files are imported from staging into the library. Empty = direct-to-library: the file is renamed in place inside the torrent via the qBittorrent `renameFile` API (no duplicate copy, seeding-safe) |
 | Import mode (`media_import_mode`) | `hardlink` | `hardlink` keeps seeding with zero extra space but needs staging + library on one filesystem; cross-device setups (separate `/mnt` disks, SFTP mounts) answer `EXDEV` and auto-fall back to `copy`. `copy` duplicates bytes, `move` relocates and breaks seeding (only with seeding disabled) |
 | Movie naming | on when enabled | `Title (Year)/Title (Year) Resolution Source.ext`, title/year from TMDB when `tmdbId` is known, otherwise the request label |
 | Series naming | on when enabled | `Series/Season 02/Series - S02E02 Resolution Source.ext`, daily releases fall back to the air date |
 | Main-file pick | always | Largest video file of the torrent wins, `sample` files are skipped, games/books/music are left untouched (`skipped`) |
-| Status tracking | always | Each download row carries `organized_path`, `organize_status` (`pending`/`done`/`failed`/`skipped`) and `organize_error`; failures never break the sync loop |
+| Status tracking | always | Each download row carries `organized_path`, `organize_status` (`pending`/`done`/`failed`/`skipped`) and `organize_error`; failures never break the sync loop; a second download of the same release is `skipped` with "target already exists" |
 | Jellyfin targeting | always | On success Jellyfin is notified against the organized folder instead of the library root, so scans pick up the file faster |
 | Quality choice | manual | The release is always picked by the user - there is no automatic quality selection or upgrading |
 | Admin API | - | `GET/PUT /api/admin/media-config` (`enabled`, `importMode`) |

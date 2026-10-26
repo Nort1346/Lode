@@ -18,7 +18,6 @@ export interface OrganizeEpisodeInput {
   seriesTitle: string
   season: number
   episode: number
-  episodeTitle: string | null
   airDate: string | null
   resolution: string | null
   source: string | null
