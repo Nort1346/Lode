@@ -19,6 +19,10 @@ describe('admin/media-config.get', () => {
     stubAdminAuth(mockGetUserSession)
     mockGetUserSession.mockReset()
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    vi.stubGlobal(
+      'useRuntimeConfig',
+      vi.fn(() => ({}))
+    )
   })
 
   const mockEvent = {} as never
@@ -29,11 +33,43 @@ describe('admin/media-config.get', () => {
     await expect(handler(mockEvent)).rejects.toThrow('403: Forbidden')
   })
 
-  it('returns media config', async () => {
-    mockGetMediaConfig.mockResolvedValue({ enabled: true, importMode: 'copy' })
+  it('returns media config with the staging status', async () => {
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: true,
+      importMode: 'copy',
+      importExtraFiles: true,
+      extraFileExtensions: ['srt', 'nfo']
+    })
+    vi.stubGlobal(
+      'useRuntimeConfig',
+      vi.fn(() => ({ downloadPathMovies: '/downloads/movies', downloadPathSeries: '/downloads/series' }))
+    )
 
     const result = await handler(mockEvent)
 
-    expect(result).toEqual({ enabled: true, importMode: 'copy' })
+    expect(result).toEqual({
+      enabled: true,
+      importMode: 'copy',
+      importExtraFiles: true,
+      extraFileExtensions: 'srt, nfo',
+      staging: { movies: true, series: true }
+    })
+  })
+
+  it('reports missing staging paths', async () => {
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: false,
+      importMode: 'hardlink',
+      importExtraFiles: false,
+      extraFileExtensions: ['srt']
+    })
+    vi.stubGlobal(
+      'useRuntimeConfig',
+      vi.fn(() => ({ downloadPathMovies: '  ' }))
+    )
+
+    const result = await handler(mockEvent)
+
+    expect(result.staging).toEqual({ movies: false, series: false })
   })
 })

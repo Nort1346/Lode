@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildEpisodeRelativePath,
+  buildExtraFileRelativePath,
   buildMovieFileName,
   buildMovieRelativePath,
   getExtensionLower,
   sanitizeFileSegment,
-  selectMainVideoFile
+  selectExtraFiles,
+  selectMainVideoFile,
+  selectVideoFiles
 } from '#server/utils/library/organize'
 import type { TorrentFile } from '#server/types/torrent'
 
@@ -55,6 +58,78 @@ describe('selectMainVideoFile', () => {
   })
 })
 
+describe('selectVideoFiles', () => {
+  it('returns every non-sample video, largest first', () => {
+    const files = [
+      makeFile('Show.S01E02.mkv', 200, 0),
+      makeFile('Show.S01E01.mkv', 300, 1),
+      makeFile('Show.S01E01.sample.mkv', 900, 2),
+      makeFile('Show.S01E01.srt', 4, 3),
+      makeFile('empty.mkv', 0, 4)
+    ]
+    expect(selectVideoFiles(files).map((pick) => pick.name)).toEqual(['Show.S01E01.mkv', 'Show.S01E02.mkv'])
+  })
+
+  it('returns an empty list without videos', () => {
+    expect(selectVideoFiles([makeFile('notes.txt', 10)])).toEqual([])
+  })
+})
+
+describe('selectExtraFiles', () => {
+  const extensions = ['srt', 'sub', 'nfo']
+
+  it('picks sidecars of the same video in the same folder', () => {
+    const files = [
+      makeFile('Movie.2021.mkv', 100, 0),
+      makeFile('Movie.2021.en.srt', 4, 1),
+      makeFile('Movie.2021.nfo', 2, 2),
+      makeFile('poster.jpg', 8, 3),
+      makeFile('Other.mkv', 10, 4)
+    ]
+    expect(selectExtraFiles(files, 'Movie.2021.mkv', extensions).map((pick) => pick.name)).toEqual([
+      'Movie.2021.en.srt',
+      'Movie.2021.nfo'
+    ])
+  })
+
+  it('ignores files from other folders', () => {
+    const files = [makeFile('Movie/Movie.srt', 4, 0), makeFile('Extras/Movie.srt', 4, 1)]
+    expect(selectExtraFiles(files, 'Movie.mkv', extensions)).toEqual([])
+  })
+
+  it('ignores extensions that are not allowed', () => {
+    const files = [makeFile('Movie.2021.exe', 4, 0)]
+    expect(selectExtraFiles(files, 'Movie.2021.mkv', extensions)).toEqual([])
+  })
+
+  it('requires a separator after the video stem', () => {
+    const files = [makeFile('Movie2.srt', 4, 0), makeFile('MovieExtras.nfo', 4, 1)]
+    expect(selectExtraFiles(files, 'Movie.mkv', extensions)).toEqual([])
+  })
+})
+
+describe('buildExtraFileRelativePath', () => {
+  it('renames the sidecar after the organized video and keeps the suffix', () => {
+    expect(
+      buildExtraFileRelativePath({
+        videoSourceName: 'Dune.2021.1080p.WEB-DL.mkv',
+        videoTargetRelativePath: 'Dune (2021)/Dune (2021) 1080p WEB-DL.mkv',
+        extraName: 'Dune.2021.1080p.WEB-DL.en.srt'
+      })
+    ).toBe('Dune (2021)/Dune (2021) 1080p WEB-DL.en.srt')
+  })
+
+  it('drops unrelated stems', () => {
+    expect(
+      buildExtraFileRelativePath({
+        videoSourceName: 'Dune.2021.mkv',
+        videoTargetRelativePath: 'Dune (2021)/Dune (2021).mkv',
+        extraName: 'notes.nfo'
+      })
+    ).toBe('Dune (2021)/Dune (2021).nfo')
+  })
+})
+
 describe('buildMovieFileName', () => {
   it('builds title with year and quality', () => {
     expect(
@@ -90,6 +165,36 @@ describe('buildEpisodeRelativePath', () => {
         extension: 'mkv'
       })
     ).toBe('Severance/Season 02/Severance - S02E05 1080p WEB-DL.mkv')
+  })
+
+  it('keeps the range for a multi-episode file', () => {
+    expect(
+      buildEpisodeRelativePath({
+        seriesTitle: 'Severance',
+        season: 2,
+        episode: 5,
+        episodeEnd: 7,
+        airDate: null,
+        resolution: null,
+        source: null,
+        extension: 'mkv'
+      })
+    ).toBe('Severance/Season 02/Severance - S02E05-E07.mkv')
+  })
+
+  it('ignores an end equal to the first episode', () => {
+    expect(
+      buildEpisodeRelativePath({
+        seriesTitle: 'Severance',
+        season: 2,
+        episode: 5,
+        episodeEnd: 5,
+        airDate: null,
+        resolution: null,
+        source: null,
+        extension: 'mkv'
+      })
+    ).toBe('Severance/Season 02/Severance - S02E05.mkv')
   })
 
   it('appends air date for daily releases', () => {

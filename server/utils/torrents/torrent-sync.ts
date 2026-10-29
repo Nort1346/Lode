@@ -3,7 +3,7 @@ import { downloads, users, settings } from '#server/database/schema'
 import { eq, inArray } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
 import { organizeCompletedDownload } from '#server/utils/library/organize-completed'
-import { getMediaImportMode, isMediaManageEnabled } from '#server/utils/library/media-settings'
+import { getMediaConfig } from '#server/utils/library/media-settings'
 import type { OrganizeJobInput } from '#server/types/media-organize'
 import { sendDownloadCompleteWebhook } from '#server/utils/notifications/discord'
 import type { DiscordDownloadNotifyInput } from '#server/types/discord'
@@ -59,7 +59,8 @@ interface OrganizeSource {
 async function organizeAfterComplete(source: OrganizeSource, hash: string): Promise<void> {
   const db = await useDbAsync()
   try {
-    if (!(await isMediaManageEnabled())) {
+    const media = await getMediaConfig()
+    if (!media.enabled) {
       await dbRun(db.update(downloads).set({ organizeStatus: 'skipped' }).where(eq(downloads.id, source.id)))
       return
     }
@@ -77,7 +78,13 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
       qbit: useQBittorrent(),
       libraryMovies: config.savePathMovies as string,
       librarySeries: config.savePathSeries as string,
-      importMode: await getMediaImportMode()
+      // Staging is what makes the import *arr-like: qBittorrent keeps the
+      // torrent intact there and Lode copies/hardlinks out of it.
+      stagingMovies: (config.downloadPathMovies as string | undefined) ?? '',
+      stagingSeries: (config.downloadPathSeries as string | undefined) ?? '',
+      importMode: media.importMode,
+      importExtraFiles: media.importExtraFiles,
+      extraFileExtensions: media.extraFileExtensions
     })
     await dbRun(
       db
@@ -89,7 +96,11 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
         })
         .where(eq(downloads.id, source.id))
     )
-    log.info(`organize ${result.status}: id=${source.id} target=${result.targetRelativePath ?? 'none'}`)
+    log.info(
+      `organize ${result.status}: id=${source.id} files=${result.importedFiles} extras=${result.extrasImported} target=${result.targetRelativePath ?? 'none'}${
+        result.error !== null ? ` error="${result.error}"` : ''
+      }`
+    )
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     log.warn(`organize failed: id=${source.id}: ${msg}`)

@@ -1,6 +1,21 @@
 import { downloads } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
+import { getSetting } from '#server/utils/settings'
+import { SETTINGS } from '#server/types/settings'
+
+// Only 'hardlink' and 'copy' guarantee the library has its own copy of the
+// file (an unset setting defaults to hardlink). 'move', an unknown value or an
+// unreadable setting keeps the files: losing a staging copy is harmless,
+// losing the library movie is not.
+async function shouldDeleteTorrentFiles(): Promise<boolean> {
+  try {
+    const mode = await getSetting(SETTINGS.MEDIA_IMPORT_MODE)
+    return mode === undefined || mode === '' || mode === 'hardlink' || mode === 'copy'
+  } catch {
+    return false
+  }
+}
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -24,10 +39,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
+  // In 'move' mode the torrent's file *is* the library file, so asking
+  // qBittorrent to delete files would wipe the organized movie/show. In
+  // 'hardlink'/'copy' modes the staging copy can go: the library copy survives.
+  const deleteFiles = await shouldDeleteTorrentFiles()
+
   if (download.torrentHash !== null) {
     try {
       const qbit = useQBittorrent()
-      await qbit.deleteTorrent(download.torrentHash, true)
+      await qbit.deleteTorrent(download.torrentHash, deleteFiles)
       // qBittorrent drops the torrent from its list before the file delete finishes;
       // wait until it is gone so a quick re-add cannot race the in-progress delete
       for (let i = 0; i < 20; i++) {
@@ -46,7 +66,7 @@ export default defineEventHandler(async (event) => {
     action: 'torrent_delete',
     userId: session.user.id,
     username: session.user.username,
-    details: JSON.stringify({ name: download.torrentName, hash: download.torrentHash })
+    details: JSON.stringify({ name: download.torrentName, hash: download.torrentHash, deleteFiles })
   })
 
   return { success: true }

@@ -78,8 +78,8 @@ export async function importSingleFile(
 }
 
 // Optional *arr-style staging dir for qBittorrent. Only movies and series
-// support one; returns null when it is not configured so the caller can fall
-// back to the library dir (direct-to-library behaviour).
+// support one; returns null when it is not configured so the caller can report
+// the download as failed instead of writing into the library.
 export function resolveStagingDir(
   savePath: string,
   config: { downloadPathMovies: string; downloadPathSeries: string }

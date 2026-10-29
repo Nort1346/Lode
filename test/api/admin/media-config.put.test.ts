@@ -6,6 +6,7 @@ const { mockPutSetting } = vi.hoisted(() => ({
 }))
 
 vi.mock('#server/utils/settings', () => ({
+  getSetting: vi.fn(),
   putSetting: mockPutSetting
 }))
 
@@ -22,6 +23,10 @@ describe('admin/media-config.put', () => {
     mockPutSetting.mockReset()
     mockPutSetting.mockResolvedValue(undefined)
     vi.stubGlobal('readBody', vi.fn())
+    vi.stubGlobal(
+      'useRuntimeConfig',
+      vi.fn(() => ({ downloadPathMovies: '/downloads/movies', downloadPathSeries: '/downloads/series' }))
+    )
   })
 
   const mockEvent = {} as never
@@ -49,6 +54,35 @@ describe('admin/media-config.put', () => {
     expect(mockPutSetting).toHaveBeenCalledWith('media_import_mode', 'copy')
   })
 
+  it('refuses to enable without a staging dir', async () => {
+    vi.stubGlobal(
+      'useRuntimeConfig',
+      vi.fn(() => ({}))
+    )
+    vi.stubGlobal(
+      'readBody',
+      vi.fn(async () => ({ enabled: true }))
+    )
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Set NUXT_DOWNLOAD_PATH_MOVIES')
+    expect(mockPutSetting).not.toHaveBeenCalled()
+  })
+
+  it('still allows disabling without a staging dir', async () => {
+    vi.stubGlobal(
+      'useRuntimeConfig',
+      vi.fn(() => ({}))
+    )
+    vi.stubGlobal(
+      'readBody',
+      vi.fn(async () => ({ enabled: false }))
+    )
+
+    await handler(mockEvent)
+
+    expect(mockPutSetting).toHaveBeenCalledWith('media_manage_enabled', 'false')
+  })
+
   it('normalizes unknown import modes to hardlink', async () => {
     vi.stubGlobal(
       'readBody',
@@ -58,5 +92,17 @@ describe('admin/media-config.put', () => {
     await handler(mockEvent)
 
     expect(mockPutSetting).toHaveBeenCalledWith('media_import_mode', 'hardlink')
+  })
+
+  it('persists extra file settings', async () => {
+    vi.stubGlobal(
+      'readBody',
+      vi.fn(async () => ({ importExtraFiles: true, extraFileExtensions: '.SRT, nfo' }))
+    )
+
+    await handler(mockEvent)
+
+    expect(mockPutSetting).toHaveBeenCalledWith('media_import_extra_files', 'true')
+    expect(mockPutSetting).toHaveBeenCalledWith('media_extra_file_extensions', 'srt,nfo')
   })
 })
