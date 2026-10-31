@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
   } else {
     action = 'created'
     tempPassword = generateTempPassword()
-    const hashedPassword = await hash(tempPassword, 12)
+    const hashedPassword = await hash(tempPassword, { cost: 12 })
     await dbRun(db.update(users).set({ password: hashedPassword }).where(eq(users.id, id)))
 
     try {

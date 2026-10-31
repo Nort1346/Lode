@@ -348,9 +348,10 @@ async function forceSync(user: AdminUser) {
 
   syncingUserId.value = user.id
   try {
-    const res = (await $fetch(`/api/admin/users/${user.id}/sync`, {
-      method: 'POST'
-    })) as { success: boolean; action: 'synced' | 'created'; tempPassword?: string }
+    const res = await $fetch<{ success: boolean; action: 'synced' | 'created'; tempPassword?: string }>(
+      `/api/admin/users/${user.id}/sync`,
+      { method: 'POST' }
+    )
 
     if (res.action === 'created' && res.tempPassword !== undefined && res.tempPassword !== '') {
       tempPasswordValue.value = res.tempPassword

@@ -5,9 +5,9 @@ import {
   formatSize,
   formatDateTime,
   getTorrentQuality,
-  useQualityConfig,
-  useEtaLabel
+  useQualityConfig
 } from '~/composables/useTorrentUtils'
+import { useEtaTracker } from '~/composables/useEtaTracker'
 
 definePageMeta({
   middleware: 'auth',
@@ -53,6 +53,8 @@ async function fetchDownloads() {
     })
     downloads.value = res.downloads
     total.value = res.total
+    // Feed the ETA tracker before the next render so labels/borders are fresh
+    trackPoll(res.downloads)
     // Clamp after deletes shrink the list, otherwise the page can point past the last page
     const totalPages = Math.max(1, Math.ceil(res.total / PAGE_SIZE))
     if (page.value > totalPages) page.value = totalPages
@@ -111,7 +113,15 @@ function getDisplayName(dl: Download): string {
 }
 
 const { qualityConfig } = useQualityConfig()
-const etaLabel = useEtaLabel()
+const { trackPoll, etaState, etaLabel } = useEtaTracker()
+
+function cardBorderClass(dl: Download): string {
+  if (dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok') {
+    return qualityConfig.value[getTorrentQuality(dl)].border
+  }
+  if (dl.status === 'downloading' && etaState(dl) === 'collecting') return 'border-amber-500/40'
+  return 'border-zinc-200 dark:border-white/5'
+}
 
 function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
   if (completedAt === null || completedAt === '') return ''
@@ -178,11 +188,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
         :key="dl.id"
         v-reveal
         class="flex gap-3 p-3 rounded-xl border transition-all bg-zinc-50 dark:bg-white/2 sm:gap-4 sm:p-5"
-        :class="
-          dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok'
-            ? qualityConfig[getTorrentQuality(dl)].border
-            : 'border-zinc-200 dark:border-white/5'
-        "
+        :class="cardBorderClass(dl)"
       >
         <div
           class="shrink-0 w-12 h-18 rounded-lg overflow-hidden bg-zinc-200 dark:bg-white/5 shadow-sm dark:shadow-black/20 sm:w-20 sm:h-30"
@@ -308,7 +314,15 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                 </span>
                 <span v-if="dl.status !== 'paused' && dl.status !== 'checking'"
                   >{{ t('common.eta') }}:
-                  <span class="text-zinc-900 dark:text-white font-medium">{{ etaLabel(dl) }}</span></span
+                  <span
+                    class="font-medium"
+                    :class="
+                      etaState(dl) === 'collecting'
+                        ? 'animate-pulse text-amber-600 dark:text-amber-400'
+                        : 'text-zinc-900 dark:text-white'
+                    "
+                    >{{ etaLabel(dl) }}</span
+                  ></span
                 >
               </div>
             </div>
