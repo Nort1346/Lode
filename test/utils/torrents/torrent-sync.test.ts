@@ -8,6 +8,7 @@ vi.stubGlobal(
 )
 
 const mockSettingGet = vi.fn((_cond?: { key?: string }) => undefined as { value: string } | undefined)
+const mockStatusGet = vi.fn(() => undefined as { status?: string } | undefined)
 const mockGetSetting = vi.hoisted(() => vi.fn((_key?: string) => undefined as string | undefined))
 const mockActiveAll = vi.fn(() => [] as unknown[])
 const mockPendingAll = vi.fn(() => [] as unknown[])
@@ -50,6 +51,14 @@ function isPendingSweepQuery(cond: unknown): boolean {
 const mockDb = {
   select: vi.fn((...args: unknown[]) => {
     if (args.length > 0) {
+      const projection = args[0] as Record<string, unknown> | undefined
+      // The pending retry re-reads organizeStatus before importing; a test can
+      // return a settled row here to simulate a stale sweep snapshot.
+      if (projection !== undefined && projection.status === mockSchema.downloads.organizeStatus) {
+        return {
+          from: vi.fn(() => ({ where: vi.fn(() => ({ get: mockStatusGet })) }))
+        }
+      }
       return {
         from: vi.fn(() => ({
           where: vi.fn((cond: { key?: string }) => ({ get: vi.fn(() => mockSettingGet(cond)) }))
@@ -182,6 +191,7 @@ describe('syncTorrentStatus', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSetting.mockReset()
+    mockStatusGet.mockReset()
     mockActiveAll.mockReturnValue([])
     mockPendingAll.mockReturnValue([])
     mockGetMediaConfig.mockResolvedValue({
@@ -660,6 +670,65 @@ describe('syncTorrentStatus', () => {
       })
     )
     expect(mockLog.info).not.toHaveBeenCalledWith(expect.stringContaining('retrying pending organize'))
+  })
+
+  it('does not re-import a row that settled after the sweep snapshot', async () => {
+    mockActiveAll.mockReturnValue([])
+    mockPendingAll.mockReturnValue([makeDl({ status: 'completed', organizeStatus: 'pending', torrentHash: 'h1' })])
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: true,
+      importMode: 'hardlink',
+      importExtraFiles: false,
+      extraFileExtensions: []
+    })
+    // The snapshot said 'pending', but the row was already organized meanwhile.
+    mockStatusGet.mockReturnValue({ status: 'done' })
+
+    await syncTorrentStatus()
+
+    await vi.waitFor(() =>
+      expect(mockLog.info).toHaveBeenCalledWith('organize skipped, row already settled: id=dl-1 status=done')
+    )
+    expect(mockOrganizeCompletedDownload).not.toHaveBeenCalled()
+    expect(mockSet).not.toHaveBeenCalledWith(expect.objectContaining({ organizeStatus: 'skipped' }))
+  })
+
+  it('runs a single pending sweep when the sync is triggered concurrently', async () => {
+    mockActiveAll.mockReturnValue([])
+    mockPendingAll.mockReturnValue([makeDl({ status: 'completed', organizeStatus: 'pending', torrentHash: 'h1' })])
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: true,
+      importMode: 'hardlink',
+      importExtraFiles: false,
+      extraFileExtensions: []
+    })
+    mockStatusGet.mockReturnValue({ status: 'pending' })
+
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    mockOrganizeCompletedDownload.mockImplementation(async () => {
+      await gate
+      return {
+        status: 'done',
+        targetRelativePath: 'Movie/Movie.mkv',
+        error: null,
+        importedFiles: 1,
+        skippedFiles: 0,
+        extrasImported: 0
+      }
+    })
+
+    const first = syncTorrentStatus()
+    const second = syncTorrentStatus()
+    await Promise.all([first, second])
+
+    await vi.waitFor(() => expect(mockOrganizeCompletedDownload).toHaveBeenCalledTimes(1))
+    expect(mockPendingAll).toHaveBeenCalledTimes(1)
+
+    release()
+    await vi.waitFor(() => expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ organizeStatus: 'done' })))
   })
 
   it('matches the torrent by name when the hash is missing and backfills the hash', async () => {

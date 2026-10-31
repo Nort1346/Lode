@@ -26,12 +26,20 @@ export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
   const body = await readBody<MediaConfigUpdate>(event)
 
-  if (body.enabled === true) {
+  // readBody typing is a compile-time cast only, so a JSON string would slip
+  // through: `"false"` is truthy and would enable the feature while skipping
+  // the staging check below.
+  const enabled = body.enabled
+  if (enabled !== undefined && typeof enabled !== 'boolean') {
+    throw createError({ statusCode: 400, statusMessage: 'enabled must be a boolean' })
+  }
+
+  if (enabled === true) {
     assertStagingConfigured()
   }
 
-  if (body.enabled !== undefined) {
-    await putSetting(SETTINGS.MEDIA_MANAGE_ENABLED, body.enabled ? 'true' : 'false')
+  if (enabled !== undefined) {
+    await putSetting(SETTINGS.MEDIA_MANAGE_ENABLED, enabled ? 'true' : 'false')
   }
 
   let importMode: string | undefined
@@ -55,7 +63,7 @@ export default defineEventHandler(async (event) => {
     userId: admin.id,
     username: admin.username,
     details: JSON.stringify({
-      enabled: body.enabled,
+      enabled,
       importMode,
       importExtraFiles: body.importExtraFiles,
       extraFileExtensions

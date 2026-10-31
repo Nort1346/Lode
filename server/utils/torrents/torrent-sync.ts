@@ -42,11 +42,18 @@ const discordInflight = new Set<string>()
 // single import at a time is started per download.
 const organizeInflight = new Set<string>()
 
+// The sync is triggered by API reads as well as by the timer, so two overlapping
+// calls would otherwise run two sweeps over the same snapshot. The second sweep
+// could then reach a row after the first one finished and re-import it, which
+// would overwrite the settled 'done' status with 'skipped'.
+let pendingSweepRunning = false
+
 export function resetSyncDiagnostics(): void {
   firstSyncReported = false
   zeroSeedDownloads.clear()
   discordInflight.clear()
   organizeInflight.clear()
+  pendingSweepRunning = false
 }
 
 interface OrganizeSource {
@@ -108,6 +115,18 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
   try {
     const db = await useDbAsync()
     try {
+      // The pending sweep works from a snapshot taken before the import ran, so
+      // the row may already be settled here (another sweep or the completion
+      // path finished first). Re-read it and leave settled rows alone instead of
+      // overwriting 'done' with the result of a duplicate import.
+      const current = await dbGet(
+        db.select({ status: downloads.organizeStatus }).from(downloads).where(eq(downloads.id, source.id))
+      )
+      if (current !== undefined && current.status !== 'pending') {
+        log.info(`organize skipped, row already settled: id=${source.id} status=${current.status}`)
+        return
+      }
+
       const media = await getMediaConfig()
       if (!media.enabled) {
         await dbRun(db.update(downloads).set({ organizeStatus: 'skipped' }).where(eq(downloads.id, source.id)))
@@ -178,48 +197,57 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
 // A crash between marking a download completed and persisting the import
 // result leaves organizeStatus='pending' on a completed row. Retrying those on
 // every sync heals a missed import without a manual re-download, even when
-// nothing is actively downloading.
+// nothing is actively downloading. Only one sweep runs at a time: a second one
+// would work from the same snapshot and could re-import a row that the first
+// sweep already settled.
 async function retryPendingOrganizes(): Promise<void> {
-  const db = await useDbAsync()
-  const pending = await dbAll(
-    db
-      .select()
-      .from(downloads)
-      .where(and(eq(downloads.status, 'completed'), eq(downloads.organizeStatus, 'pending')))
-  )
+  if (pendingSweepRunning) return
+  pendingSweepRunning = true
 
-  for (const dl of pending) {
-    if (organizeInflight.has(dl.id)) continue
-
-    const hash = dl.torrentHash ?? extractMagnetHash(dl.magnetLink)
-    if (hash === null) {
-      // Without a hash the torrent cannot be addressed; stop retrying and
-      // surface the reason instead of looping on every sync.
-      await dbRun(
-        db
-          .update(downloads)
-          .set({ organizeStatus: 'skipped', organizeError: 'torrent hash unavailable' })
-          .where(eq(downloads.id, dl.id))
-      ).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err)
-        log.warn(`pending organize skip persistence failed: id=${dl.id}: ${msg}`)
-      })
-      continue
-    }
-
-    log.info(`retrying pending organize: id=${dl.id} hash=${hash}`)
-    await organizeAfterComplete(
-      {
-        id: dl.id,
-        savePath: dl.savePath,
-        torrentName: dl.torrentName,
-        label: dl.label,
-        tmdbId: dl.tmdbId,
-        mediaType: dl.mediaType,
-        resolution: dl.resolution
-      },
-      hash
+  try {
+    const db = await useDbAsync()
+    const pending = await dbAll(
+      db
+        .select()
+        .from(downloads)
+        .where(and(eq(downloads.status, 'completed'), eq(downloads.organizeStatus, 'pending')))
     )
+
+    for (const dl of pending) {
+      if (organizeInflight.has(dl.id)) continue
+
+      const hash = dl.torrentHash ?? extractMagnetHash(dl.magnetLink)
+      if (hash === null) {
+        // Without a hash the torrent cannot be addressed; stop retrying and
+        // surface the reason instead of looping on every sync.
+        await dbRun(
+          db
+            .update(downloads)
+            .set({ organizeStatus: 'skipped', organizeError: 'torrent hash unavailable' })
+            .where(eq(downloads.id, dl.id))
+        ).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err)
+          log.warn(`pending organize skip persistence failed: id=${dl.id}: ${msg}`)
+        })
+        continue
+      }
+
+      log.info(`retrying pending organize: id=${dl.id} hash=${hash}`)
+      await organizeAfterComplete(
+        {
+          id: dl.id,
+          savePath: dl.savePath,
+          torrentName: dl.torrentName,
+          label: dl.label,
+          tmdbId: dl.tmdbId,
+          mediaType: dl.mediaType,
+          resolution: dl.resolution
+        },
+        hash
+      )
+    }
+  } finally {
+    pendingSweepRunning = false
   }
 }
 

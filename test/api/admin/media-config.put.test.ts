@@ -68,6 +68,20 @@ describe('admin/media-config.put', () => {
     expect(mockPutSetting).not.toHaveBeenCalled()
   })
 
+  it('rejects a non-boolean enabled instead of enabling on a truthy string', async () => {
+    vi.stubGlobal(
+      'useRuntimeConfig',
+      vi.fn(() => ({}))
+    )
+    vi.stubGlobal(
+      'readBody',
+      vi.fn(async () => ({ enabled: 'false' }))
+    )
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: enabled must be a boolean')
+    expect(mockPutSetting).not.toHaveBeenCalled()
+  })
+
   it('still allows disabling without a staging dir', async () => {
     vi.stubGlobal(
       'useRuntimeConfig',
