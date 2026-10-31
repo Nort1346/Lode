@@ -40,6 +40,38 @@ function isVideoFile(name: string): boolean {
   return VIDEO_EXTENSIONS.has(getExtensionLower(name))
 }
 
+// Folders that hold bonus material (featurettes, trailers, interviews). Files
+// in them are not episodes, so a season pack that ships them must still import
+// cleanly instead of failing on a video without an episode number.
+const EXTRA_DIRECTORIES = new Set([
+  'extras',
+  'extra',
+  'featurette',
+  'featurettes',
+  'trailer',
+  'trailers',
+  'bonus',
+  'bonus features',
+  'behind the scenes',
+  'deleted scenes',
+  'interview',
+  'interviews'
+])
+
+function isInExtraDirectory(name: string): boolean {
+  const segments = name.split('/')
+  // The last segment is the file itself; only folders are checked.
+  segments.pop()
+  return segments.some((segment) =>
+    EXTRA_DIRECTORIES.has(
+      segment
+        .toLowerCase()
+        .replace(/[._\s-]+/g, ' ')
+        .trim()
+    )
+  )
+}
+
 // Torrent paths always use forward slashes, so they are split manually instead
 // of with node:path (which would use the platform separator).
 function splitRelativePath(name: string): { dir: string; base: string } {
@@ -58,7 +90,9 @@ function splitExtension(base: string): { stem: string; ext: string } {
 // first entry only, series import all of them (episodes and season packs).
 export function selectVideoFiles(files: TorrentFile[]): MainFilePick[] {
   return files
-    .filter((file) => !isSampleFile(file.name) && isVideoFile(file.name) && file.size > 0)
+    .filter(
+      (file) => !isSampleFile(file.name) && !isInExtraDirectory(file.name) && isVideoFile(file.name) && file.size > 0
+    )
     .map((file) => ({ index: file.index, name: file.name, size: file.size }))
     .sort((a, b) => b.size - a.size)
 }

@@ -111,9 +111,11 @@ onMounted(fetchConfig)
               class="size-4"
               :class="enabled ? 'text-green-500' : 'text-zinc-400'"
             />
-            <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ t('settings.mediaEnabled') }}</label>
+            <label for="media-enabled" class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+              t('settings.mediaEnabled')
+            }}</label>
           </div>
-          <USwitch :model-value="enabled" :disabled="saving" @update:model-value="saveEnabled" />
+          <USwitch id="media-enabled" :model-value="enabled" :disabled="saving" @update:model-value="saveEnabled" />
         </div>
         <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{{ t('settings.mediaEnabledHint') }}</p>
       </div>
@@ -145,10 +147,16 @@ onMounted(fetchConfig)
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{{
+        <label for="media-import-mode" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{{
           t('settings.mediaImportMode')
         }}</label>
-        <USelect :model-value="importMode" :items="modeOptions" :disabled="saving" @update:model-value="saveMode" />
+        <USelect
+          id="media-import-mode"
+          :model-value="importMode"
+          :items="modeOptions"
+          :disabled="saving"
+          @update:model-value="saveMode"
+        />
         <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{{ t('settings.mediaImportModeHint') }}</p>
       </div>
 
@@ -160,11 +168,12 @@ onMounted(fetchConfig)
               class="size-4"
               :class="importExtraFiles ? 'text-green-500' : 'text-zinc-400'"
             />
-            <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+            <label for="media-extra-files" class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
               t('settings.mediaExtraFiles')
             }}</label>
           </div>
           <USwitch
+            id="media-extra-files"
             :model-value="importExtraFiles"
             :disabled="saving || !enabled"
             @update:model-value="saveExtraFiles"
@@ -174,10 +183,11 @@ onMounted(fetchConfig)
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{{
+        <label for="media-extra-extensions" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{{
           t('settings.mediaExtraExtensions')
         }}</label>
         <UInput
+          id="media-extra-extensions"
           v-model="extraFileExtensions"
           :disabled="saving || !enabled || !importExtraFiles"
           :placeholder="'srt, sub, ass, nfo'"

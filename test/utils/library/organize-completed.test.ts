@@ -216,6 +216,24 @@ describe('organizeCompletedDownload', () => {
     }
   })
 
+  it('imports a season pack that ships featurettes without failing', async () => {
+    const names = ['Show.S01E01.1080p.WEB-DL.mkv', 'Show.S01E02.1080p.WEB-DL.mkv', 'Featurettes/Behind the Scenes.mkv']
+    for (const name of names) await seedStaging(name)
+    const qbit = makeQbit(
+      names.map((name) => makeFile(name, 50)),
+      stagingDir
+    )
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob({ savePath: 'series', torrentName: 'Show.S01', label: 'Show', mediaType: 'tv' }),
+      makeDeps(qbit)
+    )
+
+    expect(result.status).toBe('done')
+    expect(result.importedFiles).toBe(2)
+    await expect(stat(join(libraryDir, 'Show/Featurettes'))).rejects.toThrow()
+  })
+
   it('keeps the episode range for a multi-episode file', async () => {
     await seedStaging('Show.S01E01-E03.1080p.WEB-DL.mkv')
     const qbit = makeQbit([makeFile('Show.S01E01-E03.1080p.WEB-DL.mkv', 50)], stagingDir)

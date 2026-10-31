@@ -52,6 +52,16 @@ describe('selectVideoFiles', () => {
     expect(selectVideoFiles(files).map((pick) => pick.name)).toEqual(['Show.S01E01.mkv', 'Show.S01E02.mkv'])
   })
 
+  it('skips video files inside extras and featurette folders', () => {
+    const files = [
+      makeFile('Show.S01E01.mkv', 300, 0),
+      makeFile('Featurettes/Behind.the.Scenes.mkv', 900, 1),
+      makeFile('Extras/Trailer.mkv', 500, 2),
+      makeFile('Bonus Features/Interview.mkv', 400, 3)
+    ]
+    expect(selectVideoFiles(files).map((pick) => pick.name)).toEqual(['Show.S01E01.mkv'])
+  })
+
   it('returns an empty list without videos', () => {
     expect(selectVideoFiles([makeFile('notes.txt', 10)])).toEqual([])
   })
