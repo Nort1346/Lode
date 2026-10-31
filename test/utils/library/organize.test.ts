@@ -7,7 +7,6 @@ import {
   getExtensionLower,
   sanitizeFileSegment,
   selectExtraFiles,
-  selectMainVideoFile,
   selectVideoFiles
 } from '#server/utils/library/organize'
 import type { TorrentFile } from '#server/types/torrent'
@@ -38,23 +37,6 @@ describe('getExtensionLower', () => {
 
   it('returns empty string without extension', () => {
     expect(getExtensionLower('README')).toBe('')
-  })
-})
-
-describe('selectMainVideoFile', () => {
-  it('picks the largest video file', () => {
-    const files = [makeFile('a.mkv', 100, 0), makeFile('b.mkv', 900, 1), makeFile('poster.jpg', 5000, 2)]
-    expect(selectMainVideoFile(files)?.name).toBe('b.mkv')
-  })
-
-  it('skips samples', () => {
-    const files = [makeFile('movie-sample.mkv', 9000, 0), makeFile('movie.mkv', 100, 1)]
-    expect(selectMainVideoFile(files)?.name).toBe('movie.mkv')
-  })
-
-  it('returns null when no video file exists', () => {
-    expect(selectMainVideoFile([makeFile('poster.jpg', 10)])).toBeNull()
-    expect(selectMainVideoFile([])).toBeNull()
   })
 })
 

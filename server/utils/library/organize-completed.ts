@@ -15,6 +15,7 @@ import {
 import {
   buildAbsoluteTarget,
   importSingleFile,
+  isEexist,
   resolveLibraryDir,
   resolveStagingDir
 } from '#server/utils/library/importer'
@@ -427,8 +428,4 @@ async function targetExists(path: string): Promise<boolean> {
   } catch {
     return false
   }
-}
-
-function isEexist(err: unknown): boolean {
-  return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EEXIST'
 }

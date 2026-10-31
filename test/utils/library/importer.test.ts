@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,6 +9,16 @@ import {
   resolveLibraryDir,
   resolveStagingDir
 } from '#server/utils/library/importer'
+
+// Hardlink support depends on the filesystem (EXDEV, EPERM on SMB/NFS, ...),
+// so the link call is mocked while every other fs helper stays real.
+const mockLink = vi.hoisted(() => vi.fn())
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  mockLink.mockImplementation(actual.link)
+  return { ...actual, link: mockLink }
+})
 
 let workdir = ''
 
@@ -61,6 +71,26 @@ describe('importSingleFile', () => {
     expect(await readFile(target, 'utf8')).toBe('video-bytes')
     const [srcStat, dstStat] = await Promise.all([stat(source), stat(target)])
     expect(dstStat.ino).not.toBe(srcStat.ino)
+  })
+
+  it('falls back to copy when the filesystem rejects hardlinks', async () => {
+    mockLink.mockRejectedValueOnce(Object.assign(new Error('operation not permitted'), { code: 'EPERM' }))
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+
+    const result = await importSingleFile(source, target, 'hardlink')
+
+    expect(result.method).toBe('copy')
+    expect(result.bytes).toBe('video-bytes'.length)
+    expect(await readFile(target, 'utf8')).toBe('video-bytes')
+  })
+
+  it('keeps EEXIST so a duplicate target is skipped instead of overwritten', async () => {
+    mockLink.mockRejectedValueOnce(Object.assign(new Error('file exists'), { code: 'EEXIST' }))
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+
+    await expect(importSingleFile(source, target, 'hardlink')).rejects.toMatchObject({ code: 'EEXIST' })
   })
 
   it('moves the file with move mode', async () => {

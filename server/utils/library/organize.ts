@@ -63,10 +63,6 @@ export function selectVideoFiles(files: TorrentFile[]): MainFilePick[] {
     .sort((a, b) => b.size - a.size)
 }
 
-export function selectMainVideoFile(files: TorrentFile[]): MainFilePick | null {
-  return selectVideoFiles(files)[0] ?? null
-}
-
 // Sidecar files (subtitles, nfo) that belong to one video: same folder, an
 // allowed extension and a stem that starts with the video stem, so
 // `Movie.en.srt` and `Movie.forced.srt` follow `Movie.mkv` but unrelated

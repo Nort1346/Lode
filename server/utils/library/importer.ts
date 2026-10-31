@@ -9,6 +9,10 @@ function isCrossDevice(err: unknown): boolean {
   return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EXDEV'
 }
 
+export function isEexist(err: unknown): boolean {
+  return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EEXIST'
+}
+
 async function targetSize(target: string): Promise<number> {
   return (await stat(target)).size
 }
@@ -51,8 +55,12 @@ export async function importSingleFile(
       // Zero-copy: no bytes were transferred.
       return { method: 'hardlink', bytes: 0 }
     } catch (err) {
+      // EEXIST means the target raced into place and the caller reports a skip.
+      // Every other failure (EXDEV across disks, EPERM/ENOTSUP on SMB/NFS,
+      // EMLINK, ...) falls back to a copy so a filesystem that cannot hardlink
+      // never fails the whole import.
+      if (isEexist(err)) throw err
       const msg = err instanceof Error ? err.message : String(err)
-      if (!isCrossDevice(err)) throw err
       log.info(`hardlink unavailable (${msg}), falling back to copy: ${target}`)
       await copyAtomic(source, target)
       return { method: 'copy', bytes: await targetSize(target) }

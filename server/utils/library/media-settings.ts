@@ -19,8 +19,8 @@ export function parseImportMode(raw: string | undefined): MediaImportMode {
 
 // Comma separated allow-list of sidecar extensions. Empty/invalid input falls
 // back to the defaults instead of disabling the whole import.
-export function parseExtraFileExtensions(raw: string | undefined): string[] {
-  const source = (raw ?? '').trim()
+export function parseExtraFileExtensions(raw: unknown): string[] {
+  const source = typeof raw === 'string' ? raw.trim() : ''
   if (source === '') return [...DEFAULT_EXTRA_FILE_EXTENSIONS]
 
   const parsed = source
