@@ -22,7 +22,11 @@ export const SETTINGS = {
   USER_DEFAULT_MAX_TORRENT_SIZE_GB: 'user_default_max_torrent_size_gb',
   USER_DEFAULT_PRIVATE_TRACKER_LIMIT: 'user_default_private_tracker_limit',
   USER_DEFAULT_MAX_SESSIONS: 'user_default_max_sessions',
-  USER_DEFAULT_CAN_SUBMIT: 'user_default_can_submit'
+  USER_DEFAULT_CAN_SUBMIT: 'user_default_can_submit',
+  MEDIA_MANAGE_ENABLED: 'media_manage_enabled',
+  MEDIA_IMPORT_MODE: 'media_import_mode',
+  MEDIA_IMPORT_EXTRA_FILES: 'media_import_extra_files',
+  MEDIA_EXTRA_FILE_EXTENSIONS: 'media_extra_file_extensions'
 } as const
 
 export type SettingKey = (typeof SETTINGS)[keyof typeof SETTINGS]

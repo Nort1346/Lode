@@ -24,6 +24,8 @@ const { t } = useI18n()
 
     <SettingsQbittorrent v-reveal />
 
+    <SettingsMediaOrganization v-reveal />
+
     <SettingsDefaultLimits v-reveal />
 
     <SettingsSyncProviders v-reveal />

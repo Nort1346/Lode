@@ -1,6 +1,10 @@
+import { dirname, join } from 'node:path'
 import { downloads, users, settings } from '#server/database/schema'
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
+import { organizeCompletedDownload } from '#server/utils/library/organize-completed'
+import { getMediaConfig } from '#server/utils/library/media-settings'
+import type { OrganizeJobInput } from '#server/types/media-organize'
 import { sendDownloadCompleteWebhook } from '#server/utils/notifications/discord'
 import type { DiscordDownloadNotifyInput } from '#server/types/discord'
 import { notifyDownloadComplete } from '#server/utils/notifications/notifications'
@@ -33,10 +37,218 @@ const zeroSeedDownloads = new Set<string>()
 // exactly-once without touching notifiedAt (which the Jellyfin pass owns).
 const discordInflight = new Set<string>()
 
+// Downloads whose library import is currently running. The completion path and
+// the pending sweep can both pick up the same row, so the guard makes sure a
+// single import at a time is started per download.
+const organizeInflight = new Set<string>()
+
+// The sync is triggered by API reads as well as by the timer, so two overlapping
+// calls would otherwise run two sweeps over the same snapshot. The second sweep
+// could then reach a row after the first one finished and re-import it, which
+// would overwrite the settled 'done' status with 'skipped'.
+let pendingSweepRunning = false
+
 export function resetSyncDiagnostics(): void {
   firstSyncReported = false
   zeroSeedDownloads.clear()
   discordInflight.clear()
+  organizeInflight.clear()
+  pendingSweepRunning = false
+}
+
+interface OrganizeSource {
+  id: string
+  savePath: string
+  torrentName: string
+  label: string
+  tmdbId: number | null
+  mediaType: 'movie' | 'tv' | null
+  resolution: string | null
+}
+
+function getLibraryRoots(): Record<string, string> {
+  const config = useRuntimeConfig()
+  return {
+    movies: config.savePathMovies as string,
+    series: config.savePathSeries as string,
+    games: config.savePathGames as string,
+    books: config.savePathBooks as string,
+    music: config.savePathMusic as string
+  }
+}
+
+// Point Jellyfin at the folder the import just wrote to, so the scan starts
+// immediately instead of waiting for the library-wide notification pass.
+async function notifyOrganizedFolder(input: {
+  savePath: string
+  targetRelativePath: string | null
+  importedFiles: number
+}): Promise<void> {
+  if (input.importedFiles === 0 || input.targetRelativePath === null || input.targetRelativePath === '') return
+
+  const jellyfin = useJellyfin()
+  if (jellyfin === null) return
+
+  const libraryRoot = getLibraryRoots()[input.savePath]
+  if (libraryRoot === undefined || libraryRoot === '') return
+
+  const folder = join(libraryRoot, dirname(input.targetRelativePath))
+  try {
+    await jellyfin.notifyMediaUpdated([folder])
+    jellyfin.invalidateLibraryCache()
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    log.warn(`jellyfin notify failed: path=${folder}: ${msg}`)
+  }
+}
+
+// Best-effort library import for a freshly completed download. Never throws:
+// any failure is persisted on the row as organizeStatus='failed' so the sync
+// loop keeps working and the admin can see the reason.
+async function organizeAfterComplete(source: OrganizeSource, hash: string): Promise<void> {
+  if (organizeInflight.has(source.id)) {
+    log.info(`organize already in flight: id=${source.id}`)
+    return
+  }
+  organizeInflight.add(source.id)
+
+  try {
+    const db = await useDbAsync()
+    try {
+      // The pending sweep works from a snapshot taken before the import ran, so
+      // the row may already be settled here (another sweep or the completion
+      // path finished first). Re-read it and leave settled rows alone instead of
+      // overwriting 'done' with the result of a duplicate import.
+      const current = await dbGet(
+        db.select({ status: downloads.organizeStatus }).from(downloads).where(eq(downloads.id, source.id))
+      )
+      if (current !== undefined && current.status !== 'pending') {
+        log.info(`organize skipped, row already settled: id=${source.id} status=${current.status}`)
+        return
+      }
+
+      const media = await getMediaConfig()
+      if (!media.enabled) {
+        await dbRun(db.update(downloads).set({ organizeStatus: 'skipped' }).where(eq(downloads.id, source.id)))
+        return
+      }
+      const config = useRuntimeConfig()
+      const job: OrganizeJobInput = {
+        downloadId: source.id,
+        savePath: source.savePath,
+        torrentName: source.torrentName,
+        label: source.label,
+        tmdbId: source.tmdbId,
+        mediaType: source.mediaType,
+        resolution: source.resolution
+      }
+      const result = await organizeCompletedDownload(hash, job, {
+        qbit: useQBittorrent(),
+        libraryMovies: config.savePathMovies as string,
+        librarySeries: config.savePathSeries as string,
+        // Staging is what makes the import *arr-like: qBittorrent keeps the
+        // torrent intact there and Lode copies/hardlinks out of it.
+        stagingMovies: (config.downloadPathMovies as string | undefined) ?? '',
+        stagingSeries: (config.downloadPathSeries as string | undefined) ?? '',
+        importMode: media.importMode,
+        importExtraFiles: media.importExtraFiles,
+        extraFileExtensions: media.extraFileExtensions
+      })
+      await dbRun(
+        db
+          .update(downloads)
+          .set({
+            organizedPath: result.targetRelativePath,
+            organizeStatus: result.status,
+            organizeError: result.error
+          })
+          .where(eq(downloads.id, source.id))
+      )
+      log.info(
+        `organize ${result.status}: id=${source.id} files=${result.importedFiles} extras=${result.extrasImported} target=${result.targetRelativePath ?? 'none'}${
+          result.error !== null ? ` error="${result.error}"` : ''
+        }`
+      )
+      await notifyOrganizedFolder({
+        savePath: source.savePath,
+        targetRelativePath: result.targetRelativePath,
+        importedFiles: result.importedFiles
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      log.warn(`organize failed: id=${source.id}: ${msg}`)
+      await dbRun(
+        db.update(downloads).set({ organizeStatus: 'failed', organizeError: msg }).where(eq(downloads.id, source.id))
+      ).catch((writeErr: unknown) => {
+        const writeMsg = writeErr instanceof Error ? writeErr.message : String(writeErr)
+        log.warn(`organize failure persistence failed: id=${source.id}: ${writeMsg}`)
+      })
+    }
+  } catch (err) {
+    // Setup failures (e.g. the DB being unreachable) must not escape: callers
+    // fire this job with `void`, so a rejection would be unhandled.
+    const msg = err instanceof Error ? err.message : String(err)
+    log.warn(`organize setup failed: id=${source.id}: ${msg}`)
+  } finally {
+    organizeInflight.delete(source.id)
+  }
+}
+
+// A crash between marking a download completed and persisting the import
+// result leaves organizeStatus='pending' on a completed row. Retrying those on
+// every sync heals a missed import without a manual re-download, even when
+// nothing is actively downloading. Only one sweep runs at a time: a second one
+// would work from the same snapshot and could re-import a row that the first
+// sweep already settled.
+async function retryPendingOrganizes(): Promise<void> {
+  if (pendingSweepRunning) return
+  pendingSweepRunning = true
+
+  try {
+    const db = await useDbAsync()
+    const pending = await dbAll(
+      db
+        .select()
+        .from(downloads)
+        .where(and(eq(downloads.status, 'completed'), eq(downloads.organizeStatus, 'pending')))
+    )
+
+    for (const dl of pending) {
+      if (organizeInflight.has(dl.id)) continue
+
+      const hash = dl.torrentHash ?? extractMagnetHash(dl.magnetLink)
+      if (hash === null) {
+        // Without a hash the torrent cannot be addressed; stop retrying and
+        // surface the reason instead of looping on every sync.
+        await dbRun(
+          db
+            .update(downloads)
+            .set({ organizeStatus: 'skipped', organizeError: 'torrent hash unavailable' })
+            .where(eq(downloads.id, dl.id))
+        ).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err)
+          log.warn(`pending organize skip persistence failed: id=${dl.id}: ${msg}`)
+        })
+        continue
+      }
+
+      log.info(`retrying pending organize: id=${dl.id} hash=${hash}`)
+      await organizeAfterComplete(
+        {
+          id: dl.id,
+          savePath: dl.savePath,
+          torrentName: dl.torrentName,
+          label: dl.label,
+          tmdbId: dl.tmdbId,
+          mediaType: dl.mediaType,
+          resolution: dl.resolution
+        },
+        hash
+      )
+    }
+  } finally {
+    pendingSweepRunning = false
+  }
 }
 
 async function isPrepCountdownEnabled(): Promise<boolean> {
@@ -86,6 +298,14 @@ function notifyDiscord(
 export async function syncTorrentStatus(): Promise<SyncResult> {
   const db = await useDbAsync()
   const result: SyncResult = { synced: 0, completed: 0, failed: 0, removed: 0 }
+
+  // Runs before the early return so a crash-interrupted import is retried even
+  // when nothing is actively downloading. Backgrounded so a long copy cannot
+  // block API reads that trigger a sync.
+  void retryPendingOrganizes().catch((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err)
+    log.warn(`pending organize sweep failed: ${msg}`)
+  })
 
   // Paused and checking rows are synced too so external pause/resume and file verification are picked up
   const activeDownloads = await dbAll(
@@ -197,7 +417,10 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
               downloadSpeed: 0,
               uploadSpeed: 0,
               status: 'completed',
-              completedAt: new Date().toISOString()
+              completedAt: new Date().toISOString(),
+              // The torrent is gone from qBittorrent, so its files cannot be
+              // located reliably - nothing to organize.
+              organizeStatus: 'skipped'
             })
             .where(eq(downloads.id, dl.id))
         )
@@ -300,6 +523,18 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           .where(eq(downloads.id, dl.id))
       )
       result.completed++
+      void organizeAfterComplete(
+        {
+          id: dl.id,
+          savePath: dl.savePath,
+          torrentName: qbitTorrent.name || dl.torrentName,
+          label: dl.label,
+          tmdbId: dl.tmdbId,
+          mediaType: dl.mediaType,
+          resolution: dl.resolution
+        },
+        qbitTorrent.hash
+      )
       if (!countdownEnabled) {
         void notifyDiscord(dl, userMap, discordIdMap)
         void notifyDownloadComplete(
@@ -366,20 +601,13 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
 
 export async function notifyJellyfinIfNeeded(): Promise<void> {
   const db = await useDbAsync()
-  const config = useRuntimeConfig()
   const jellyfin = useJellyfin()
 
   const countdownEnabled = await isPrepCountdownEnabled()
   const prepSpeedMb = await getPrepSpeedMb()
   const prepSpeedBytes = prepSpeedMb * 1024 * 1024
 
-  const savePathMap: Record<string, string> = {
-    movies: config.savePathMovies,
-    series: config.savePathSeries,
-    games: config.savePathGames,
-    books: config.savePathBooks,
-    music: config.savePathMusic
-  }
+  const savePathMap = getLibraryRoots()
 
   const completedWithPrep = (await dbAll(db.select().from(downloads).where(eq(downloads.status, 'completed')))).filter(
     (d) => d.notifiedAt === null
@@ -405,7 +633,13 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
       if (jellyfin !== null) {
         const targetPath = savePathMap[dl.savePath]
         if (targetPath !== undefined) {
-          await jellyfin.notifyMediaUpdated([targetPath]).catch(() => {})
+          // Point Jellyfin at the organized file folder when the import ran,
+          // otherwise fall back to the library root.
+          const notifyPath =
+            typeof dl.organizedPath === 'string' && dl.organizedPath !== ''
+              ? join(targetPath, dirname(dl.organizedPath))
+              : targetPath
+          await jellyfin.notifyMediaUpdated([notifyPath]).catch(() => {})
           needsCacheInvalidation = true
         }
       }

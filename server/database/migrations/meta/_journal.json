@@ -57,6 +57,13 @@
       "when": 1788300000000,
       "tag": "0007_add_must_change_password",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791567798211,
+      "tag": "0008_tiny_mandroid",
+      "breakpoints": true
     }
   ]
 }

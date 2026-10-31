@@ -3,6 +3,8 @@ import { z } from 'zod'
 const configSchema = z.object({
   savePathMovies: z.string().min(1),
   savePathSeries: z.string().min(1),
+  downloadPathMovies: z.string().optional(),
+  downloadPathSeries: z.string().optional(),
   qbittorrentUrl: z.url().default('http://localhost:8080'),
   qbittorrentApiKey: z.string().optional(),
   sessionPassword: z.string().min(32),

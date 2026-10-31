@@ -76,6 +76,8 @@ Configured via environment variables:
 
 Only categories with configured paths appear in the UI.
 
+When a staging dir is configured (`NUXT_DOWNLOAD_PATH_MOVIES` / `NUXT_DOWNLOAD_PATH_SERIES`), qBittorrent downloads there instead and Lode imports the finished files into the library path above (see [download management](./download-management.md#media-organization-optional-arr-style-import)).
+
 ## Admin Privileges
 
 - Bypass all download limits

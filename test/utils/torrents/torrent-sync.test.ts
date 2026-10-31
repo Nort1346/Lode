@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { join } from 'node:path'
 
 const mockGetAllTorrents = vi.fn()
 vi.stubGlobal(
@@ -7,8 +8,10 @@ vi.stubGlobal(
 )
 
 const mockSettingGet = vi.fn((_cond?: { key?: string }) => undefined as { value: string } | undefined)
+const mockStatusGet = vi.fn(() => undefined as { status?: string } | undefined)
 const mockGetSetting = vi.hoisted(() => vi.fn((_key?: string) => undefined as string | undefined))
 const mockActiveAll = vi.fn(() => [] as unknown[])
+const mockPendingAll = vi.fn(() => [] as unknown[])
 const mockUsersAll = vi.fn(() => [] as unknown[])
 const mockRun = vi.fn(() => ({ changes: 1 }))
 const mockSet = vi.fn((_payload: unknown) => ({ where: vi.fn(() => ({ run: mockRun })) }))
@@ -27,6 +30,7 @@ const mockSchema = vi.hoisted(() => ({
     id: 'id',
     userId: 'userId',
     status: 'status',
+    organizeStatus: 'organizeStatus',
     torrentHash: 'torrentHash',
     torrentName: 'torrentName',
     sizeBytes: 'sizeBytes',
@@ -36,9 +40,25 @@ const mockSchema = vi.hoisted(() => ({
   settings: { key: 'key', value: 'value' }
 }))
 
+// The pending sweep queries completed rows with organizeStatus='pending'; the
+// where() mock recognises that composite condition so it can serve a different
+// fixture than the active-download query.
+function isPendingSweepQuery(cond: unknown): boolean {
+  const parts = (cond as { and?: Array<{ key?: string }> } | undefined)?.and
+  return Array.isArray(parts) && parts.some((part) => part.key === 'completed')
+}
+
 const mockDb = {
   select: vi.fn((...args: unknown[]) => {
     if (args.length > 0) {
+      const projection = args[0] as Record<string, unknown> | undefined
+      // The pending retry re-reads organizeStatus before importing; a test can
+      // return a settled row here to simulate a stale sweep snapshot.
+      if (projection !== undefined && projection.status === mockSchema.downloads.organizeStatus) {
+        return {
+          from: vi.fn(() => ({ where: vi.fn(() => ({ get: mockStatusGet })) }))
+        }
+      }
       return {
         from: vi.fn(() => ({
           where: vi.fn((cond: { key?: string }) => ({ get: vi.fn(() => mockSettingGet(cond)) }))
@@ -47,7 +67,9 @@ const mockDb = {
     }
     return {
       from: vi.fn((table: unknown) =>
-        table === mockSchema.downloads ? { where: vi.fn(() => ({ all: mockActiveAll })) } : { all: mockUsersAll }
+        table === mockSchema.downloads
+          ? { where: vi.fn((cond: unknown) => ({ all: isPendingSweepQuery(cond) ? mockPendingAll : mockActiveAll })) }
+          : { all: mockUsersAll }
       )
     }
   }),
@@ -68,7 +90,8 @@ vi.mock('#server/database/schema', () => mockSchema)
 
 vi.mock('drizzle-orm', () => ({
   eq: vi.fn((_col: unknown, val?: string) => ({ key: val })),
-  inArray: vi.fn((_col: unknown, vals?: unknown[]) => ({ in: vals }))
+  inArray: vi.fn((_col: unknown, vals?: unknown[]) => ({ in: vals })),
+  and: vi.fn((...conds: unknown[]) => ({ and: conds }))
 }))
 
 vi.mock('#server/utils/notifications/discord', () => ({
@@ -87,7 +110,30 @@ vi.mock('#server/utils/logger', () => ({
   createLogger: vi.fn(() => mockLog)
 }))
 
+const mockGetMediaConfig = vi.hoisted(() =>
+  vi.fn(async () => ({
+    enabled: false,
+    importMode: 'hardlink',
+    importExtraFiles: false,
+    extraFileExtensions: [] as string[]
+  }))
+)
+const mockOrganizeCompletedDownload = vi.hoisted(() => vi.fn())
+
+vi.mock('#server/utils/library/media-settings', () => ({
+  getMediaConfig: mockGetMediaConfig
+}))
+
+vi.mock('#server/utils/library/organize-completed', () => ({
+  organizeCompletedDownload: mockOrganizeCompletedDownload
+}))
+
 import { syncTorrentStatus, notifyJellyfinIfNeeded, resetSyncDiagnostics } from '#server/utils/torrents/torrent-sync'
+
+const mockJellyfin = {
+  notifyMediaUpdated: vi.fn(() => Promise.resolve()),
+  invalidateLibraryCache: vi.fn()
+}
 
 function makeDl(overrides: Record<string, unknown> = {}) {
   return {
@@ -145,6 +191,20 @@ describe('syncTorrentStatus', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSetting.mockReset()
+    mockStatusGet.mockReset()
+    mockActiveAll.mockReturnValue([])
+    mockPendingAll.mockReturnValue([])
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: false,
+      importMode: 'hardlink',
+      importExtraFiles: false,
+      extraFileExtensions: []
+    })
+    mockOrganizeCompletedDownload.mockReset()
+    mockUseJellyfin.mockReturnValue(null)
+    mockJellyfin.notifyMediaUpdated.mockReset()
+    mockJellyfin.notifyMediaUpdated.mockResolvedValue(undefined)
+    mockJellyfin.invalidateLibraryCache.mockReset()
     resetSyncDiagnostics()
   })
 
@@ -215,6 +275,40 @@ describe('syncTorrentStatus', () => {
         status: 'completed',
         progress: 100,
         etaSeconds: 0
+      })
+    )
+  })
+
+  it('notifies Jellyfin about the imported folder right after a successful organize', async () => {
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: true,
+      importMode: 'hardlink',
+      importExtraFiles: false,
+      extraFileExtensions: []
+    })
+    mockOrganizeCompletedDownload.mockResolvedValue({
+      status: 'done',
+      targetRelativePath: 'Dune (2021)/Dune (2021) 1080p web-dl.mkv',
+      error: null,
+      importedFiles: 1,
+      skippedFiles: 0,
+      extrasImported: 0
+    })
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([makeDl()])
+    mockGetAllTorrents.mockReturnValue([makeQbit({ progress: 1, completion_on: 1 })])
+
+    await syncTorrentStatus()
+
+    // The import is backgrounded, so wait for the post-import notification.
+    await vi.waitFor(() =>
+      expect(mockJellyfin.notifyMediaUpdated).toHaveBeenCalledWith([join('/data/movies', 'Dune (2021)')])
+    )
+    expect(mockJellyfin.invalidateLibraryCache).toHaveBeenCalled()
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizedPath: 'Dune (2021)/Dune (2021) 1080p web-dl.mkv',
+        organizeStatus: 'done'
       })
     )
   })
@@ -542,6 +636,101 @@ describe('syncTorrentStatus', () => {
     expect(mockGetAllTorrents).not.toHaveBeenCalled()
   })
 
+  it('retries a completed download left pending by an interrupted organize run', async () => {
+    mockActiveAll.mockReturnValue([])
+    mockPendingAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        organizeStatus: 'pending',
+        torrentHash: 'h1',
+        completedAt: '2026-01-01T00:10:00.000Z'
+      })
+    ])
+
+    await syncTorrentStatus()
+
+    // The import is backgrounded, so wait for the sweep to persist its outcome.
+    await vi.waitFor(() => expect(mockLog.info).toHaveBeenCalledWith('retrying pending organize: id=dl-1 hash=h1'))
+    await vi.waitFor(() => expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ organizeStatus: 'skipped' })))
+    expect(mockGetAllTorrents).not.toHaveBeenCalled()
+  })
+
+  it('stops retrying a pending organize when the download has no torrent hash', async () => {
+    mockActiveAll.mockReturnValue([])
+    mockPendingAll.mockReturnValue([
+      makeDl({ status: 'completed', organizeStatus: 'pending', torrentHash: null, magnetLink: '' })
+    ])
+
+    await syncTorrentStatus()
+
+    await vi.waitFor(() =>
+      expect(mockSet).toHaveBeenCalledWith({
+        organizeStatus: 'skipped',
+        organizeError: 'torrent hash unavailable'
+      })
+    )
+    expect(mockLog.info).not.toHaveBeenCalledWith(expect.stringContaining('retrying pending organize'))
+  })
+
+  it('does not re-import a row that settled after the sweep snapshot', async () => {
+    mockActiveAll.mockReturnValue([])
+    mockPendingAll.mockReturnValue([makeDl({ status: 'completed', organizeStatus: 'pending', torrentHash: 'h1' })])
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: true,
+      importMode: 'hardlink',
+      importExtraFiles: false,
+      extraFileExtensions: []
+    })
+    // The snapshot said 'pending', but the row was already organized meanwhile.
+    mockStatusGet.mockReturnValue({ status: 'done' })
+
+    await syncTorrentStatus()
+
+    await vi.waitFor(() =>
+      expect(mockLog.info).toHaveBeenCalledWith('organize skipped, row already settled: id=dl-1 status=done')
+    )
+    expect(mockOrganizeCompletedDownload).not.toHaveBeenCalled()
+    expect(mockSet).not.toHaveBeenCalledWith(expect.objectContaining({ organizeStatus: 'skipped' }))
+  })
+
+  it('runs a single pending sweep when the sync is triggered concurrently', async () => {
+    mockActiveAll.mockReturnValue([])
+    mockPendingAll.mockReturnValue([makeDl({ status: 'completed', organizeStatus: 'pending', torrentHash: 'h1' })])
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: true,
+      importMode: 'hardlink',
+      importExtraFiles: false,
+      extraFileExtensions: []
+    })
+    mockStatusGet.mockReturnValue({ status: 'pending' })
+
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    mockOrganizeCompletedDownload.mockImplementation(async () => {
+      await gate
+      return {
+        status: 'done',
+        targetRelativePath: 'Movie/Movie.mkv',
+        error: null,
+        importedFiles: 1,
+        skippedFiles: 0,
+        extrasImported: 0
+      }
+    })
+
+    const first = syncTorrentStatus()
+    const second = syncTorrentStatus()
+    await Promise.all([first, second])
+
+    await vi.waitFor(() => expect(mockOrganizeCompletedDownload).toHaveBeenCalledTimes(1))
+    expect(mockPendingAll).toHaveBeenCalledTimes(1)
+
+    release()
+    await vi.waitFor(() => expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ organizeStatus: 'done' })))
+  })
+
   it('matches the torrent by name when the hash is missing and backfills the hash', async () => {
     mockActiveAll.mockReturnValue([makeDl({ torrentName: 'Movie 2024', downloadedBytes: 500_000_000 })])
     mockGetAllTorrents.mockReturnValue([makeQbit({ hash: 'h2', name: 'Movie 2024 REMAKE', progress: 0.5 })])
@@ -698,11 +887,6 @@ describe('syncTorrentStatus', () => {
 })
 
 describe('notifyJellyfinIfNeeded', () => {
-  const mockJellyfin = {
-    notifyMediaUpdated: vi.fn(() => Promise.resolve()),
-    invalidateLibraryCache: vi.fn()
-  }
-
   // A fixed point in the past so the prep-delay comparison is deterministic
   const completedAtPast = () => new Date(Date.now() - 60_000).toISOString()
 
