@@ -48,6 +48,8 @@ function makeDl(overrides: Partial<Download> = {}): Download {
     posterUrl: null,
     indexerName: null,
     resolution: null,
+    organizeStatus: 'pending',
+    organizeError: null,
     ...overrides
   }
 }
