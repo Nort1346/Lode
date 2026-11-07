@@ -21,6 +21,7 @@ Self-hosted streaming hub for managing torrent downloads. Browse movies and TV s
 - [Jellyfin Integration](./features/jellyfin-integration.md) - Library detection, cache, platform sync, avatar, Live TV, presets
 - [Discord Notifications](./features/discord-notifications.md) - Webhook, locale, mentions, Components V2
 - [Private Trackers](./features/private-trackers.md) - Cookie/login auth, GUID flow, encryption, got-scraping
+- [Prowlarr Indexers](./features/prowlarr-indexers.md) - Add, configure, test and delete Prowlarr indexers from Lode admin
 - [Ranking System](./features/ranking-system.md) - Configurable scoring engine, weights, thresholds
 - [Requests & Wishlist](./features/requests-wishlist.md) - Request flow, wishlist, carousel visibility rules
 - [i18n](./features/i18n.md) - Locales, TMDB locale, server-side i18n, Google Translate prevention
