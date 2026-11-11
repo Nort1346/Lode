@@ -10,7 +10,11 @@ import {
 } from '#shared/torrent-filters'
 import type { TorrentFilterItem, TorrentFiltersState, TorrentIdentity } from '#shared/torrent-filters'
 
-const item = (tags: string[], resolution: string | null = null): TorrentFilterItem => ({ tags, resolution })
+const item = (tags: string[], resolution: string | null = null, indexer = 'IndexerA'): TorrentFilterItem => ({
+  tags,
+  resolution,
+  indexer
+})
 
 const webDl1080 = item(['WEB-DL', 'x264'], '1080p')
 const bluRay720 = item(['BluRay', 'x264'], '720p')
@@ -46,6 +50,27 @@ describe('matchesFilters', () => {
     expect(matchesFilters(webDl1080, state)).toBe(true)
     expect(matchesFilters(item([], '1080p'), state)).toBe(true)
     expect(matchesFilters(bluRay720, state)).toBe(false)
+  })
+
+  it('indexer group matches the item indexer name', () => {
+    const state: TorrentFiltersState = { ...emptyFilters(), indexer: ['IndexerA'] }
+    expect(matchesFilters(webDl1080, state)).toBe(true)
+    expect(matchesFilters(item(['WEB-DL'], '1080p', 'IndexerB'), state)).toBe(false)
+    // OR within the group
+    const both: TorrentFiltersState = { ...emptyFilters(), indexer: ['IndexerA', 'IndexerB'] }
+    expect(matchesFilters(item(['WEB-DL'], '1080p', 'IndexerB'), both)).toBe(true)
+  })
+
+  it('indexer filter is an AND with the other groups', () => {
+    const state: TorrentFiltersState = { ...emptyFilters(), indexer: ['IndexerB'], source: ['WEB-DL'] }
+    expect(matchesFilters(item(['WEB-DL'], '1080p', 'IndexerB'), state)).toBe(true)
+    expect(matchesFilters(item(['BluRay'], '1080p', 'IndexerB'), state)).toBe(false)
+    expect(matchesFilters(item(['WEB-DL'], '1080p', 'IndexerA'), state)).toBe(false)
+  })
+
+  it('an empty indexer never satisfies an indexer selection', () => {
+    const state: TorrentFiltersState = { ...emptyFilters(), indexer: ['IndexerA'] }
+    expect(matchesFilters(item(['WEB-DL'], '1080p', ''), state)).toBe(false)
   })
 
   it('video and audio groups match their tags only', () => {
@@ -97,6 +122,7 @@ describe('matchesFilters', () => {
 describe('hasActiveFilters', () => {
   it('false for empty state, true for any selection or the toggle', () => {
     expect(hasActiveFilters(emptyFilters())).toBe(false)
+    expect(hasActiveFilters({ ...emptyFilters(), indexer: ['IndexerA'] })).toBe(true)
     expect(hasActiveFilters({ ...emptyFilters(), source: ['WEB-DL'] })).toBe(true)
     expect(hasActiveFilters({ ...emptyFilters(), hideCapture: true })).toBe(true)
   })
@@ -107,10 +133,12 @@ describe('collectFilterOptions', () => {
     const options = collectFilterOptions([
       item(['WEB-DL', 'x264', 'Atmos'], '1080p'),
       item(['WEB-DL', 'x265'], '1080p'),
-      item(['BluRay', 'x264'], '720p'),
+      item(['BluRay', 'x264'], '720p', 'IndexerB'),
       item(['CAM'], null)
     ])
     const get = (group: string, tag: string) => options.find((o) => o.group === group && o.tag === tag)
+    expect(get('indexer', 'IndexerA')?.count).toBe(3)
+    expect(get('indexer', 'IndexerB')?.count).toBe(1)
     expect(get('source', 'WEB-DL')?.count).toBe(2)
     expect(get('source', 'BluRay')?.count).toBe(1)
     expect(get('source', 'CAM')?.count).toBe(1)
@@ -125,7 +153,12 @@ describe('collectFilterOptions', () => {
     const options = collectFilterOptions([item(['WEB-DL'], '1080p')])
     expect(options.some((o) => o.group === 'audio')).toBe(false)
     expect(options.some((o) => o.group === 'video')).toBe(false)
-    expect(options.map((o) => o.group)).toEqual(['source', 'resolution'])
+    expect(options.map((o) => o.group)).toEqual(['indexer', 'source', 'resolution'])
+  })
+
+  it('omits an empty indexer name', () => {
+    const options = collectFilterOptions([item(['WEB-DL'], '1080p', '')])
+    expect(options.some((o) => o.group === 'indexer')).toBe(false)
   })
 
   it('ignores ungrouped "other" tags', () => {

@@ -90,6 +90,7 @@
       "title": "Filtros",
       "remove": "Remover {tag}",
       "groups": {
+        "indexer": "Indexador",
         "source": "Fonte",
         "resolution": "Resolução",
         "video": "Video/HDR",

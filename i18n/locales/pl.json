@@ -90,6 +90,7 @@
       "title": "Filtry",
       "remove": "Usuń {tag}",
       "groups": {
+        "indexer": "Indekser",
         "source": "Źródło",
         "resolution": "Rozdzielczość",
         "video": "Video/HDR",
