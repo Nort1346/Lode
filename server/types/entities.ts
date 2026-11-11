@@ -169,7 +169,7 @@ export interface PushSubscription {
   lastUsedAt: string | null
 }
 
-export interface SyncProvider {
+export interface SyncProviderRecord {
   id: string
   userId: string
   providerName: string
@@ -180,7 +180,7 @@ export interface SyncProvider {
   updatedAt: string
 }
 
-export interface SyncUserSettings {
+export interface SyncUserSettingsRecord {
   id: string
   userId: string
   providerName: string

@@ -6,7 +6,7 @@ import { pickAlternativeTitles } from '#server/utils/browse-utils'
 import { titleIsSeasonPack, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
 import { createLogger } from '#server/utils/logger'
 import type { ProwlarrResult, ProwlarrProgressCallback, ProwlarrProgressEvent } from '#server/types/prowlarr'
-import type { RankedTorrent } from '#server/types/ranking'
+import type { RankedTorrent } from '#server/types/torrent'
 import type {
   EpisodePayload,
   EpisodeTorrentPayload,
