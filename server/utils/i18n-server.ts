@@ -10,7 +10,7 @@ import ptBR from '@@/i18n/locales/pt-BR.json'
 
 const messages: Record<string, Messages> = { pl, en, de, fr, es, 'pt-BR': ptBR }
 
-export const DISCORD_LOCALE_OPTIONS: readonly DiscordLocale[] = ['pl', 'en', 'de', 'fr', 'es', 'pt-BR']
+export const DISCORD_LOCALE_OPTIONS = ['pl', 'en', 'de', 'fr', 'es', 'pt-BR'] as const
 
 export function createT(locale: DiscordLocale) {
   const msgs = messages[locale] ?? messages.en

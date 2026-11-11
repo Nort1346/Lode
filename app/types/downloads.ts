@@ -22,6 +22,8 @@ export interface Download {
   posterUrl: string | null
   indexerName: string | null
   resolution: string | null
+  organizeStatus: 'pending' | 'done' | 'failed' | 'skipped'
+  organizeError: string | null
 }
 
 // Response of /api/torrents/add and /api/browse/download.

@@ -18,6 +18,7 @@ import { extractMagnetInfoHashes, primaryTorrentHash } from '#server/utils/clien
 import { computeTorrentInfoHashes, computeTorrentTotalSize, hasUsableHash } from '#server/utils/torrents/info-hash'
 import { resolveUrlTorrentHashes } from '#server/utils/torrents/url-torrent'
 import { findLiveDuplicateByLink } from '#server/utils/torrents/live-duplicate'
+import { resolveStagingDir } from '#server/utils/library/importer'
 import { applySeedingPolicy } from '#server/utils/torrents/seeding'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
@@ -137,11 +138,20 @@ export default defineEventHandler(async (event) => {
       music: config.savePathMusic
     }
 
-    const targetPath = savePathMap[savePath as SavePathKey]
-    if (!targetPath) {
+    const libraryPath = savePathMap[savePath as SavePathKey]
+    if (!libraryPath) {
       log.error(`[Download:4:PATH] ✗ no path for savePath=${savePath}`)
       throw createError({ statusCode: 500, statusMessage: 'Save path not configured' })
     }
+
+    // Optional *arr-style staging: qBittorrent downloads into the staging dir
+    // and Lode imports finished files into the library (media organization).
+    // Without it, downloads land straight in the library as before.
+    const stagingPath = resolveStagingDir(savePath, {
+      downloadPathMovies: (config.downloadPathMovies as string | undefined) ?? '',
+      downloadPathSeries: (config.downloadPathSeries as string | undefined) ?? ''
+    })
+    const targetPath = stagingPath ?? libraryPath
     log.info(`[Download:4:PATH] savePath=${savePath} → ${targetPath}`)
 
     const disks = (config.disks as string)

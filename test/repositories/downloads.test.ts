@@ -36,7 +36,10 @@ function createDb(): SqliteDb {
        is_private INTEGER NOT NULL DEFAULT 0,
        indexer_name TEXT,
        resolution TEXT,
-       qbit_tag TEXT
+       qbit_tag TEXT,
+       organized_path TEXT,
+       organize_status TEXT NOT NULL DEFAULT 'pending',
+       organize_error TEXT
      )
   `)
   return drizzle(sqlite)

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+const { mockGetSetting } = vi.hoisted(() => ({ mockGetSetting: vi.fn() }))
+
 const mockGetUserSession = vi.fn()
 const mockGet = vi.fn()
 const mockRun = vi.fn(() => ({ changes: 1 }))
@@ -34,6 +36,10 @@ vi.stubGlobal(
   }))
 )
 
+vi.mock('#server/utils/settings', () => ({
+  getSetting: mockGetSetting
+}))
+
 vi.mock('#server/database/schema', () => ({
   downloads: { id: 'id', userId: 'userId', torrentHash: 'torrentHash', torrentName: 'torrentName', status: 'status' }
 }))
@@ -44,25 +50,90 @@ vi.mock('drizzle-orm', () => ({
 
 import handler from '#server/api/torrents/[id].delete'
 
+function download(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'dl-1',
+    userId: 'u1',
+    torrentHash: 'abc123',
+    torrentName: 'Movie',
+    organizedPath: null,
+    ...overrides
+  }
+}
+
 describe('torrents/[id].delete', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
+    mockGetSetting.mockResolvedValue(undefined)
   })
 
   const mockEvent = {} as never
 
   it('deletes torrent and files from qBittorrent', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', torrentName: 'Movie' })
+    mockGet.mockReturnValue(download())
     mockDeleteTorrent.mockResolvedValue(undefined)
 
     await handler(mockEvent)
     expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', true)
   })
 
+  it('keeps the files when an organized download was moved into the library', async () => {
+    mockGetSetting.mockResolvedValue('move')
+    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
+    mockDeleteTorrent.mockResolvedValue(undefined)
+
+    await handler(mockEvent)
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', false)
+  })
+
+  it('removes the staging copy in hardlink mode', async () => {
+    mockGetSetting.mockResolvedValue('hardlink')
+    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
+    mockDeleteTorrent.mockResolvedValue(undefined)
+
+    await handler(mockEvent)
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', true)
+  })
+
+  it('keeps files in move mode even without an organized path', async () => {
+    mockGetSetting.mockResolvedValue('move')
+    mockGet.mockReturnValue(download())
+    mockDeleteTorrent.mockResolvedValue(undefined)
+
+    await handler(mockEvent)
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', false)
+  })
+
+  it('removes the staging copy in copy mode', async () => {
+    mockGetSetting.mockResolvedValue('copy')
+    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
+    mockDeleteTorrent.mockResolvedValue(undefined)
+
+    await handler(mockEvent)
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', true)
+  })
+
+  it('assumes move mode when the setting cannot be read', async () => {
+    mockGetSetting.mockRejectedValue(new Error('db down'))
+    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
+    mockDeleteTorrent.mockResolvedValue(undefined)
+
+    await handler(mockEvent)
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', false)
+  })
+
+  it('keeps the files for an unknown import mode', async () => {
+    mockGetSetting.mockResolvedValue('symlink')
+    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
+    mockDeleteTorrent.mockResolvedValue(undefined)
+
+    await handler(mockEvent)
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', false)
+  })
+
   it('sets status to removed (soft delete)', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', torrentName: 'Movie' })
+    mockGet.mockReturnValue(download())
     mockDeleteTorrent.mockResolvedValue(undefined)
 
     await handler(mockEvent)
@@ -70,8 +141,7 @@ describe('torrents/[id].delete', () => {
   })
 
   it('handles qBittorrent offline gracefully', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', torrentName: 'Movie' })
+    mockGet.mockReturnValue(download())
     mockDeleteTorrent.mockRejectedValue(new Error('Connection refused'))
 
     const result = await handler(mockEvent)
@@ -79,9 +149,9 @@ describe('torrents/[id].delete', () => {
     expect(mockRun).toHaveBeenCalled()
   })
 
-  it('logs activity', async () => {
-    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', torrentName: 'Movie' })
+  it('logs activity with the delete-files decision', async () => {
+    mockGetSetting.mockResolvedValue('move')
+    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
     mockDeleteTorrent.mockResolvedValue(undefined)
 
     await handler(mockEvent)
@@ -89,20 +159,20 @@ describe('torrents/[id].delete', () => {
       action: 'torrent_delete',
       userId: 'u1',
       username: 'user1',
-      details: JSON.stringify({ name: 'Movie', hash: 'abc123' })
+      details: JSON.stringify({ name: 'Movie', hash: 'abc123', deleteFiles: false })
     })
   })
 
   it('throws 403 for unauthorized user', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'other', role: 'user', username: 'other' } })
-    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', torrentName: 'Movie' })
+    mockGet.mockReturnValue(download())
 
     await expect(handler(mockEvent)).rejects.toThrow('403: Forbidden')
   })
 
   it('allows admin to delete other user download', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'admin1', role: 'admin', username: 'admin' } })
-    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', torrentName: 'Movie' })
+    mockGet.mockReturnValue(download())
     mockDeleteTorrent.mockResolvedValue(undefined)
 
     const result = await handler(mockEvent)

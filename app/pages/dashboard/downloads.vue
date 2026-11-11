@@ -230,6 +230,19 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   {{ t(`common.status_${dl.status}`) }}
                 </span>
                 <span
+                  v-if="dl.status === 'completed' && dl.organizeStatus === 'done'"
+                  class="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-700 dark:text-green-400"
+                >
+                  {{ t('download.organizeDone') }}
+                </span>
+                <span
+                  v-if="dl.status === 'completed' && dl.organizeStatus === 'failed'"
+                  class="text-xs px-2 py-0.5 rounded-full bg-red-500/15 text-red-700 dark:text-red-400"
+                  :title="dl.organizeError ?? undefined"
+                >
+                  {{ t('download.organizeFailed') }}
+                </span>
+                <span
                   class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400"
                 >
                   {{ savePathLabels[dl.savePath] }}

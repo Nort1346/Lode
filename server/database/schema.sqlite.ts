@@ -58,7 +58,12 @@ export const downloads = sqliteTable(
     isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false),
     indexerName: text('indexer_name'),
     resolution: text('resolution'),
-    qbitTag: text('qbit_tag')
+    qbitTag: text('qbit_tag'),
+    organizedPath: text('organized_path'),
+    organizeStatus: text('organize_status', { enum: ['pending', 'done', 'failed', 'skipped'] })
+      .notNull()
+      .default('pending'),
+    organizeError: text('organize_error')
   },
   // Serves the hot query paths: per-user limit/active checks (user_id + status),
   // torrent-sync global status scans (status), per-user history and range counts (user_id + created_at)

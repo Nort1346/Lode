@@ -304,6 +304,34 @@ describe('torrents/add.post', () => {
     expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({ numSeeds: -1, numLeechs: -1 }))
   })
 
+  it('downloads into the staging dir when configured', async () => {
+    stubConfig({ downloadPathMovies: '/data/downloads/movies' })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'magnet:?xt=urn:btih:abc',
+      '/data/downloads/movies',
+      'movies',
+      expect.stringMatching(/^dl-/)
+    )
+  })
+
+  it('ignores staging dirs for non-media categories', async () => {
+    stubConfig({ downloadPathMovies: '/data/downloads/movies', downloadPathSeries: '/data/downloads/series' })
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'games' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'magnet:?xt=urn:btih:abc',
+      '/data/games',
+      'games',
+      expect.stringMatching(/^dl-/)
+    )
+  })
+
   it('applies the seeding policy after adding the torrent', async () => {
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
 

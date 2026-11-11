@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ef5aa89c-a500-4cbe-a86e-0e03b641c98e",
+  "id": "a811ec2a-2700-49ea-a4b3-3c5df66a9613",
   "prevId": "c7701d95-be2d-4643-98f9-34615d97f0f8",
   "tables": {
     "activity_logs": {
@@ -144,9 +144,7 @@
       "indexes": {
         "idx_custom_trackers_indexer": {
           "name": "idx_custom_trackers_indexer",
-          "columns": [
-            "indexer_name"
-          ],
+          "columns": ["indexer_name"],
           "isUnique": true
         }
       },
@@ -352,30 +350,44 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "organized_path": {
+          "name": "organized_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "organize_status": {
+          "name": "organize_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "organize_error": {
+          "name": "organize_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
         "idx_downloads_user_status": {
           "name": "idx_downloads_user_status",
-          "columns": [
-            "user_id",
-            "status"
-          ],
+          "columns": ["user_id", "status"],
           "isUnique": false
         },
         "idx_downloads_status": {
           "name": "idx_downloads_status",
-          "columns": [
-            "status"
-          ],
+          "columns": ["status"],
           "isUnique": false
         },
         "idx_downloads_user_created": {
           "name": "idx_downloads_user_created",
-          "columns": [
-            "user_id",
-            "created_at"
-          ],
+          "columns": ["user_id", "created_at"],
           "isUnique": false
         }
       },
@@ -435,25 +447,17 @@
       "indexes": {
         "idx_login_attempts_ip": {
           "name": "idx_login_attempts_ip",
-          "columns": [
-            "ip",
-            "created_at"
-          ],
+          "columns": ["ip", "created_at"],
           "isUnique": false
         },
         "idx_login_attempts_username": {
           "name": "idx_login_attempts_username",
-          "columns": [
-            "username",
-            "created_at"
-          ],
+          "columns": ["username", "created_at"],
           "isUnique": false
         },
         "idx_login_attempts_created": {
           "name": "idx_login_attempts_created",
-          "columns": [
-            "created_at"
-          ],
+          "columns": ["created_at"],
           "isUnique": false
         }
       },
@@ -533,17 +537,12 @@
       "indexes": {
         "idx_notifications_user": {
           "name": "idx_notifications_user",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "idx_notifications_user_read": {
           "name": "idx_notifications_user_read",
-          "columns": [
-            "user_id",
-            "read"
-          ],
+          "columns": ["user_id", "read"],
           "isUnique": false
         }
       },
@@ -615,16 +614,12 @@
       "indexes": {
         "idx_push_subscriptions_user": {
           "name": "idx_push_subscriptions_user",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "idx_push_subscriptions_endpoint": {
           "name": "idx_push_subscriptions_endpoint",
-          "columns": [
-            "endpoint"
-          ],
+          "columns": ["endpoint"],
           "isUnique": false
         }
       },
@@ -784,9 +779,7 @@
       "indexes": {
         "idx_sessions_user": {
           "name": "idx_sessions_user",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -885,17 +878,12 @@
       "indexes": {
         "idx_sync_providers_user": {
           "name": "idx_sync_providers_user",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "idx_sync_providers_user_provider": {
           "name": "idx_sync_providers_user_provider",
-          "columns": [
-            "user_id",
-            "provider_name"
-          ],
+          "columns": ["user_id", "provider_name"],
           "isUnique": true
         }
       },
@@ -984,14 +972,6 @@
           "autoincrement": false,
           "default": 0
         },
-        "enable_sync": {
-          "name": "enable_sync",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -1012,17 +992,12 @@
       "indexes": {
         "idx_sync_user_settings_user": {
           "name": "idx_sync_user_settings_user",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "idx_sync_user_settings_user_provider": {
           "name": "idx_sync_user_settings_user_provider",
-          "columns": [
-            "user_id",
-            "provider_name"
-          ],
+          "columns": ["user_id", "provider_name"],
           "isUnique": true
         }
       },
@@ -1183,9 +1158,7 @@
       "indexes": {
         "users_username_unique": {
           "name": "users_username_unique",
-          "columns": [
-            "username"
-          ],
+          "columns": ["username"],
           "isUnique": true
         }
       },
@@ -1250,11 +1223,7 @@
       "indexes": {
         "idx_wishlist_user_media": {
           "name": "idx_wishlist_user_media",
-          "columns": [
-            "user_id",
-            "media_type",
-            "media_id"
-          ],
+          "columns": ["user_id", "media_type", "media_id"],
           "isUnique": true
         }
       },

@@ -48,6 +48,9 @@ export interface Download {
   mediaType: 'movie' | 'tv' | null
   posterUrl: string | null
   isPrivate: boolean
+  organizedPath: string | null
+  organizeStatus: 'pending' | 'done' | 'failed' | 'skipped'
+  organizeError: string | null
 }
 
 export interface DownloadStats {

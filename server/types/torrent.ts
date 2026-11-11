@@ -1,7 +1,26 @@
 import type { InferSelectModel } from 'drizzle-orm'
 import type { downloads } from '#server/database/schema'
+import type { ProwlarrResult } from '#server/types/prowlarr'
 
 export type DownloadRow = InferSelectModel<typeof downloads> & { username?: string }
+
+export interface RankedTorrent extends ProwlarrResult {
+  score: number
+  percentage: number
+  recommended: boolean
+  parsed: ParsedTitle
+  isSeasonPack: boolean
+}
+
+export interface ParsedTitle {
+  resolution: string | null
+  source: string | null
+  language: string | null
+  group: string | null
+  // Display-ready release tags in fixed order (sources first, then video,
+  // audio, other) - e.g. ['WEB-DL', 'x265', '10-bit', 'Atmos']
+  tags: string[]
+}
 
 export const DOWNLOAD_STATUS_VALUES = [
   'pending',

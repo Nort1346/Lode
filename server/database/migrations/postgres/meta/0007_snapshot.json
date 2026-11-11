@@ -1,5 +1,5 @@
 {
-  "id": "106d8599-bdc4-4dc8-8377-a981e1cb442f",
+  "id": "a64d1219-b27b-4956-b8a4-724fb59c1638",
   "prevId": "4e23f775-91f1-4144-af51-9f8bca30c6e6",
   "version": "7",
   "dialect": "postgresql",
@@ -321,6 +321,25 @@
         },
         "qbit_tag": {
           "name": "qbit_tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organized_path": {
+          "name": "organized_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organize_status": {
+          "name": "organize_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "organize_error": {
+          "name": "organize_error",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1052,13 +1071,6 @@
           "notNull": true,
           "default": 0
         },
-        "enable_sync": {
-          "name": "enable_sync",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -1257,9 +1269,7 @@
         "users_username_unique": {
           "name": "users_username_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "username"
-          ]
+          "columns": ["username"]
         }
       },
       "policies": {},

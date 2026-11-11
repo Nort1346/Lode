@@ -17,13 +17,15 @@
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NUXT_SAVE_PATH_MOVIES` | `/data/Movies` | qBittorrent save path for movies (required by config validation) |
-| `NUXT_SAVE_PATH_SERIES` | `/data/Series` | qBittorrent save path for series (required by config validation) |
+| `NUXT_SAVE_PATH_MOVIES` | `/data/Movies` | Library path for movies (required by config validation); qBittorrent's save path when no staging dir is set |
+| `NUXT_SAVE_PATH_SERIES` | `/data/Series` | Library path for series (required by config validation); qBittorrent's save path when no staging dir is set |
 | `NUXT_SAVE_PATH_GAMES` | (empty) | qBittorrent save path for games (optional) |
 | `NUXT_SAVE_PATH_BOOKS` | (empty) | qBittorrent save path for books (optional) |
 | `NUXT_SAVE_PATH_MUSIC` | (empty) | qBittorrent save path for music (optional) |
+| `NUXT_DOWNLOAD_PATH_MOVIES` | (empty) | Optional qBittorrent staging dir for movies; when set, finished downloads are imported into `NUXT_SAVE_PATH_MOVIES`. Required to enable media organization |
+| `NUXT_DOWNLOAD_PATH_SERIES` | (empty) | Optional qBittorrent staging dir for series; when set, finished downloads are imported into `NUXT_SAVE_PATH_SERIES`. Required to enable media organization |
 
-`.env.example` suggests `/media/*` paths for all five categories. Categories without a configured path are hidden from the UI via `GET /api/categories`.
+`.env.example` suggests `/media/*` paths for all five categories. Categories without a configured path are hidden from the UI via `GET /api/categories`. Staging dirs are the exception: they are optional, but media organization cannot be enabled without at least one of them.
 
 ### Optional - Integrations
 

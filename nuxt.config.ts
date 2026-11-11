@@ -52,6 +52,8 @@ export default defineNuxtConfig({
       vapidPublicKey: ''
     },
     session: {
+      // Required by the nuxt-auth-utils module types; overridden at runtime via NUXT_SESSION_PASSWORD.
+      password: '',
       maxAge: 60 * 60 * 24 * 30,
       cookie: {
         secure: !import.meta.dev
@@ -69,6 +71,8 @@ export default defineNuxtConfig({
     plexToken: '',
     savePathMovies: '/data/Movies',
     savePathSeries: '/data/Series',
+    downloadPathMovies: '',
+    downloadPathSeries: '',
     savePathGames: '',
     savePathBooks: '',
     savePathMusic: '',

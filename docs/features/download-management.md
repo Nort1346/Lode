@@ -55,6 +55,35 @@ When a download completes, a simulated "file preparation" countdown is shown:
 - **Disableable**: Can be turned off in admin settings
 - **Purpose**: Gives users a sense of completion even though files are already on disk
 
+## Media Organization (optional, *arr-style import)
+
+Disabled by default. When enabled, finished downloads are imported from the
+staging directory into the library folders, attached to the completion
+detection in `torrent-sync` (nothing runs until a torrent actually completes).
+
+The model follows Radarr/Sonarr: the download client owns the staging folder
+and never writes into the library, so the library only ever contains organized
+files and deleting a torrent never removes a library file. A torrent that was
+added before staging was configured keeps its files in the library root; such a
+row is marked `failed` with "download files live inside the library, not in
+staging" instead of being duplicated into a second folder - re-download it with
+staging configured.
+
+| Feature | Default | What it does |
+|---------|---------|--------------|
+| Master switch (`media_manage_enabled`) | `false` (off) | Enables the whole import. Off = today's behaviour, files stay exactly where qBittorrent put them. Enabling requires at least one staging path (see next row) |
+| Staging dirs (`NUXT_DOWNLOAD_PATH_MOVIES` / `NUXT_DOWNLOAD_PATH_SERIES`) | empty | qBittorrent landing zone; `NUXT_SAVE_PATH_*` stays the library. Files are imported from staging, the torrent stays intact there (seeding-safe). Without a staging dir for a category the download is marked `failed` with "staging dir not configured" instead of being renamed inside the library |
+| Import mode (`media_import_mode`) | `hardlink` | `hardlink` keeps seeding with zero extra space but needs staging + library on one filesystem; cross-device setups (separate `/mnt` disks, SFTP mounts) answer `EXDEV` and auto-fall back to `copy`. `copy` duplicates bytes, `move` relocates and breaks seeding (only with seeding disabled) |
+| Extra files (`media_import_extra_files`) | `false` (off) | Radarr's "Import Extra Files": copies subtitles and sidecars (`.srt`, `.sub`, `.ass`, `.nfo`, list in `media_extra_file_extensions`) next to the imported video, keeping language/forced suffixes (`.en.srt`) |
+| Movie naming | on when enabled | `Title (Year)/Title (Year) Resolution Source.ext`, title/year from TMDB when `tmdbId` is known, otherwise the request label |
+| Series naming | on when enabled | `Series/Season 02/Series - S02E02 Resolution Source.ext`; multi-episode files keep the range (`S02E02-E03`); daily releases use the air year (`Season 2026` + air date) |
+| Main-file pick | always | Movies import the largest non-sample video, `sample` files are skipped. Series import **every** video file, so season packs are fully imported instead of only the biggest episode; videos inside bonus-material folders (`Extras/`, `Featurettes/`, `Trailers/`, `Bonus Features/`, ...) are ignored so they cannot fail the pack. Games/books/music are left untouched (`skipped`) |
+| Status tracking | always | Each download row carries `organized_path`, `organize_status` (`pending`/`done`/`failed`/`skipped`) and `organize_error`; failures never break the sync loop; a second download of the same release is `skipped` with "target already exists"; a partially imported pack is `failed` with the first error so it shows up for the admin. A completed row left `pending` by an interrupted run is retried on the next sync (in-flight guard, idempotent import); rows without a torrent hash are marked `skipped` with the reason |
+| Safe delete | always | Deleting a download keeps the library file: in `hardlink`/`copy` modes only the staging copy is removed, in `move` mode (or an unknown mode) qBittorrent is asked to remove the torrent without touching files |
+| Jellyfin targeting | always | Each successful import notifies Jellyfin about the exact folder it wrote to, so the scan starts right away; the countdown notification targets the organized folder when known, otherwise the library root |
+| Quality choice | manual | The release is always picked by the user - there is no automatic quality selection or upgrading |
+| Admin API | - | `GET/PUT /api/admin/media-config` (`enabled`, `importMode`, `importExtraFiles`, `extraFileExtensions`; `GET` also reports which staging dirs are configured) |
+
 ## Real-Time Updates
 
 ### Torrent Sync Plugin
