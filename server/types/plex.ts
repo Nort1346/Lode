@@ -35,6 +35,7 @@ export interface PlexGuid {
 // Responses contain a lowercase string `guid` (the primary/plex guid) AND an
 // uppercase `Guid` array of external ids - both are preserved as-is.
 export interface PlexLibraryItem {
+  ratingKey?: string
   type?: string
   title?: string
   guid?: string
@@ -81,4 +82,16 @@ export interface PlexHomeUser {
   protected?: boolean | number
   hasPassword?: boolean | number
   restrictionProfile?: string
+}
+
+// A server share as returned by `GET /api/v2/shared_servers` (plex.tv). The
+// shape is community-documented, so the user/machine keys are all optional and
+// matched defensively.
+export interface PlexSharedServer {
+  id: number
+  machineIdentifier?: string
+  machineId?: string
+  invitedId?: number
+  userId?: number
+  userID?: number
 }

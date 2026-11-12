@@ -34,7 +34,9 @@ const mockTv = {
   getHomeUsers: vi.fn(),
   deleteHomeUser: vi.fn(),
   removeShare: vi.fn(),
-  createShare: vi.fn()
+  createShare: vi.fn(),
+  updateShare: vi.fn(),
+  findShareId: vi.fn()
 }
 
 function settings(over: Partial<SyncUserSettings> = {}): SyncUserSettings {
@@ -61,6 +63,7 @@ describe('PlexSyncProvider', () => {
     vi.clearAllMocks()
     mockGetSetting.mockResolvedValue(undefined)
     mockPms.getMachineIdentifier.mockResolvedValue('mid-1')
+    mockTv.findShareId.mockResolvedValue(null)
     provider = new PlexSyncProvider()
   })
 
@@ -180,6 +183,60 @@ describe('PlexSyncProvider', () => {
     await provider.updateUserSettings('42', settings({ libraryAccess: 'all' }))
 
     expect(mockTv.createShare).toHaveBeenCalled()
+  })
+
+  it('updates the existing share instead of recreating it', async () => {
+    configured()
+    mockTv.findShareId.mockResolvedValue(99)
+    mockPms.getSections.mockResolvedValue([{ key: '1', type: 'movie', title: 'Movies' }])
+
+    await provider.updateUserSettings('42', settings({ libraryAccess: 'all', enableLiveTvAccess: true }))
+
+    expect(mockTv.updateShare).toHaveBeenCalledWith(99, 'mid-1', [1], { allowSync: true, allowTuners: true })
+    // The destructive remove+create path must not run when the share exists.
+    expect(mockTv.removeShare).not.toHaveBeenCalled()
+    expect(mockTv.createShare).not.toHaveBeenCalled()
+  })
+
+  it('falls back to remove+create when the share update fails', async () => {
+    configured()
+    mockTv.findShareId.mockResolvedValue(99)
+    mockTv.updateShare.mockRejectedValueOnce(new Error('422 invalid settings'))
+    mockPms.getSections.mockResolvedValue([{ key: '1', type: 'movie', title: 'Movies' }])
+
+    await provider.updateUserSettings('42', settings({ libraryAccess: 'all' }))
+
+    expect(mockTv.removeShare).toHaveBeenCalledWith(42)
+    expect(mockTv.createShare).toHaveBeenCalledWith('mid-1', 42, [1], { allowSync: true, allowTuners: false })
+  })
+
+  it('falls back to remove+create when the share lookup fails', async () => {
+    configured()
+    mockTv.findShareId.mockRejectedValueOnce(new Error('plex.tv down'))
+    mockPms.getSections.mockResolvedValue([{ key: '1', type: 'movie', title: 'Movies' }])
+
+    await provider.updateUserSettings('42', settings({ libraryAccess: 'all' }))
+
+    expect(mockTv.createShare).toHaveBeenCalledWith('mid-1', 42, [1], { allowSync: true, allowTuners: false })
+  })
+
+  it('surfaces a failed share create (the user has no access at that point)', async () => {
+    configured()
+    mockTv.createShare.mockRejectedValueOnce(new Error('boom'))
+    mockPms.getSections.mockResolvedValue([])
+
+    await expect(provider.updateUserSettings('42', settings({ libraryAccess: 'all' }))).rejects.toThrow('boom')
+  })
+
+  it('enableUser tolerates a malformed stored default and falls back to "all"', async () => {
+    configured()
+    mockGetSetting.mockImplementation(async (key: string) =>
+      key === 'plex_default_library_access' ? '{not json' : undefined
+    )
+    mockPms.getSections.mockResolvedValue([{ key: '1', type: 'movie', title: 'Movies' }])
+
+    await expect(provider.enableUser('42')).resolves.toBeUndefined()
+    expect(mockTv.createShare).toHaveBeenCalledWith('mid-1', 42, [1], { allowSync: true, allowTuners: true })
   })
 
   it('deleteUser removes the share then the home user', async () => {

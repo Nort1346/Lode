@@ -365,6 +365,7 @@
     "plexSyncAccess": "Sync (downloads)",
     "plexSyncAccessDesc": "Allows downloading media for offline playback",
     "plexNoLibraries": "No libraries found in Plex",
+    "plexLibrariesError": "Could not load Plex libraries",
     "plexPresets": "Default Plex settings",
     "plexPresetsSaved": "Plex settings saved",
     "plexPresetsError": "Failed to save Plex settings",

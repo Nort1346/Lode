@@ -73,6 +73,30 @@ describe('admin/plex/presets.put', () => {
     expect(mockPutSetting).not.toHaveBeenCalled()
   })
 
+  it('rejects a libraryAccess value that is not "all" or an array', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    mockReadBody.mockResolvedValue({ libraryAccess: 'movies' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Invalid Plex presets payload')
+    expect(mockPutSetting).not.toHaveBeenCalled()
+  })
+
+  it('rejects libraryAccess entries that are not strings', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    mockReadBody.mockResolvedValue({ libraryAccess: [1, 2] })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Invalid Plex presets payload')
+    expect(mockPutSetting).not.toHaveBeenCalled()
+  })
+
+  it('rejects a non-boolean flag', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    mockReadBody.mockResolvedValue({ syncEnabled: 'yes' })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Invalid Plex presets payload')
+    expect(mockPutSetting).not.toHaveBeenCalled()
+  })
+
   it('throws 403 for non-admin', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
 

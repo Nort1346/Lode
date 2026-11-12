@@ -25,6 +25,7 @@ const { status: plexStatus, refresh: refreshPlexStatus } = usePlexStatus()
 // The libraries endpoint is provider-generic; only the shape is shared with Jellyfin.
 const libraries = ref<JellyfinLibrary[]>([])
 const librariesLoading = ref(true)
+const librariesError = ref(false)
 
 const allLibrariesSelected = computed(() => props.plexLibraryAccess === 'all')
 
@@ -34,8 +35,11 @@ async function fetchLibraries() {
     const data = res as Array<{ name: string; libraries: JellyfinLibrary[] }>
     const plex = data.find((p) => p.name === 'plex')
     libraries.value = plex?.libraries ?? []
+    librariesError.value = false
   } catch {
-    // silently fail
+    // Surfaced in the template: an empty list would otherwise read as
+    // "no libraries in Plex", which hides a real connection failure.
+    librariesError.value = true
   } finally {
     librariesLoading.value = false
   }
@@ -98,6 +102,9 @@ onMounted(() => {
         <div v-if="librariesLoading" class="flex items-center gap-2 text-sm text-zinc-400 py-2">
           <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
           {{ t('admin.loading') }}...
+        </div>
+        <div v-else-if="librariesError" class="text-sm text-red-500 dark:text-red-400 py-2">
+          {{ t('admin.plexLibrariesError') }}
         </div>
         <div v-else-if="libraries.length === 0" class="text-sm text-zinc-400 py-2">
           {{ t('admin.plexNoLibraries') }}

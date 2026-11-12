@@ -365,6 +365,7 @@
     "plexSyncAccess": "Synchronizacja (pobieranie)",
     "plexSyncAccessDesc": "Pozwala pobierać multimedia na urządzenie do oglądania offline",
     "plexNoLibraries": "Nie znaleziono bibliotek w Plex",
+    "plexLibrariesError": "Nie udało się wczytać bibliotek Plex",
     "plexPresets": "Domyślne ustawienia Plex",
     "plexPresetsSaved": "Ustawienia Plex zapisane",
     "plexPresetsError": "Nie udało się zapisać ustawień Plex",

@@ -5,6 +5,7 @@ import type {
   PlexMediaContainer,
   PlexSection,
   PlexShareSettings,
+  PlexSharedServer,
   PlexSystemInfo
 } from '#server/types/plex'
 import { createLogger } from '#server/utils/logger'
@@ -20,6 +21,19 @@ const PLEX_CLIENT_IDENTIFIER = 'lode-media-hub'
 const PLEX_TV_BASE_URL = 'https://plex.tv'
 const LIBRARY_CACHE_TTL = 5 * 60 * 1000
 const PAGE_SIZE = 500
+// Hard stop for the section walk. A PMS that ignores the X-Plex-Container-*
+// headers would otherwise re-send the first page forever.
+const MAX_LIBRARY_PAGES = 200
+// Every plex.tv/PMS call is bounded: the post-download refresh is awaited from
+// the torrent sync loop, so a hung Plex must not stall download status updates.
+const REQUEST_TIMEOUT_MS = 10_000
+// Error bodies are only a hint for the logs and plex.tv can echo account data,
+// so cap what ends up in an Error message.
+const ERROR_BODY_LIMIT = 300
+
+function truncateErrorBody(text: string): string {
+  return text.length <= ERROR_BODY_LIMIT ? text : `${text.slice(0, ERROR_BODY_LIMIT)}...`
+}
 
 // Only movie + show sections matter for TMDB in-library detection. Music/photo
 // sections are skipped.
@@ -83,6 +97,7 @@ export class PlexPmsClient {
 
     const response = await fetch(url, {
       ...options,
+      signal: options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         ...this.getAuthHeaders(),
         ...(options.headers as Record<string, string>)
@@ -91,7 +106,7 @@ export class PlexPmsClient {
 
     if (!response.ok && response.status !== 204) {
       const text = await response.text().catch(() => '')
-      throw new Error(`Plex API error ${response.status}: ${text}`)
+      throw new Error(`Plex API error ${response.status}: ${truncateErrorBody(text)}`)
     }
 
     return response
@@ -111,7 +126,7 @@ export class PlexPmsClient {
   // documented (community) to expect the ProcessedMachineIdentifier; the raw id
   // works in most setups but share-creation failures should be investigated here
   // first (the processed id is obtainable from plex.tv /api/v2/resources or the
-  // Plex Web advanced settings). See docs/plex-integration.md.
+  // Plex Web advanced settings).
   async getMachineIdentifier(): Promise<string> {
     if (this.machineIdentifier !== null) return this.machineIdentifier
     const info = await this.getSystemInfo()
@@ -149,9 +164,10 @@ export class PlexPmsClient {
   // 2 show) to avoid pulling episodes for show libraries.
   async getLibraryItems(sectionKey: string, type?: number): Promise<PlexLibraryItem[]> {
     const items: PlexLibraryItem[] = []
+    const seen = new Set<string>()
     let start = 0
 
-    for (;;) {
+    for (let page = 0; page < MAX_LIBRARY_PAGES; page++) {
       const typeParam = type !== undefined ? `&type=${type}` : ''
       const path = `/library/sections/${sectionKey}/all?includeGuids=1${typeParam}`
       const res = await this.request(path, {
@@ -164,8 +180,20 @@ export class PlexPmsClient {
       const container = data.MediaContainer ?? {}
       const batch = container.Metadata ?? []
 
-      items.push(...batch)
       if (batch.length === 0) break
+
+      // Guard against a server that ignores the offset headers and keeps
+      // returning the same page: anything already seen ends the walk.
+      const fresh = batch.filter((item) => item.ratingKey === undefined || !seen.has(item.ratingKey))
+      for (const item of fresh) {
+        if (item.ratingKey !== undefined) seen.add(item.ratingKey)
+        items.push(item)
+      }
+      if (fresh.length < batch.length) {
+        log.warn(`Plex section ${sectionKey} repeated a page at offset ${start}; stopping pagination`)
+        break
+      }
+
       start += batch.length
       if (batch.length < PAGE_SIZE) break
       if (container.totalSize !== undefined && start >= container.totalSize) break
@@ -285,6 +313,7 @@ export class PlexTvClient {
 
     const response = await fetch(url, {
       ...options,
+      signal: options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         ...this.getAuthHeaders(),
         ...(options.headers as Record<string, string>)
@@ -293,7 +322,7 @@ export class PlexTvClient {
 
     if (!response.ok && response.status !== 204) {
       const text = await response.text().catch(() => '')
-      throw new Error(`Plex.tv API error ${response.status}: ${text}`)
+      throw new Error(`Plex.tv API error ${response.status}: ${truncateErrorBody(text)}`)
     }
 
     return response
@@ -330,13 +359,26 @@ export class PlexTvClient {
     return user
   }
 
-  // Invite an existing Plex account by email. The invitee must accept on plex.tv
-  // before the account appears in the home. Uses the v1 endpoint (documented
-  // community-side); we never parse its XML body, only rely on HTTP status.
-  async inviteExistingUser(email: string): Promise<void> {
-    const search = new URLSearchParams()
-    search.set('invitedEmail', email)
-    await this.request(`/api/home/users?${search.toString()}`, { method: 'POST' })
+  // Existing server shares. Used to decide between updating a share and
+  // creating a new one - plex.tv rejects a create when one already exists.
+  async getSharedServers(): Promise<PlexSharedServer[]> {
+    const res = await this.request('/api/v2/shared_servers')
+    const data = (await res.json()) as unknown
+    return extractSharedServers(data)
+  }
+
+  // Finds the share id plex.tv assigned to `userId` on `machineIdentifier`, or
+  // null when the user has no share there yet. Keys are matched defensively:
+  // the v2 shape is community-documented and differs between plex.tv builds.
+  async findShareId(machineIdentifier: string, userId: number): Promise<number | null> {
+    const shares = await this.getSharedServers()
+    const match = shares.find((share) => {
+      const machine = share.machineIdentifier ?? share.machineId
+      if (machine !== undefined && machine !== '' && machine !== machineIdentifier) return false
+      const invited = share.invitedId ?? share.userId ?? share.userID
+      return invited === userId
+    })
+    return match?.id ?? null
   }
 
   async updateHomeUser(userId: number, friendlyName: string): Promise<void> {
@@ -420,6 +462,17 @@ function extractHomeUser(data: unknown): PlexHomeUser | null {
   return rec as unknown as PlexHomeUser
 }
 
+// `GET /api/v2/shared_servers` has been observed as a bare array and wrapped in
+// a `{ shared_servers: [...] }` object depending on the plex.tv build.
+function extractSharedServers(data: unknown): PlexSharedServer[] {
+  if (Array.isArray(data)) return data as PlexSharedServer[]
+  const rec = asRecord(data)
+  if (!rec) return []
+  if (Array.isArray(rec.shared_servers)) return rec.shared_servers as PlexSharedServer[]
+  if (Array.isArray(rec.sharedServers)) return rec.sharedServers as PlexSharedServer[]
+  return []
+}
+
 // ===== Singleton + health check =====
 
 export interface PlexClients {
@@ -433,8 +486,8 @@ let _lastToken = ''
 
 export function usePlex(): PlexClients | null {
   const config = useRuntimeConfig()
-  const url = config.plexUrl as string
-  const token = config.plexToken as string
+  const url = typeof config.plexUrl === 'string' ? config.plexUrl : ''
+  const token = typeof config.plexToken === 'string' ? config.plexToken : ''
 
   if (!url || !token) return null
 
@@ -457,11 +510,7 @@ export function usePlex(): PlexClients | null {
 function describeSystem(info: PlexSystemInfo): string | undefined {
   const parts: string[] = []
   if (info.version !== undefined && info.version !== '') parts.push(info.version)
-  if (
-    info.myPlexSigninState !== undefined &&
-    info.myPlexSigninState !== '' &&
-    info.myPlexSigninState !== 'ok'
-  ) {
+  if (info.myPlexSigninState !== undefined && info.myPlexSigninState !== '' && info.myPlexSigninState !== 'ok') {
     parts.push('server not claimed')
   }
   return parts.length > 0 ? parts.join(' - ') : undefined
@@ -469,8 +518,8 @@ function describeSystem(info: PlexSystemInfo): string | undefined {
 
 export async function checkPlexStatus(): Promise<ServiceStatus> {
   const config = useRuntimeConfig()
-  const url = config.plexUrl as string
-  const token = (config.plexToken as string) || ''
+  const url = typeof config.plexUrl === 'string' ? config.plexUrl : ''
+  const token = typeof config.plexToken === 'string' ? config.plexToken : ''
   if (!url || !token) {
     return { name: 'Plex', configured: false, status: 'not_configured' }
   }
@@ -570,7 +619,7 @@ export async function notifyPlexDownloaded(targetPath: string): Promise<void> {
   try {
     const sections = await clients.pms.getSections()
     const match = sections.find((section) =>
-      (section.Location ?? []).some((loc) => targetPath.startsWith(loc.path))
+      (section.Location ?? []).some((loc) => loc.path !== '' && targetPath.startsWith(loc.path))
     )
 
     if (match !== undefined) {

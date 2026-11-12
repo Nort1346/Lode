@@ -7,8 +7,10 @@ import {
   syncUserEnable,
   getDefaultSyncSettings,
   getPlexSyncSettings,
+  getSyncUserSettings,
   upsertSyncUserSettings
 } from '#server/utils/sync'
+import { plexUserSettingsInputSchema } from '#server/utils/sync/provider-settings'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import type { UpdateUserBody } from '#server/types/admin'
 import { createLogger } from '#server/utils/logger'
@@ -112,21 +114,33 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const plexBody = plexUserSettingsInputSchema.safeParse(body)
+  if (!plexBody.success) {
+    throw createError({ statusCode: 400, statusMessage: 'Invalid Plex user settings' })
+  }
+
+  // Fields absent from the payload keep their stored per-user values. The admin
+  // UI sends only what it edits, so falling back to the global defaults here
+  // would silently reset a user's library selection on an unrelated edit (for
+  // example an admin-assigned password).
+  const existingJellyfinSettings = await getSyncUserSettings(id, 'jellyfin')
+  const existingPlexSettings = await getSyncUserSettings(id, 'plex')
+
   const syncSettings = await getDefaultSyncSettings({
-    libraryAccess: body.jellyfinLibraryAccess,
-    enableVideoTranscoding: body.jellyfinEnableVideoTranscoding,
-    enableAudioTranscoding: body.jellyfinEnableAudioTranscoding,
-    enableRemuxing: body.jellyfinEnableRemuxing,
-    enableLiveTvAccess: body.jellyfinEnableLiveTvAccess,
-    enableLiveTvManagement: body.jellyfinEnableLiveTvManagement,
-    maxActiveSessions: body.jellyfinMaxActiveSessions
+    libraryAccess: body.jellyfinLibraryAccess ?? existingJellyfinSettings.libraryAccess,
+    enableVideoTranscoding: body.jellyfinEnableVideoTranscoding ?? existingJellyfinSettings.enableVideoTranscoding,
+    enableAudioTranscoding: body.jellyfinEnableAudioTranscoding ?? existingJellyfinSettings.enableAudioTranscoding,
+    enableRemuxing: body.jellyfinEnableRemuxing ?? existingJellyfinSettings.enableRemuxing,
+    enableLiveTvAccess: body.jellyfinEnableLiveTvAccess ?? existingJellyfinSettings.enableLiveTvAccess,
+    enableLiveTvManagement: body.jellyfinEnableLiveTvManagement ?? existingJellyfinSettings.enableLiveTvManagement,
+    maxActiveSessions: body.jellyfinMaxActiveSessions ?? existingJellyfinSettings.maxActiveSessions
   })
   // Plex section keys are not Jellyfin library IDs, so its settings ride as a
   // per-provider override instead of reusing the Jellyfin payload above.
   const plexSettings = await getPlexSyncSettings({
-    libraryAccess: body.plexLibraryAccess,
-    enableLiveTvAccess: body.plexEnableLiveTvAccess,
-    enableSync: body.plexEnableSync
+    libraryAccess: plexBody.data.plexLibraryAccess ?? existingPlexSettings.libraryAccess,
+    enableLiveTvAccess: plexBody.data.plexEnableLiveTvAccess ?? existingPlexSettings.enableLiveTvAccess,
+    enableSync: plexBody.data.plexEnableSync ?? existingPlexSettings.enableSync
   })
 
   await upsertSyncUserSettings(id, 'jellyfin', syncSettings)

@@ -365,6 +365,7 @@
     "plexSyncAccess": "Sincronização (downloads)",
     "plexSyncAccessDesc": "Permite baixar mídias para reprodução offline",
     "plexNoLibraries": "Nenhuma biblioteca encontrada no Plex",
+    "plexLibrariesError": "Não foi possível carregar as bibliotecas do Plex",
     "plexPresets": "Configurações padrão do Plex",
     "plexPresetsSaved": "Configurações do Plex salvas",
     "plexPresetsError": "Falha ao salvar as configurações do Plex",

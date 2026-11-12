@@ -365,6 +365,7 @@
     "plexSyncAccess": "Sync (Downloads)",
     "plexSyncAccessDesc": "Erlaubt das Herunterladen von Medien für die Offline-Wiedergabe",
     "plexNoLibraries": "Keine Bibliotheken in Plex gefunden",
+    "plexLibrariesError": "Plex-Bibliotheken konnten nicht geladen werden",
     "plexPresets": "Standard-Plex-Einstellungen",
     "plexPresetsSaved": "Plex-Einstellungen gespeichert",
     "plexPresetsError": "Plex-Einstellungen konnten nicht gespeichert werden",

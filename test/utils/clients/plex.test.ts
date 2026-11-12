@@ -97,7 +97,9 @@ describe('checkPlexStatus', () => {
 
   it('returns up with the version on success', async () => {
     stubConfig('http://plex:32400', 'tok')
-    mockFetch.mockResolvedValueOnce(okResponse({ MediaContainer: { version: '1.43.3.10896', myPlexSigninState: 'ok' } }))
+    mockFetch.mockResolvedValueOnce(
+      okResponse({ MediaContainer: { version: '1.43.3.10896', myPlexSigninState: 'ok' } })
+    )
 
     await expect(checkPlexStatus()).resolves.toEqual({
       name: 'Plex',
@@ -145,9 +147,7 @@ describe('checkPlexStatus', () => {
     stubConfig('http://plex:32400', 'tok')
     mockFetch.mockResolvedValueOnce(errorResponse(500, 'Boom'))
 
-    await expect(checkPlexStatus()).resolves.toEqual(
-      expect.objectContaining({ status: 'error', details: 'HTTP 500' })
-    )
+    await expect(checkPlexStatus()).resolves.toEqual(expect.objectContaining({ status: 'error', details: 'HTTP 500' }))
   })
 
   it('returns error for a malformed response body', async () => {
@@ -250,6 +250,37 @@ describe('PlexPmsClient', () => {
     )
   })
 
+  it('stops when the server repeats a page instead of advancing', async () => {
+    const full = Array.from({ length: 500 }, (_, i) => ({
+      ratingKey: String(i),
+      type: 'movie',
+      Guid: [{ id: `tmdb://${i}` }]
+    }))
+    mockFetch
+      .mockResolvedValueOnce(okResponse({ MediaContainer: { size: 500, Metadata: full } }))
+      .mockResolvedValueOnce(okResponse({ MediaContainer: { size: 500, Metadata: full } }))
+
+    const items = await pms().getLibraryItems('1', 1)
+
+    expect(items).toHaveLength(500)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('bounds a request with a timeout signal', async () => {
+    mockFetch.mockResolvedValueOnce(okResponse({ MediaContainer: { Directory: [] } }))
+
+    await pms().getSections()
+
+    const options = mockFetch.mock.calls[0]?.[1] as RequestInit | undefined
+    expect(options?.signal).toBeDefined()
+  })
+
+  it('truncates a long error body before it reaches the error message', async () => {
+    mockFetch.mockResolvedValueOnce(errorResponse(500, 'x'.repeat(1000)))
+
+    await expect(pms().getSections()).rejects.toThrow(/^Plex API error 500: x{300}\.\.\.$/)
+  })
+
   it('refreshes a single section', async () => {
     mockFetch.mockResolvedValueOnce(okResponse({}))
     await pms().refreshSection('1')
@@ -298,7 +329,9 @@ describe('PlexPmsClient.isItemInLibrary', () => {
   function mockSectionsThenItems(movieGuid: string, showGuid: string) {
     mockFetch
       .mockResolvedValueOnce(okResponse(sections))
-      .mockResolvedValueOnce(okResponse({ MediaContainer: { Metadata: [{ type: 'movie', Guid: [{ id: movieGuid }] }] } }))
+      .mockResolvedValueOnce(
+        okResponse({ MediaContainer: { Metadata: [{ type: 'movie', Guid: [{ id: movieGuid }] }] } })
+      )
       .mockResolvedValueOnce(okResponse({ MediaContainer: { Metadata: [{ type: 'show', Guid: [{ id: showGuid }] }] } }))
   }
 
@@ -345,7 +378,9 @@ describe('PlexPmsClient.isItemInLibrary', () => {
       resolveSections = res
     })
     mockFetch.mockReturnValueOnce(sectionsPromise)
-    mockFetch.mockResolvedValue(okResponse({ MediaContainer: { Metadata: [{ type: 'movie', Guid: [{ id: 'tmdb://812' }] }] } }))
+    mockFetch.mockResolvedValue(
+      okResponse({ MediaContainer: { Metadata: [{ type: 'movie', Guid: [{ id: 'tmdb://812' }] }] } })
+    )
 
     const p1 = client.isItemInLibrary(812)
     const p2 = client.isItemInLibrary(1399)
@@ -434,13 +469,36 @@ describe('PlexTvClient', () => {
     )
   })
 
-  it('invites an existing account by email via the v1 endpoint', async () => {
-    mockFetch.mockResolvedValueOnce(okResponse({}))
-    await new PlexTvClient('tok').inviteExistingUser('a@example.com')
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://plex.tv/api/home/users?invitedEmail=a%40example.com',
-      expect.objectContaining({ method: 'POST' })
+  it('finds an existing share id for a user on this server', async () => {
+    mockFetch.mockResolvedValueOnce(
+      okResponse([
+        { id: 11, machineIdentifier: 'other', invitedId: 42 },
+        { id: 12, machineIdentifier: 'mid', invitedId: 42 },
+        { id: 13, machineIdentifier: 'mid', invitedId: 7 }
+      ])
     )
+
+    await expect(new PlexTvClient('tok').findShareId('mid', 42)).resolves.toBe(12)
+  })
+
+  it('parses a wrapped shared_servers envelope', async () => {
+    mockFetch.mockResolvedValueOnce(okResponse({ shared_servers: [{ id: 5, machineId: 'mid', userID: 9 }] }))
+
+    await expect(new PlexTvClient('tok').findShareId('mid', 9)).resolves.toBe(5)
+  })
+
+  it('returns null when the user has no share on this server', async () => {
+    mockFetch
+      .mockResolvedValueOnce(okResponse([{ id: 12, machineIdentifier: 'mid', invitedId: 42 }]))
+      .mockResolvedValueOnce(okResponse([{ id: 12, machineIdentifier: 'mid', invitedId: 42 }]))
+
+    await expect(new PlexTvClient('tok').findShareId('mid', 7)).resolves.toBeNull()
+    await expect(new PlexTvClient('tok').findShareId('other', 42)).resolves.toBeNull()
+  })
+
+  it('returns null for an unrecognized shares shape', async () => {
+    mockFetch.mockResolvedValueOnce(okResponse({ what: 'even is this' }))
+    await expect(new PlexTvClient('tok').getSharedServers()).resolves.toEqual([])
   })
 
   it('removes a share via /api/v2/sharings/{id}', async () => {
@@ -465,9 +523,7 @@ describe('notifyPlexDownloaded', () => {
 
   // Mocks a sections fetch followed by a refresh POST.
   function mockSectionsThenRefresh() {
-    mockFetch
-      .mockResolvedValueOnce(okResponse(sectionsResponse))
-      .mockResolvedValueOnce(okResponse({}))
+    mockFetch.mockResolvedValueOnce(okResponse(sectionsResponse)).mockResolvedValueOnce(okResponse({}))
   }
 
   function refreshCalls() {
@@ -488,6 +544,25 @@ describe('notifyPlexDownloaded', () => {
     await notifyPlexDownloaded('/data/Movies/Inception (2010)/file.mkv')
 
     expect(String(refreshCalls().at(0)?.[0])).toBe('http://plex:32400/library/sections/1/refresh')
+  })
+
+  it('ignores sections whose location path is empty', async () => {
+    mockFetch
+      .mockResolvedValueOnce(
+        okResponse({
+          MediaContainer: {
+            Directory: [
+              { key: '1', type: 'movie', title: 'Movies', Location: [{ path: '' }] },
+              { key: '2', type: 'show', title: 'TV', Location: [{ path: '/data/Series' }] }
+            ]
+          }
+        })
+      )
+      .mockResolvedValueOnce(okResponse({}))
+
+    await notifyPlexDownloaded('/data/Series/file.mkv')
+
+    expect(String(refreshCalls().at(0)?.[0])).toBe('http://plex:32400/library/sections/2/refresh')
   })
 
   it('falls back to refresh-all when no section matches the path', async () => {

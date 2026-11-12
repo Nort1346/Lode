@@ -365,6 +365,7 @@
     "plexSyncAccess": "Sincronización (descargas)",
     "plexSyncAccessDesc": "Permite descargar contenido para verlo sin conexión",
     "plexNoLibraries": "No se encontraron bibliotecas en Plex",
+    "plexLibrariesError": "No se pudieron cargar las bibliotecas de Plex",
     "plexPresets": "Ajustes de Plex predeterminados",
     "plexPresetsSaved": "Ajustes de Plex guardados",
     "plexPresetsError": "No se pudieron guardar los ajustes de Plex",

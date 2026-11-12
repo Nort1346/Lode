@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import type { SyncProvider, SyncUserData, SyncUserSettings, SyncStatus, ProviderSettingsMap } from './types'
 import { JellyfinSyncProvider } from './providers/jellyfin'
 import { PlexSyncProvider } from './providers/plex'
+import { buildPlexSyncSettings, parseStoredLibraryAccess } from './provider-settings'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
@@ -23,8 +24,7 @@ async function defaultSyncSettingsOverrides(): Promise<{
   maxActiveSessions: number
 }> {
   return {
-    libraryAccess: JSON.parse((await getSetting(SETTINGS.JELLYFIN_DEFAULT_LIBRARY_ACCESS)) ?? '"all"') as
-      string[] | 'all',
+    libraryAccess: parseStoredLibraryAccess(await getSetting(SETTINGS.JELLYFIN_DEFAULT_LIBRARY_ACCESS)),
     enableVideoTranscoding: (await getSetting(SETTINGS.JELLYFIN_DEFAULT_VIDEO_TRANSCODING)) !== 'false',
     enableAudioTranscoding: (await getSetting(SETTINGS.JELLYFIN_DEFAULT_AUDIO_TRANSCODING)) !== 'false',
     enableRemuxing: (await getSetting(SETTINGS.JELLYFIN_DEFAULT_REMUXING)) !== 'false',
@@ -55,28 +55,10 @@ export async function getDefaultSyncSettings(overrides?: {
   }
 }
 
-// Plex defaults, mirroring getDefaultSyncSettings. The Plex model only has
-// library access, Live TV (allowTuners) and downloads (allowSync) per user -
-// the other shared-shape fields are set to harmless filler the provider ignores.
-export async function getPlexSyncSettings(overrides?: {
-  libraryAccess?: string[] | 'all'
-  enableLiveTvAccess?: boolean
-  enableSync?: boolean
-}): Promise<SyncUserSettings> {
-  return {
-    libraryAccess:
-      overrides?.libraryAccess ??
-      (JSON.parse((await getSetting(SETTINGS.PLEX_DEFAULT_LIBRARY_ACCESS)) ?? '"all"') as string[] | 'all'),
-    enableVideoTranscoding: true,
-    enableAudioTranscoding: true,
-    enableRemuxing: true,
-    enableLiveTvAccess:
-      overrides?.enableLiveTvAccess ?? (await getSetting(SETTINGS.PLEX_DEFAULT_LIVE_TV_ACCESS)) !== 'false',
-    enableLiveTvManagement: false,
-    enableSync: overrides?.enableSync ?? (await getSetting(SETTINGS.PLEX_DEFAULT_SYNC)) !== 'false',
-    maxActiveSessions: 0
-  }
-}
+// Plex defaults live in ./provider-settings so the provider can build them
+// without importing the orchestrator (which imports the provider). Re-exported
+// here because every admin route and test reads them from the sync module.
+export { buildPlexSyncSettings as getPlexSyncSettings } from './provider-settings'
 
 export async function getSyncUserSettings(userId: string, providerName: string): Promise<SyncUserSettings> {
   const db = await useDbAsync()
@@ -90,11 +72,11 @@ export async function getSyncUserSettings(userId: string, providerName: string):
   if (!row) {
     // Per-provider fallback defaults: Plex must not inherit the Jellyfin
     // defaults, whose library IDs mean something else on a Plex server.
-    return providerName === 'plex' ? await getPlexSyncSettings() : await defaultSyncSettingsOverrides()
+    return providerName === 'plex' ? await buildPlexSyncSettings() : await defaultSyncSettingsOverrides()
   }
 
   const settings: SyncUserSettings = {
-    libraryAccess: JSON.parse(row.libraryAccess) as string[] | 'all',
+    libraryAccess: parseStoredLibraryAccess(row.libraryAccess),
     enableVideoTranscoding: row.enableVideoTranscoding,
     enableAudioTranscoding: row.enableAudioTranscoding,
     enableRemuxing: row.enableRemuxing,

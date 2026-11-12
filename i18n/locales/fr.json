@@ -365,6 +365,7 @@
     "plexSyncAccess": "Synchronisation (téléchargements)",
     "plexSyncAccessDesc": "Permet de télécharger des médias pour une lecture hors ligne",
     "plexNoLibraries": "Aucune bibliothèque trouvée dans Plex",
+    "plexLibrariesError": "Impossible de charger les bibliothèques Plex",
     "plexPresets": "Paramètres Plex par défaut",
     "plexPresetsSaved": "Paramètres Plex enregistrés",
     "plexPresetsError": "Échec de l'enregistrement des paramètres Plex",

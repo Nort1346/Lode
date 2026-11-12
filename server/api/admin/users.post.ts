@@ -3,6 +3,7 @@ import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { syncNewUser, getDefaultSyncSettings, getPlexSyncSettings } from '#server/utils/sync'
+import { plexUserSettingsInputSchema } from '#server/utils/sync/provider-settings'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import type { CreateUserBody } from '#server/types/admin'
 
@@ -59,10 +60,14 @@ export default defineEventHandler(async (event) => {
   })
   // Plex section keys are not Jellyfin library IDs, so its settings ride as a
   // per-provider override instead of reusing the Jellyfin payload above.
+  const plexBody = plexUserSettingsInputSchema.safeParse(body)
+  if (!plexBody.success) {
+    throw createError({ statusCode: 400, statusMessage: 'Invalid Plex user settings' })
+  }
   const plexSettings = await getPlexSyncSettings({
-    libraryAccess: body.plexLibraryAccess,
-    enableLiveTvAccess: body.plexEnableLiveTvAccess,
-    enableSync: body.plexEnableSync
+    libraryAccess: plexBody.data.plexLibraryAccess,
+    enableLiveTvAccess: plexBody.data.plexEnableLiveTvAccess,
+    enableSync: plexBody.data.plexEnableSync
   })
 
   const hashedPassword = await hash(password, { cost: 12 })
