@@ -108,6 +108,20 @@ describe('admin/users.get', () => {
     expect(users[0]!.plexEnableSync).toBe(false)
   })
 
+  it('falls back to "all" for a corrupt stored library list instead of failing the list', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubDb([{ id: 'u1', username: 'user1', role: 'user' }], [], {
+      libraryAccess: '{broken',
+      enableLiveTvAccess: true,
+      enableSync: true
+    })
+
+    const result = await handler(mockEvent)
+    const users = result as Array<Record<string, unknown>>
+    expect(users[0]!.jellyfinLibraryAccess).toBe('all')
+    expect(users[0]!.plexLibraryAccess).toBe('all')
+  })
+
   it('falls back to plex defaults when no plex row exists', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
     stubDb([{ id: 'u1', username: 'user1', role: 'user' }], [])

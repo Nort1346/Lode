@@ -1,5 +1,9 @@
 export interface SyncProvider {
   name: string
+  // Whether createUser needs a plain-text password. Jellyfin does; Plex creates
+  // managed home users on plex.tv, so a missing password must not block
+  // provisioning there (defaults to true).
+  requiresPassword?: boolean
   isEnabled(): Promise<boolean>
   createUser(data: SyncUserData): Promise<string>
   // Optional: not every provider can set a password (Plex accounts are managed
@@ -71,7 +75,7 @@ export interface JellyfinPresetsBody {
 }
 
 // Plex has no per-user transcoding/remuxing/session controls: those live in the
-// Plex client settings. Only the invite-based sync toggles are configurable.
+// Plex client settings. Only the managed-user sync toggles are configurable.
 export interface PlexPresetsBody {
   syncEnabled?: boolean
   libraryAccess?: string[] | 'all'

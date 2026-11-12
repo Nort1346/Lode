@@ -369,7 +369,7 @@ async function toggleActive(user: { id: string; isActive: boolean }) {
 }
 
 async function forceSync(user: AdminUser) {
-  // Plex-only setups get invite-based wording: there is no local password to
+  // Plex-only setups get managed-user wording: there is no local password to
   // generate, the flow creates a managed home user on the Plex home.
   const plexOnly = plexConfigured.value && !jellyfinConfigured.value
   const confirmed = await confirm({

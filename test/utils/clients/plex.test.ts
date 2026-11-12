@@ -215,6 +215,30 @@ describe('PlexPmsClient', () => {
     )
   })
 
+  it('keeps a single section that Plex collapsed into a bare object', async () => {
+    mockFetch.mockResolvedValueOnce(
+      okResponse({
+        MediaContainer: {
+          Directory: { key: '1', type: 'movie', title: 'Movies', Location: { id: 1, path: '/media/Movies' } }
+        }
+      })
+    )
+
+    await expect(pms().getSections()).resolves.toEqual([
+      { key: '1', type: 'movie', title: 'Movies', Location: [{ id: 1, path: '/media/Movies' }] }
+    ])
+  })
+
+  it('keeps a single metadata item that Plex collapsed into a bare object', async () => {
+    mockFetch.mockResolvedValueOnce(
+      okResponse({ MediaContainer: { Metadata: { type: 'movie', Guid: [{ id: 'tmdb://7' }] } } })
+    )
+
+    const items = await pms().getLibraryItems('1', 1)
+
+    expect(items).toEqual([{ type: 'movie', Guid: [{ id: 'tmdb://7' }] }])
+  })
+
   it('stops paginating on a short page', async () => {
     const small = Array.from({ length: 3 }, (_, i) => ({ type: 'movie', Guid: [{ id: `tmdb://${i}` }] }))
     mockFetch.mockResolvedValueOnce(okResponse({ MediaContainer: { size: 3, Metadata: small } }))
@@ -295,21 +319,6 @@ describe('PlexPmsClient', () => {
     await pms().refreshAll()
     expect(mockFetch).toHaveBeenCalledWith(
       'http://plex:32400/library/sections/refresh',
-      expect.objectContaining({ method: 'POST' })
-    )
-  })
-
-  it('builds a create-section request from query parameters', async () => {
-    mockFetch.mockResolvedValueOnce(okResponse({}))
-    await pms().createSection({
-      name: 'Movies',
-      type: 1,
-      agent: 'tv.plex.agents.movie',
-      language: 'en',
-      locations: ['/media/Movies']
-    })
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://plex:32400/library/sections?name=Movies&type=1&agent=tv.plex.agents.movie&language=en&locations=%2Fmedia%2FMovies',
       expect.objectContaining({ method: 'POST' })
     )
   })
@@ -415,6 +424,11 @@ describe('PlexTvClient', () => {
     expect(users).toEqual([{ id: 3, title: 'Cara' }])
   })
 
+  it('parses a single user Plex collapsed into a bare object', async () => {
+    mockFetch.mockResolvedValueOnce(okResponse({ users: { id: 4, title: 'Dan' } }))
+    await expect(new PlexTvClient('tok').getHomeUsers()).resolves.toEqual([{ id: 4, title: 'Dan' }])
+  })
+
   it('returns [] for an unrecognized shape', async () => {
     mockFetch.mockResolvedValueOnce(okResponse({ what: 'even is this' }))
     await expect(new PlexTvClient('tok').getHomeUsers()).resolves.toEqual([])
@@ -485,6 +499,12 @@ describe('PlexTvClient', () => {
     mockFetch.mockResolvedValueOnce(okResponse({ shared_servers: [{ id: 5, machineId: 'mid', userID: 9 }] }))
 
     await expect(new PlexTvClient('tok').findShareId('mid', 9)).resolves.toBe(5)
+  })
+
+  it('parses a single share Plex collapsed into a bare object', async () => {
+    mockFetch.mockResolvedValueOnce(okResponse({ shared_servers: { id: 6, machineId: 'mid', userID: 9 } }))
+
+    await expect(new PlexTvClient('tok').findShareId('mid', 9)).resolves.toBe(6)
   })
 
   it('returns null when the user has no share on this server', async () => {

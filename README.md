@@ -105,7 +105,7 @@ Lode handles media discovery, release selection, and downloading directly in one
 | **Release ranking**        | Built in               | Via *arr             |
 | **Download**               | Direct to qBittorrent  | Via Sonarr/Radarr    |
 | **Radarr/Sonarr required** | No                     | Yes                  |
-| **Media servers**          | Jellyfin, more planned | Jellyfin, Emby, Plex |
+| **Media servers**          | Jellyfin, Plex         | Jellyfin, Emby, Plex |
 
 The main difference is who controls the release selection and download flow. Lode lets users see the available releases and choose what gets downloaded without adding Radarr or Sonarr to the setup.
 
@@ -184,7 +184,7 @@ Full documentation lives in [`docs/`](./docs/):
 
 ## Roadmap
 
-- [ ] Plex support (additional media server)
+- [x] Plex support (additional media server)
 - [ ] Emby support (additional media server)
 - [ ] Prowlarr indexer management (add/configure indexers from Lode admin)
 - [ ] Home Assistant integration (webhook, sensors, automations)

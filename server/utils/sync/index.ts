@@ -218,7 +218,7 @@ export async function syncUserCreate(
       let providerUserId = await provider.findUserByName(data.username)
 
       if (providerUserId === null) {
-        if (!data.password) {
+        if (!data.password && provider.requiresPassword !== false) {
           log.warn(`${provider.name}: cannot create user "${data.username}" - no password provided, skipping`)
           continue
         }

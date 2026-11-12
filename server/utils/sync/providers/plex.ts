@@ -19,6 +19,9 @@ const log = createLogger('PlexSync')
 //      (allowSync). The Jellyfin-only columns are ignored here.
 export class PlexSyncProvider implements SyncProvider {
   name = 'plex'
+  // Plex users are created on plex.tv with no Lode-side password, so the
+  // orchestrator must not require one to provision them.
+  requiresPassword = false
 
   private getClients(): PlexClients {
     const clients = usePlex()

@@ -46,6 +46,13 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null
 }
 
+// Plex collapses single-element JSON lists into a bare object, so a server with
+// exactly one section (or one library folder) must not lose that entry.
+function asList(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value
+  return value === null || typeof value !== 'object' ? [] : [value]
+}
+
 // plex.tv share flags are sent as 0/1; accepts boolean | number | undefined.
 function plexFlag(value: boolean | number | undefined): number {
   if (value === undefined || value === false || value === 0) return 0
@@ -144,16 +151,24 @@ export class PlexPmsClient {
     const res = await this.request('/library/sections')
     const raw = (await res.json()) as unknown
     const container = asRecord(asRecord(raw)?.MediaContainer) ?? {}
-    const dirs = Array.isArray(container.Directory) ? container.Directory : []
     const sections: PlexSection[] = []
-    for (const dir of dirs) {
+    for (const dir of asList(container.Directory)) {
       const rec = asRecord(dir)
       if (!rec) continue
+      const locations: Array<{ id?: number; path: string }> = []
+      for (const rawLocation of asList(rec.Location)) {
+        const loc = asRecord(rawLocation)
+        if (!loc) continue
+        locations.push({
+          id: typeof loc.id === 'number' ? loc.id : undefined,
+          path: typeof loc.path === 'string' ? loc.path : ''
+        })
+      }
       sections.push({
         key: String(rec.key ?? ''),
         type: String(rec.type ?? ''),
         title: String(rec.title ?? ''),
-        Location: Array.isArray(rec.Location) ? (rec.Location as PlexSection['Location']) : undefined
+        Location: locations.length > 0 ? locations : undefined
       })
     }
     return sections
@@ -178,7 +193,7 @@ export class PlexPmsClient {
       })
       const data = (await res.json()) as { MediaContainer?: PlexMediaContainer<PlexLibraryItem> }
       const container = data.MediaContainer ?? {}
-      const batch = container.Metadata ?? []
+      const batch = asList(container.Metadata) as PlexLibraryItem[]
 
       if (batch.length === 0) break
 
@@ -208,26 +223,6 @@ export class PlexPmsClient {
 
   async refreshAll(): Promise<void> {
     await this.request('/library/sections/refresh', { method: 'POST' })
-  }
-
-  // Used by the Docker setup script to provision libraries on first boot. Plex
-  // accepts these as query parameters (not a JSON body).
-  async createSection(params: {
-    name: string
-    type: number
-    agent: string
-    language: string
-    locations: string[]
-    scanner?: string
-  }): Promise<void> {
-    const search = new URLSearchParams()
-    search.set('name', params.name)
-    search.set('type', String(params.type))
-    search.set('agent', params.agent)
-    search.set('language', params.language)
-    if (params.scanner !== undefined && params.scanner !== '') search.set('scanner', params.scanner)
-    for (const location of params.locations) search.append('locations', location)
-    await this.request(`/library/sections?${search.toString()}`, { method: 'POST' })
   }
 
   // ===== TMDB in-library set (5-min TTL + in-flight dedupe, mirrors Jellyfin) =====
@@ -443,9 +438,13 @@ function extractHomeUsers(data: unknown): PlexHomeUser[] {
   if (Array.isArray(data)) return data as PlexHomeUser[]
   const rec = asRecord(data)
   if (!rec) return []
-  if (Array.isArray(rec.users)) return rec.users as PlexHomeUser[]
+  const users = asList(rec.users)
+  if (users.length > 0) return users as PlexHomeUser[]
   const home = asRecord(rec.home)
-  if (home && Array.isArray(home.users)) return home.users as PlexHomeUser[]
+  if (home) {
+    const homeUsers = asList(home.users)
+    if (homeUsers.length > 0) return homeUsers as PlexHomeUser[]
+  }
   return []
 }
 
@@ -468,9 +467,9 @@ function extractSharedServers(data: unknown): PlexSharedServer[] {
   if (Array.isArray(data)) return data as PlexSharedServer[]
   const rec = asRecord(data)
   if (!rec) return []
-  if (Array.isArray(rec.shared_servers)) return rec.shared_servers as PlexSharedServer[]
-  if (Array.isArray(rec.sharedServers)) return rec.sharedServers as PlexSharedServer[]
-  return []
+  const snake = asList(rec.shared_servers)
+  if (snake.length > 0) return snake as PlexSharedServer[]
+  return asList(rec.sharedServers) as PlexSharedServer[]
 }
 
 // ===== Singleton + health check =====

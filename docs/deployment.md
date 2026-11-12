@@ -64,6 +64,8 @@ The [auto-setup script](../README.md#quick-start) selects these overlays for you
 | `prowlarr-config` | Prowlarr config | Indexer manager state |
 | `jellyfin-config` | Jellyfin config | Media server state |
 | `jellyfin-cache` | Jellyfin cache | Media server cache |
+| `plex-config` | Plex config | Media server state (claim, token, libraries) |
+| `plex-transcode` | Plex transcode | Transcode scratch space |
 | `postgres-data` | PostgreSQL data | Database persistence (postgres compose only) |
 
 ## Dockerfile Stages
@@ -87,7 +89,7 @@ The [auto-setup script](../README.md#quick-start) selects these overlays for you
 - Creates `appuser:nodejs` (1001:1001)
 - Copies: `.output`, `node_modules` (prebuilt native binaries), migrations, scripts
 - `NODE_ENV=production`, exposes 5757
-- Entrypoint runs migrations → Jellyfin library setup → drops privileges → starts app
+- Entrypoint runs migrations → Jellyfin library setup → Plex library setup → drops privileges → starts app
 
 ### Entrypoint
 
@@ -100,6 +102,7 @@ mkdir -p /app/.output/public/avatars
 chown -R appuser:nodejs /app/.output/public/avatars
 gosu appuser node scripts/migrate.mjs
 gosu appuser node scripts/setup-jellyfin.mjs
+gosu appuser node scripts/setup-plex.mjs
 exec gosu appuser "$@"
 ```
 
@@ -111,7 +114,22 @@ exec gosu appuser "$@"
 4. **Enable Redis** for caching (`NUXT_REDIS_URL`)
 5. **Configure disk monitoring** with `NUXT_DISKS=/mnt/storage`
 6. **Set up Discord webhook** for download notifications
-7. **Configure Jellyfin** for media server sync
+7. **Configure Jellyfin and/or Plex** for media server sync
+
+## Plex
+
+The `plex` overlay runs `plexinc/pms-docker` on port 32400 with `./media` mounted read-write and named volumes for config and transcoding:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.plex.yml up -d
+```
+
+1. **Claim the server** (first run only): create a token at <https://plex.tv/claim> and uncomment `PLEX_CLAIM` in `docker-compose.plex.yml`, or open `http://localhost:32400/web` and sign in. Lode needs a claimed server - an unclaimed PMS cannot manage users, which the Plex status endpoint reports as `myPlexSigninState`.
+2. **Set the token**: `NUXT_PLEX_URL=http://plex:32400` and `NUXT_PLEX_TOKEN=<X-Plex-Token>` in `.env`. The token is account-wide (used against both the PMS and plex.tv) - do not share it.
+3. **Libraries**: `scripts/setup-plex.mjs` runs on every container start and creates the `Movies` (`/media/Movies`) and `TV Shows` (`/media/Series`) sections when they are missing, re-adding a missing folder to an existing section. If your media lives elsewhere, create the sections manually in Plex - the script only wires up its own defaults.
+4. **Users**: enable Plex sync in Admin → Settings → Sync Providers. New users get a managed home user on your Plex account plus a server share; no per-user Plex password is stored.
+
+Plex share endpoints live in `PlexTvClient` (`server/utils/clients/plex.ts`) and are community-documented, so a plex.tv response-shape change is a one-file fix.
 
 ## Environment Variables
 

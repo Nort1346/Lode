@@ -43,7 +43,12 @@ export default defineEventHandler(async (event) => {
   // The sync loop applies settings to every enabled provider; Plex needs its
   // own (its section keys are not Jellyfin library IDs), so pass them along.
   const plexSettings = await getSyncUserSettings(id, 'plex')
-  const existingMapping = await getProviderUserId(id, 'jellyfin')
+  // A mapping on any provider means the external account already exists, so a
+  // force sync must not mint a new temporary password (that would silently
+  // replace the user's Lode password, e.g. on a Plex-only setup).
+  const jellyfinMapping = await getProviderUserId(id, 'jellyfin')
+  const plexMapping = await getProviderUserId(id, 'plex')
+  const existingMapping = jellyfinMapping ?? plexMapping
 
   let action: 'synced' | 'created'
   let tempPassword: string | undefined

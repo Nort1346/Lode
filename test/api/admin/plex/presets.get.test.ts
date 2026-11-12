@@ -84,6 +84,17 @@ describe('admin/plex/presets.get', () => {
     expect(result.libraryAccess).toBe('all')
   })
 
+  it('falls back to all when the stored array holds non-string entries', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    mockGetSetting.mockImplementation((key: string) => {
+      if (key === 'plex_default_library_access') return '[1,2]'
+      return ''
+    })
+
+    const result = await handler(mockEvent)
+    expect(result.libraryAccess).toBe('all')
+  })
+
   it('throws 403 for non-admin', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
 

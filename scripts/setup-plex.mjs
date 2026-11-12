@@ -54,9 +54,16 @@ async function getSections() {
   const res = await fetch(`${PLEX_URL}/library/sections`, { headers: HEADERS })
   if (!res.ok) throw new Error(`Failed to fetch sections: ${res.status}`)
   const data = await res.json()
-  const dirs = data?.MediaContainer?.Directory ?? []
+  const dirs = asArray(data?.MediaContainer?.Directory)
   console.log(`[plex-setup] Found ${dirs.length} existing section(s)`)
-  return Array.isArray(dirs) ? dirs : []
+  return dirs
+}
+
+// Plex collapses single-element JSON lists into a bare object, so a library with
+// exactly one section (or one folder) would otherwise be skipped entirely.
+function asArray(value) {
+  if (Array.isArray(value)) return value
+  return value !== null && typeof value === 'object' ? [value] : []
 }
 
 async function createSection(name, type, agent, scanner) {
@@ -88,10 +95,10 @@ async function addSectionPath(key, path) {
   return res.ok
 }
 
-// JSON sections carry their folders in DirectoryLocation: [{ path }]
+// JSON sections carry their folders in `Location: [{ path }]`; older builds and
+// some wrappers expose the same list as `DirectoryLocation`.
 function sectionPaths(dir) {
-  const locations = dir?.DirectoryLocation
-  if (!Array.isArray(locations)) return []
+  const locations = asArray(dir?.Location ?? dir?.DirectoryLocation)
   return locations.map((loc) => loc?.path).filter((p) => typeof p === 'string')
 }
 
@@ -130,7 +137,7 @@ async function main() {
       continue
     }
 
-    // The new section's key is the highest numeric key PMS handed out.
+    // Re-read the section list to pick up the key PMS assigned to the new section.
     const refreshed = await getSections().catch(() => [])
     const createdSection = refreshed.find((s) => s.title === section.name)
     if (createdSection) {

@@ -32,7 +32,7 @@ vi.mock('#server/utils/sync/providers/jellyfin', () => ({
 }))
 
 // The plex mock intentionally omits updateUserPassword / updateUser to mirror the
-// real PlexSyncProvider (invite-based: no API-settable password). This lets the
+// real PlexSyncProvider (managed users: no API-settable password). This lets the
 // two-provider scenarios exercise the D3 guard in the orchestrator.
 const plexProviderMocks = vi.hoisted(() => ({
   isEnabled: vi.fn(),
@@ -49,6 +49,7 @@ const plexProviderMocks = vi.hoisted(() => ({
 vi.mock('#server/utils/sync/providers/plex', () => ({
   PlexSyncProvider: class {
     name = 'plex'
+    requiresPassword = false
     isEnabled = plexProviderMocks.isEnabled
     findUserByName = plexProviderMocks.findUserByName
     createUser = plexProviderMocks.createUser
@@ -753,6 +754,12 @@ describe('provider matrix: plex-only', () => {
 
     expect(plexProviderMocks.findUserByName).not.toHaveBeenCalled()
     expect(plexProviderMocks.createUser).not.toHaveBeenCalled()
+  })
+
+  it('creates the plex user even when no password is provided', async () => {
+    await syncUserCreate('u1', { username: 'bob', password: '' }, settings)
+
+    expect(plexProviderMocks.createUser).toHaveBeenCalledWith({ username: 'bob', password: '' })
   })
 })
 

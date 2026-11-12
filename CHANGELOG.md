@@ -5,13 +5,13 @@ All notable changes to Lode will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.1.0] - 2026-10-26
+## [1.1.0] - 2026-11-21
 
-Plex Media Server is now a first-class sync provider alongside Jellyfin: users are invited as managed home users on the owner's Plex account, with per-user library, Live TV and Sync (download) access, Plex blocks in the admin UI, and a `plex` Docker overlay. Jellyfin-only setups behave exactly as before.
+Plex Media Server is now a first-class sync provider alongside Jellyfin: Lode creates managed home users under the owner's Plex account, with per-user library, Live TV and Sync (download) access, Plex blocks in the admin UI, and a `plex` Docker overlay. Jellyfin-only setups behave exactly as before.
 
 ### Added
 
-- Sync: Plex Media Server provider - invite-based user model (no per-user passwords), per-user library access, Live TV and Sync (download) toggles
+- Sync: Plex Media Server provider - managed home users on the owner's account (no per-user passwords), per-user library access, Live TV and Sync (download) toggles
 - Admin: Plex presets routes (library access, Live TV, Sync), a Plex status endpoint reporting version and sign-in state, and per-user Plex settings on user create/edit
 - UI: Plex block in Settings > Sync Providers and per-user Plex fields in the user editor, translated for all six locales
 - Browse: "in library" now reflects every connected media server (Jellyfin and/or Plex)

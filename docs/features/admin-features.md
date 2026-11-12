@@ -83,7 +83,7 @@ The Jellyfin check is exposed as `checkJellyfinStatus()` in `server/utils/client
 - `GET /api/admin/system-status` - includes Jellyfin among all service checks
 - `GET /api/admin/jellyfin/status` - Jellyfin-only, cheap (no other network calls)
 
-When a configured Jellyfin is `invalid` (rejected API key), `down` (unreachable), or `error`, the Settings > Sync Providers panel and the per-user Jellyfin fields show a warning banner (`JellyfinStatusBanner`) so a broken setup is visually separated from "not configured at all".
+When a configured Jellyfin is `invalid` (rejected API key), `down` (unreachable), or `error`, the Settings > Sync Providers panel and the per-user Jellyfin fields show a warning banner (the shared `MediaServerStatusBanner`) so a broken setup is visually separated from "not configured at all".
 
 ### Plex health
 

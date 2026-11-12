@@ -62,7 +62,7 @@ Cannot delete admin users. Jellyfin delete must succeed before local delete. All
 POST /api/admin/users/[id]/sync
 ```
 
-Re-syncs the user with every configured media server (Jellyfin, Plex, or both): updates the existing account, or creates one when no mapping exists - a Jellyfin user with a generated temporary password (returned in the response), and a Plex user invited as a managed home user. The avatar is re-synced when present (Jellyfin only - Plex has no avatar API).
+Re-syncs the user with every configured media server (Jellyfin, Plex, or both): updates the existing account, or creates one when no mapping exists - a Jellyfin user with a generated temporary password (returned in the response), and a Plex managed home user on the owner's account (no email invite). The avatar is re-synced when present (Jellyfin only - Plex has no avatar API).
 
 ### Response
 ```json
@@ -331,6 +331,16 @@ Jellyfin-only health check (cheap - no other service calls). See [Admin Features
 GET /api/admin/plex/presets
 ```
 
+### Response
+```json
+{
+  "syncEnabled": true,
+  "libraryAccess": "all",
+  "liveTvAccess": true,
+  "sync": true
+}
+```
+
 ### Update Presets
 ```
 PUT /api/admin/plex/presets
@@ -346,7 +356,7 @@ PUT /api/admin/plex/presets
 }
 ```
 
-`libraryAccess` is `"all"` or a list of Plex section IDs. `liveTvAccess` allows watching live TV; `sync` allows downloading media (Plex Sync).
+`libraryAccess` is `"all"` or a list of Plex section IDs. `liveTvAccess` allows watching live TV; `sync` allows downloading media (Plex Sync). Every field is optional - omitted fields keep their stored value. A malformed `libraryAccess` (not `"all"` and not a list of non-empty strings) or a non-boolean flag is rejected with `400`.
 
 ### Plex Status
 ```

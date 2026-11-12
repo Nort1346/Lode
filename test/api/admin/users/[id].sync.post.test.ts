@@ -151,6 +151,24 @@ describe('admin/users/[id]/sync.post', () => {
     expect(mockHash).not.toHaveBeenCalled()
   })
 
+  it('re-syncs a Plex-only user without generating a password', async () => {
+    vi.stubGlobal(
+      'getRouterParam',
+      vi.fn(() => 'u1')
+    )
+    stubDb(makeUser())
+    mockGetProviderUserId.mockImplementation(async (_id: string, provider: string) =>
+      provider === 'plex' ? 'plex-1' : null
+    )
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ success: true, action: 'synced', tempPassword: undefined })
+    expect(mockSyncUserUpdate).toHaveBeenCalled()
+    expect(mockSyncUserCreate).not.toHaveBeenCalled()
+    expect(mockHash).not.toHaveBeenCalled()
+  })
+
   it('creates a new mapping with a generated temp password when none exists', async () => {
     vi.stubGlobal(
       'getRouterParam',
