@@ -4,6 +4,9 @@ import { parseIndexerIds, requireProwlarrAdminClient, runProwlarrAdmin } from '#
 export default defineEventHandler(async (event) => {
   const user = await requireAdmin(event)
   const body = await readBody<IndexerBulkUpdateBody>(event)
+  if (body === undefined) {
+    throw createError({ statusCode: 400, statusMessage: 'Request body is required' })
+  }
   const ids = parseIndexerIds(body.ids)
 
   if (typeof body.enable !== 'boolean') {

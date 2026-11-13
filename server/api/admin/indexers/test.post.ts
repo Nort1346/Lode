@@ -12,7 +12,7 @@ export default defineEventHandler(async (event): Promise<IndexerTestResult> => {
   const client = requireProwlarrAdminClient()
 
   if (body?.indexer !== undefined && body.indexer !== null) {
-    const existingId = body.id
+    const existingId = body.id === undefined ? undefined : parseIndexerId(String(body.id))
     const base = existingId !== undefined ? await runProwlarrAdmin(() => client.getIndexerRaw(existingId)) : undefined
     const resource = buildIndexerResource(body.indexer, base)
     const result = await runProwlarrAdmin(() => client.testIndexer(resource))

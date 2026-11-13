@@ -1,5 +1,10 @@
 import type { IndexerCaptchaResponse, IndexerTestBody } from '#shared/indexers'
-import { buildIndexerResource, requireProwlarrAdminClient, runProwlarrAdmin } from '#server/utils/prowlarr-admin'
+import {
+  buildIndexerResource,
+  parseIndexerId,
+  requireProwlarrAdminClient,
+  runProwlarrAdmin
+} from '#server/utils/prowlarr-admin'
 
 export default defineEventHandler(async (event): Promise<IndexerCaptchaResponse> => {
   await requireAdmin(event)
@@ -7,17 +12,17 @@ export default defineEventHandler(async (event): Promise<IndexerCaptchaResponse>
   const client = requireProwlarrAdminClient()
 
   if (body?.indexer !== undefined && body.indexer !== null) {
-    const existingId = body.id
+    const existingId = body.id === undefined ? undefined : parseIndexerId(String(body.id))
     const base = existingId !== undefined ? await runProwlarrAdmin(() => client.getIndexerRaw(existingId)) : undefined
     const resource = buildIndexerResource(body.indexer, base)
     return runProwlarrAdmin(() => client.checkCaptcha(resource))
   }
 
-  const secondId = body?.id
-  if (secondId === undefined) {
+  if (body?.id === undefined) {
     throw createError({ statusCode: 400, statusMessage: 'id or indexer is required' })
   }
 
-  const raw = await runProwlarrAdmin(() => client.getIndexerRaw(secondId))
+  const id = parseIndexerId(String(body.id))
+  const raw = await runProwlarrAdmin(() => client.getIndexerRaw(id))
   return runProwlarrAdmin(() => client.checkCaptcha(raw))
 })

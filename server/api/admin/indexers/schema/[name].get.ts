@@ -1,5 +1,10 @@
 import type { IndexerDefinitionResponse } from '#shared/indexers'
-import { getProwlarrIndexerSchema, runProwlarrAdmin, toDefinitionDetail } from '#server/utils/prowlarr-admin'
+import {
+  getProwlarrIndexerSchema,
+  requireProwlarrAdminClient,
+  runProwlarrAdmin,
+  toDefinitionDetail
+} from '#server/utils/prowlarr-admin'
 
 export default defineEventHandler(async (event): Promise<IndexerDefinitionResponse> => {
   await requireAdmin(event)
@@ -8,6 +13,7 @@ export default defineEventHandler(async (event): Promise<IndexerDefinitionRespon
     throw createError({ statusCode: 400, statusMessage: 'Definition name is required' })
   }
 
+  requireProwlarrAdminClient()
   const definitions = await runProwlarrAdmin(() => getProwlarrIndexerSchema())
   const lower = name.toLowerCase()
   const definition =

@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const user = await requireAdmin(event)
   const body = await readBody<IndexerSaveBody>(event)
 
-  if (body.indexer === undefined || body.indexer === null) {
+  if (body === undefined || body.indexer === undefined || body.indexer === null) {
     throw createError({ statusCode: 400, statusMessage: 'indexer is required' })
   }
 

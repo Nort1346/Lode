@@ -103,6 +103,13 @@ describe('admin/indexers/index.post', () => {
     expect(mocks.client.createIndexer).not.toHaveBeenCalled()
   })
 
+  it('rejects an empty request body', async () => {
+    mocks.readBody.mockResolvedValue(undefined)
+
+    await expect(handler(mockEvent)).rejects.toThrow('400:')
+    expect(mocks.client.createIndexer).not.toHaveBeenCalled()
+  })
+
   it('rejects an empty indexer name', async () => {
     mocks.readBody.mockResolvedValue({ indexer: payload({ name: ' ' }) })
 

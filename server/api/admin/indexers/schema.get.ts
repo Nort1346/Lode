@@ -1,5 +1,10 @@
 import type { IndexerDefinitionSummary, IndexerSchemaPage } from '#shared/indexers'
-import { getProwlarrIndexerSchema, runProwlarrAdmin, toDefinitionSummary } from '#server/utils/prowlarr-admin'
+import {
+  getProwlarrIndexerSchema,
+  requireProwlarrAdminClient,
+  runProwlarrAdmin,
+  toDefinitionSummary
+} from '#server/utils/prowlarr-admin'
 
 function queryString(value: unknown): string {
   if (Array.isArray(value)) return queryString(value[0])
@@ -23,6 +28,7 @@ export default defineEventHandler(async (event): Promise<IndexerSchemaPage> => {
   const page = Math.max(1, queryNumber(query.page, 1))
   const limit = Math.min(100, Math.max(1, queryNumber(query.limit, 24)))
 
+  requireProwlarrAdminClient()
   const definitions = await runProwlarrAdmin(() => getProwlarrIndexerSchema())
   const filtered = definitions
     .map((definition) => toDefinitionSummary(definition))

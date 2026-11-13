@@ -874,7 +874,10 @@ async function save() {
 
     <UModal v-model:open="modalOpen" :title="modalTitle" class="max-w-3xl">
       <template #body>
-        <AdminIndexersDefinitionPicker v-if="modalMode === 'create' && step === 1" @select="selectDefinition" />
+        <div v-if="modalMode === 'create' && step === 1" class="space-y-4">
+          <UAlert v-if="formError" color="error" :title="t('indexers.saveFailed')" :description="formError" />
+          <AdminIndexersDefinitionPicker @select="selectDefinition" />
+        </div>
 
         <div v-else-if="definitionLoading || loadingIndexer" class="py-12 text-center text-zinc-500 dark:text-zinc-400">
           <UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin mx-auto mb-2" />

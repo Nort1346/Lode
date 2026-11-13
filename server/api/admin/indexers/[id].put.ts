@@ -5,14 +5,21 @@ import {
   requireProwlarrAdminClient,
   runProwlarrAdmin
 } from '#server/utils/prowlarr-admin'
-import { assertIndexerTrackerLink, syncIndexerTracker } from '#server/utils/prowlarr-tracker-sync'
+import {
+  assertIndexerTrackerLink,
+  syncIndexerTracker,
+  type TrackerSyncResult
+} from '#server/utils/prowlarr-tracker-sync'
+import { createLogger } from '#server/utils/logger'
+
+const log = createLogger('ProwlarrIndexers')
 
 export default defineEventHandler(async (event) => {
   const user = await requireAdmin(event)
   const id = parseIndexerId(getRouterParam(event, 'id'))
   const body = await readBody<IndexerSaveBody>(event)
 
-  if (body.indexer === undefined || body.indexer === null) {
+  if (body === undefined || body.indexer === undefined || body.indexer === null) {
     throw createError({ statusCode: 400, statusMessage: 'indexer is required' })
   }
 
@@ -32,7 +39,19 @@ export default defineEventHandler(async (event) => {
   await assertIndexerTrackerLink(indexerName, previousName, body.tracker)
   const resource = buildIndexerResource(payload, existingRaw)
   const updated = await runProwlarrAdmin(() => client.updateIndexer(id, resource))
-  const trackerResult = await syncIndexerTracker(updated.name, previousName, body.tracker)
+
+  let trackerResult: TrackerSyncResult
+  try {
+    trackerResult = await syncIndexerTracker(updated.name, previousName, body.tracker)
+  } catch (err) {
+    try {
+      await client.updateIndexer(id, existingRaw)
+    } catch (cleanupErr) {
+      const message = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)
+      log.warn(`Failed to roll back indexer ${id} after tracker error: ${message}`)
+    }
+    throw err
+  }
 
   await logActivity(event, {
     action: 'indexer_update',
