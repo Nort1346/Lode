@@ -91,6 +91,7 @@
       "title": "Filter",
       "remove": "{tag} entfernen",
       "groups": {
+        "indexer": "Indexer",
         "source": "Quelle",
         "resolution": "Auflösung",
         "video": "Video/HDR",

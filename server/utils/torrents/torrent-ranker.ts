@@ -1,5 +1,6 @@
 import type { ProwlarrResult } from '#server/types/prowlarr'
-import type { RankedTorrent, ParsedTitle, RankingConfig, ReleaseKind } from '#server/types/ranking'
+import type { ParsedTitle, RankedTorrent } from '#server/types/torrent'
+import type { RankingConfig, ReleaseKind } from '#server/types/ranking'
 import { DEFAULT_RANKING_CONFIG } from '#server/types/ranking'
 
 function getConfig(overrides?: RankingConfig): RankingConfig {

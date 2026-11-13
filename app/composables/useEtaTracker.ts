@@ -5,18 +5,20 @@ import type { EtaDisplay, EtaState, EtaTrackerInput, EtaTrackerRegistry, EtaTrac
 
 // Warm-up window: right after a download starts, speed data is not
 // representative yet (metadata fetch, DHT, peer connection setup), so no
-// numeric ETA is shown during that time. 14s spans five 3s poll cycles, so
-// the first displayed value rests on a full 5-sample median window. The
-// window is anchored to the server-side createdAt, so opening the page
-// mid-download skips it.
-export const ETA_WARMUP_MS = 14_000
+// numeric ETA is shown during that time. 20s leaves room for the metadata /
+// peer phase plus enough 3s polls to fill a full 5-sample median window, so
+// the first displayed value rests on real transfer speed. The window is
+// anchored to the server-side createdAt, so opening the page mid-download
+// skips it.
+export const ETA_WARMUP_MS = 20_000
 
-// Minimum number of valid (progressing) samples before an ETA is shown, so a
-// stalled start cannot produce a bogus value.
-export const ETA_MIN_VALID_SAMPLES = 3
+// Minimum number of valid (progressing) samples before an ETA is shown. Equal
+// to the window size, so the first number always rests on a full window of
+// actual progress instead of a partially filled one.
+export const ETA_MIN_VALID_SAMPLES = 5
 
 // And a minimum amount of actually observed progress (bytes).
-export const ETA_MIN_OBSERVED_BYTES = 2 * 1024 * 1024
+export const ETA_MIN_OBSERVED_BYTES = 5 * 1024 * 1024
 
 // Sliding window of speed samples (3s polls -> ~15s). The median (not the
 // mean) is used so a single burst sample cannot skew the estimate.
@@ -25,11 +27,14 @@ export const ETA_SPEED_WINDOW = 5
 // Hysteresis is asymmetric on purpose (countdown UX): a shorter ETA is always
 // adopted, so the label ticks down smoothly poll by poll as the download
 // progresses. A longer ETA is only adopted when it deviates by more than 15%
-// (relative) or 60s (absolute) from the displayed value, which absorbs
-// sampling noise and short dips. Real sustained slowdowns always exceed the
-// band once the median settles, so they are never masked for long.
+// (relative) or 60s (absolute, but capped at 25% of the displayed ETA) from
+// the displayed value, which absorbs sampling noise and short dips. The cap
+// matters for short ETAs: a flat 60s allowance on a ~1-2 min ETA keeps the
+// label frozen at the same value for most of the remaining download, which
+// looks like the ETA stopped updating.
 export const ETA_HYSTERESIS_REL = 0.15
 export const ETA_HYSTERESIS_ABS_SECONDS = 60
+export const ETA_HYSTERESIS_ABS_MAX_RATIO = 0.25
 
 // A poll gap (page switch, slow network) larger than this invalidates the
 // speed samples: the tracker re-anchors instead of dividing by a stale dt.
@@ -123,35 +128,48 @@ function applyHysteresis(state: EtaTrackerState, candidate: number): number {
     state.lastDisplayedEta = candidate
     return candidate
   }
-  // A longer ETA is only shown once it leaves the hysteresis band.
-  if (candidate - last <= Math.max(ETA_HYSTERESIS_REL * last, ETA_HYSTERESIS_ABS_SECONDS)) return last
+  // A longer ETA is only shown once it leaves the hysteresis band. The
+  // absolute allowance shrinks with the ETA so short countdowns cannot stall.
+  const allowance = Math.max(
+    ETA_HYSTERESIS_REL * last,
+    Math.min(ETA_HYSTERESIS_ABS_SECONDS, last * ETA_HYSTERESIS_ABS_MAX_RATIO)
+  )
+  if (candidate - last <= allowance) return last
   state.lastDisplayedEta = candidate
   return candidate
 }
 
+// Leaving the ready state ends the current countdown: the hysteresis anchor is
+// dropped so a value from before a stall / re-anchor cannot be resurrected
+// when a number becomes available again.
+function neutral(state: EtaTrackerState | undefined, displayState: EtaState): EtaDisplay {
+  if (state !== undefined) state.lastDisplayedEta = null
+  return { state: displayState, etaSeconds: null }
+}
+
 export function getEtaDisplay(dl: EtaTrackerInput, state: EtaTrackerState | undefined, nowMs: number): EtaDisplay {
   // Only active rows carry an ETA; the rest never show a number.
-  if (!TRACKED_STATUSES.has(dl.status)) return { state: 'calculating', etaSeconds: null }
+  if (!TRACKED_STATUSES.has(dl.status)) return neutral(state, 'calculating')
 
   // No trustworthy start time -> fail open with the neutral state.
   const startedMs = parseCreatedAtMs(dl.createdAt)
-  if (startedMs === null) return { state: 'calculating', etaSeconds: null }
+  if (startedMs === null) return neutral(state, 'calculating')
   // Warm-up: speed data is not representative yet.
-  if (nowMs - startedMs < ETA_WARMUP_MS) return { state: 'collecting', etaSeconds: null }
+  if (nowMs - startedMs < ETA_WARMUP_MS) return neutral(state, 'collecting')
   // A confirmed zero-seeder swarm with no speed is waiting, not calculating.
-  if (dl.numSeeds === 0 && dl.downloadSpeed === 0) return { state: 'waiting-seeders', etaSeconds: null }
+  if (dl.numSeeds === 0 && dl.downloadSpeed === 0) return neutral(state, 'waiting-seeders')
   if (state === undefined) return { state: 'calculating', etaSeconds: null }
   // Not enough real progress yet (stalled start, page opened mid-download).
   if (state.validSamples < ETA_MIN_VALID_SAMPLES || state.bytesObserved < ETA_MIN_OBSERVED_BYTES) {
-    return { state: 'calculating', etaSeconds: null }
+    return neutral(state, 'calculating')
   }
   // Unknown or fully downloaded size -> no number.
-  if (dl.sizeBytes <= 0 || dl.downloadedBytes >= dl.sizeBytes) return { state: 'calculating', etaSeconds: null }
+  if (dl.sizeBytes <= 0 || dl.downloadedBytes >= dl.sizeBytes) return neutral(state, 'calculating')
   const speed = median(state.window)
-  if (!(speed > 0)) return { state: 'calculating', etaSeconds: null }
+  if (!(speed > 0)) return neutral(state, 'calculating')
   const candidate = (dl.sizeBytes - dl.downloadedBytes) / speed
   if (!Number.isFinite(candidate) || candidate <= 0 || candidate > UNRELIABLE_ETA_SECONDS) {
-    return { state: 'calculating', etaSeconds: null }
+    return neutral(state, 'calculating')
   }
   return { state: 'ready', etaSeconds: Math.round(applyHysteresis(state, candidate)) }
 }

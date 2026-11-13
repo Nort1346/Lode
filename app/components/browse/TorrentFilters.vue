@@ -145,7 +145,7 @@ const { t } = useI18n()
 
 const open = ref(false)
 
-const GROUP_ORDER: TorrentFilterGroup[] = ['source', 'resolution', 'video', 'audio']
+const GROUP_ORDER: TorrentFilterGroup[] = ['indexer', 'source', 'resolution', 'video', 'audio']
 
 // Only options that occur in the current results are offered; counts are
 // over the full loaded list (see collectFilterOptions)
@@ -170,6 +170,7 @@ const active = computed(() => hasActiveFilters(props.modelValue))
 
 const activeCount = computed(
   () =>
+    props.modelValue.indexer.length +
     props.modelValue.source.length +
     props.modelValue.resolution.length +
     props.modelValue.video.length +

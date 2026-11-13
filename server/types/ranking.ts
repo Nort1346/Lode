@@ -1,5 +1,3 @@
-import type { ProwlarrResult } from '#server/types/prowlarr'
-
 export type {
   RankingConfig,
   RankingLanguage,
@@ -14,21 +12,3 @@ export { DEFAULT_RANKING_CONFIG } from '#shared/ranking'
 // which bucket a release landed in) - the ranker never guesses it from the
 // title itself.
 export type ReleaseKind = 'movie' | 'series' | 'seasonPack'
-
-export interface ParsedTitle {
-  resolution: string | null
-  source: string | null
-  language: string | null
-  group: string | null
-  // Display-ready release tags in fixed order (sources first, then video,
-  // audio, other) - e.g. ['WEB-DL', 'x265', '10-bit', 'Atmos']
-  tags: string[]
-}
-
-export interface RankedTorrent extends ProwlarrResult {
-  score: number
-  percentage: number
-  recommended: boolean
-  parsed: ParsedTitle
-  isSeasonPack: boolean
-}

@@ -1,15 +1,18 @@
-// Client-side release-tag filtering for the browse movie/TV pages. Pure and
+// Client-side release filtering for the browse movie/TV pages. Pure and
 // DOM-free so it is testable without a browser. Items are the ranked
 // torrent/pack payloads (see BaseTorrentInfo in app/types/media.ts).
 
-export type TorrentFilterGroup = 'source' | 'resolution' | 'video' | 'audio'
+export type TorrentFilterGroup = 'indexer' | 'source' | 'resolution' | 'video' | 'audio'
 
 export interface TorrentFilterItem {
   tags: string[]
   resolution: string | null
+  // Prowlarr indexer name (shown on every torrent row). Empty when unknown.
+  indexer: string
 }
 
 export interface TorrentFiltersState {
+  indexer: string[]
   source: string[]
   resolution: string[]
   video: string[]
@@ -65,11 +68,12 @@ export const TAG_GROUP: Record<string, TorrentFilterGroup> = {
 export const CAPTURE_TAGS: readonly string[] = ['CAM', 'HDCAM', 'TS', 'HDTS', 'TC']
 
 export function emptyFilters(): TorrentFiltersState {
-  return { source: [], resolution: [], video: [], audio: [], hideCapture: false }
+  return { indexer: [], source: [], resolution: [], video: [], audio: [], hideCapture: false }
 }
 
 export function hasActiveFilters(state: TorrentFiltersState): boolean {
   return (
+    state.indexer.length > 0 ||
     state.source.length > 0 ||
     state.resolution.length > 0 ||
     state.video.length > 0 ||
@@ -80,19 +84,22 @@ export function hasActiveFilters(state: TorrentFiltersState): boolean {
 
 // Filter semantics:
 // - within one group the options are OR: an item passes a group when it
-//   carries any of the selected options of that group
+//   carries any of the selected options of that group (the indexer group
+//   matches the item's indexer name)
 // - between groups it is AND: an item must pass every group that has at
 //   least one selection
 // - the capture toggle is an extra AND condition (item must carry none of
 //   CAPTURE_TAGS)
 // - an item with no tags at all therefore passes only when no group has a
-//   selection and the capture toggle is off
+//   selection and the capture toggle is off (an indexer selection still
+//   matches such an item as long as its indexer name matches)
 export function matchesFilters(item: TorrentFilterItem, state: TorrentFiltersState): boolean {
   if (state.hideCapture === true && item.tags.some((tag) => CAPTURE_TAGS.includes(tag))) {
     return false
   }
 
   const groups: Array<{ selected: string[]; available: string[] }> = [
+    { selected: state.indexer, available: item.indexer !== '' ? [item.indexer] : [] },
     { selected: state.source, available: item.tags.filter((tag) => TAG_GROUP[tag] === 'source') },
     { selected: state.resolution, available: item.resolution !== null ? [item.resolution] : [] },
     { selected: state.video, available: item.tags.filter((tag) => TAG_GROUP[tag] === 'video') },
@@ -115,6 +122,7 @@ export interface TorrentFilterOption {
 // group follows first appearance in the (already ranked) list.
 export function collectFilterOptions(items: TorrentFilterItem[]): TorrentFilterOption[] {
   const byGroup: Record<TorrentFilterGroup, Map<string, number>> = {
+    indexer: new Map(),
     source: new Map(),
     resolution: new Map(),
     video: new Map(),
@@ -125,6 +133,7 @@ export function collectFilterOptions(items: TorrentFilterItem[]): TorrentFilterO
     map.set(tag, (map.get(tag) ?? 0) + 1)
   }
   for (const item of items) {
+    if (item.indexer !== '') bump('indexer', item.indexer)
     for (const tag of item.tags) {
       const group = TAG_GROUP[tag]
       if (group !== undefined) bump(group, tag)
@@ -132,7 +141,7 @@ export function collectFilterOptions(items: TorrentFilterItem[]): TorrentFilterO
     if (item.resolution !== null) bump('resolution', item.resolution)
   }
 
-  const order: TorrentFilterGroup[] = ['source', 'resolution', 'video', 'audio']
+  const order: TorrentFilterGroup[] = ['indexer', 'source', 'resolution', 'video', 'audio']
   const result: TorrentFilterOption[] = []
   for (const group of order) {
     for (const [tag, count] of byGroup[group].entries()) {

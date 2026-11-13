@@ -13,8 +13,8 @@ import type {
   LoginAttempt,
   WishlistItem,
   PushSubscription,
-  SyncProvider,
-  SyncUserSettings,
+  SyncProviderRecord,
+  SyncUserSettingsRecord,
   DownloadStats
 } from '#server/types/entities'
 
@@ -127,9 +127,9 @@ export interface WishlistRepo {
 }
 
 export interface SyncProviderRepo {
-  findUserProvider(userId: string, providerName: string): Promise<SyncProvider | undefined>
-  findByUser(userId: string): Promise<SyncProvider[]>
-  create(data: Omit<SyncProvider, 'lastSyncError'>): Promise<void>
+  findUserProvider(userId: string, providerName: string): Promise<SyncProviderRecord | undefined>
+  findByUser(userId: string): Promise<SyncProviderRecord[]>
+  create(data: Omit<SyncProviderRecord, 'lastSyncError'>): Promise<void>
   updateStatus(
     userId: string,
     providerName: string,
@@ -140,11 +140,11 @@ export interface SyncProviderRepo {
 }
 
 export interface SyncUserSettingsRepo {
-  find(userId: string, providerName: string): Promise<SyncUserSettings | undefined>
+  find(userId: string, providerName: string): Promise<SyncUserSettingsRecord | undefined>
   upsert(
     userId: string,
     providerName: string,
-    settings: Omit<SyncUserSettings, 'id' | 'userId' | 'providerName' | 'createdAt' | 'updatedAt'>
+    settings: Omit<SyncUserSettingsRecord, 'id' | 'userId' | 'providerName' | 'createdAt' | 'updatedAt'>
   ): Promise<void>
   deleteByUser(userId: string): Promise<void>
 }
