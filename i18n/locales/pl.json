@@ -484,7 +484,7 @@
     "mediaStagingMissingMovies": "Brak NUXT_DOWNLOAD_PATH_MOVIES: pobrania filmów trafiają prosto do biblioteki i nie mogą być organizowane.",
     "mediaStagingMissingSeries": "Brak NUXT_DOWNLOAD_PATH_SERIES: pobrania seriali trafiają prosto do biblioteki i nie mogą być organizowane.",
     "mediaExtraFiles": "Importuj dodatkowe pliki",
-    "mediaExtraFilesHint": "Kopiuje napisy i pliki towarzyszące (nfo itp.) obok zaimportowanego wideo, jak opcja Import Extra Files w Radarrze.",
+    "mediaExtraFilesHint": "Kopiuje napisy i pliki towarzyszące (nfo itp.) obok zaimportowanego wideo.",
     "mediaExtraExtensions": "Rozszerzenia dodatkowych plików",
     "mediaExtraExtensionsHint": "Lista rozdzielona przecinkami, np. srt, sub, ass, nfo. Importowane są tylko pliki z tego samego folderu co wideo.",
     "qbittorrentSaved": "Zapisano ustawienia qBittorrent",

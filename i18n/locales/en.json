@@ -484,7 +484,7 @@
     "mediaStagingMissingMovies": "NUXT_DOWNLOAD_PATH_MOVIES is not set: movie downloads go straight to the library and cannot be organized.",
     "mediaStagingMissingSeries": "NUXT_DOWNLOAD_PATH_SERIES is not set: series downloads go straight to the library and cannot be organized.",
     "mediaExtraFiles": "Import extra files",
-    "mediaExtraFilesHint": "Copy subtitles and sidecar files (nfo, etc.) next to the imported video, like Radarr's Import Extra Files.",
+    "mediaExtraFilesHint": "Copy subtitles and sidecar files (nfo, etc.) next to the imported video.",
     "mediaExtraExtensions": "Extra file extensions",
     "mediaExtraExtensionsHint": "Comma separated list, e.g. srt, sub, ass, nfo. Only files in the same folder as the video are imported.",
     "qbittorrentSaved": "qBittorrent settings saved",
