@@ -185,7 +185,7 @@ Full documentation lives in [`docs/`](./docs/):
 
 - [ ] Plex support (additional media server)
 - [ ] Emby support (additional media server)
-- [ ] Prowlarr indexer management (add/configure indexers from Lode admin)
+- [x] Prowlarr indexer management (add/configure indexers from Lode admin)
 - [ ] Home Assistant integration (webhook, sensors, automations)
 
 Have an idea? [Open a feature request](https://github.com/Nort1346/Lode/issues/new?template=feature_request.yml).
