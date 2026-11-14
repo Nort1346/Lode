@@ -5,6 +5,11 @@ import type { MediaImportMethod, MediaImportMode, ImportSingleFileResult } from 
 
 const log = createLogger('MediaImport')
 
+// Sampling interval for the copy progress. Cheap (one stat per tick) and
+// filesystem-agnostic: streaming through Node would be slower than the kernel
+// copyFile on local disks and no faster on FUSE mounts.
+const PROGRESS_POLL_MS = 400
+
 function isCrossDevice(err: unknown): boolean {
   return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EXDEV'
 }
@@ -21,14 +26,62 @@ export async function ensureDir(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true })
 }
 
-async function copyAtomic(source: string, target: string): Promise<void> {
+async function copyAtomic(source: string, target: string, onProgress?: (bytes: number) => void): Promise<void> {
   const tmpTarget = `${target}.partial`
-  await copyFile(source, tmpTarget)
+
+  if (onProgress === undefined) {
+    await copyFile(source, tmpTarget)
+    await rename(tmpTarget, target)
+    return
+  }
+
+  // copyFile has no progress hooks, so the .partial file is sampled while the
+  // kernel copies. The final size is reported once more in case the copy beat
+  // the sampler.
+  const stop = watchPartialSize(tmpTarget, onProgress)
+  try {
+    await copyFile(source, tmpTarget)
+  } finally {
+    stop()
+  }
   await rename(tmpTarget, target)
+  try {
+    onProgress((await stat(target)).size)
+  } catch {
+    // The target disappeared (deleted by the user mid-import) - nothing to report.
+  }
 }
 
-async function copyThenRemove(source: string, target: string, removeSource: boolean): Promise<void> {
-  await copyAtomic(source, target)
+function watchPartialSize(path: string, onProgress: (bytes: number) => void): () => void {
+  let active = true
+  let busy = false
+  const tick = async (): Promise<void> => {
+    if (!active || busy) return
+    busy = true
+    try {
+      onProgress((await stat(path)).size)
+    } catch {
+      // .partial not written yet
+    } finally {
+      busy = false
+    }
+  }
+  const timer = setInterval(() => {
+    void tick()
+  }, PROGRESS_POLL_MS)
+  return () => {
+    active = false
+    clearInterval(timer)
+  }
+}
+
+async function copyThenRemove(
+  source: string,
+  target: string,
+  removeSource: boolean,
+  onProgress?: (bytes: number) => void
+): Promise<void> {
+  await copyAtomic(source, target, onProgress)
   if (removeSource) {
     await unlink(source).catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err)
@@ -45,7 +98,8 @@ async function copyThenRemove(source: string, target: string, removeSource: bool
 export async function importSingleFile(
   source: string,
   target: string,
-  mode: MediaImportMode
+  mode: MediaImportMode,
+  onProgress?: (bytes: number) => void
 ): Promise<ImportSingleFileResult> {
   await ensureDir(dirname(target))
 
@@ -62,7 +116,7 @@ export async function importSingleFile(
       if (isEexist(err)) throw err
       const msg = err instanceof Error ? err.message : String(err)
       log.info(`hardlink unavailable (${msg}), falling back to copy: ${target}`)
-      await copyAtomic(source, target)
+      await copyAtomic(source, target, onProgress)
       return { method: 'copy', bytes: await targetSize(target) }
     }
   }
@@ -75,12 +129,12 @@ export async function importSingleFile(
       const msg = err instanceof Error ? err.message : String(err)
       if (!isCrossDevice(err)) throw err
       log.info(`move unavailable across devices (${msg}), falling back to copy+delete: ${target}`)
-      await copyThenRemove(source, target, true)
+      await copyThenRemove(source, target, true, onProgress)
       return { method: 'copy', bytes: await targetSize(target) }
     }
   }
 
-  await copyAtomic(source, target)
+  await copyAtomic(source, target, onProgress)
   const method: MediaImportMethod = 'copy'
   return { method, bytes: await targetSize(target) }
 }

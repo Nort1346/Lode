@@ -275,7 +275,9 @@
   "downloads": {
     "prepReady": "Bereit",
     "prepRemainingSec": "~{s}s verbleibend",
-    "prepRemainingMin": "~{m}m verbleibend"
+    "prepRemainingMin": "~{m}m verbleibend",
+    "prepTitle": "Vorbereitung",
+    "prepCopying": "Import in die Bibliothek"
   },
   "admin": {
     "userTitle": "Benutzerverwaltung",
@@ -487,6 +489,9 @@
     "mediaExtraFilesHint": "Kopiert Untertitel und Begleitdateien (nfo usw.) neben das importierte Video.",
     "mediaExtraExtensions": "Endungen zusätzlicher Dateien",
     "mediaExtraExtensionsHint": "Kommagetrennte Liste, z. B. srt, sub, ass, nfo. Nur Dateien im selben Ordner wie das Video werden importiert.",
+    "mediaCleanupStaging": "Staging nach dem Import aufräumen",
+    "mediaCleanupStagingHint": "Entfernt nach einem erfolgreichen Import die übrigen Dateien des Torrents im Staging (Cover, .screens, .url, .txt). Gilt nur im Modus Verschieben. Die Bibliothek wird nie angefasst.",
+    "mediaCleanupStagingMoveOnly": "Nur im Modus Verschieben verfügbar.",
     "qbittorrentSaved": "qBittorrent-Einstellungen gespeichert",
     "qbittorrentError": "qBittorrent-Einstellungen konnten nicht gespeichert werden",
     "liveLogs": "Live-Logs",

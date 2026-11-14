@@ -275,7 +275,9 @@
   "downloads": {
     "prepReady": "Pronto",
     "prepRemainingSec": "~{s}s restantes",
-    "prepRemainingMin": "~{m}min restantes"
+    "prepRemainingMin": "~{m}min restantes",
+    "prepTitle": "Preparação",
+    "prepCopying": "Importando para a biblioteca"
   },
   "admin": {
     "userTitle": "Gerenciar Usuários",
@@ -487,6 +489,9 @@
     "mediaExtraFilesHint": "Copia legendas e arquivos auxiliares (nfo etc.) junto ao vídeo importado.",
     "mediaExtraExtensions": "Extensões de arquivos extras",
     "mediaExtraExtensionsHint": "Lista separada por vírgulas, ex.: srt, sub, ass, nfo. Apenas arquivos na mesma pasta do vídeo são importados.",
+    "mediaCleanupStaging": "Limpar o staging após a importação",
+    "mediaCleanupStagingHint": "Após uma importação bem-sucedida, remove os arquivos restantes do torrent no staging (capas, .screens, .url, .txt). Vale apenas no modo Mover. A biblioteca nunca é tocada.",
+    "mediaCleanupStagingMoveOnly": "Disponível apenas no modo Mover.",
     "qbittorrentSaved": "Configurações do qBittorrent salvas",
     "qbittorrentError": "Falha ao salvar as configurações do qBittorrent",
     "liveLogs": "Logs ao Vivo",

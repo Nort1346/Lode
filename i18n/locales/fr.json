@@ -275,7 +275,9 @@
   "downloads": {
     "prepReady": "Prêt",
     "prepRemainingSec": "~{s}s restantes",
-    "prepRemainingMin": "~{m}m restantes"
+    "prepRemainingMin": "~{m}m restantes",
+    "prepTitle": "Préparation",
+    "prepCopying": "Import vers la bibliothèque"
   },
   "admin": {
     "userTitle": "Gestion des utilisateurs",
@@ -487,6 +489,9 @@
     "mediaExtraFilesHint": "Copie les sous-titres et fichiers annexes (nfo, etc.) à côté de la vidéo importée.",
     "mediaExtraExtensions": "Extensions des fichiers supplémentaires",
     "mediaExtraExtensionsHint": "Liste séparée par des virgules, par ex. srt, sub, ass, nfo. Seuls les fichiers du même dossier que la vidéo sont importés.",
+    "mediaCleanupStaging": "Nettoyer le staging après l'import",
+    "mediaCleanupStagingHint": "Après un import réussi, supprime les fichiers restants du torrent dans le staging (jaquettes, .screens, .url, .txt). Uniquement en mode Déplacement. La bibliothèque n'est jamais touchée.",
+    "mediaCleanupStagingMoveOnly": "Disponible uniquement en mode Déplacement.",
     "qbittorrentSaved": "Paramètres de qBittorrent enregistrés",
     "qbittorrentError": "Échec de l'enregistrement des paramètres de qBittorrent",
     "liveLogs": "Journaux en direct",

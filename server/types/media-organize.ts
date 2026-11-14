@@ -58,6 +58,9 @@ export interface MediaConfig {
   importMode: MediaImportMode
   importExtraFiles: boolean
   extraFileExtensions: string[]
+  // Only meaningful with `move`: the torrent folder in staging is emptied of
+  // everything the import did not take (covers, .url, .txt, .screens, ...).
+  cleanupStaging: boolean
 }
 
 export interface MediaStagingStatus {
@@ -70,6 +73,18 @@ export interface MediaConfigUpdate {
   importMode?: string
   importExtraFiles?: boolean
   extraFileExtensions?: string
+  cleanupStaging?: boolean
+}
+
+// Live byte progress of a running import. Kept in memory (like the organize
+// in-flight guard) because it only exists while the copy is running.
+export interface ImportProgressSnapshot {
+  percent: number
+  copiedBytes: number
+  totalBytes: number
+  speedBytesPerSecond: number
+  filesDone: number
+  filesTotal: number
 }
 
 export interface OrganizeJobInput {

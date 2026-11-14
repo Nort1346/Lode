@@ -38,7 +38,8 @@ describe('admin/media-config.get', () => {
       enabled: true,
       importMode: 'copy',
       importExtraFiles: true,
-      extraFileExtensions: ['srt', 'nfo']
+      extraFileExtensions: ['srt', 'nfo'],
+      cleanupStaging: true
     })
     vi.stubGlobal(
       'useRuntimeConfig',
@@ -52,6 +53,7 @@ describe('admin/media-config.get', () => {
       importMode: 'copy',
       importExtraFiles: true,
       extraFileExtensions: 'srt, nfo',
+      cleanupStaging: true,
       staging: { movies: true, series: true }
     })
   })
@@ -61,7 +63,8 @@ describe('admin/media-config.get', () => {
       enabled: false,
       importMode: 'hardlink',
       importExtraFiles: false,
-      extraFileExtensions: ['srt']
+      extraFileExtensions: ['srt'],
+      cleanupStaging: false
     })
     vi.stubGlobal(
       'useRuntimeConfig',

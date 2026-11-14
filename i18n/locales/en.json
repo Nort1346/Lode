@@ -275,7 +275,9 @@
   "downloads": {
     "prepReady": "Ready",
     "prepRemainingSec": "~{s}s remaining",
-    "prepRemainingMin": "~{m}m remaining"
+    "prepRemainingMin": "~{m}m remaining",
+    "prepTitle": "Preparing",
+    "prepCopying": "Importing to library"
   },
   "admin": {
     "userTitle": "User Management",
@@ -487,6 +489,9 @@
     "mediaExtraFilesHint": "Copy subtitles and sidecar files (nfo, etc.) next to the imported video.",
     "mediaExtraExtensions": "Extra file extensions",
     "mediaExtraExtensionsHint": "Comma separated list, e.g. srt, sub, ass, nfo. Only files in the same folder as the video are imported.",
+    "mediaCleanupStaging": "Clean up staging after import",
+    "mediaCleanupStagingHint": "After a successful import, removes the files the torrent left behind in staging (covers, .screens, .url, .txt). Only applies to the Move mode. The library is never touched.",
+    "mediaCleanupStagingMoveOnly": "Only available in Move mode.",
     "qbittorrentSaved": "qBittorrent settings saved",
     "qbittorrentError": "Failed to save qBittorrent settings",
     "liveLogs": "Live Logs",

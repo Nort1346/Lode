@@ -19,6 +19,13 @@ import {
   resolveLibraryDir,
   resolveStagingDir
 } from '#server/utils/library/importer'
+import { cleanupStagingLeftovers } from '#server/utils/library/staging-cleanup'
+import {
+  completeImportFile,
+  finishImportProgress,
+  reportImportBytes,
+  startImportProgress
+} from '#server/utils/library/import-progress'
 import type { MediaImportMode, OrganizeJobInput, OrganizeResult, OrganizeStatus } from '#server/types/media-organize'
 import type { TorrentFile } from '#server/types/torrent'
 import type { QBittorrentClient } from '#server/utils/clients/qbittorrent'
@@ -36,6 +43,7 @@ export interface OrganizeDeps {
   importMode: MediaImportMode
   importExtraFiles: boolean
   extraFileExtensions: readonly string[]
+  cleanupStaging: boolean
 }
 
 interface ImportTarget {
@@ -343,59 +351,80 @@ export async function organizeCompletedDownload(
   let firstTarget: string | null = null
   let firstError: string | null = built.errors[0] ?? null
 
-  for (const target of built.targets) {
-    const source = await locateSource(roots, target.sourceName)
-    if (source === null) {
-      failedFiles++
-      firstError ??= saveDirInLibrary
-        ? `download files live inside the library (${saveDir}), not in staging; re-download it`
-        : `source file not found: ${target.sourceName}`
-      log.warn(
-        `source file not found: hash=${hash} file="${target.sourceName}" save_path=${saveDir} staging=${stagingDir}${
-          saveDirInLibrary ? ' (save path is inside the library)' : ''
-        }`
-      )
-      continue
-    }
+  const fileSizes = new Map(files.map((file) => [file.name, file.size]))
+  const totalBytes = built.targets.reduce((sum, target) => sum + (fileSizes.get(target.sourceName) ?? 0), 0)
+  startImportProgress(job.downloadId, totalBytes, built.targets.length)
 
-    const absoluteTarget = buildAbsoluteTarget(libraryDir, target.relativePath)
-    // Copy and move overwrite an existing file, while a hardlink answers
-    // EEXIST. Check first so a duplicate release is skipped in every mode.
-    if (await targetExists(absoluteTarget)) {
-      skippedFiles++
-      firstTarget ??= target.relativePath
-      continue
-    }
-
-    try {
-      const outcome = await importSingleFile(source.path, absoluteTarget, deps.importMode)
-      importedFiles++
-      firstTarget ??= target.relativePath
-      log.info(`imported "${target.sourceName}" -> ${target.relativePath} via ${outcome.method}`)
-
-      if (deps.importExtraFiles) {
-        extrasImported += await importExtras({
-          files,
-          sourceName: target.sourceName,
-          targetRelativePath: target.relativePath,
-          libraryDir,
-          sourceRoot: source.root,
-          extensions: deps.extraFileExtensions
-        })
+  try {
+    for (const target of built.targets) {
+      const source = await locateSource(roots, target.sourceName)
+      if (source === null) {
+        failedFiles++
+        firstError ??= saveDirInLibrary
+          ? `download files live inside the library (${saveDir}), not in staging; re-download it`
+          : `source file not found: ${target.sourceName}`
+        log.warn(
+          `source file not found: hash=${hash} file="${target.sourceName}" save_path=${saveDir} staging=${stagingDir}${
+            saveDirInLibrary ? ' (save path is inside the library)' : ''
+          }`
+        )
+        continue
       }
-    } catch (err) {
-      // A second download of the same release targets the same file name; the
-      // first import already placed it, so skip instead of failing.
-      if (isEexist(err)) {
+
+      const absoluteTarget = buildAbsoluteTarget(libraryDir, target.relativePath)
+      // Copy and move overwrite an existing file, while a hardlink answers
+      // EEXIST. Check first so a duplicate release is skipped in every mode.
+      if (await targetExists(absoluteTarget)) {
         skippedFiles++
         firstTarget ??= target.relativePath
         continue
       }
-      const msg = err instanceof Error ? err.message : String(err)
-      failedFiles++
-      firstError ??= `${target.sourceName}: ${msg}`
-      log.warn(`organize failed for ${hash}: ${target.sourceName}: ${msg}`)
+
+      try {
+        const outcome = await importSingleFile(source.path, absoluteTarget, deps.importMode, (bytes) =>
+          reportImportBytes(job.downloadId, bytes)
+        )
+        importedFiles++
+        completeImportFile(job.downloadId, fileSizes.get(target.sourceName) ?? 0)
+        firstTarget ??= target.relativePath
+        log.info(`imported "${target.sourceName}" -> ${target.relativePath} via ${outcome.method}`)
+
+        if (deps.importExtraFiles) {
+          extrasImported += await importExtras({
+            files,
+            sourceName: target.sourceName,
+            targetRelativePath: target.relativePath,
+            libraryDir,
+            sourceRoot: source.root,
+            extensions: deps.extraFileExtensions
+          })
+        }
+      } catch (err) {
+        // A second download of the same release targets the same file name; the
+        // first import already placed it, so skip instead of failing.
+        if (isEexist(err)) {
+          skippedFiles++
+          firstTarget ??= target.relativePath
+          continue
+        }
+        const msg = err instanceof Error ? err.message : String(err)
+        failedFiles++
+        firstError ??= `${target.sourceName}: ${msg}`
+        log.warn(`organize failed for ${hash}: ${target.sourceName}: ${msg}`)
+      }
     }
+  } finally {
+    finishImportProgress(job.downloadId)
+  }
+
+  // `move` already takes the video out of the torrent; with the opt-in cleanup
+  // the rest of the release (covers, .url, .screens, ...) goes too. A partial
+  // import keeps the torrent intact so the admin can see what happened.
+  if (deps.cleanupStaging && deps.importMode === 'move' && failedFiles === 0 && skippedFiles === 0) {
+    await cleanupStagingLeftovers({ files, saveDir, stagingDir }).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      log.warn(`staging cleanup failed for ${hash}: ${msg}`)
+    })
   }
 
   const counts = { importedFiles, skippedFiles, extrasImported }
