@@ -78,16 +78,6 @@ onMounted(() => {
   void fetchDownloads()
 })
 
-const intervalId = ref<ReturnType<typeof setInterval>>()
-onMounted(() => {
-  intervalId.value = setInterval(() => {
-    void fetchDownloads()
-  }, 3000)
-})
-onUnmounted(() => {
-  if (intervalId.value) clearInterval(intervalId.value)
-})
-
 async function cancelTorrent(dl: Download) {
   const confirmed = await confirm({
     title: t('download.confirmTitle'),
@@ -133,6 +123,56 @@ function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
   if (remaining < 60) return t('downloads.prepRemainingSec', { s: Math.ceil(remaining) })
   return t('downloads.prepRemainingMin', { m: Math.ceil(remaining / 60) })
 }
+
+const hasActivePrep = computed(() =>
+  downloads.value.some((dl) => dl.status === 'completed' && dl.notifiedAt === null && dl.organizeStatus === 'pending')
+)
+
+// One bar for the whole preparation phase: the simulated countdown (which
+// covers hardlink/rename, that finish instantly) plus the real bytes copied
+// into the library. Whichever is further along wins, so the bar never moves
+// backwards and never claims "done" while an upload is still running.
+function prepPercent(dl: Download): number {
+  if (dl.completedAt === null || dl.completedAt === '') return 0
+  const prepSpeedBytes = prepSpeedMb.value * 1024 * 1024
+  const elapsed = (Date.now() - new Date(dl.completedAt).getTime()) / 1000
+  const delay = dl.sizeBytes / prepSpeedBytes
+  const timePercent = delay > 0 ? Math.min(100, (elapsed / delay) * 100) : 100
+  const bytePercent = dl.organizeProgress?.percent ?? 0
+  return Math.round(Math.max(timePercent, bytePercent) * 10) / 10
+}
+
+function prepDetail(dl: Download): string {
+  const progress = dl.organizeProgress
+  if (progress) {
+    return `${formatSize(progress.copiedBytes)} / ${formatSize(progress.totalBytes)} · ${formatSpeed(
+      progress.speedBytesPerSecond
+    )}`
+  }
+  return formatPrepTime(dl.completedAt, dl.sizeBytes)
+}
+
+// Preparation is the only phase that updates in byte steps, so poll faster
+// while something is still being imported and idle at the download cadence.
+const IDLE_POLL_MS = 3000
+const PREP_POLL_MS = 1000
+
+let intervalId: ReturnType<typeof setInterval> | undefined
+function startPolling() {
+  if (intervalId) clearInterval(intervalId)
+  intervalId = setInterval(
+    () => {
+      void fetchDownloads()
+    },
+    hasActivePrep.value ? PREP_POLL_MS : IDLE_POLL_MS
+  )
+}
+
+onMounted(startPolling)
+watch(hasActivePrep, startPolling)
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId)
+})
 
 const statusColors: Record<string, string> = {
   checking: 'bg-teal-500/15 text-teal-700 dark:text-teal-400',
@@ -342,17 +382,43 @@ const savePathLabels = computed<Record<string, string>>(() => ({
             </div>
           </div>
 
-          <div
-            v-else-if="dl.status === 'completed'"
-            class="flex items-center gap-2 text-sm"
-            :class="
-              dl.notifiedAt === null ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
-            "
-          >
-            <UIcon :name="dl.notifiedAt === null ? 'i-lucide-clock' : 'i-lucide-check-circle'" class="w-4 h-4" />
-            <span v-if="dl.notifiedAt === null">{{ formatPrepTime(dl.completedAt, dl.sizeBytes) }}</span>
-            <span v-else>{{ t('dashboard.completed') }}</span>
-            <span class="text-zinc-400 dark:text-zinc-500">· {{ formatSize(dl.sizeBytes) }}</span>
+          <div v-else-if="dl.status === 'completed'" class="space-y-2">
+            <template v-if="dl.notifiedAt === null">
+              <div class="flex items-center justify-between text-xs">
+                <span class="flex items-center gap-1.5 font-medium text-violet-600 dark:text-violet-400">
+                  <UIcon
+                    name="i-lucide-package-open"
+                    class="size-3.5"
+                    :class="dl.organizeProgress ? 'animate-pulse' : ''"
+                  />
+                  {{ dl.organizeProgress ? t('downloads.prepCopying') : t('downloads.prepTitle') }}
+                </span>
+                <span class="font-medium text-violet-600 dark:text-violet-400">
+                  {{ prepPercent(dl).toFixed(1) }}%
+                </span>
+              </div>
+              <div
+                class="w-full h-2.5 rounded-full overflow-hidden bg-violet-500/15 dark:bg-violet-500/10 ring-1 ring-inset ring-violet-500/25"
+              >
+                <div
+                  class="relative h-full rounded-full overflow-hidden bg-linear-to-r from-violet-500 via-fuchsia-500 to-pink-500 shadow-[0_0_10px_rgba(168,85,247,0.45)] transition-[width] duration-1000 ease-linear"
+                  :style="{ width: `${Math.max(prepPercent(dl), 1)}%` }"
+                >
+                  <span class="prep-shimmer absolute inset-0" />
+                </div>
+              </div>
+              <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+                <span>{{ prepDetail(dl) }}</span>
+                <span v-if="dl.organizeProgress">
+                  {{ dl.organizeProgress.filesDone }}/{{ dl.organizeProgress.filesTotal }}
+                </span>
+              </div>
+            </template>
+            <div v-else class="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4" />
+              <span>{{ t('dashboard.completed') }}</span>
+              <span class="text-zinc-400 dark:text-zinc-500">· {{ formatSize(dl.sizeBytes) }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -369,3 +435,29 @@ const savePathLabels = computed<Record<string, string>>(() => ({
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Deliberately different from the download bar: violet/fuchsia with a moving
+   highlight, so the two phases are never confused at a glance. */
+.prep-shimmer {
+  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.45) 45%, transparent 70%);
+  background-size: 220% 100%;
+  animation: prep-shimmer 1.6s linear infinite;
+}
+
+@keyframes prep-shimmer {
+  from {
+    background-position: 220% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prep-shimmer {
+    animation: none;
+    opacity: 0.35;
+  }
+}
+</style>

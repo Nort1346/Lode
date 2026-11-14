@@ -26,7 +26,8 @@ export const SETTINGS = {
   MEDIA_MANAGE_ENABLED: 'media_manage_enabled',
   MEDIA_IMPORT_MODE: 'media_import_mode',
   MEDIA_IMPORT_EXTRA_FILES: 'media_import_extra_files',
-  MEDIA_EXTRA_FILE_EXTENSIONS: 'media_extra_file_extensions'
+  MEDIA_EXTRA_FILE_EXTENSIONS: 'media_extra_file_extensions',
+  MEDIA_CLEANUP_STAGING: 'media_cleanup_staging'
 } as const
 
 export type SettingKey = (typeof SETTINGS)[keyof typeof SETTINGS]

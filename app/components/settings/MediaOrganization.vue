@@ -9,6 +9,7 @@ const importMode = ref('hardlink')
 const importExtraFiles = ref(false)
 const extraFileExtensions = ref('')
 const savedExtensions = ref('')
+const cleanupStaging = ref(false)
 const staging = ref({ movies: false, series: false })
 const loading = ref(true)
 const saving = ref(false)
@@ -39,6 +40,7 @@ async function fetchConfig() {
     importExtraFiles.value = data.importExtraFiles
     extraFileExtensions.value = data.extraFileExtensions
     savedExtensions.value = data.extraFileExtensions
+    cleanupStaging.value = data.cleanupStaging
     staging.value = data.staging
   } catch {
     // keep defaults
@@ -79,6 +81,12 @@ function saveMode(val: string) {
 function saveExtraFiles(val: boolean) {
   return save({ importExtraFiles: val }, () => {
     importExtraFiles.value = val
+  })
+}
+
+function saveCleanupStaging(val: boolean) {
+  return save({ cleanupStaging: val }, () => {
+    cleanupStaging.value = val
   })
 }
 
@@ -158,6 +166,31 @@ onMounted(fetchConfig)
           @update:model-value="saveMode"
         />
         <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{{ t('settings.mediaImportModeHint') }}</p>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <UIcon
+              :name="cleanupStaging ? 'i-lucide-check-circle' : 'i-lucide-x-circle'"
+              class="size-4"
+              :class="cleanupStaging ? 'text-green-500' : 'text-zinc-400'"
+            />
+            <label for="media-cleanup-staging" class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{
+              t('settings.mediaCleanupStaging')
+            }}</label>
+          </div>
+          <USwitch
+            id="media-cleanup-staging"
+            :model-value="cleanupStaging"
+            :disabled="saving || !enabled || importMode !== 'move'"
+            @update:model-value="saveCleanupStaging"
+          />
+        </div>
+        <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{{ t('settings.mediaCleanupStagingHint') }}</p>
+        <p v-if="importMode !== 'move'" class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+          {{ t('settings.mediaCleanupStagingMoveOnly') }}
+        </p>
       </div>
 
       <div>

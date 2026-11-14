@@ -152,7 +152,8 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
         stagingSeries: (config.downloadPathSeries as string | undefined) ?? '',
         importMode: media.importMode,
         importExtraFiles: media.importExtraFiles,
-        extraFileExtensions: media.extraFileExtensions
+        extraFileExtensions: media.extraFileExtensions,
+        cleanupStaging: media.cleanupStaging
       })
       await dbRun(
         db
@@ -615,6 +616,11 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
 
   if (completedWithPrep.length === 0) return
 
+  // When media organization is on, the countdown alone is not enough: the file
+  // may still be copying into the library (rclone/SFTP uploads take minutes).
+  // Jellyfin is only told about a file that actually exists at its final path.
+  const media = await getMediaConfig().catch(() => null)
+
   const allUsers = await dbAll(db.select().from(users))
   const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
   const discordIdMap = new Map(allUsers.map((u) => [u.id, u.discordId ?? null]))
@@ -629,7 +635,16 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
       dl.completedAt === null ? Number.POSITIVE_INFINITY : (Date.now() - new Date(dl.completedAt).getTime()) / 1000
     const prepDelay = countdownEnabled ? dl.sizeBytes / prepSpeedBytes : 0
 
-    if (elapsed >= prepDelay) {
+    // A waiting import is part of "preparation": notifying now would point
+    // Jellyfin at a folder that does not exist yet. Categories without an
+    // import (games/books/music) and disabled organization are unaffected.
+    const waitsForImport =
+      media !== null &&
+      media.enabled &&
+      (dl.savePath === 'movies' || dl.savePath === 'series') &&
+      dl.organizeStatus === 'pending'
+
+    if (elapsed >= prepDelay && !waitsForImport) {
       if (jellyfin !== null) {
         const targetPath = savePathMap[dl.savePath]
         if (targetPath !== undefined) {

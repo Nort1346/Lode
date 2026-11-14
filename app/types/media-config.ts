@@ -8,5 +8,6 @@ export interface MediaConfigResponse {
   importMode: string
   importExtraFiles: boolean
   extraFileExtensions: string
+  cleanupStaging: boolean
   staging: MediaStagingStatus
 }

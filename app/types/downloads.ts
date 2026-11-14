@@ -24,6 +24,18 @@ export interface Download {
   resolution: string | null
   organizeStatus: 'pending' | 'done' | 'failed' | 'skipped'
   organizeError: string | null
+  // Present only while an import is actually copying bytes; the dashboard uses
+  // it for the preparation bar that follows the download bar.
+  organizeProgress?: OrganizeProgress | null
+}
+
+export interface OrganizeProgress {
+  percent: number
+  copiedBytes: number
+  totalBytes: number
+  speedBytesPerSecond: number
+  filesDone: number
+  filesTotal: number
 }
 
 // Response of /api/torrents/add and /api/browse/download.
