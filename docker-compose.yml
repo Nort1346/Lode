@@ -2,7 +2,7 @@ name: lode
 
 # Base stack: Lode + Redis. Combine with per-service overlay files:
 #   docker compose -f docker-compose.yml -f docker-compose.qbittorrent.yml up -d
-# Available overlays: postgres, qbittorrent, prowlarr, jellyfin,
+# Available overlays: postgres, qbittorrent, prowlarr, jellyfin, plex,
 # flaresolverr, dozzle (see docs/deployment.md).
 
 services:

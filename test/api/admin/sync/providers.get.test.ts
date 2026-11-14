@@ -44,7 +44,25 @@ describe('admin/sync/providers.get', () => {
     mockGetActiveSyncProviders.mockResolvedValue([])
 
     const result = await handler(mockEvent)
-    expect(result).toEqual({ providers: [], jellyfinConfigured: true })
+    expect(result).toEqual({ providers: [], jellyfinConfigured: true, plexConfigured: false })
+  })
+
+  it('reports plexConfigured when the plex url and token are set', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubConfig({ plexUrl: 'http://plex:32400', plexToken: 'plex-token' })
+    mockGetActiveSyncProviders.mockResolvedValue([])
+
+    const result = await handler(mockEvent)
+    expect(result.plexConfigured).toBe(true)
+  })
+
+  it('reports plexConfigured false when only the plex url is set', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    stubConfig({ plexUrl: 'http://plex:32400' })
+    mockGetActiveSyncProviders.mockResolvedValue([])
+
+    const result = await handler(mockEvent)
+    expect(result.plexConfigured).toBe(false)
   })
 
   it('reports jellyfinConfigured even when sync is disabled', async () => {
@@ -82,7 +100,8 @@ describe('admin/sync/providers.get', () => {
     const result = await handler(mockEvent)
     expect(result).toEqual({
       providers: [{ name: 'jellyfin', enabled: true }],
-      jellyfinConfigured: true
+      jellyfinConfigured: true,
+      plexConfigured: false
     })
   })
 })

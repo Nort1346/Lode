@@ -47,8 +47,13 @@ export default defineEventHandler(async (event) => {
   const hasJellyfin = (await getProviderUserId(session.user.id, 'jellyfin')) !== null
   if (hasJellyfin) {
     const syncSettings = await getSyncUserSettings(session.user.id, 'jellyfin')
+    // The sync loop applies settings to every enabled provider; Plex needs its
+    // own (its section keys are not Jellyfin library IDs), so pass them along.
+    const plexSettings = await getSyncUserSettings(session.user.id, 'plex')
     try {
-      await syncUserUpdate(session.user.id, { username: user.username, password: body.newPassword }, syncSettings)
+      await syncUserUpdate(session.user.id, { username: user.username, password: body.newPassword }, syncSettings, {
+        plex: plexSettings
+      })
     } catch (error) {
       log.error(`Password sync to Jellyfin failed for user ${user.username}:`, error)
     }

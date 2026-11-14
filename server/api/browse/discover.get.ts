@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const providers = await getActiveSyncProviders()
-  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
+  const libraryProviders = providers.filter((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'en'
@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
 
   const cached = await cacheGet<BrowseItem[]>(cacheKey)
   if (cached !== null) {
-    return { results: await markInLibrary(cached, libraryProvider) }
+    return { results: await markInLibrary(cached, libraryProviders) }
   }
 
   try {
@@ -100,7 +100,7 @@ export default defineEventHandler(async (event) => {
 
     await cacheSet(cacheKey, results, CACHE_TTL.TMDB_GENRE)
 
-    return { results: await markInLibrary(results, libraryProvider) }
+    return { results: await markInLibrary(results, libraryProviders) }
   } catch (err) {
     throw createError({
       statusCode: 502,

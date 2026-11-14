@@ -1,6 +1,7 @@
 import { users, syncProviders, syncUserSettings } from '#server/database/schema'
 import { eq, and } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll } from '#server/utils/db'
+import { parseStoredLibraryAccess } from '#server/utils/sync/provider-settings'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -16,6 +17,13 @@ export default defineEventHandler(async (event) => {
           .select()
           .from(syncUserSettings)
           .where(and(eq(syncUserSettings.userId, u.id), eq(syncUserSettings.providerName, 'jellyfin')))
+      )
+
+      const plexSettingsRow = await dbGet(
+        db
+          .select()
+          .from(syncUserSettings)
+          .where(and(eq(syncUserSettings.userId, u.id), eq(syncUserSettings.providerName, 'plex')))
       )
 
       return {
@@ -42,15 +50,17 @@ export default defineEventHandler(async (event) => {
           syncStatus: p.syncStatus,
           lastSyncError: p.lastSyncError
         })),
-        jellyfinLibraryAccess: settingsRow
-          ? (JSON.parse(settingsRow.libraryAccess) as string[] | 'all')
-          : ('all' as string[] | 'all'),
+        // Parsed leniently: one corrupt row must not break the whole user list.
+        jellyfinLibraryAccess: parseStoredLibraryAccess(settingsRow?.libraryAccess),
         jellyfinEnableVideoTranscoding: settingsRow?.enableVideoTranscoding ?? true,
         jellyfinEnableAudioTranscoding: settingsRow?.enableAudioTranscoding ?? true,
         jellyfinEnableRemuxing: settingsRow?.enableRemuxing ?? true,
         jellyfinEnableLiveTvAccess: settingsRow?.enableLiveTvAccess ?? true,
         jellyfinEnableLiveTvManagement: settingsRow?.enableLiveTvManagement ?? false,
-        jellyfinMaxActiveSessions: settingsRow?.maxActiveSessions ?? 0
+        jellyfinMaxActiveSessions: settingsRow?.maxActiveSessions ?? 0,
+        plexLibraryAccess: parseStoredLibraryAccess(plexSettingsRow?.libraryAccess),
+        plexEnableLiveTvAccess: plexSettingsRow?.enableLiveTvAccess ?? true,
+        plexEnableSync: plexSettingsRow?.enableSync ?? true
       }
     })
   )

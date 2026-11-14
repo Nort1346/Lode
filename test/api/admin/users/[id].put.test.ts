@@ -13,6 +13,8 @@ const mockSyncUserUpdate = vi.hoisted(() => vi.fn())
 const mockSyncUserDisable = vi.hoisted(() => vi.fn())
 const mockSyncUserEnable = vi.hoisted(() => vi.fn())
 const mockGetDefaultSyncSettings = vi.hoisted(() => vi.fn())
+const mockGetPlexSyncSettings = vi.hoisted(() => vi.fn())
+const mockGetSyncUserSettings = vi.hoisted(() => vi.fn())
 const mockUpsertSyncUserSettings = vi.hoisted(() => vi.fn())
 
 vi.mock('@node-rs/bcrypt', () => ({
@@ -24,6 +26,8 @@ vi.mock('#server/utils/sync', () => ({
   syncUserDisable: mockSyncUserDisable,
   syncUserEnable: mockSyncUserEnable,
   getDefaultSyncSettings: mockGetDefaultSyncSettings,
+  getPlexSyncSettings: mockGetPlexSyncSettings,
+  getSyncUserSettings: mockGetSyncUserSettings,
   upsertSyncUserSettings: mockUpsertSyncUserSettings
 }))
 
@@ -56,6 +60,9 @@ describe('admin/users/[id].put', () => {
     mockSyncUserDisable.mockReset()
     mockSyncUserEnable.mockReset()
     mockGetDefaultSyncSettings.mockReturnValue({})
+    mockGetPlexSyncSettings.mockReturnValue({})
+    mockGetSyncUserSettings.mockReset()
+    mockGetSyncUserSettings.mockResolvedValue({ libraryAccess: 'all' })
     mockUpsertSyncUserSettings.mockReset()
     mockSyncUserUpdate.mockResolvedValue(undefined)
     mockSyncUserDisable.mockResolvedValue(undefined)
@@ -96,6 +103,63 @@ describe('admin/users/[id].put', () => {
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true })
     expect(mockLogActivity).toHaveBeenCalled()
+  })
+
+  it('persists per-provider settings and passes the plex override to sync', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockGetRouterParam.mockReturnValue('u1')
+    mockReadBody.mockResolvedValue({
+      username: 'newname',
+      jellyfinLibraryAccess: ['jf1'],
+      plexLibraryAccess: ['1'],
+      plexEnableLiveTvAccess: false,
+      plexEnableSync: false
+    })
+    stubDb({ id: 'u1', username: 'oldname', isActive: true })
+
+    await handler(mockEvent)
+
+    expect(mockGetPlexSyncSettings).toHaveBeenCalledWith({
+      libraryAccess: ['1'],
+      enableLiveTvAccess: false,
+      enableSync: false
+    })
+    expect(mockUpsertSyncUserSettings).toHaveBeenCalledWith('u1', 'jellyfin', {})
+    expect(mockUpsertSyncUserSettings).toHaveBeenCalledWith('u1', 'plex', {})
+    expect(mockSyncUserUpdate).toHaveBeenCalledWith('u1', { username: 'newname', password: '' }, {}, { plex: {} })
+  })
+
+  it('keeps stored provider settings when the payload omits them', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockGetRouterParam.mockReturnValue('u1')
+    mockReadBody.mockResolvedValue({ password: 'temp1234' })
+    mockGetSyncUserSettings.mockImplementation(async (_id: string, provider: string) =>
+      provider === 'plex'
+        ? { libraryAccess: ['7'], enableLiveTvAccess: false, enableSync: false }
+        : { libraryAccess: ['jf'], enableVideoTranscoding: false }
+    )
+    stubDb({ id: 'u1', username: 'user1', isActive: true })
+
+    await handler(mockEvent)
+
+    expect(mockGetPlexSyncSettings).toHaveBeenCalledWith({
+      libraryAccess: ['7'],
+      enableLiveTvAccess: false,
+      enableSync: false
+    })
+    expect(mockGetDefaultSyncSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ libraryAccess: ['jf'], enableVideoTranscoding: false })
+    )
+  })
+
+  it('throws 400 for a malformed plexLibraryAccess payload', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockGetRouterParam.mockReturnValue('u1')
+    mockReadBody.mockResolvedValue({ plexLibraryAccess: 42 })
+    stubDb({ id: 'u1', username: 'user1', isActive: true })
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Invalid Plex user settings')
+    expect(mockUpsertSyncUserSettings).not.toHaveBeenCalled()
   })
 
   it('throws 409 when the new username is taken', async () => {

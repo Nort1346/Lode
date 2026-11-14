@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const providers = await getActiveSyncProviders()
-  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
+  const libraryProviders = providers.filter((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'en'
@@ -43,8 +43,8 @@ export default defineEventHandler(async (event) => {
     }))
 
     const [movies, tv] = await Promise.all([
-      markInLibrary(rawMovies, libraryProvider),
-      markInLibrary(rawTv, libraryProvider)
+      markInLibrary(rawMovies, libraryProviders),
+      markInLibrary(rawTv, libraryProviders)
     ])
 
     return { movies, tv }

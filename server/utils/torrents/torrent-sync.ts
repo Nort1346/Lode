@@ -12,6 +12,7 @@ import { createLogger } from '#server/utils/logger'
 import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
+import { usePlex, notifyPlexDownloaded } from '#server/utils/clients/plex'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
 import { CHECKING_STATES, COMPLETED_STATES, PAUSED_DOWNLOAD_STATES, type SyncResult } from '#server/types/torrent'
@@ -602,6 +603,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
 export async function notifyJellyfinIfNeeded(): Promise<void> {
   const db = await useDbAsync()
   const jellyfin = useJellyfin()
+  const plex = usePlex()
 
   const countdownEnabled = await isPrepCountdownEnabled()
   const prepSpeedMb = await getPrepSpeedMb()
@@ -630,9 +632,9 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
     const prepDelay = countdownEnabled ? dl.sizeBytes / prepSpeedBytes : 0
 
     if (elapsed >= prepDelay) {
-      if (jellyfin !== null) {
-        const targetPath = savePathMap[dl.savePath]
-        if (targetPath !== undefined) {
+      const targetPath = savePathMap[dl.savePath]
+      if (targetPath !== undefined) {
+        if (jellyfin !== null) {
           // Point Jellyfin at the organized file folder when the import ran,
           // otherwise fall back to the library root.
           const notifyPath =
@@ -641,6 +643,13 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
               : targetPath
           await jellyfin.notifyMediaUpdated([notifyPath]).catch(() => {})
           needsCacheInvalidation = true
+        }
+        // Post-download refresh (D6): ask Plex to rescan the affected section.
+        // notifyPlexDownloaded no-ops when Plex is unconfigured and swallows its
+        // own errors; the .catch is a backstop mirroring the Jellyfin call so a
+        // Plex hiccup never affects the download flow.
+        if (plex !== null) {
+          await notifyPlexDownloaded(targetPath).catch(() => {})
         }
       }
       if (countdownEnabled) {

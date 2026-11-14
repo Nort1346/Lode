@@ -105,7 +105,7 @@ Lode handles media discovery, release selection, and downloading directly in one
 | **Release ranking**        | Built in               | Via *arr             |
 | **Download**               | Direct to qBittorrent  | Via Sonarr/Radarr    |
 | **Radarr/Sonarr required** | No                     | Yes                  |
-| **Media servers**          | Jellyfin, more planned | Jellyfin, Emby, Plex |
+| **Media servers**          | Jellyfin, Plex         | Jellyfin, Emby, Plex |
 
 The main difference is who controls the release selection and download flow. Lode lets users see the available releases and choose what gets downloaded without adding Radarr or Sonarr to the setup.
 
@@ -157,6 +157,7 @@ Lode supports SQLite and PostgreSQL. The stack uses a base compose file plus opt
 | `prowlarr` | `docker-compose.prowlarr.yml` | 9900 | Indexer manager |
 | `flaresolverr` | `docker-compose.flaresolverr.yml` | 8191 | CAPTCHA solver (optional) |
 | `jellyfin` | `docker-compose.jellyfin.yml` | 8096 | Media server (optional) |
+| `plex` | `docker-compose.plex.yml` | 32400 | Media server (optional) |
 | `postgres` | `docker-compose.postgres.yml` | 5432 | Database (optional) |
 | `dozzle` | `docker-compose.dozzle.yml` | 8082 | Live log viewer (optional) |
 
@@ -183,7 +184,7 @@ Full documentation lives in [`docs/`](./docs/):
 
 ## Roadmap
 
-- [ ] Plex support (additional media server)
+- [x] Plex support (additional media server)
 - [ ] Emby support (additional media server)
 - [ ] Prowlarr indexer management (add/configure indexers from Lode admin)
 - [ ] Home Assistant integration (webhook, sensors, automations)

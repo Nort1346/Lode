@@ -27,7 +27,7 @@ export function parseSelection(raw: Record<string, string>): SetupSelection {
     imageTag: oneOf(raw['imageTag'], ['latest', 'nightly'] as const, 'latest'),
     qbittorrent: oneOf(raw['qbittorrent'], ['local', 'external'] as const, 'local'),
     prowlarr: oneOf(raw['prowlarr'], ['local', 'external'] as const, 'local'),
-    mediaProvider: oneOf(raw['mediaProvider'], ['jellyfin', 'none'] as const, 'jellyfin'),
+    mediaProvider: oneOf(raw['mediaProvider'], ['jellyfin', 'plex', 'none'] as const, 'jellyfin'),
     mediaMode: oneOf(raw['mediaMode'], ['local', 'external', 'none'] as const, 'local'),
     flaresolverr: raw['flaresolverr'] === 'true',
     dozzle: raw['dozzle'] === 'true'

@@ -91,4 +91,36 @@ describe('configSchema', () => {
     const result = configSchema.safeParse({ ...BASE_CONFIG, savePathMovies: '' })
     expect(result.success).toBe(false)
   })
+
+  it('accepts plex config omitted entirely (optional)', () => {
+    const result = configSchema.safeParse(BASE_CONFIG)
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts empty plexUrl and plexToken as not configured', () => {
+    const result = configSchema.safeParse({ ...BASE_CONFIG, plexUrl: '', plexToken: '' })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts a valid plexUrl with a token', () => {
+    const result = configSchema.safeParse({
+      ...BASE_CONFIG,
+      plexUrl: 'http://plex:32400',
+      plexToken: 'test-token'
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects an invalid plexUrl', () => {
+    const result = configSchema.safeParse({ ...BASE_CONFIG, plexUrl: 'not-a-url' })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.path.includes('plexUrl'))).toBe(true)
+    }
+  })
+
+  it('accepts a plexToken without plexUrl (token alone is not a URL violation)', () => {
+    const result = configSchema.safeParse({ ...BASE_CONFIG, plexToken: 'test-token' })
+    expect(result.success).toBe(true)
+  })
 })

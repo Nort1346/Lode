@@ -84,7 +84,7 @@ The repo uses **husky** + **gitleaks**: `pnpm install` runs `husky` (via the `pr
 
 Lode is configured entirely through env vars (see `.env.example`). Nuxt maps `NUXT_*` vars into `runtimeConfig` by lowercasing and stripping the prefix: `NUXT_TMDB_API_KEY` → `useRuntimeConfig().tmdbApiKey`, `NUXT_QBITTORRENT_URL` → `runtimeConfig.qbittorrentUrl`. Public vars need the `NUXT_PUBLIC_` prefix (e.g. `NUXT_PUBLIC_VAPID_PUBLIC_KEY`). `DB_DRIVER` (sqlite/postgres) selects the DB driver and is NOT a `NUXT_` var.
 
-Required for a working instance: `NUXT_SESSION_PASSWORD`, `NUXT_PROWLARR_URL` + `NUXT_PROWLARR_API_KEY`, `NUXT_QBITTORRENT_URL` + `NUXT_QBITTORRENT_API_KEY`, `NUXT_TRACKER_ENCRYPTION_KEY`. Optional: `NUXT_TMDB_API_KEY` (Lode falls back to its built-in public shared key - `BUILTIN_TMDB_API_KEY` in `server/utils/tmdb.ts`, intentionally shipped and allowlisted in `.gitleaks.toml`/`trivy-secret.yaml`), Jellyfin, Redis, Discord webhook, FlareSolverr, VAPID keys, disk monitoring.
+Required for a working instance: `NUXT_SESSION_PASSWORD`, `NUXT_PROWLARR_URL` + `NUXT_PROWLARR_API_KEY`, `NUXT_QBITTORRENT_URL` + `NUXT_QBITTORRENT_API_KEY`, `NUXT_TRACKER_ENCRYPTION_KEY`. Optional: `NUXT_TMDB_API_KEY` (Lode falls back to its built-in public shared key - `BUILTIN_TMDB_API_KEY` in `server/utils/tmdb.ts`, intentionally shipped and allowlisted in `.gitleaks.toml`/`trivy-secret.yaml`), Jellyfin, Plex, Redis, Discord webhook, FlareSolverr, VAPID keys, disk monitoring.
 
 ## Docker Requirements
 
@@ -154,7 +154,7 @@ import { helper } from '#utils'       // → ./server/utils
 ```
 server/utils/
 ├── *.ts              # Small utilities (auth, db, cache, format, logger, etc.)
-├── clients/          # External service clients (jellyfin, qbittorrent, flaresolverr)
+├── clients/          # External service clients (jellyfin, plex, qbittorrent, flaresolverr)
 ├── torrents/         # Torrent handling (ranking, sync, safe-download)
 ├── notifications/    # Notifications (notifications, discord, push, sse-hubs)
 └── sync/             # User sync subsystem (with providers/)
@@ -174,7 +174,7 @@ server/utils/
 - Session validation middleware on every `/api/` request
 - Middleware checks `is_active` - disabled users get session cleared + 401
 - `requireUser()` queries DB for fresh user data (not stale cookie) - fixes role staleness
-- Password order for Jellyfin sync: plain text to Jellyfin FIRST, then bcrypt for Lode
+- Password order for Jellyfin sync: plain text to Jellyfin FIRST, then bcrypt for Lode. Plex has no user passwords - its sync flow manages the home user through the owner's account token, so only the Lode-side bcrypt applies
 
 ### Database
 - Drizzle ORM with SQLite (default) or PostgreSQL

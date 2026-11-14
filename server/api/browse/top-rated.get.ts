@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const providers = await getActiveSyncProviders()
-  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
+  const libraryProviders = providers.filter((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'en'
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
       genres: []
     }))
 
-    const marked = await markInLibrary(movies, libraryProvider)
+    const marked = await markInLibrary(movies, libraryProviders)
 
     return { movies: marked }
   } catch (err) {

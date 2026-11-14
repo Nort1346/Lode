@@ -40,7 +40,15 @@ export default defineEventHandler(async (event) => {
   }
 
   const syncSettings = await getSyncUserSettings(id, 'jellyfin')
-  const existingMapping = await getProviderUserId(id, 'jellyfin')
+  // The sync loop applies settings to every enabled provider; Plex needs its
+  // own (its section keys are not Jellyfin library IDs), so pass them along.
+  const plexSettings = await getSyncUserSettings(id, 'plex')
+  // A mapping on any provider means the external account already exists, so a
+  // force sync must not mint a new temporary password (that would silently
+  // replace the user's Lode password, e.g. on a Plex-only setup).
+  const jellyfinMapping = await getProviderUserId(id, 'jellyfin')
+  const plexMapping = await getProviderUserId(id, 'plex')
+  const existingMapping = jellyfinMapping ?? plexMapping
 
   let action: 'synced' | 'created'
   let tempPassword: string | undefined
@@ -48,7 +56,7 @@ export default defineEventHandler(async (event) => {
   if (existingMapping !== null) {
     action = 'synced'
     try {
-      await syncUserUpdate(id, { username: user.username, password: '' }, syncSettings)
+      await syncUserUpdate(id, { username: user.username, password: '' }, syncSettings, { plex: plexSettings })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       log.error(`Force sync failed for user ${user.username}:`, message)
@@ -61,7 +69,9 @@ export default defineEventHandler(async (event) => {
     await dbRun(db.update(users).set({ password: hashedPassword }).where(eq(users.id, id)))
 
     try {
-      await syncUserCreate(id, { username: user.username, password: tempPassword }, syncSettings)
+      await syncUserCreate(id, { username: user.username, password: tempPassword }, syncSettings, {
+        plex: plexSettings
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       log.error(`Force sync failed for user ${user.username}:`, message)

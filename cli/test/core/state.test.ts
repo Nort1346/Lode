@@ -18,6 +18,12 @@ describe('parseSelection', () => {
     expect(selection.imageTag).toBe('latest')
   })
 
+  it('accepts plex as a media provider', () => {
+    const selection = parseSelection({ mediaProvider: 'plex', mediaMode: 'external' })
+    expect(selection.mediaProvider).toBe('plex')
+    expect(selection.mediaMode).toBe('external')
+  })
+
   it('round-trips through selectionToFile', () => {
     const selection = { ...DEFAULT_SELECTION, dbDriver: 'postgres' as const, dozzle: true }
     const parsed = parseSelection(parseStateFile(selectionToFile(selection)))

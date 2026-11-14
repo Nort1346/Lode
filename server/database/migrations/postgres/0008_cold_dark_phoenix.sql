@@ -1,0 +1,1 @@
+ALTER TABLE "sync_user_settings" ADD COLUMN "enable_sync" boolean DEFAULT true NOT NULL;

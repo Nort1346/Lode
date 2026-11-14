@@ -15,6 +15,7 @@ import { downloadComposeFiles } from './steps/compose-files'
 import { chooseLodeVersion } from './steps/lode-version'
 import { startServices } from './steps/services'
 import { jellyfinApiKey } from './steps/jellyfin'
+import { plexToken } from './steps/plex'
 import { qbittorrentSetup } from './steps/qbittorrent'
 import { prowlarrApiKey } from './steps/prowlarr'
 import { tmdbApiKey } from './steps/tmdb'
@@ -34,7 +35,7 @@ async function main(): Promise<void> {
     stateFound: false,
     previousSelection: null,
     selection: { ...DEFAULT_SELECTION },
-    urls: { qbittorrent: '', prowlarr: '', jellyfin: '' },
+    urls: { qbittorrent: '', prowlarr: '', jellyfin: '', plex: '' },
     composeFiles: ['docker-compose.yml'],
     qbitTempPass: '',
     adminPass: ''
@@ -51,6 +52,7 @@ async function main(): Promise<void> {
   await chooseLodeVersion(ctx)
   await startServices(ctx)
   await jellyfinApiKey(ctx)
+  await plexToken(ctx)
   await qbittorrentSetup(ctx)
   await prowlarrApiKey(ctx)
   await tmdbApiKey()
