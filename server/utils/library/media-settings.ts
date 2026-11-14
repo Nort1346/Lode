@@ -49,12 +49,17 @@ export async function getExtraFileExtensions(): Promise<string[]> {
   return parseExtraFileExtensions(await getSetting(SETTINGS.MEDIA_EXTRA_FILE_EXTENSIONS))
 }
 
+export async function isStagingCleanupEnabled(): Promise<boolean> {
+  return (await getSetting(SETTINGS.MEDIA_CLEANUP_STAGING)) === 'true'
+}
+
 export async function getMediaConfig(): Promise<MediaConfig> {
-  const [enabled, importMode, importExtraFiles, extraFileExtensions] = await Promise.all([
+  const [enabled, importMode, importExtraFiles, extraFileExtensions, cleanupStaging] = await Promise.all([
     isMediaManageEnabled(),
     getMediaImportMode(),
     isImportExtraFilesEnabled(),
-    getExtraFileExtensions()
+    getExtraFileExtensions(),
+    isStagingCleanupEnabled()
   ])
-  return { enabled, importMode, importExtraFiles, extraFileExtensions }
+  return { enabled, importMode, importExtraFiles, extraFileExtensions, cleanupStaging }
 }

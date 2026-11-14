@@ -80,6 +80,7 @@ function makeDeps(qbit: ReturnType<typeof makeQbit>, overrides: Partial<Organize
     importMode: 'copy',
     importExtraFiles: false,
     extraFileExtensions: ['srt', 'sub', 'nfo'],
+    cleanupStaging: false,
     ...overrides
   }
 }
@@ -305,5 +306,83 @@ describe('organizeCompletedDownload', () => {
     expect(result.importedFiles).toBe(2)
     expect(result.status).toBe('failed')
     expect(result.error).toContain('unrecognized episode')
+  })
+
+  it('cleans up the torrent leftovers in move mode when enabled', async () => {
+    const folder = 'Dune.2021.1080p.WEB-DL'
+    await seedStaging(`${folder}/Dune.2021.1080p.WEB-DL.mkv`)
+    await seedStaging(`${folder}/poster.jpg`, 'jpeg')
+    await seedStaging(`${folder}/release.screens`, 'screens')
+    await seedStaging(`${folder}/release.url`, 'url')
+    await seedStaging(`${folder}/release.txt`, 'txt')
+    const files = [
+      makeFile(`${folder}/Dune.2021.1080p.WEB-DL.mkv`, 11),
+      makeFile(`${folder}/poster.jpg`, 4),
+      makeFile(`${folder}/release.screens`, 7),
+      makeFile(`${folder}/release.url`, 3),
+      makeFile(`${folder}/release.txt`, 3)
+    ]
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob(),
+      makeDeps(qbit, { importMode: 'move', cleanupStaging: true })
+    )
+
+    expect(result.status).toBe('done')
+    // The whole empty release folder is pruned; the staging root stays.
+    await expect(stat(join(stagingDir, folder))).rejects.toThrow()
+    expect((await stat(stagingDir)).isDirectory()).toBe(true)
+    expect(await readFile(join(libraryDir, 'Dune (2021)/Dune (2021) 1080p web-dl.mkv'), 'utf8')).toBe('video-bytes')
+  })
+
+  it('keeps the torrent leftovers in move mode when cleanup is off', async () => {
+    const folder = 'Dune.2021.1080p.WEB-DL'
+    await seedStaging(`${folder}/Dune.2021.1080p.WEB-DL.mkv`)
+    await seedStaging(`${folder}/poster.jpg`, 'jpeg')
+    const files = [
+      makeFile(`${folder}/Dune.2021.1080p.WEB-DL.mkv`, 11),
+      makeFile(`${folder}/poster.jpg`, 4)
+    ]
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload('h', makeJob(), makeDeps(qbit, { importMode: 'move' }))
+
+    expect(result.status).toBe('done')
+    expect(await readFile(join(stagingDir, folder, 'poster.jpg'), 'utf8')).toBe('jpeg')
+  })
+
+  it('does not clean up outside move mode', async () => {
+    const folder = 'Dune.2021.1080p.WEB-DL'
+    await seedStaging(`${folder}/Dune.2021.1080p.WEB-DL.mkv`)
+    await seedStaging(`${folder}/poster.jpg`, 'jpeg')
+    const files = [
+      makeFile(`${folder}/Dune.2021.1080p.WEB-DL.mkv`, 11),
+      makeFile(`${folder}/poster.jpg`, 4)
+    ]
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob(),
+      makeDeps(qbit, { importMode: 'copy', cleanupStaging: true })
+    )
+
+    expect(result.status).toBe('done')
+    expect(await readFile(join(stagingDir, folder, 'poster.jpg'), 'utf8')).toBe('jpeg')
+  })
+
+  it('keeps the leftovers when the import was only partially successful', async () => {
+    const names = ['Show.S01E01.1080p.WEB-DL.mkv', 'Show.S01E02.1080p.WEB-DL.mkv']
+    await seedStaging(names[0]!)
+    await seedStaging('poster.jpg', 'jpeg')
+    const files = [...names.map((name) => makeFile(name, 50)), makeFile('poster.jpg', 4)]
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob({ savePath: 'series', torrentName: 'Show.S01', label: 'Show', mediaType: 'tv' }),
+      makeDeps(qbit, { importMode: 'move', cleanupStaging: true })
+    )
+
+    expect(result.status).toBe('failed')
+    expect(await readFile(join(stagingDir, 'poster.jpg'), 'utf8')).toBe('jpeg')
   })
 })

@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
     importMode: config.importMode,
     importExtraFiles: config.importExtraFiles,
     extraFileExtensions: config.extraFileExtensions.join(', '),
+    cleanupStaging: config.cleanupStaging,
     staging
   }
 })

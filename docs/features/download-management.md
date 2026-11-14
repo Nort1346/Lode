@@ -46,14 +46,25 @@ During that window the badge stays `ok` and the ETA shows "Calculating…". A co
 0-seed count on a torrent that is not downloading is flagged `dead`, because the
 release most likely has no active seeders.
 
-## Prep Countdown
+## Preparation Phase (countdown + real import progress)
 
-When a download completes, a simulated "file preparation" countdown is shown:
+When a download completes, the row switches from the download bar to a
+dedicated **preparation bar** (violet/fuchsia with a moving highlight, so it is
+never mistaken for the download bar):
 
 - **Configurable speed**: Default 15 MB/s (admin setting)
-- **Visual feedback**: Progress bar with estimated time
-- **Disableable**: Can be turned off in admin settings
-- **Purpose**: Gives users a sense of completion even though files are already on disk
+- **Two sources merged into one bar**: the simulated countdown (`sizeBytes /
+  speed`) and the real byte progress of the library import reported by the
+  server. The bar shows `max(countdown %, import %)`, so it never goes
+  backwards and never claims "ready" while files are still being copied.
+- **Live import detail**: while an import is copying, the bar shows
+  `copied / total · speed` plus the `files done / total` counter; the dashboard
+  polls every second during preparation and every 3 s when idle.
+- **Jellyfin waits for the import**: with media organization enabled, the
+  ready notification (and the Discord/push message) is held until
+  `organize_status` leaves `pending`, so Jellyfin never scans a folder that is
+  still being written.
+- **Disableable**: Can be turned off in admin settings.
 
 ## Media Organization (optional, *arr-style import)
 
@@ -75,6 +86,7 @@ staging configured.
 | Staging dirs (`NUXT_DOWNLOAD_PATH_MOVIES` / `NUXT_DOWNLOAD_PATH_SERIES`) | empty | qBittorrent landing zone; `NUXT_SAVE_PATH_*` stays the library. Files are imported from staging, the torrent stays intact there (seeding-safe). Without a staging dir for a category the download is marked `failed` with "staging dir not configured" instead of being renamed inside the library |
 | Import mode (`media_import_mode`) | `hardlink` | `hardlink` keeps seeding with zero extra space but needs staging + library on one filesystem; cross-device setups (separate `/mnt` disks, SFTP mounts) answer `EXDEV` and auto-fall back to `copy`. `copy` duplicates bytes, `move` relocates and breaks seeding (only with seeding disabled) |
 | Extra files (`media_import_extra_files`) | `false` (off) | Copies subtitles and sidecars (`.srt`, `.sub`, `.ass`, `.nfo`, list in `media_extra_file_extensions`) next to the imported video, keeping language/forced suffixes (`.en.srt`) |
+| Staging cleanup (`media_cleanup_staging`) | `false` (off) | Only with `move`: after a fully successful import, removes the files the torrent left behind in staging (covers, `.screens`, `.url`, `.txt`) and prunes the emptied release folder. Never leaves the torrent's save dir and never touches the staging root or the library; a partial import (`failed`/`skipped`) keeps everything so the admin can inspect it |
 | Movie naming | on when enabled | `Title (Year)/Title (Year) Resolution Source.ext`, title/year from TMDB when `tmdbId` is known, otherwise the request label |
 | Series naming | on when enabled | `Series/Season 02/Series - S02E02 Resolution Source.ext`; multi-episode files keep the range (`S02E02-E03`); daily releases use the air year (`Season 2026` + air date) |
 | Main-file pick | always | Movies import the largest non-sample video, `sample` files are skipped. Series import **every** video file, so season packs are fully imported instead of only the biggest episode; videos inside bonus-material folders (`Extras/`, `Featurettes/`, `Trailers/`, `Bonus Features/`, ...) are ignored so they cannot fail the pack. Games/books/music are left untouched (`skipped`) |
@@ -82,7 +94,7 @@ staging configured.
 | Safe delete | always | Deleting a download keeps the library file: in `hardlink`/`copy` modes only the staging copy is removed, in `move` mode (or an unknown mode) qBittorrent is asked to remove the torrent without touching files |
 | Jellyfin targeting | always | Each successful import notifies Jellyfin about the exact folder it wrote to, so the scan starts right away; the countdown notification targets the organized folder when known, otherwise the library root |
 | Quality choice | manual | The release is always picked by the user - there is no automatic quality selection or upgrading |
-| Admin API | - | `GET/PUT /api/admin/media-config` (`enabled`, `importMode`, `importExtraFiles`, `extraFileExtensions`; `GET` also reports which staging dirs are configured) |
+| Admin API | - | `GET/PUT /api/admin/media-config` (`enabled`, `importMode`, `importExtraFiles`, `extraFileExtensions`, `cleanupStaging`; `GET` also reports which staging dirs are configured) |
 
 ## Real-Time Updates
 

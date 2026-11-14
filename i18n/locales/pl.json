@@ -275,7 +275,9 @@
   "downloads": {
     "prepReady": "Gotowe",
     "prepRemainingSec": "~{s}s pozostało",
-    "prepRemainingMin": "~{m}m pozostało"
+    "prepRemainingMin": "~{m}m pozostało",
+    "prepTitle": "Przygotowanie",
+    "prepCopying": "Import do biblioteki"
   },
   "admin": {
     "userTitle": "Zarządzanie użytkownikami",
@@ -487,6 +489,9 @@
     "mediaExtraFilesHint": "Kopiuje napisy i pliki towarzyszące (nfo itp.) obok zaimportowanego wideo.",
     "mediaExtraExtensions": "Rozszerzenia dodatkowych plików",
     "mediaExtraExtensionsHint": "Lista rozdzielona przecinkami, np. srt, sub, ass, nfo. Importowane są tylko pliki z tego samego folderu co wideo.",
+    "mediaCleanupStaging": "Sprzątaj staging po imporcie",
+    "mediaCleanupStagingHint": "Po udanym imporcie usuwa pozostałe pliki torrenta ze stagingu (okładki, .screens, .url, .txt). Działa tylko w trybie Przenoszenie. Biblioteka nigdy nie jest ruszana.",
+    "mediaCleanupStagingMoveOnly": "Dostępne tylko w trybie Przenoszenie.",
     "qbittorrentSaved": "Zapisano ustawienia qBittorrent",
     "qbittorrentError": "Nie udało się zapisać ustawień qBittorrent",
     "liveLogs": "Logi na żywo",
