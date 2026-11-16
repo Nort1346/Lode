@@ -75,4 +75,4 @@ ENV NODE_ENV=production
 EXPOSE 5757
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["node", ".output/server/index.mjs"]
+CMD ["node", "scripts/start.mjs"]

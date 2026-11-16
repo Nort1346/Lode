@@ -13,6 +13,8 @@
 | `NUXT_PROWLARR_API_KEY` | Prowlarr API key |
 | `NUXT_TRACKER_ENCRYPTION_KEY` | AES-256-GCM key for tracker passwords (64 hex chars) |
 
+> `NUXT_SESSION_PASSWORD` was renamed to `NUXT_APP_SECRET` in `nuxt-auth-utils` 0.6. Existing deployments can keep the old variable as a deprecated fallback (the server entrypoint copies it to `NUXT_APP_SECRET` and logs a warning), but rename it to avoid the warning. Everyone is logged out once after the upgrade because the session cookie name and format changed.
+
 ### Optional - Paths
 
 | Variable | Default | Description |

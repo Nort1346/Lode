@@ -21,6 +21,7 @@ export const DEFAULT_TIMEZONE = 'UTC'
 export const ENV_KEYS = {
   timezone: 'TZ',
   appSecret: 'NUXT_APP_SECRET',
+  legacySessionPassword: 'NUXT_SESSION_PASSWORD',
   trackerEncryptionKey: 'NUXT_TRACKER_ENCRYPTION_KEY',
   postgresPassword: 'POSTGRES_PASSWORD',
   dbDriver: 'DB_DRIVER',

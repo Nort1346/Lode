@@ -31,6 +31,8 @@ NUXT_PROWLARR_API_KEY=your-prowlarr-api-key
 NUXT_TRACKER_ENCRYPTION_KEY=replace_me_with_64_hex_chars
 ```
 
+`NUXT_SESSION_PASSWORD` from older installs is still accepted as a deprecated fallback for `NUXT_APP_SECRET`, but rename it to avoid a warning at startup.
+
 TMDB is optional: leave `NUXT_TMDB_API_KEY` empty and Lode uses its built-in shared key. Set your own key from [themoviedb.org](https://www.themoviedb.org/settings/api) for higher rate limits.
 
 Generate the encryption key:

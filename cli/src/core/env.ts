@@ -47,3 +47,12 @@ export function updateEnv(dir: string, file: string, key: string, value: string)
   if (!existsSync(filePath)) return
   writeAtomic(filePath, updateEnvFile(readFileSync(filePath, 'utf8'), key, value))
 }
+
+export function removeEnv(dir: string, file: string, key: string): void {
+  const filePath = envFilePath(dir, file)
+  if (!existsSync(filePath)) return
+  const pattern = new RegExp(`^${escapeRegExp(key)}=`)
+  const content = readFileSync(filePath, 'utf8')
+  const lines = content.split('\n').filter((line) => !pattern.test(line))
+  writeAtomic(filePath, lines.join('\n'))
+}

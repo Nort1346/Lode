@@ -104,7 +104,7 @@ exec gosu appuser "$@"
 ## Production Tips
 
 1. **Change admin password** immediately after first deploy
-2. **Set `NUXT_APP_SECRET`** to a random 32+ character string
+2. **Set `NUXT_APP_SECRET`** to a random 32+ character string (`NUXT_SESSION_PASSWORD` still works as a deprecated fallback)
 3. **Use PostgreSQL** for multi-user production
 4. **Enable Redis** for caching (`NUXT_REDIS_URL`)
 5. **Configure disk monitoring** with `NUXT_DISKS=/mnt/storage`
