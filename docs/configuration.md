@@ -35,6 +35,8 @@
 | `NUXT_REDIS_URL` | - | Redis connection URL (enables caching) |
 | `NUXT_JELLYFIN_URL` | - | Jellyfin server URL |
 | `NUXT_JELLYFIN_API_KEY` | - | Jellyfin API key |
+| `NUXT_PLEX_URL` | - | Plex Media Server base URL (e.g. `http://plex:32400`) |
+| `NUXT_PLEX_TOKEN` | - | Account-wide Plex token (`X-Plex-Token`), used against both the PMS and plex.tv. The server must also be claimed/signed in, otherwise user management fails |
 | `NUXT_DISCORD_WEBHOOK_URL` | - | Discord webhook for download notifications |
 | `NUXT_FLARESOLVERR_URL` | - | FlareSolverr URL for Cloudflare bypass |
 | `NUXT_PUBLIC_VAPID_PUBLIC_KEY` | - | VAPID public key for Web Push API |
@@ -73,6 +75,10 @@ export const SETTINGS = {
   JELLYFIN_DEFAULT_LIVE_TV_ACCESS: 'jellyfin_default_live_tv_access',
   JELLYFIN_DEFAULT_LIVE_TV_MANAGEMENT: 'jellyfin_default_live_tv_management',
   JELLYFIN_DEFAULT_MAX_ACTIVE_SESSIONS: 'jellyfin_default_max_active_sessions',
+  PLEX_SYNC_ENABLED: 'plex_sync_enabled',
+  PLEX_DEFAULT_LIBRARY_ACCESS: 'plex_default_library_access',
+  PLEX_DEFAULT_LIVE_TV_ACCESS: 'plex_default_live_tv_access',
+  PLEX_DEFAULT_SYNC: 'plex_default_sync',
   RANKING_CONFIG: 'ranking_config',
   BRUTE_FORCE_CONFIG: 'brute_force_config',
   PREP_COUNTDOWN_ENABLED: 'prep_countdown_enabled',
@@ -111,6 +117,10 @@ Some settings are stored in the `settings` DB table and can be changed at runtim
 | `discord_locale` | `en` | Discord webhook language (`pl`, `en`, `de`, `fr`, `es`, `pt-BR`) |
 | `discord_mentions_enabled` | `true` | Enable user mentions in Discord notifications |
 | `jellyfin_sync_enabled` | `false` | Enable Jellyfin user sync |
+| `plex_sync_enabled` | `true` | Enable Plex user sync (also requires `NUXT_PLEX_URL` + `NUXT_PLEX_TOKEN`); the UI hides the toggle until Plex is configured |
+| `plex_default_library_access` | `all` | Plex libraries granted to new users (`all` or a JSON array of section IDs) |
+| `plex_default_live_tv_access` | `true` | Grant Live TV access to new Plex users |
+| `plex_default_sync` | `true` | Allow Plex Sync downloads for new Plex users |
 | `user_default_daily_download_limit` | `5` | Default daily download limit for new users |
 | `user_default_active_torrent_limit` | `3` | Default active torrent limit for new users |
 | `user_default_max_torrent_size_gb` | `20` | Default max torrent size (GB) for new users |

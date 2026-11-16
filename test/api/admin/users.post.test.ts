@@ -9,6 +9,7 @@ const mockHash = vi.hoisted(() => vi.fn())
 const mockRandomUUID = vi.hoisted(() => vi.fn())
 const mockSyncNewUser = vi.hoisted(() => vi.fn())
 const mockGetDefaultSyncSettings = vi.hoisted(() => vi.fn())
+const mockGetPlexSyncSettings = vi.hoisted(() => vi.fn())
 const mockGetSetting = vi.hoisted(() => vi.fn())
 const mockReadBody = vi.fn()
 
@@ -22,7 +23,8 @@ vi.mock('node:crypto', () => ({
 
 vi.mock('#server/utils/sync', () => ({
   syncNewUser: mockSyncNewUser,
-  getDefaultSyncSettings: mockGetDefaultSyncSettings
+  getDefaultSyncSettings: mockGetDefaultSyncSettings,
+  getPlexSyncSettings: mockGetPlexSyncSettings
 }))
 
 vi.mock('#server/utils/settings', () => ({
@@ -54,11 +56,13 @@ describe('admin/users.post', () => {
     mockRandomUUID.mockReset()
     mockSyncNewUser.mockReset()
     mockGetDefaultSyncSettings.mockReset()
+    mockGetPlexSyncSettings.mockReset()
     mockGetSetting.mockReset()
     mockGetSetting.mockResolvedValue(null)
     mockHash.mockResolvedValue('$2b$12$hashed')
     mockRandomUUID.mockReturnValue('new-id-1')
     mockGetDefaultSyncSettings.mockReturnValue({})
+    mockGetPlexSyncSettings.mockReturnValue({})
     mockSyncNewUser.mockResolvedValue('synced')
   })
 
@@ -131,6 +135,23 @@ describe('admin/users.post', () => {
     stubDb({ id: 'u1', username: 'existing' })
 
     await expect(handler(mockEvent)).rejects.toThrow('409: Username already exists')
+  })
+
+  it('throws 400 for a malformed plexLibraryAccess payload', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    mockReadBody.mockResolvedValue({ username: 'newuser', password: 'pass1234', plexLibraryAccess: 'movies' })
+    stubDb(undefined)
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Invalid Plex user settings')
+    expect(mockInsertValues).not.toHaveBeenCalled()
+  })
+
+  it('throws 400 when a plex toggle is not a boolean', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
+    mockReadBody.mockResolvedValue({ username: 'newuser', password: 'pass1234', plexEnableSync: 'yes' })
+    stubDb(undefined)
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Invalid Plex user settings')
   })
 
   it('sets syncStatus to failed on sync failure', async () => {

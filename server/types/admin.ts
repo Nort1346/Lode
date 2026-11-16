@@ -16,6 +16,9 @@ export interface CreateUserBody {
   jellyfinEnableLiveTvAccess?: boolean
   jellyfinEnableLiveTvManagement?: boolean
   jellyfinMaxActiveSessions?: number
+  plexLibraryAccess?: string[] | 'all'
+  plexEnableLiveTvAccess?: boolean
+  plexEnableSync?: boolean
   expiresAt?: string | null
 }
 
@@ -39,6 +42,9 @@ export interface UpdateUserBody {
   jellyfinEnableLiveTvAccess?: boolean
   jellyfinEnableLiveTvManagement?: boolean
   jellyfinMaxActiveSessions?: number
+  plexLibraryAccess?: string[] | 'all'
+  plexEnableLiveTvAccess?: boolean
+  plexEnableSync?: boolean
   expiresAt?: string | null
 }
 

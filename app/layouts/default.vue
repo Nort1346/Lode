@@ -1,8 +1,6 @@
 <script setup lang="ts">
-definePageMeta({
-  middleware: 'auth'
-})
-
+// Auth middleware is declared per page (definePageMeta only works in pages,
+// not in layouts) - every protected page lists 'auth' (plus 'admin' where needed).
 const { user, clear } = useUserSession()
 const route = useRoute()
 const colorMode = useColorMode()

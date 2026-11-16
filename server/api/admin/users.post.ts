@@ -2,7 +2,8 @@ import { hash } from '@node-rs/bcrypt'
 import { users } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { syncNewUser, getDefaultSyncSettings } from '#server/utils/sync'
+import { syncNewUser, getDefaultSyncSettings, getPlexSyncSettings } from '#server/utils/sync'
+import { plexUserSettingsInputSchema } from '#server/utils/sync/provider-settings'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import type { CreateUserBody } from '#server/types/admin'
 
@@ -57,6 +58,17 @@ export default defineEventHandler(async (event) => {
     enableLiveTvManagement: body.jellyfinEnableLiveTvManagement,
     maxActiveSessions: body.jellyfinMaxActiveSessions
   })
+  // Plex section keys are not Jellyfin library IDs, so its settings ride as a
+  // per-provider override instead of reusing the Jellyfin payload above.
+  const plexBody = plexUserSettingsInputSchema.safeParse(body)
+  if (!plexBody.success) {
+    throw createError({ statusCode: 400, statusMessage: 'Invalid Plex user settings' })
+  }
+  const plexSettings = await getPlexSyncSettings({
+    libraryAccess: plexBody.data.plexLibraryAccess,
+    enableLiveTvAccess: plexBody.data.plexEnableLiveTvAccess,
+    enableSync: plexBody.data.plexEnableSync
+  })
 
   const hashedPassword = await hash(password, { cost: 12 })
 
@@ -82,7 +94,7 @@ export default defineEventHandler(async (event) => {
     })
   )
 
-  const syncStatus = await syncNewUser(id, { username, password }, syncSettings)
+  const syncStatus = await syncNewUser(id, { username, password }, syncSettings, { plex: plexSettings })
 
   if (syncStatus === 'synced') {
     await dbRun(db.update(users).set({ syncStatus: 'synced' }).where(eq(users.id, id)))

@@ -169,6 +169,9 @@ export interface PushSubscription {
   lastUsedAt: string | null
 }
 
+// DB rows for the sync tables. Named *Record to stay distinct from the
+// SyncProvider interface / SyncUserSettings DTO in server/utils/sync/types.ts
+// (same-named auto-imports would collide).
 export interface SyncProviderRecord {
   id: string
   userId: string

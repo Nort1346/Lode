@@ -7,10 +7,14 @@ import type { StepContext } from '../types'
 export async function jellyfinApiKey(ctx: StepContext): Promise<void> {
   stepHeader(11, 'Jellyfin API key')
   const dir = process.cwd()
-  if (ctx.selection.mediaProvider === 'none') {
+  if (ctx.selection.mediaProvider !== 'jellyfin') {
     updateEnv(dir, ENV_FILE, ENV_KEYS.jellyfinUrl, '')
     updateEnv(dir, ENV_FILE, ENV_KEYS.jellyfinApiKey, '')
-    log.info('No media server selected - NUXT_JELLYFIN_URL and NUXT_JELLYFIN_API_KEY cleared')
+    log.info(
+      ctx.selection.mediaProvider === 'plex'
+        ? 'Plex selected - NUXT_JELLYFIN_URL and NUXT_JELLYFIN_API_KEY cleared'
+        : 'No media server selected - NUXT_JELLYFIN_URL and NUXT_JELLYFIN_API_KEY cleared'
+    )
     return
   }
   if (ctx.selection.mediaMode === 'local') {

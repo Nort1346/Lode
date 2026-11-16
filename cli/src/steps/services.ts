@@ -12,7 +12,14 @@ import {
 import { SetupFailure } from '../core/errors'
 import { askConfirm, log, spinner, stepHeader } from '../core/prompt'
 import { sleep, waitForPort } from '../core/ports'
-import { infraServicesFor, LODE_IMAGE, PORTS, PORT_TIMEOUTS, serviceDisplayName } from '../constants'
+import {
+  infraServicesFor,
+  LODE_IMAGE,
+  mediaServiceFor,
+  PORTS,
+  PORT_TIMEOUTS,
+  serviceDisplayName
+} from '../constants'
 import type { DeselectionCheck, StepContext, WaitPhase } from '../types'
 
 const QBIT_TEMP_PASSWORD = /A temporary password is provided for this session:\s*(\S+)/g
@@ -55,25 +62,38 @@ const DESELECTION_CHECKS: readonly DeselectionCheck[] = [
   { service: 'postgres', stateKey: 'dbDriver', activeValue: 'postgres' }
 ]
 
+async function removeDeselectedContainer(container: string): Promise<void> {
+  if (!(await containerExists(container))) return
+  const remove = await askConfirm(
+    `${container} is no longer selected. Stop and remove the container? (its volume is kept)`,
+    true
+  )
+  if (remove) {
+    await stopAndRemoveContainer(container)
+    log.success(`Removed ${container} (volume kept)`)
+  } else {
+    log.warn(`Keeping ${container} - remove it manually with: docker rm ${container}`)
+  }
+}
+
 async function removeDeselectedServices(ctx: StepContext): Promise<void> {
   const previous = ctx.previousSelection
   if (!previous) return
   for (const check of DESELECTION_CHECKS) {
     if (String(previous[check.stateKey]) !== check.activeValue) continue
     if (String(ctx.selection[check.stateKey]) === check.activeValue) continue
-    const container = `lode-${check.service}`
-    if (!(await containerExists(container))) continue
-    const remove = await askConfirm(
-      `${container} is no longer selected. Stop and remove the container? (its volume is kept)`,
-      true
-    )
-    if (remove) {
-      await stopAndRemoveContainer(container)
-      log.success(`Removed ${container} (volume kept)`)
-    } else {
-      log.warn(`Keeping ${container} - remove it manually with: docker rm ${container}`)
-    }
+    await removeDeselectedContainer(`lode-${check.service}`)
   }
+  // Switching between local media providers keeps mediaMode 'local', so the
+  // generic check above cannot see the change - handle it explicitly.
+  const staleProvider =
+    previous.mediaMode === 'local' &&
+    ctx.selection.mediaMode === 'local' &&
+    previous.mediaProvider !== ctx.selection.mediaProvider &&
+    previous.mediaProvider !== 'none'
+      ? previous.mediaProvider
+      : null
+  if (staleProvider) await removeDeselectedContainer(`lode-${staleProvider}`)
 }
 
 function portWaitPhase(label: string, port: number, timeoutMs: number): WaitPhase {
@@ -164,8 +184,9 @@ export async function startServices(ctx: StepContext): Promise<void> {
   if (selection.prowlarr === 'local' && failed.includes('prowlarr')) {
     log.warn('Prowlarr not running - you can configure it later (step 12)')
   }
-  if (selection.mediaMode === 'local' && failed.includes('jellyfin')) {
-    log.warn('Jellyfin not running - you can configure it later (step 10)')
+  const mediaService = mediaServiceFor(selection)
+  if (mediaService !== '' && failed.includes(mediaService)) {
+    log.warn(`${serviceDisplayName(mediaService)} not running - you can configure it later`)
   }
 
   // One spinner carries the whole readiness wait and stops on the single
@@ -185,8 +206,12 @@ export async function startServices(ctx: StepContext): Promise<void> {
   if (selection.prowlarr === 'local' && !failed.includes('prowlarr')) {
     phases.push(portWaitPhase('Prowlarr', PORTS.prowlarr, PORT_TIMEOUTS.prowlarr))
   }
-  if (selection.mediaMode === 'local' && !failed.includes('jellyfin')) {
-    phases.push(portWaitPhase('Jellyfin', PORTS.jellyfin, PORT_TIMEOUTS.jellyfin))
+  if (mediaService !== '' && !failed.includes(mediaService)) {
+    phases.push(
+      selection.mediaProvider === 'plex'
+        ? portWaitPhase('Plex', PORTS.plex, PORT_TIMEOUTS.plex)
+        : portWaitPhase('Jellyfin', PORTS.jellyfin, PORT_TIMEOUTS.jellyfin)
+    )
   }
   if (selection.dbDriver === 'postgres') {
     phases.push(portWaitPhase('PostgreSQL', PORTS.postgres, PORT_TIMEOUTS.postgres))

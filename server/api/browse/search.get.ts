@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const providers = await getActiveSyncProviders()
-  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
+  const libraryProviders = providers.filter((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const q = typeof query.q === 'string' ? query.q.trim() : ''
@@ -86,7 +86,7 @@ export default defineEventHandler(async (event) => {
 
   results.sort((a, b) => b.rating - a.rating)
 
-  const marked = await markInLibrary(results, libraryProvider)
+  const marked = await markInLibrary(results, libraryProviders)
 
   return { results: marked, query: q, page }
 })

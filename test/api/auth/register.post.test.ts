@@ -47,7 +47,8 @@ const mockSyncNewUser = vi.hoisted(() => vi.fn(() => Promise.resolve('synced' as
 const mockGetSetting = vi.hoisted(() => vi.fn(() => Promise.resolve(null)))
 vi.mock('#server/utils/sync', () => ({
   syncNewUser: mockSyncNewUser,
-  getDefaultSyncSettings: vi.fn(() => ({}))
+  getDefaultSyncSettings: vi.fn(() => ({})),
+  getPlexSyncSettings: vi.fn(() => ({}))
 }))
 
 vi.mock('#server/utils/settings', () => ({
@@ -133,7 +134,8 @@ describe('auth/register.post', () => {
     expect(vi.mocked(syncNewUser)).toHaveBeenCalledWith(
       'user-uuid',
       { username: 'newuser', password: 'pass1234' },
-      expect.any(Object)
+      expect.any(Object),
+      { plex: {} }
     )
   })
 })

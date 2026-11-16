@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const providers = await getActiveSyncProviders()
-  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
+  const libraryProviders = providers.filter((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const locale = typeof query.locale === 'string' ? query.locale : 'en'
@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
         rating: m.vote_average,
         genres: []
       }))
-      return { items: await markInLibrary(movies, libraryProvider) }
+      return { items: await markInLibrary(movies, libraryProviders) }
     }
 
     const data = await getTvByGenre(genreId, locale)
@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
       rating: t.vote_average,
       genres: []
     }))
-    return { items: await markInLibrary(tv, libraryProvider) }
+    return { items: await markInLibrary(tv, libraryProviders) }
   } catch (err) {
     throw createError({
       statusCode: 502,

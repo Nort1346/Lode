@@ -30,18 +30,33 @@ export function pickAlternativeTitles(
   return candidates.slice(0, max).map((c) => c.title)
 }
 
+// Marks each item with `inLibrary` if it exists in ANY of the given providers'
+// libraries (OR semantics - D7). With two media servers connected, an item that
+// lives in either one counts as in-library. A provider that throws is treated as
+// `false` for that item so a single failing server never fails the browse request.
+// Only providers implementing `isItemInLibrary` are consulted; pass
+// `providers.filter((p) => typeof p.isItemInLibrary === 'function')`.
 export async function markInLibrary<T extends { id: number }>(
   items: T[],
-  provider?: SyncProvider
+  providers: SyncProvider[] = []
 ): Promise<(T & { inLibrary: boolean })[]> {
-  if (!provider) {
+  const checkers = providers.filter((p) => typeof p.isItemInLibrary === 'function')
+  if (checkers.length === 0) {
     return items.map((i) => ({ ...i, inLibrary: false }))
   }
 
   return Promise.all(
-    items.map(async (item) => ({
-      ...item,
-      inLibrary: (await provider.isItemInLibrary?.(item.id)) === true
-    }))
+    items.map(async (item) => {
+      const results = await Promise.all(
+        checkers.map(async (provider) => {
+          try {
+            return (await provider.isItemInLibrary?.(item.id)) === true
+          } catch {
+            return false
+          }
+        })
+      )
+      return { ...item, inLibrary: results.some((r) => r) }
+    })
   )
 }
