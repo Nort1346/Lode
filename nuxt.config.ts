@@ -47,13 +47,13 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    // Session signing secret, overridden at runtime via NUXT_APP_SECRET (32+ chars).
+    appSecret: '',
     public: {
       appVersion: '1.0.6',
       vapidPublicKey: ''
     },
     session: {
-      // Required by the nuxt-auth-utils module types; overridden at runtime via NUXT_SESSION_PASSWORD.
-      password: '',
       maxAge: 60 * 60 * 24 * 30,
       cookie: {
         secure: !import.meta.dev

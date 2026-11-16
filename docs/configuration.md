@@ -8,7 +8,7 @@
 |----------|-------------|
 | `NUXT_QBITTORRENT_URL` | qBittorrent WebUI URL (e.g. `http://localhost:8080`) |
 | `NUXT_QBITTORRENT_API_KEY` | qBittorrent WebUI API key (Settings > Web UI > API Key) |
-| `NUXT_SESSION_PASSWORD` | Session encryption key (32+ chars) |
+| `NUXT_APP_SECRET` | Session signing secret (32+ chars) |
 | `NUXT_PROWLARR_URL` | Prowlarr base URL |
 | `NUXT_PROWLARR_API_KEY` | Prowlarr API key |
 | `NUXT_TRACKER_ENCRYPTION_KEY` | AES-256-GCM key for tracker passwords (64 hex chars) |

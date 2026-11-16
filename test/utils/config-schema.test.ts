@@ -4,7 +4,7 @@ import { configSchema } from '#server/utils/config-schema'
 const BASE_CONFIG = {
   savePathMovies: '/data/Movies',
   savePathSeries: '/data/Series',
-  sessionPassword: 'a'.repeat(32),
+  appSecret: 'a'.repeat(32),
   trackerEncryptionKey: 'a'.repeat(64),
   tmdbApiKey: 'test-tmdb-key',
   prowlarrApiKey: 'test-prowlarr-key',
@@ -34,20 +34,20 @@ describe('configSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('rejects config without sessionPassword', () => {
-    const { sessionPassword: _password, ...noPassword } = BASE_CONFIG
-    const result = configSchema.safeParse(noPassword)
+  it('rejects config without appSecret', () => {
+    const { appSecret: _secret, ...noSecret } = BASE_CONFIG
+    const result = configSchema.safeParse(noSecret)
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(result.error.issues.some((i) => i.path.includes('sessionPassword'))).toBe(true)
+      expect(result.error.issues.some((i) => i.path.includes('appSecret'))).toBe(true)
     }
   })
 
-  it('rejects sessionPassword shorter than 32 chars', () => {
-    const result = configSchema.safeParse({ ...BASE_CONFIG, sessionPassword: 'a'.repeat(31) })
+  it('rejects appSecret shorter than 32 chars', () => {
+    const result = configSchema.safeParse({ ...BASE_CONFIG, appSecret: 'a'.repeat(31) })
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(result.error.issues.some((i) => i.path.includes('sessionPassword'))).toBe(true)
+      expect(result.error.issues.some((i) => i.path.includes('appSecret'))).toBe(true)
     }
   })
 

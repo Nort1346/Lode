@@ -36,6 +36,6 @@ advisory.
 ## Hardening Tips for Deployers
 
 - Change the auto-generated admin password immediately after first run.
-- Use a strong, unique `NUXT_SESSION_PASSWORD` and `NUXT_TRACKER_ENCRYPTION_KEY`.
+- Use a strong, unique `NUXT_APP_SECRET` and `NUXT_TRACKER_ENCRYPTION_KEY`.
 - Never expose the admin panel on an untrusted network without a reverse proxy + TLS.
-- Keep `NUXT_SESSION_PASSWORD` and tracker credentials out of version control.
+- Keep `NUXT_APP_SECRET` and tracker credentials out of version control.

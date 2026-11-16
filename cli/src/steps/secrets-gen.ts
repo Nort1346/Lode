@@ -6,11 +6,11 @@ import { generateHexKey, generatePassword } from '../core/secrets'
 export function generateSecrets(): void {
   stepHeader(4, 'Generating secrets')
   const dir = process.cwd()
-  if (envValueMeetsMinLength(dir, ENV_FILE, ENV_KEYS.sessionPassword, SECRET_MIN_LENGTH)) {
-    log.success('Session password already set - keeping it')
+  if (envValueMeetsMinLength(dir, ENV_FILE, ENV_KEYS.appSecret, SECRET_MIN_LENGTH)) {
+    log.success('App secret already set - keeping it')
   } else {
-    updateEnv(dir, ENV_FILE, ENV_KEYS.sessionPassword, generatePassword(PASSWORD_LENGTH))
-    log.success('Session password generated')
+    updateEnv(dir, ENV_FILE, ENV_KEYS.appSecret, generatePassword(PASSWORD_LENGTH))
+    log.success('App secret generated')
   }
   if (envValueMeetsMinLength(dir, ENV_FILE, ENV_KEYS.trackerEncryptionKey, SECRET_MIN_LENGTH)) {
     log.success('Tracker encryption key already set - keeping it')
