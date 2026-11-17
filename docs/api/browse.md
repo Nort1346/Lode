@@ -292,6 +292,12 @@ POST /api/browse/download
 ### Save Paths
 `movies`, `series`, `games`, `books`, `music`
 
+### Torrent source
+Lode resolves the torrent server-side before calling qBittorrent:
+
+- `downloadUrl` is fetched once by Lode (5 MB cap, 10 s timeout) and the bytes are uploaded with `/api/v2/torrents/add` as a `.torrent` file. A redirect to a valid `magnet:` is followed the same way. This means qBittorrent does not need to reach the indexer or the Prowlarr proxy at all, which matters when it runs in a container or on another host.
+- If that fetch fails (HTML login page, timeout, oversized body), Lode falls back to handing the URL to qBittorrent, so the previous behaviour is preserved.
+
 ### Errors
 | Code | Description |
 |------|------------|

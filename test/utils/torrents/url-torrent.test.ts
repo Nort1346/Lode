@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 import {
   MAX_URL_TORRENT_BYTES,
+  fetchTorrentFromUrl,
   readTorrentHashesFromResponse,
   resolveUrlTorrentHashes
 } from '#server/utils/torrents/url-torrent'
@@ -95,6 +96,88 @@ describe('resolveUrlTorrentHashes', () => {
     const hashes = await resolveUrlTorrentHashes('https://example.com/file.torrent')
 
     expect(hashes?.v1).toMatch(/^[a-f0-9]{40}$/)
+
+    vi.unstubAllGlobals()
+  })
+})
+
+describe('fetchTorrentFromUrl', () => {
+  const MAGNET = `magnet:?xt=urn:btih:${'b'.repeat(40)}&dn=Test`
+
+  it('returns the .torrent bytes and hashes', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(torrentResponse(TINY_TORRENT))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const fetched = await fetchTorrentFromUrl('https://example.com/file.torrent')
+
+    expect(fetched?.kind).toBe('file')
+    if (fetched?.kind !== 'file') throw new Error('expected a torrent file')
+    expect(fetched.buffer.equals(TINY_TORRENT)).toBe(true)
+    expect(fetched.hashes.v1).toMatch(/^[a-f0-9]{40}$/)
+
+    vi.unstubAllGlobals()
+  })
+
+  it('returns the magnet a redirect points to', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { location: MAGNET } }))
+    )
+
+    const fetched = await fetchTorrentFromUrl('https://example.com/file.torrent')
+
+    expect(fetched).toMatchObject({ kind: 'magnet', magnet: MAGNET, hashes: { v1: 'b'.repeat(40), v2: null } })
+
+    vi.unstubAllGlobals()
+  })
+
+  it('returns null for a redirect to a non-magnet location', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { location: 'https://cdn.example/x' } }))
+    )
+
+    await expect(fetchTorrentFromUrl('https://example.com/file.torrent')).resolves.toBeNull()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('returns null for an unusable magnet redirect', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { location: 'magnet:?dn=Test' } }))
+    )
+
+    await expect(fetchTorrentFromUrl('https://example.com/file.torrent')).resolves.toBeNull()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('returns null for HTML responses', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(new Response('<!DOCTYPE html>', { status: 200, headers: { 'content-type': 'text/html' } }))
+    )
+
+    await expect(fetchTorrentFromUrl('https://example.com/page')).resolves.toBeNull()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('returns null for an error status', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('nope', { status: 500 })))
+
+    await expect(fetchTorrentFromUrl('https://example.com/file.torrent')).resolves.toBeNull()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('returns null when the fetch throws', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')))
+
+    await expect(fetchTorrentFromUrl('https://example.com/file.torrent')).resolves.toBeNull()
 
     vi.unstubAllGlobals()
   })

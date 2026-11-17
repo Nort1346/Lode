@@ -16,7 +16,7 @@ import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { extractMagnetInfoHashes, primaryTorrentHash } from '#server/utils/clients/qbittorrent'
 import { computeTorrentInfoHashes, computeTorrentTotalSize, hasUsableHash } from '#server/utils/torrents/info-hash'
-import { resolveUrlTorrentHashes } from '#server/utils/torrents/url-torrent'
+import { fetchTorrentFromUrl } from '#server/utils/torrents/url-torrent'
 import { findLiveDuplicateByLink } from '#server/utils/torrents/live-duplicate'
 import { resolveStagingDir } from '#server/utils/library/importer'
 import { applySeedingPolicy } from '#server/utils/torrents/seeding'
@@ -25,6 +25,7 @@ import { assertExternalUrl } from '#server/utils/url-validate'
 import type { DownloadBody } from '#server/types/browse'
 import {
   SAVE_PATH_KEYS,
+  type FetchedTorrent,
   type MagnetInfoHashes,
   type QBitTorrent,
   type SavePathKey,
@@ -529,19 +530,23 @@ export default defineEventHandler(async (event) => {
           log.warn(`[Download:8:QBIT] ⚠ addTorrentFile returned null after ${Date.now() - t3}ms`)
         }
       } else {
-        // ── 8b: QBIT addTorrent (magnet/downloadUrl) ─────────────
+        // ── 8b: QBIT addTorrentFile / addTorrent (magnet/downloadUrl) ─
         storedMagnetLink = hasDownloadUrl ? `download:${downloadUrl}` : torrentUrl
-        // Hash unknown and no usable magnet: try resolving it from the URL
-        // bytes so the live qBittorrent pre-check can detect duplicates.
-        // Fail-open: any failure falls through to the checks below.
-        let urlHashes: MagnetInfoHashes | null = null
+        // Hash unknown and no usable magnet: fetch the .torrent once, server
+        // side. The bytes are handed to qBittorrent so it never has to reach
+        // the indexer/proxy itself - its container or host cannot necessarily
+        // resolve the address Lode used (localhost, a compose service name, a
+        // seedbox host). Fail-open: any failure falls back to the URL below.
+        let fetched: FetchedTorrent | null = null
         if (!hasUsableHash(magnetHashes) && hasDownloadUrl) {
-          urlHashes = await resolveUrlTorrentHashes(downloadUrl)
-          if (urlHashes === null) {
-            log.info(`[Download:8:QBIT] could not resolve torrent hash from URL, proceeding without pre-check`)
+          fetched = await fetchTorrentFromUrl(downloadUrl)
+          if (fetched === null) {
+            log.info(`[Download:8:QBIT] could not fetch torrent bytes, passing the URL to qBittorrent`)
+          } else {
+            log.info(`[Download:8:QBIT] fetched ${fetched.kind} server-side, used as the source`)
           }
         }
-        const effectiveHashes = hasUsableHash(magnetHashes) ? magnetHashes : (urlHashes ?? magnetHashes)
+        const effectiveHashes = hasUsableHash(magnetHashes) ? magnetHashes : (fetched?.hashes ?? magnetHashes)
         if (!hasUsableHash(effectiveHashes)) {
           // Still unknown: nominate old rows by stored link, but let live
           // qBittorrent state decide. Read-only, never touches old rows.
@@ -556,18 +561,34 @@ export default defineEventHandler(async (event) => {
           }
         }
         setCooldown(userId)
-        log.info(`[Download:8:QBIT] addTorrent (magnet/url): url=${torrentUrl.substring(0, 100)}, tag=${dlTag}`)
         const t3 = Date.now()
         let outcome: TorrentAddOutcome
         try {
-          outcome = await qbit.addTorrent(torrentUrl, targetPath, savePath, dlTag, effectiveHashes)
+          if (fetched?.kind === 'file') {
+            const torrentFileName = `${label.replace(/[^a-zA-Z0-9._-]/g, '_')}.torrent`
+            log.info(
+              `[Download:8:QBIT] addTorrentFile (fetched ${fetched.buffer.length}B): fileName=${torrentFileName}, tag=${dlTag}`
+            )
+            outcome = await qbit.addTorrentFile(
+              fetched.buffer,
+              torrentFileName,
+              targetPath,
+              savePath,
+              dlTag,
+              effectiveHashes
+            )
+          } else {
+            const source = fetched?.kind === 'magnet' ? fetched.magnet : torrentUrl
+            log.info(`[Download:8:QBIT] addTorrent (${fetched?.kind ?? 'url'}): url=${source.substring(0, 100)}`)
+            outcome = await qbit.addTorrent(source, targetPath, savePath, dlTag, effectiveHashes)
+          }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
           if (msg.includes('already exists')) {
             log.warn(`[Download:8:QBIT] torrent already exists in qBittorrent: ${msg}`)
             throw createError({ statusCode: 409, statusMessage: 'Torrent already exists in qBittorrent' })
           }
-          log.error(`[Download:8:QBIT] ✗ addTorrent failed in ${Date.now() - t3}ms: ${msg}`)
+          log.error(`[Download:8:QBIT] ✗ add failed in ${Date.now() - t3}ms: ${msg}`)
           throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
         }
         if (outcome.status === 'existing') {
@@ -585,7 +606,7 @@ export default defineEventHandler(async (event) => {
             `[Download:8:QBIT] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
           )
         } else {
-          log.warn(`[Download:8:QBIT] ⚠ addTorrent returned null after ${Date.now() - t3}ms`)
+          log.warn(`[Download:8:QBIT] ⚠ add returned null after ${Date.now() - t3}ms`)
         }
       }
 
