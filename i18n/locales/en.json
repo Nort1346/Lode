@@ -490,7 +490,7 @@
     "mediaExtraExtensions": "Extra file extensions",
     "mediaExtraExtensionsHint": "Comma separated list, e.g. srt, sub, ass, nfo. Only files in the same folder as the video are imported.",
     "mediaCleanupStaging": "Clean up staging after import",
-    "mediaCleanupStagingHint": "After a successful import, removes the files the torrent left behind in staging (covers, .screens, .url, .txt). Only applies to the Move mode. The library is never touched.",
+    "mediaCleanupStagingHint": "After a successful import, removes everything the torrent left behind in staging - covers, .screens, .url, .txt, plus any video or subtitle the importer did not take. Only applies to the Move mode (nothing is left to seed). The library is never touched.",
     "mediaCleanupStagingMoveOnly": "Only available in Move mode.",
     "qbittorrentSaved": "qBittorrent settings saved",
     "qbittorrentError": "Failed to save qBittorrent settings",

@@ -35,13 +35,14 @@ export function startImportProgress(downloadId: string, totalBytes: number, file
   })
 }
 
-// Absolute byte count of the file being copied right now.
+// Absolute byte count of the file being copied right now. Monotonic inside a
+// single file: a truncated/recreated `.partial` must not shrink the bar.
 export function reportImportBytes(downloadId: string, fileBytes: number): void {
   const entry = entries.get(downloadId)
   if (entry === undefined) return
 
-  entry.currentBytes = fileBytes
-  const copied = entry.doneBytes + fileBytes
+  entry.currentBytes = Math.max(entry.currentBytes, fileBytes)
+  const copied = entry.doneBytes + entry.currentBytes
   const now = Date.now()
   const elapsed = (now - entry.lastSampleAt) / 1000
   if (elapsed >= SPEED_WINDOW_MS / 1000) {

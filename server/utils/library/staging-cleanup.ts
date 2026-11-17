@@ -1,5 +1,5 @@
 import { isAbsolute, dirname, join, relative, resolve } from 'node:path'
-import { rmdir, stat, unlink } from 'node:fs/promises'
+import { realpath, rmdir, stat, unlink } from 'node:fs/promises'
 import { createLogger } from '#server/utils/logger'
 import type { TorrentFile } from '#server/types/torrent'
 
@@ -12,18 +12,31 @@ function isSameOrInside(parent: string, child: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
 }
 
-// A `move` import takes the video files out of staging and leaves everything
-// the torrent also shipped (covers, .screens, .url, .txt). This removes exactly
-// the files the torrent lists, then prunes the directories that became empty -
-// it never touches a path outside the torrent's own save directory and never
-// removes the staging root itself.
+// A `move` import takes the files it selected out of staging and leaves the
+// rest of the release behind (covers, .screens, .url, .txt, plus any video or
+// subtitle the importer did not take). In move mode the torrent is not seeded,
+// so the whole leftover set is garbage - deleting only "junk" extensions would
+// keep the release folder alive forever. The guards below make sure only files
+// the torrent itself lists, inside its save dir and below the staging root,
+// are touched; the staging root and the library are never removed.
 export async function cleanupStagingLeftovers(input: {
   files: readonly TorrentFile[]
   saveDir: string
   stagingDir: string
 }): Promise<number> {
-  if (!isSameOrInside(input.stagingDir, input.saveDir)) {
-    log.warn(`skipping cleanup outside staging: save_path=${input.saveDir} staging=${input.stagingDir}`)
+  // Resolve both sides first: a symlinked save dir must not point the cleanup
+  // at a directory outside the configured staging root.
+  let stagingRoot: string
+  let saveDir: string
+  try {
+    ;[stagingRoot, saveDir] = await Promise.all([realpath(input.stagingDir), realpath(input.saveDir)])
+  } catch {
+    // The release folder is already gone - nothing left to clean.
+    return 0
+  }
+
+  if (!isSameOrInside(stagingRoot, saveDir)) {
+    log.warn(`skipping cleanup outside staging: save_path=${saveDir} staging=${stagingRoot}`)
     return 0
   }
 
@@ -31,14 +44,17 @@ export async function cleanupStagingLeftovers(input: {
   const touchedDirs = new Set<string>()
 
   for (const file of input.files) {
-    const path = join(input.saveDir, file.name)
+    const path = join(saveDir, file.name)
     // qBittorrent reports names relative to save_path; reject anything that
     // would resolve outside it before unlinking.
-    if (!isSameOrInside(input.saveDir, path)) continue
+    if (!isSameOrInside(saveDir, path)) continue
 
     try {
       const info = await stat(path)
       if (!info.isFile()) continue
+      // realpath resolves symlinked parents, so a torrent folder that links
+      // outside staging is skipped instead of deleting foreign files.
+      if (!isSameOrInside(saveDir, await realpath(path))) continue
       await unlink(path)
       removed++
       touchedDirs.add(dirname(path))
@@ -47,14 +63,15 @@ export async function cleanupStagingLeftovers(input: {
     }
   }
 
-  await pruneEmptyDirs(touchedDirs, input.stagingDir)
-  if (removed > 0) log.info(`staging cleanup removed ${removed} leftover file(s) from ${input.saveDir}`)
+  await pruneEmptyDirs(touchedDirs, stagingRoot)
+  if (removed > 0) log.info(`staging cleanup removed ${removed} leftover file(s) from ${saveDir}`)
   return removed
 }
 
 async function pruneEmptyDirs(dirs: Iterable<string>, stagingDir: string): Promise<void> {
   const root = resolve(stagingDir)
-  const queue = [...dirs]
+  // A Set keeps a parent from being queued once per emptied child.
+  const queue = [...new Set(dirs)]
 
   while (queue.length > 0) {
     const dir = queue.pop()

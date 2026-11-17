@@ -54,6 +54,14 @@ describe('import progress', () => {
     expect(getImportProgress('dl-1')).toMatchObject({ copiedBytes: 1000, percent: 100 })
   })
 
+  it('does not shrink when the partial file is recreated smaller', () => {
+    startImportProgress('dl-1', 1000, 1)
+    reportImportBytes('dl-1', 500)
+    reportImportBytes('dl-1', 300)
+
+    expect(getImportProgress('dl-1')).toMatchObject({ copiedBytes: 500, percent: 50 })
+  })
+
   it('estimates the copy speed over a sampling window', () => {
     startImportProgress('dl-1', 10_000, 1)
     vi.advanceTimersByTime(500)

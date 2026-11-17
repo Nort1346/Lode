@@ -490,7 +490,7 @@
     "mediaExtraExtensions": "Endungen zusätzlicher Dateien",
     "mediaExtraExtensionsHint": "Kommagetrennte Liste, z. B. srt, sub, ass, nfo. Nur Dateien im selben Ordner wie das Video werden importiert.",
     "mediaCleanupStaging": "Staging nach dem Import aufräumen",
-    "mediaCleanupStagingHint": "Entfernt nach einem erfolgreichen Import die übrigen Dateien des Torrents im Staging (Cover, .screens, .url, .txt). Gilt nur im Modus Verschieben. Die Bibliothek wird nie angefasst.",
+    "mediaCleanupStagingHint": "Entfernt nach einem erfolgreichen Import alles, was der Torrent im Staging hinterlassen hat - Cover, .screens, .url, .txt sowie nicht importierte Video- und Untertiteldateien. Gilt nur im Modus Verschieben (es bleibt nichts zum Seeden übrig). Die Bibliothek wird nie angefasst.",
     "mediaCleanupStagingMoveOnly": "Nur im Modus Verschieben verfügbar.",
     "qbittorrentSaved": "qBittorrent-Einstellungen gespeichert",
     "qbittorrentError": "qBittorrent-Einstellungen konnten nicht gespeichert werden",

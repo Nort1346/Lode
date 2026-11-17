@@ -58,8 +58,9 @@ export interface MediaConfig {
   importMode: MediaImportMode
   importExtraFiles: boolean
   extraFileExtensions: string[]
-  // Only meaningful with `move`: the torrent folder in staging is emptied of
-  // everything the import did not take (covers, .url, .txt, .screens, ...).
+  // Only meaningful with `move`: removes everything the torrent left in the
+  // staging folder (covers, .url, .txt, ... plus video/subtitles the import did
+  // not take). Move mode leaves nothing to seed, so the whole leftover set goes.
   cleanupStaging: boolean
 }
 

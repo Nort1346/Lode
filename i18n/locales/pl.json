@@ -490,7 +490,7 @@
     "mediaExtraExtensions": "Rozszerzenia dodatkowych plików",
     "mediaExtraExtensionsHint": "Lista rozdzielona przecinkami, np. srt, sub, ass, nfo. Importowane są tylko pliki z tego samego folderu co wideo.",
     "mediaCleanupStaging": "Sprzątaj staging po imporcie",
-    "mediaCleanupStagingHint": "Po udanym imporcie usuwa pozostałe pliki torrenta ze stagingu (okładki, .screens, .url, .txt). Działa tylko w trybie Przenoszenie. Biblioteka nigdy nie jest ruszana.",
+    "mediaCleanupStagingHint": "Po udanym imporcie usuwa wszystko, co torrent zostawił w stagingu - okładki, .screens, .url, .txt, a także niezaimportowane pliki wideo i napisy. Działa tylko w trybie Przenoszenie (nic nie zostaje do seedowania). Biblioteka nigdy nie jest ruszana.",
     "mediaCleanupStagingMoveOnly": "Dostępne tylko w trybie Przenoszenie.",
     "qbittorrentSaved": "Zapisano ustawienia qBittorrent",
     "qbittorrentError": "Nie udało się zapisać ustawień qBittorrent",

@@ -49,7 +49,7 @@ describe('cleanupStagingLeftovers', () => {
   it('keeps a file the torrent does not list', async () => {
     const saveDir = join(stagingDir, 'Dune.2021.1080p.WEB-DL')
     await seed('Dune.2021.1080p.WEB-DL/poster.jpg', 'jpeg')
-    await seed('Dune.2021.1080p.WEB-DL/keep.nfo', 'nfo')
+    await seed('Dune.2021.1080p.WEB-DL/keep.srt', 'srt')
 
     const removed = await cleanupStagingLeftovers({
       files: [makeFile('poster.jpg')],
@@ -58,8 +58,33 @@ describe('cleanupStagingLeftovers', () => {
     })
 
     expect(removed).toBe(1)
-    expect(await readFile(join(saveDir, 'keep.nfo'), 'utf8')).toBe('nfo')
+    expect(await readFile(join(saveDir, 'keep.srt'), 'utf8')).toBe('srt')
     await expect(stat(join(saveDir, 'poster.jpg'))).rejects.toThrow()
+  })
+
+  it('removes the rest of the release, including unimported video and subtitles', async () => {
+    const saveDir = join(stagingDir, 'Dune.2021.1080p.WEB-DL')
+    const names = ['featurette.mkv', 'movie.srt', 'movie.nfo', 'poster.jpg']
+    for (const name of names) await seed(`Dune.2021.1080p.WEB-DL/${name}`, name)
+
+    const removed = await cleanupStagingLeftovers({
+      files: names.map((name) => makeFile(name)),
+      saveDir,
+      stagingDir
+    })
+
+    expect(removed).toBe(4)
+    await expect(stat(saveDir)).rejects.toThrow()
+  })
+
+  it('returns 0 when the release folder is already gone', async () => {
+    const removed = await cleanupStagingLeftovers({
+      files: [makeFile('poster.jpg')],
+      saveDir: join(stagingDir, 'missing'),
+      stagingDir
+    })
+
+    expect(removed).toBe(0)
   })
 
   it('ignores files that are already gone', async () => {
@@ -94,6 +119,7 @@ describe('cleanupStagingLeftovers', () => {
 
   it('ignores paths that would escape the save dir', async () => {
     const saveDir = join(stagingDir, 'release')
+    await mkdir(saveDir, { recursive: true })
     await seed('outside.jpg', 'secret')
 
     const removed = await cleanupStagingLeftovers({

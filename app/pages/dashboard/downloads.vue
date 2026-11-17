@@ -122,22 +122,14 @@ function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
   return t('downloads.prepRemainingMin', { m: Math.ceil(remaining / 60) })
 }
 
-const hasActivePrep = computed(() =>
-  downloads.value.some((dl) => dl.status === 'completed' && dl.notifiedAt === null && dl.organizeStatus === 'pending')
-)
+const hasActivePrep = computed(() => downloads.value.some((dl) => dl.status === 'completed' && dl.notifiedAt === null))
 
 // One bar for the whole preparation phase: the simulated countdown (which
 // covers hardlink/rename, that finish instantly) plus the real bytes copied
-// into the library. Whichever is further along wins, so the bar never moves
-// backwards and never claims "done" while an upload is still running.
+// into the library. computePrepPercent keeps the higher value, so the bar never
+// moves backwards and never claims "done" while an upload is still running.
 function prepPercent(dl: Download): number {
-  if (dl.completedAt === null || dl.completedAt === '') return 0
-  const prepSpeedBytes = prepSpeedMb.value * 1024 * 1024
-  const elapsed = (Date.now() - new Date(dl.completedAt).getTime()) / 1000
-  const delay = dl.sizeBytes / prepSpeedBytes
-  const timePercent = delay > 0 ? Math.min(100, (elapsed / delay) * 100) : 100
-  const bytePercent = dl.organizeProgress?.percent ?? 0
-  return Math.round(Math.max(timePercent, bytePercent) * 10) / 10
+  return computePrepPercent(dl, prepSpeedMb.value * 1024 * 1024)
 }
 
 function prepDetail(dl: Download): string {
@@ -396,6 +388,11 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                 </span>
               </div>
               <div
+                role="progressbar"
+                :aria-valuenow="prepPercent(dl)"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                :aria-label="t('downloads.prepTitle')"
                 class="w-full h-2.5 rounded-full overflow-hidden bg-violet-500/15 dark:bg-violet-500/10 ring-1 ring-inset ring-violet-500/25"
               >
                 <div
