@@ -82,6 +82,13 @@ export default defineEventHandler(async (event) => {
     const hasGuid = guidUrl.length > 0
     const isPrivateTrackerEnabled = await isPrivateTracker(indexer)
 
+    // Prowlarr puts its own proxy URL in `magnetUrl` for some indexers, so the
+    // fetchable source is not always `downloadUrl`. Only real magnets are left
+    // for qBittorrent to resolve itself.
+    const magnetIsUrl = magnetLink.startsWith('http://') || magnetLink.startsWith('https://')
+    const sourceUrl = hasDownloadUrl ? downloadUrl : magnetIsUrl ? magnetLink : ''
+    const hasSourceUrl = sourceUrl.length > 0
+
     log.info(
       `[Download:1:START] user=${session.user.username} role=${session.user.role} indexer="${indexer}" isPrivate=${isPrivateTrackerEnabled} hasGuid=${hasGuid} hasMagnet=${hasMagnet} hasDownloadUrl=${hasDownloadUrl} label="${label}" savePath=${savePath}`
     )
@@ -533,19 +540,19 @@ export default defineEventHandler(async (event) => {
         }
       } else {
         // ── 8b: QBIT addTorrentFile / addTorrent (magnet/downloadUrl) ─
-        storedMagnetLink = hasDownloadUrl ? `download:${downloadUrl}` : torrentUrl
+        storedMagnetLink = hasSourceUrl ? `download:${sourceUrl}` : torrentUrl
         // Hash unknown and no usable magnet: fetch the .torrent once, server
         // side. The bytes are handed to qBittorrent so it never has to reach
         // the indexer/proxy itself - its container or host cannot necessarily
         // resolve the address Lode used (localhost, a compose service name, a
         // seedbox host). Fail-open: any failure falls back to the URL below.
         let fetched: FetchedTorrent | null = null
-        if (!hasUsableHash(magnetHashes) && hasDownloadUrl) {
-          fetched = await fetchTorrentFromUrl(downloadUrl)
+        if (!hasUsableHash(magnetHashes) && hasSourceUrl) {
+          fetched = await fetchTorrentFromUrl(sourceUrl)
           if (fetched === null) {
             const host = (() => {
               try {
-                return new URL(downloadUrl).host
+                return new URL(sourceUrl).host
               } catch {
                 return 'the indexer'
               }

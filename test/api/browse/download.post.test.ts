@@ -550,6 +550,62 @@ describe('browse/download.post', () => {
     })
   })
 
+  it('fetches the .torrent when the indexer proxy URL arrives in magnetLink', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(Buffer.from(TORRENT_FIXTURE_HEX, 'hex'), {
+        status: 200,
+        headers: { 'content-type': 'application/x-bittorrent' }
+      })
+    )
+    // Prowlarr returns `magnetUrl` as its own proxy URL for some indexers, and
+    // `downloadUrl` can stay empty - the handler must still fetch it.
+    mockReadBody.mockResolvedValue({
+      magnetLink: 'https://prowlarr.example/3/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toHaveProperty('success', true)
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://prowlarr.example/3/download?apikey=xyz',
+      expect.objectContaining({ redirect: 'manual' })
+    )
+    expect(mockQbit.addTorrent).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrentFile).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      'test.torrent',
+      '/data/series',
+      'series',
+      expect.any(String),
+      { v1: expect.any(String), v2: null }
+    )
+    vi.mocked(global.fetch).mockReset()
+  })
+
+  it('falls back to the magnetLink URL when it cannot be fetched', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+    mockReadBody.mockResolvedValue({
+      magnetLink: 'https://prowlarr.example/3/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrentFile).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'https://prowlarr.example/3/download?apikey=xyz',
+      '/data/series',
+      'series',
+      expect.any(String),
+      { v1: null, v2: null }
+    )
+    vi.mocked(global.fetch).mockReset()
+  })
+
   it('blocks via live duplicate check when the URL hash is unresolvable but the old row is live', async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
     const allQueue: unknown[][] = [
