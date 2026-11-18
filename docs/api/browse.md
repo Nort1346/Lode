@@ -295,7 +295,8 @@ POST /api/browse/download
 ### Torrent source
 Lode resolves the torrent server-side before calling qBittorrent:
 
-- `downloadUrl` is fetched once by Lode (5 MB cap, 10 s timeout) and the bytes are uploaded with `/api/v2/torrents/add` as a `.torrent` file. A redirect to a valid `magnet:` is followed the same way. This means qBittorrent does not need to reach the indexer or the Prowlarr proxy at all, which matters when it runs in a container or on another host.
+- If `magnetLink` is a real, parseable `magnet:` URI, it is passed to qBittorrent as-is - no HTTP request is needed on the qBittorrent side.
+- Otherwise `downloadUrl` is fetched once by Lode (5 MB cap, 10 s timeout) and the bytes are uploaded to qBittorrent as a `.torrent` file. A redirect to a valid `magnet:` is followed the same way. This means qBittorrent does not need to reach the indexer or the Prowlarr proxy at all, which matters when it runs in a container or on another host.
 - If that fetch fails (HTML login page, timeout, oversized body), Lode falls back to handing the URL to qBittorrent, so the previous behaviour is preserved.
 
 ### Errors

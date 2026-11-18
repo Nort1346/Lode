@@ -193,6 +193,9 @@ describe('browse/download.post', () => {
     mockQbit.getTorrentFiles.mockResolvedValue([{ name: 'file.mkv', size: 1000000 }])
     mockQbit.findTorrentByHash.mockResolvedValue(undefined)
     mockApplySeedingPolicy.mockResolvedValue(undefined)
+    // No test may reach the network: the URL is fetched by the handler now.
+    // Tests that need a specific response assign their own global.fetch.
+    global.fetch = vi.fn().mockRejectedValue(new Error('network disabled in tests'))
   })
 
   const mockEvent = {} as never
@@ -477,6 +480,8 @@ describe('browse/download.post', () => {
       expect.any(String),
       { v1: expect.any(String), v2: null }
     )
+    const sentBuffer = mockQbit.addTorrentFile.mock.calls[0]?.[0] as Buffer | undefined
+    expect(sentBuffer?.equals(Buffer.from(TORRENT_FIXTURE_HEX, 'hex'))).toBe(true)
     expect(result).toEqual({ alreadyDownloading: true, name: 'Test.Torrent.1080p' })
     expect(mockDb.insert).not.toHaveBeenCalled()
     expect(mockDb.update).not.toHaveBeenCalled()
@@ -523,6 +528,26 @@ describe('browse/download.post', () => {
       v2: null
     })
     vi.mocked(global.fetch).mockReset()
+  })
+
+  it('prefers a usable magnet over the indexer URL and skips the fetch', async () => {
+    const magnet = `magnet:?xt=urn:btih:${'a'.repeat(40)}&dn=Test`
+    mockReadBody.mockResolvedValue({
+      magnetLink: magnet,
+      downloadUrl: 'https://prowlarr.example/5/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toHaveProperty('success', true)
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrentFile).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(magnet, '/data/series', 'series', expect.any(String), {
+      v1: 'a'.repeat(40),
+      v2: null
+    })
   })
 
   it('blocks via live duplicate check when the URL hash is unresolvable but the old row is live', async () => {

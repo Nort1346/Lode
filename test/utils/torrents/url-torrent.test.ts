@@ -3,8 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   MAX_URL_TORRENT_BYTES,
   fetchTorrentFromUrl,
-  readTorrentHashesFromResponse,
-  resolveUrlTorrentHashes
+  readTorrentHashesFromResponse
 } from '#server/utils/torrents/url-torrent'
 
 // Minimal valid bencoded torrent (single empty file) for hash computation.
@@ -58,47 +57,6 @@ describe('readTorrentHashesFromResponse', () => {
 
     await expect(readTorrentHashesFromResponse(hanging, 50)).resolves.toBeNull()
   }, 5000)
-})
-
-describe('resolveUrlTorrentHashes', () => {
-  it('returns null when the fetch fails', async () => {
-    const fetchMock = vi.fn().mockRejectedValue(new Error('Network error'))
-    vi.stubGlobal('fetch', fetchMock)
-
-    await expect(resolveUrlTorrentHashes('https://example.com/file.torrent')).resolves.toBeNull()
-
-    vi.unstubAllGlobals()
-  })
-
-  it('returns null for a garbage response instead of throwing', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(undefined)
-    vi.stubGlobal('fetch', fetchMock)
-
-    await expect(resolveUrlTorrentHashes('https://example.com/file.torrent')).resolves.toBeNull()
-
-    vi.unstubAllGlobals()
-  })
-  it('returns null for HTML responses', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response('<!DOCTYPE html>', { status: 200, headers: { 'content-type': 'text/html' } }))
-    vi.stubGlobal('fetch', fetchMock)
-
-    await expect(resolveUrlTorrentHashes('https://example.com/page')).resolves.toBeNull()
-
-    vi.unstubAllGlobals()
-  })
-
-  it('resolves hashes from torrent bytes', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(torrentResponse(TINY_TORRENT))
-    vi.stubGlobal('fetch', fetchMock)
-
-    const hashes = await resolveUrlTorrentHashes('https://example.com/file.torrent')
-
-    expect(hashes?.v1).toMatch(/^[a-f0-9]{40}$/)
-
-    vi.unstubAllGlobals()
-  })
 })
 
 describe('fetchTorrentFromUrl', () => {

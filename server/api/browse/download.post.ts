@@ -60,7 +60,8 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<DownloadBody>(event)
-    const rawMagnetLink = body.magnetLink ?? ''
+    // Some clients send `magnet://`, which is not a valid magnet URI.
+    const magnetLink = (body.magnetLink ?? '').replace(/^magnet:\/\//, 'magnet:')
     const downloadUrl = body.downloadUrl ?? ''
     const guidUrl = body.guid ?? ''
     const indexer = body.indexer ?? ''
@@ -76,7 +77,7 @@ export default defineEventHandler(async (event) => {
         ? Math.min(Math.floor(rawTorrentSize), Number.MAX_SAFE_INTEGER)
         : 0
 
-    const hasMagnet = rawMagnetLink.length > 0
+    const hasMagnet = magnetLink.length > 0
     const hasDownloadUrl = downloadUrl.length > 0
     const hasGuid = guidUrl.length > 0
     const isPrivateTrackerEnabled = await isPrivateTracker(indexer)
@@ -86,7 +87,7 @@ export default defineEventHandler(async (event) => {
     )
     if (hasGuid) log.info(`[Download:1:START]   guid=${guidUrl}`)
     if (hasDownloadUrl) log.info(`[Download:1:START]   downloadUrl=${downloadUrl.substring(0, 120)}`)
-    if (hasMagnet) log.info(`[Download:1:START]   magnet=${rawMagnetLink.substring(0, 80)}`)
+    if (hasMagnet) log.info(`[Download:1:START]   magnet=${magnetLink.substring(0, 80)}`)
 
     // ── 2: VALIDATE ───────────────────────────────────────────
     if (!hasMagnet && !hasGuid && !hasDownloadUrl) {
@@ -96,10 +97,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    let torrentUrl = hasDownloadUrl ? downloadUrl : rawMagnetLink
-    if (torrentUrl.startsWith('magnet://')) {
-      torrentUrl = torrentUrl.replace(/^magnet:\/\//, 'magnet:')
-    }
+    const torrentUrl = hasDownloadUrl ? downloadUrl : magnetLink
 
     if (!torrentUrl.startsWith('magnet:') && !torrentUrl.startsWith('http://') && !torrentUrl.startsWith('https://')) {
       log.error(`[Download:2:VALIDATE] ✗ invalid torrentUrl prefix: ${torrentUrl.substring(0, 40)}`)
@@ -226,8 +224,12 @@ export default defineEventHandler(async (event) => {
       let infoHash: string | null = null
       let fileHashes: MagnetInfoHashes = { v1: null, v2: null }
 
-      const magnetHashes = hasMagnet ? extractMagnetInfoHashes(rawMagnetLink) : null
+      const magnetHashes = hasMagnet ? extractMagnetInfoHashes(magnetLink) : null
       const magnetHash = magnetHashes !== null ? primaryTorrentHash(magnetHashes) : null
+      // Prowlarr sometimes fills `magnetUrl` with its own proxy URL instead of a
+      // real magnet. Only a parseable magnet is a source qBittorrent can use
+      // without reaching the indexer, so keep it aside for the add below.
+      const usableMagnet = hasUsableHash(magnetHashes) && magnetLink.startsWith('magnet:') ? magnetLink : null
 
       // ── 3d: DISK PRE-CHECK (known size from search/indexer) ───
       const preDisk = await checkTargetDiskForDownload(disks, targetPath, knownSizeBytes)
@@ -541,7 +543,14 @@ export default defineEventHandler(async (event) => {
         if (!hasUsableHash(magnetHashes) && hasDownloadUrl) {
           fetched = await fetchTorrentFromUrl(downloadUrl)
           if (fetched === null) {
-            log.info(`[Download:8:QBIT] could not fetch torrent bytes, passing the URL to qBittorrent`)
+            const host = (() => {
+              try {
+                return new URL(downloadUrl).host
+              } catch {
+                return 'the indexer'
+              }
+            })()
+            log.warn(`[Download:8:QBIT] could not fetch the .torrent from ${host}, passing the URL to qBittorrent`)
           } else {
             log.info(`[Download:8:QBIT] fetched ${fetched.kind} server-side, used as the source`)
           }
@@ -578,8 +587,13 @@ export default defineEventHandler(async (event) => {
               effectiveHashes
             )
           } else {
-            const source = fetched?.kind === 'magnet' ? fetched.magnet : torrentUrl
-            log.info(`[Download:8:QBIT] addTorrent (${fetched?.kind ?? 'url'}): url=${source.substring(0, 100)}`)
+            // Prefer a real magnet over the indexer URL: it reaches qBittorrent
+            // without any HTTP request from the qBittorrent side. The URL stays
+            // the last resort, exactly as before this change.
+            const source = fetched?.kind === 'magnet' ? fetched.magnet : (usableMagnet ?? torrentUrl)
+            log.info(
+              `[Download:8:QBIT] addTorrent (${fetched?.kind ?? (usableMagnet !== null ? 'magnet' : 'url')}): url=${source.substring(0, 100)}`
+            )
             outcome = await qbit.addTorrent(source, targetPath, savePath, dlTag, effectiveHashes)
           }
         } catch (err) {

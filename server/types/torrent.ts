@@ -62,15 +62,17 @@ export interface MagnetInfoHashes {
   v2: string | null
 }
 
+// Torrent descriptor bytes plus the info hashes computed from them.
+export interface TorrentPayload {
+  buffer: Buffer
+  hashes: MagnetInfoHashes
+}
+
 // A torrent resolved server-side from an indexer URL, so qBittorrent does not
 // have to reach that URL itself (its container/host may not be able to resolve
 // the address Lode used, e.g. `localhost` or a Prowlarr service name).
 export type FetchedTorrent =
-  | {
-      kind: 'file'
-      buffer: Buffer
-      hashes: MagnetInfoHashes
-    }
+  | ({ kind: 'file' } & TorrentPayload)
   | {
       kind: 'magnet'
       magnet: string

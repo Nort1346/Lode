@@ -1,15 +1,10 @@
 import { computeTorrentInfoHashes, hasUsableHash } from '#server/utils/torrents/info-hash'
 import { extractMagnetInfoHashes } from '#server/utils/clients/qbittorrent'
-import type { FetchedTorrent, MagnetInfoHashes } from '#server/types/torrent'
+import type { FetchedTorrent, MagnetInfoHashes, TorrentPayload } from '#server/types/torrent'
 
 // Same cap as .torrent file uploads: a valid torrent descriptor is small,
 // anything bigger cannot be a torrent file.
 export const MAX_URL_TORRENT_BYTES = 5 * 1024 * 1024
-
-interface TorrentPayload {
-  buffer: Buffer
-  hashes: MagnetInfoHashes
-}
 
 /**
  * Reads the bounded torrent body of an already-fetched response and computes
@@ -113,13 +108,4 @@ export async function fetchTorrentFromUrl(url: string, timeoutMs = 10_000): Prom
   } catch {
     return null
   }
-}
-
-/**
- * Fetches a torrent URL and resolves its info hashes. Returns null on any
- * failure (fail-open), which lets callers skip the duplicate pre-check.
- */
-export async function resolveUrlTorrentHashes(url: string, timeoutMs = 10_000): Promise<MagnetInfoHashes | null> {
-  const fetched = await fetchTorrentFromUrl(url, timeoutMs)
-  return fetched?.hashes ?? null
 }
