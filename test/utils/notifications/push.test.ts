@@ -15,10 +15,8 @@ vi.stubGlobal(
 )
 
 vi.mock('web-push', () => ({
-  default: {
-    setVapidDetails: (...args: unknown[]) => mockSetVapidDetails(...args),
-    sendNotification: (...args: unknown[]) => mockSendNotification(...args)
-  }
+  setVapidDetails: (...args: unknown[]) => mockSetVapidDetails(...args),
+  sendNotification: (...args: unknown[]) => mockSendNotification(...args)
 }))
 
 vi.mock('#server/repositories', () => ({

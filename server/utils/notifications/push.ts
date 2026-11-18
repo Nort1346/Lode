@@ -1,4 +1,4 @@
-import webPush from 'web-push'
+import { sendNotification, setVapidDetails } from 'web-push'
 import { getReposAsync } from '#server/repositories'
 import { createLogger } from '#server/utils/logger'
 import type { PushResult } from '#server/types/notifications'
@@ -19,7 +19,7 @@ function ensureVapid(): boolean {
     return false
   }
 
-  webPush.setVapidDetails(subject, publicKey, privateKey)
+  setVapidDetails(subject, publicKey, privateKey)
   vapidConfigured = true
   return true
 }
@@ -43,7 +43,7 @@ export async function sendPushNotification(
         : 'unknown'
 
   try {
-    await webPush.sendNotification(subscription, JSON.stringify(payload), {
+    await sendNotification(subscription, JSON.stringify(payload), {
       TTL: 60 * 60,
       urgency: 'high'
     })
