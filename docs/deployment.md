@@ -111,6 +111,30 @@ exec gosu appuser "$@"
 6. **Set up Discord webhook** for download notifications
 7. **Configure Jellyfin** for media server sync
 
+## Troubleshooting
+
+### A torrent sits at 0% and never finds a source
+
+qBittorrent never got the `.torrent` metadata. It usually means the URL Lode passed along
+(or that was typed into qBittorrent) points at an address qBittorrent cannot reach:
+
+- `localhost` / `127.0.0.1` inside a container is that container, not the host. Prowlarr
+  builds the download links from the address Lode used, so `NUXT_PROWLARR_URL=http://localhost:9900`
+  produces links that only the host can fetch.
+- With the whole stack in compose, keep `NUXT_PROWLARR_URL=http://prowlarr:9696` and
+  `NUXT_QBITTORRENT_URL=http://qbittorrent:8080` (the `.env.example` defaults).
+- With a hybrid setup (Lode via `pnpm dev` on the host, Prowlarr/qBittorrent in Docker), use the
+  host's LAN IP (`http://192.168.1.50:9900`) so both sides can reach it.
+
+Lode fetches the `.torrent` itself for browse downloads and only passes the URL as a fallback,
+so the metadata usually arrives even when qBittorrent cannot resolve the indexer host. Remove the
+stuck torrent and add it again after fixing the URL - it will not recover on its own.
+
+### qBittorrent reports "connection refused" in the Lode logs
+
+`NUXT_QBITTORRENT_URL` is not reachable from the Lode process. Inside compose use
+`http://qbittorrent:8080`; for Lode on the host use `http://localhost:8080`.
+
 ## Environment Variables
 
 See [Configuration](./configuration.md) for the full list of environment variables.
