@@ -43,6 +43,14 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  vite: {
+    optimizeDeps: {
+      // Loaded lazily by the /user page avatar picker; pre-bundle it so the
+      // first visit does not trigger a Vite runtime dep-discovery page reload
+      include: ['@dicebear/core']
+    }
+  },
+
   alias: {
     '#server': rootDir + 'server',
     '#db': rootDir + 'server/database',
