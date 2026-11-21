@@ -46,6 +46,14 @@ export interface MainFilePick {
   size: number
 }
 
+// Where every extra file of a torrent lands: sidecars follow their video,
+// release-level files (no video stem match) land once, next to the first
+// imported video.
+export interface ExtraFilePlan {
+  byVideo: Map<string, MainFilePick[]>
+  releaseLevel: MainFilePick[]
+}
+
 export type MediaImportMethod = 'hardlink' | 'copy' | 'move'
 
 export interface ImportSingleFileResult {
@@ -58,6 +66,10 @@ export interface MediaConfig {
   importMode: MediaImportMode
   importExtraFiles: boolean
   extraFileExtensions: string[]
+  // Only meaningful with `move`: removes everything the torrent left in the
+  // staging folder (covers, .url, .txt, ... plus video/subtitles the import did
+  // not take). Move mode leaves nothing to seed, so the whole leftover set goes.
+  cleanupStaging: boolean
 }
 
 export interface MediaStagingStatus {
@@ -70,6 +82,18 @@ export interface MediaConfigUpdate {
   importMode?: string
   importExtraFiles?: boolean
   extraFileExtensions?: string
+  cleanupStaging?: boolean
+}
+
+// Live byte progress of a running import. Kept in memory (like the organize
+// in-flight guard) because it only exists while the copy is running.
+export interface ImportProgressSnapshot {
+  percent: number
+  copiedBytes: number
+  totalBytes: number
+  speedBytesPerSecond: number
+  filesDone: number
+  filesTotal: number
 }
 
 export interface OrganizeJobInput {

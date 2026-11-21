@@ -115,7 +115,8 @@ const mockGetMediaConfig = vi.hoisted(() =>
     enabled: false,
     importMode: 'hardlink',
     importExtraFiles: false,
-    extraFileExtensions: [] as string[]
+    extraFileExtensions: [] as string[],
+    cleanupStaging: false
   }))
 )
 const mockOrganizeCompletedDownload = vi.hoisted(() => vi.fn())
@@ -198,7 +199,8 @@ describe('syncTorrentStatus', () => {
       enabled: false,
       importMode: 'hardlink',
       importExtraFiles: false,
-      extraFileExtensions: []
+      extraFileExtensions: [],
+      cleanupStaging: false
     })
     mockOrganizeCompletedDownload.mockReset()
     mockUseJellyfin.mockReturnValue(null)
@@ -284,7 +286,8 @@ describe('syncTorrentStatus', () => {
       enabled: true,
       importMode: 'hardlink',
       importExtraFiles: false,
-      extraFileExtensions: []
+      extraFileExtensions: [],
+      cleanupStaging: false
     })
     mockOrganizeCompletedDownload.mockResolvedValue({
       status: 'done',
@@ -679,7 +682,8 @@ describe('syncTorrentStatus', () => {
       enabled: true,
       importMode: 'hardlink',
       importExtraFiles: false,
-      extraFileExtensions: []
+      extraFileExtensions: [],
+      cleanupStaging: false
     })
     // The snapshot said 'pending', but the row was already organized meanwhile.
     mockStatusGet.mockReturnValue({ status: 'done' })
@@ -700,7 +704,8 @@ describe('syncTorrentStatus', () => {
       enabled: true,
       importMode: 'hardlink',
       importExtraFiles: false,
-      extraFileExtensions: []
+      extraFileExtensions: [],
+      cleanupStaging: false
     })
     mockStatusGet.mockReturnValue({ status: 'pending' })
 
@@ -899,6 +904,13 @@ describe('notifyJellyfinIfNeeded', () => {
     mockJellyfin.notifyMediaUpdated.mockReset()
     mockJellyfin.notifyMediaUpdated.mockResolvedValue(undefined)
     mockJellyfin.invalidateLibraryCache.mockReset()
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: false,
+      importMode: 'hardlink',
+      importExtraFiles: false,
+      extraFileExtensions: [],
+      cleanupStaging: false
+    })
   })
 
   it('returns early when no completed downloads are awaiting the ready notification', async () => {
@@ -1001,6 +1013,77 @@ describe('notifyJellyfinIfNeeded', () => {
 
     expect(mockSendWebhook).toHaveBeenCalledTimes(1)
     expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
+  })
+
+  it('waits for the library import before notifying', async () => {
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: true,
+      importMode: 'move',
+      importExtraFiles: false,
+      extraFileExtensions: [],
+      cleanupStaging: true
+    })
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        completedAt: completedAtPast(),
+        savePath: 'movies',
+        organizeStatus: 'pending'
+      })
+    ])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
+    expect(mockJellyfin.invalidateLibraryCache).not.toHaveBeenCalled()
+    expect(mockDb.update).not.toHaveBeenCalled()
+  })
+
+  it('notifies once the library import is done', async () => {
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: true,
+      importMode: 'move',
+      importExtraFiles: false,
+      extraFileExtensions: [],
+      cleanupStaging: true
+    })
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        completedAt: completedAtPast(),
+        savePath: 'movies',
+        organizeStatus: 'done'
+      })
+    ])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).toHaveBeenCalledWith(['/data/movies'])
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
+  })
+
+  it('does not wait for an import on a category without media organization', async () => {
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: true,
+      importMode: 'move',
+      importExtraFiles: false,
+      extraFileExtensions: [],
+      cleanupStaging: true
+    })
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        completedAt: completedAtPast(),
+        savePath: 'games',
+        organizeStatus: 'pending'
+      })
+    ])
+
+    await notifyJellyfinIfNeeded()
+
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
   })
 })

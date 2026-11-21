@@ -1,17 +1,25 @@
 import { downloads } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
-import { getSetting } from '#server/utils/settings'
-import { SETTINGS } from '#server/types/settings'
+import { getMediaImportMode } from '#server/utils/library/media-settings'
+import type { DownloadRow } from '#server/types/torrent'
 
-// Only 'hardlink' and 'copy' guarantee the library has its own copy of the
-// file (an unset setting defaults to hardlink). 'move', an unknown value or an
-// unreadable setting keeps the files: losing a staging copy is harmless,
-// losing the library movie is not.
-async function shouldDeleteTorrentFiles(): Promise<boolean> {
+// 'hardlink' and 'copy' guarantee the library has its own copy of the files
+// (unknown settings normalize to hardlink), so the torrent's files can always
+// go with the torrent. 'move' is different: the files only leave the save
+// path after a successful import. While a download is incomplete the save
+// path holds partial garbage that must go with the torrent; a completed
+// download whose import has not settled yet keeps its files, because in move
+// mode they are the only complete copy. An unreadable setting keeps the
+// files too: losing a staging copy is harmless, losing the library movie is
+// not.
+async function shouldDeleteTorrentFiles(download: Pick<DownloadRow, 'status' | 'organizeStatus'>): Promise<boolean> {
   try {
-    const mode = await getSetting(SETTINGS.MEDIA_IMPORT_MODE)
-    return mode === undefined || mode === '' || mode === 'hardlink' || mode === 'copy'
+    if ((await getMediaImportMode()) !== 'move') return true
+    // The import already took the files out of the save path; only release
+    // leftovers remain there, so they can go.
+    if (download.organizeStatus === 'done') return true
+    return download.status !== 'completed'
   } catch {
     return false
   }
@@ -39,10 +47,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
-  // In 'move' mode the torrent's file *is* the library file, so asking
-  // qBittorrent to delete files would wipe the organized movie/show. In
-  // 'hardlink'/'copy' modes the staging copy can go: the library copy survives.
-  const deleteFiles = await shouldDeleteTorrentFiles()
+  // In 'move' mode the torrent's file *is* the library file until the import
+  // moves it out, so asking qBittorrent to delete files would wipe the only
+  // complete copy. In 'hardlink'/'copy' modes the staging copy can go: the
+  // library copy survives.
+  const deleteFiles = await shouldDeleteTorrentFiles(download)
 
   if (download.torrentHash !== null) {
     try {

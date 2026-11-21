@@ -1,8 +1,13 @@
 import type { ProwlarrResult } from '#server/types/prowlarr'
+import type { ImportProgressSnapshot } from '#server/types/media-organize'
 import type { InferSelectModel } from 'drizzle-orm'
 import type { downloads } from '#server/database/schema'
 
-export type DownloadRow = InferSelectModel<typeof downloads> & { username?: string }
+export type DownloadRow = InferSelectModel<typeof downloads> & {
+  username?: string
+  // Filled by the list endpoint while an import is copying bytes.
+  organizeProgress?: ImportProgressSnapshot | null
+}
 
 export const DOWNLOAD_STATUS_VALUES = [
   'pending',

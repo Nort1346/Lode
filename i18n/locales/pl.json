@@ -275,7 +275,9 @@
   "downloads": {
     "prepReady": "Gotowe",
     "prepRemainingSec": "~{s}s pozostało",
-    "prepRemainingMin": "~{m}m pozostało"
+    "prepRemainingMin": "~{m}m pozostało",
+    "prepTitle": "Przygotowanie",
+    "prepCopying": "Import do biblioteki"
   },
   "admin": {
     "userTitle": "Zarządzanie użytkownikami",
@@ -484,9 +486,12 @@
     "mediaStagingMissingMovies": "Brak NUXT_DOWNLOAD_PATH_MOVIES: pobrania filmów trafiają prosto do biblioteki i nie mogą być organizowane.",
     "mediaStagingMissingSeries": "Brak NUXT_DOWNLOAD_PATH_SERIES: pobrania seriali trafiają prosto do biblioteki i nie mogą być organizowane.",
     "mediaExtraFiles": "Importuj dodatkowe pliki",
-    "mediaExtraFilesHint": "Kopiuje napisy i pliki towarzyszące (nfo itp.) obok zaimportowanego wideo.",
+    "mediaExtraFilesHint": "Importuje napisy i pliki towarzyszące (nfo itp.) obok wideo z każdego folderu w wydaniu (root, subs/, ...), zgodnie z wybranym trybem importu.",
     "mediaExtraExtensions": "Rozszerzenia dodatkowych plików",
-    "mediaExtraExtensionsHint": "Lista rozdzielona przecinkami, np. srt, sub, ass, nfo. Importowane są tylko pliki z tego samego folderu co wideo.",
+    "mediaExtraExtensionsHint": "Lista rozdzielona przecinkami, np. srt, sub, ass, nfo. Importowane są wszystkie pliki z tymi rozszerzeniami - pliki towarzyszące o nazwie wideo podążają za nim, a reszta trafia obok pliku głównego.",
+    "mediaCleanupStaging": "Sprzątaj staging po imporcie",
+    "mediaCleanupStagingHint": "Po udanym imporcie usuwa wszystko, co torrent zostawił w stagingu - okładki, .screens, .url, .txt, a także niezaimportowane pliki wideo i napisy. Działa tylko w trybie Przenoszenie (nic nie zostaje do seedowania). Biblioteka nigdy nie jest ruszana.",
+    "mediaCleanupStagingMoveOnly": "Dostępne tylko w trybie Przenoszenie.",
     "qbittorrentSaved": "Zapisano ustawienia qBittorrent",
     "qbittorrentError": "Nie udało się zapisać ustawień qBittorrent",
     "liveLogs": "Logi na żywo",
