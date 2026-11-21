@@ -35,13 +35,14 @@
               @keydown.escape="isOpen = false"
               @keydown.enter="close"
             />
-            <!-- Mobile-only (<768px) suggestion dropdown: never rendered on
-                 desktop. On phones it additionally requires the virtual
-                 keyboard to be open - swiping it away (input stays focused)
-                 or blurring the input hides the hints again -->
+            <!-- <768px suggestion dropdown. On coarse-pointer devices
+                 (phones) it additionally requires the virtual keyboard to be
+                 open - swiping it away (input stays focused) or blurring the
+                 input hides the hints again. Narrow desktop windows are not
+                 gated on it: they have no virtual keyboard -->
             <Transition name="suggestions-fade">
               <div
-                v-if="isOpen && suggestions.length > 0 && isSuggestionMobile && keyboardVisible"
+                v-if="isOpen && suggestions.length > 0 && isSuggestionMobile && (!isCoarsePointer || keyboardVisible)"
                 class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
               >
                 <button
@@ -371,7 +372,11 @@ function handleClickOutside(e: MouseEvent) {
 // the keyboard away (the input keeps focus) and the dropdown hides with it;
 // blurring the input closes the list after a short grace period so the click
 // on a tapped suggestion still lands before the list unmounts.
+// The keyboard gate applies only to coarse-pointer devices (phones/tablets):
+// a narrow DESKTOP window is also <768px but never has a virtual keyboard,
+// so `keyboardVisible` would stay false and the hints would never appear.
 const { visible: keyboardVisible } = useKeyboardVisibility()
+const isCoarsePointer = ref(false)
 let blurCloseTimer: ReturnType<typeof setTimeout> | null = null
 
 function onSearchFocus() {
@@ -392,6 +397,7 @@ function onSearchBlur() {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  isCoarsePointer.value = window.matchMedia('(pointer: coarse)').matches
 })
 
 onUnmounted(() => {
