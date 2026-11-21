@@ -72,6 +72,22 @@ describe('import progress', () => {
     expect(getImportProgress('dl-1')?.speedBytesPerSecond).toBe(2000)
   })
 
+  it('re-anchors the speed window at a file boundary', () => {
+    startImportProgress('dl-1', 10_000, 2)
+    vi.advanceTimersByTime(500)
+    reportImportBytes('dl-1', 4000)
+    vi.advanceTimersByTime(200)
+    reportImportBytes('dl-1', 5000)
+    completeImportFile('dl-1', 5000)
+    // The idle gap between files still spans the first sample of the next
+    // file (it is real elapsed time), but only that file's bytes are
+    // attributed to it: 1000 / 5.3s, not the previous file's tail on top.
+    vi.advanceTimersByTime(5300)
+    reportImportBytes('dl-1', 1000)
+
+    expect(getImportProgress('dl-1')?.speedBytesPerSecond).toBe(189)
+  })
+
   it('reports zero percent for an empty torrent', () => {
     startImportProgress('dl-1', 0, 0)
     reportImportBytes('dl-1', 100)

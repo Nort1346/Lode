@@ -59,7 +59,11 @@ export function completeImportFile(downloadId: string, sizeBytes: number): void 
   entry.doneBytes += sizeBytes
   entry.currentBytes = 0
   entry.filesDone++
+  // Re-anchor the speed window at the file boundary so the next sample's
+  // baseline starts here, not at the previous file's last sample (whose tail
+  // would otherwise be attributed to the new file).
   entry.lastSampleBytes = entry.doneBytes
+  entry.lastSampleAt = Date.now()
 }
 
 export function finishImportProgress(downloadId: string): void {

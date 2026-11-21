@@ -122,7 +122,11 @@ function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
   return t('downloads.prepRemainingMin', { m: Math.ceil(remaining / 60) })
 }
 
-const hasActivePrep = computed(() => downloads.value.some((dl) => dl.status === 'completed' && dl.notifiedAt === null))
+// Only a live byte copy needs the fast cadence: the countdown alone updates
+// in minute steps, so a plain countdown stays on the idle poll.
+const hasActivePrep = computed(() =>
+  downloads.value.some((dl) => dl.status === 'completed' && dl.notifiedAt === null && Boolean(dl.organizeProgress))
+)
 
 // One bar for the whole preparation phase: the simulated countdown (which
 // covers hardlink/rename, that finish instantly) plus the real bytes copied
