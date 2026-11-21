@@ -1041,6 +1041,28 @@ describe('notifyJellyfinIfNeeded', () => {
     expect(mockDb.update).not.toHaveBeenCalled()
   })
 
+  it('gates on the pending row alone, without reading the media config', async () => {
+    // The gate is row-based on purpose: a config read that could fail open
+    // would point Jellyfin at a folder the import is still writing. A pending
+    // row always settles (the sweep marks it skipped/failed/done), so the row
+    // alone is fail-closed.
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        completedAt: completedAtPast(),
+        savePath: 'movies',
+        organizeStatus: 'pending'
+      })
+    ])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
+    expect(mockDb.update).not.toHaveBeenCalled()
+    expect(mockGetMediaConfig).not.toHaveBeenCalled()
+  })
+
   it('notifies once the library import is done', async () => {
     mockGetMediaConfig.mockResolvedValue({
       enabled: true,
