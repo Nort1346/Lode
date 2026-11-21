@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockGetSetting } = vi.hoisted(() => ({ mockGetSetting: vi.fn() }))
+const { mockGetMediaImportMode } = vi.hoisted(() => ({ mockGetMediaImportMode: vi.fn() }))
 
 const mockGetUserSession = vi.fn()
 const mockGet = vi.fn()
@@ -36,8 +36,8 @@ vi.stubGlobal(
   }))
 )
 
-vi.mock('#server/utils/settings', () => ({
-  getSetting: mockGetSetting
+vi.mock('#server/utils/library/media-settings', () => ({
+  getMediaImportMode: mockGetMediaImportMode
 }))
 
 vi.mock('#server/database/schema', () => ({
@@ -56,7 +56,8 @@ function download(overrides: Record<string, unknown> = {}) {
     userId: 'u1',
     torrentHash: 'abc123',
     torrentName: 'Movie',
-    organizedPath: null,
+    status: 'completed',
+    organizeStatus: 'pending',
     ...overrides
   }
 }
@@ -65,7 +66,7 @@ describe('torrents/[id].delete', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user', username: 'user1' } })
-    mockGetSetting.mockResolvedValue(undefined)
+    mockGetMediaImportMode.mockResolvedValue('hardlink')
   })
 
   const mockEvent = {} as never
@@ -78,9 +79,36 @@ describe('torrents/[id].delete', () => {
     expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', true)
   })
 
-  it('keeps the files when an organized download was moved into the library', async () => {
-    mockGetSetting.mockResolvedValue('move')
-    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
+  it('deletes the staging leftovers in move mode after the import moved the files out', async () => {
+    mockGetMediaImportMode.mockResolvedValue('move')
+    mockGet.mockReturnValue(download({ organizeStatus: 'done', organizedPath: '/library/Movies/Movie (2021)' }))
+    mockDeleteTorrent.mockResolvedValue(undefined)
+
+    await handler(mockEvent)
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', true)
+  })
+
+  it('deletes the partial staging files of an incomplete download in move mode', async () => {
+    mockGetMediaImportMode.mockResolvedValue('move')
+    mockGet.mockReturnValue(download({ status: 'downloading' }))
+    mockDeleteTorrent.mockResolvedValue(undefined)
+
+    await handler(mockEvent)
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', true)
+  })
+
+  it('keeps the staging files of a completed download whose move import has not run yet', async () => {
+    mockGetMediaImportMode.mockResolvedValue('move')
+    mockGet.mockReturnValue(download({ organizeStatus: 'pending' }))
+    mockDeleteTorrent.mockResolvedValue(undefined)
+
+    await handler(mockEvent)
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', false)
+  })
+
+  it('keeps the staging files when the move import failed', async () => {
+    mockGetMediaImportMode.mockResolvedValue('move')
+    mockGet.mockReturnValue(download({ organizeStatus: 'failed' }))
     mockDeleteTorrent.mockResolvedValue(undefined)
 
     await handler(mockEvent)
@@ -88,7 +116,7 @@ describe('torrents/[id].delete', () => {
   })
 
   it('removes the staging copy in hardlink mode', async () => {
-    mockGetSetting.mockResolvedValue('hardlink')
+    mockGetMediaImportMode.mockResolvedValue('hardlink')
     mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
     mockDeleteTorrent.mockResolvedValue(undefined)
 
@@ -96,8 +124,17 @@ describe('torrents/[id].delete', () => {
     expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', true)
   })
 
-  it('keeps files in move mode even without an organized path', async () => {
-    mockGetSetting.mockResolvedValue('move')
+  it('removes the staging copy in copy mode', async () => {
+    mockGetMediaImportMode.mockResolvedValue('copy')
+    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
+    mockDeleteTorrent.mockResolvedValue(undefined)
+
+    await handler(mockEvent)
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', true)
+  })
+
+  it('keeps the files when the import mode setting cannot be read', async () => {
+    mockGetMediaImportMode.mockRejectedValue(new Error('db down'))
     mockGet.mockReturnValue(download())
     mockDeleteTorrent.mockResolvedValue(undefined)
 
@@ -105,31 +142,13 @@ describe('torrents/[id].delete', () => {
     expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', false)
   })
 
-  it('removes the staging copy in copy mode', async () => {
-    mockGetSetting.mockResolvedValue('copy')
-    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
+  it('deletes the files for an unknown import mode, which normalizes to hardlink', async () => {
+    mockGetMediaImportMode.mockResolvedValue('hardlink')
+    mockGet.mockReturnValue(download())
     mockDeleteTorrent.mockResolvedValue(undefined)
 
     await handler(mockEvent)
     expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', true)
-  })
-
-  it('assumes move mode when the setting cannot be read', async () => {
-    mockGetSetting.mockRejectedValue(new Error('db down'))
-    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
-    mockDeleteTorrent.mockResolvedValue(undefined)
-
-    await handler(mockEvent)
-    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', false)
-  })
-
-  it('keeps the files for an unknown import mode', async () => {
-    mockGetSetting.mockResolvedValue('symlink')
-    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
-    mockDeleteTorrent.mockResolvedValue(undefined)
-
-    await handler(mockEvent)
-    expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', false)
   })
 
   it('sets status to removed (soft delete)', async () => {
@@ -150,8 +169,8 @@ describe('torrents/[id].delete', () => {
   })
 
   it('logs activity with the delete-files decision', async () => {
-    mockGetSetting.mockResolvedValue('move')
-    mockGet.mockReturnValue(download({ organizedPath: '/library/Movies/Movie (2021)' }))
+    mockGetMediaImportMode.mockResolvedValue('move')
+    mockGet.mockReturnValue(download({ organizeStatus: 'done', organizedPath: '/library/Movies/Movie (2021)' }))
     mockDeleteTorrent.mockResolvedValue(undefined)
 
     await handler(mockEvent)
@@ -159,7 +178,7 @@ describe('torrents/[id].delete', () => {
       action: 'torrent_delete',
       userId: 'u1',
       username: 'user1',
-      details: JSON.stringify({ name: 'Movie', hash: 'abc123', deleteFiles: false })
+      details: JSON.stringify({ name: 'Movie', hash: 'abc123', deleteFiles: true })
     })
   })
 
