@@ -490,7 +490,7 @@
     "mediaExtraExtensions": "Extensiones de archivos adicionales",
     "mediaExtraExtensionsHint": "Lista separada por comas, p. ej. srt, sub, ass, nfo. Se importan todos los archivos con una de estas extensiones: los auxiliares con el nombre del vídeo lo siguen y el resto queda junto al archivo principal.",
     "mediaCleanupStaging": "Limpiar el staging tras la importación",
-    "mediaCleanupStagingHint": "Tras una importación correcta, elimina todo lo que el torrent dejó en el staging: carátulas, .screens, .url, .txt y también los archivos de vídeo y subtítulos no importados. Solo en el modo Mover (no queda nada para sembrar). La biblioteca nunca se toca.",
+    "mediaCleanupStagingHint": "Tras una importación correcta, elimina todo lo que el torrent dejó en el staging: carátulas, .screens, .url, .txt y también los archivos de vídeo y subtítulos no importados. También elimina las carpetas de release vacías. Solo en el modo Mover (no queda nada para sembrar). La biblioteca nunca se toca.",
     "mediaCleanupStagingMoveOnly": "Solo disponible en el modo Mover.",
     "qbittorrentSaved": "Ajustes de qBittorrent guardados",
     "qbittorrentError": "No se pudieron guardar los ajustes de qBittorrent",

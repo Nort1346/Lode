@@ -1,5 +1,6 @@
 import { isAbsolute, dirname, join, relative, resolve } from 'node:path'
-import { realpath, rmdir, stat, unlink } from 'node:fs/promises'
+import { readdir, realpath, rmdir, stat, unlink } from 'node:fs/promises'
+import type { Dirent } from 'node:fs'
 import { createLogger } from '#server/utils/logger'
 import type { TorrentFile } from '#server/types/torrent'
 
@@ -41,7 +42,6 @@ export async function cleanupStagingLeftovers(input: {
   }
 
   let removed = 0
-  const touchedDirs = new Set<string>()
 
   for (const file of input.files) {
     const path = join(saveDir, file.name)
@@ -57,36 +57,83 @@ export async function cleanupStagingLeftovers(input: {
       if (!isSameOrInside(saveDir, await realpath(path))) continue
       await unlink(path)
       removed++
-      touchedDirs.add(dirname(path))
     } catch {
       // Already gone (moved by the import or deleted by qBittorrent).
     }
   }
 
-  await pruneEmptyDirs(touchedDirs, stagingRoot)
+  await pruneStagingTree(saveDir, stagingRoot)
   if (removed > 0) log.info(`staging cleanup removed ${removed} leftover file(s) from ${saveDir}`)
   return removed
 }
 
-async function pruneEmptyDirs(dirs: Iterable<string>, stagingDir: string): Promise<void> {
-  const root = resolve(stagingDir)
-  // A Set keeps a parent from being queued once per emptied child.
-  const queue = [...new Set(dirs)]
+// Removes the directories a finished torrent left behind. A move import (or
+// qBittorrent's own delete) empties the folders without removing them, so an
+// empty tree - `Release/`, `Release/Subs/`, even the whole category dir -
+// accumulates in staging. Every directory below `saveDir` is attempted
+// bottom-up; `rmdir` only succeeds on empty dirs, so anything the torrent did
+// not list keeps its folder alive. Symlinked folders are never followed or
+// removed, and the staging root itself is never removed either.
+export async function pruneStagingTree(saveDir: string, stagingDir: string): Promise<void> {
+  let base: string
+  let root: string
+  try {
+    ;[base, root] = await Promise.all([realpath(saveDir), realpath(stagingDir)])
+  } catch {
+    // The folder is already gone - nothing to prune.
+    return
+  }
+  if (!isSameOrInside(root, base)) return
 
-  while (queue.length > 0) {
-    const dir = queue.pop()
-    if (dir === undefined) break
-
-    const absolute = resolve(dir)
-    if (absolute === root || !isSameOrInside(root, absolute)) continue
-
-    // rmdir fails with ENOTEMPTY when files remain, which is what we want: only
-    // folders the import fully emptied disappear.
-    try {
-      await rmdir(absolute)
-      queue.push(dirname(absolute))
-    } catch {
-      // Not empty or already removed.
+  // Deepest first, so a folder can be removed before its parent is attempted.
+  const dirs: string[] = []
+  await collectDirs(base === root ? root : base, dirs)
+  if (base !== root) {
+    // The category dir (e.g. `Movies`) and any intermediate dir may now be
+    // empty too; walk up to the staging root, which is never removed.
+    let ancestor = dirname(base)
+    while (ancestor !== root && isSameOrInside(root, ancestor)) {
+      dirs.push(ancestor)
+      ancestor = dirname(ancestor)
     }
   }
+
+  for (const dir of dirs) {
+    if (dir === root) continue
+    try {
+      await rmdir(dir)
+    } catch {
+      // Not empty or already gone.
+    }
+  }
+}
+
+// qBittorrent removes the torrent from its list before its file delete has
+// finished, so a prune right after a delete can race it: the folders still
+// hold bytes. Retry on a short budget until the folder is gone; whatever
+// survives the last pass keeps files the delete did not remove, which this
+// function must not take.
+export async function pruneStagingUntilGone(saveDir: string, stagingDir: string, attempts = 4): Promise<void> {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    await pruneStagingTree(saveDir, stagingDir)
+    try {
+      await stat(saveDir)
+    } catch {
+      return
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+}
+
+async function collectDirs(dir: string, out: string[]): Promise<void> {
+  let entries: Dirent[]
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory()) await collectDirs(join(dir, entry.name), out)
+  }
+  out.push(dir)
 }

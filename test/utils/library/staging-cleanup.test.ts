@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { cleanupStagingLeftovers } from '#server/utils/library/staging-cleanup'
+import { cleanupStagingLeftovers, pruneStagingTree } from '#server/utils/library/staging-cleanup'
 import type { TorrentFile } from '#server/types/torrent'
 
 let workdir = ''
@@ -132,7 +132,7 @@ describe('cleanupStagingLeftovers', () => {
     expect(await readFile(join(stagingDir, 'outside.jpg'), 'utf8')).toBe('secret')
   })
 
-  it('skips directories listed as entries', async () => {
+  it('prunes an empty directory the torrent lists as an entry', async () => {
     const saveDir = join(stagingDir, 'release')
     await mkdir(join(saveDir, 'sub'), { recursive: true })
 
@@ -143,6 +143,94 @@ describe('cleanupStagingLeftovers', () => {
     })
 
     expect(removed).toBe(0)
-    expect((await stat(join(saveDir, 'sub'))).isDirectory()).toBe(true)
+    await expect(stat(saveDir)).rejects.toThrow()
+  })
+
+  it('keeps a directory that still holds a file the torrent does not list', async () => {
+    const saveDir = join(stagingDir, 'release')
+    await mkdir(join(saveDir, 'sub'), { recursive: true })
+    await writeFile(join(saveDir, 'sub', 'keep.txt'), 'keep')
+
+    const removed = await cleanupStagingLeftovers({
+      files: [makeFile('sub')],
+      saveDir,
+      stagingDir
+    })
+
+    expect(removed).toBe(0)
+    expect(await readFile(join(saveDir, 'sub', 'keep.txt'), 'utf8')).toBe('keep')
+  })
+
+  it('prunes the empty subfolders a move import left behind', async () => {
+    // The import moved the video and the subtitle out; only the (now empty)
+    // folder tree remains.
+    const saveDir = join(stagingDir, 'Dune.2021.1080p.WEB-DL')
+    await mkdir(join(saveDir, 'Subs'), { recursive: true })
+
+    const removed = await cleanupStagingLeftovers({
+      files: [makeFile('Dune.2021.1080p.WEB-DL.mkv'), makeFile('Subs/en.srt')],
+      saveDir,
+      stagingDir
+    })
+
+    expect(removed).toBe(0)
+    await expect(stat(saveDir)).rejects.toThrow()
+  })
+
+  it('prunes the category dir when the last release leaves it empty', async () => {
+    const saveDir = join(stagingDir, 'Movies', 'Dune.2021.1080p.WEB-DL')
+    await mkdir(saveDir, { recursive: true })
+
+    const removed = await cleanupStagingLeftovers({
+      files: [makeFile('Dune.2021.1080p.WEB-DL.mkv')],
+      saveDir,
+      stagingDir
+    })
+
+    expect(removed).toBe(0)
+    await expect(stat(join(stagingDir, 'Movies'))).rejects.toThrow()
+    // The staging root is never removed.
+    expect((await stat(stagingDir)).isDirectory()).toBe(true)
+  })
+
+  it('keeps a category dir that still holds another release', async () => {
+    const saveDir = join(stagingDir, 'Movies', 'Dune.2021.1080p.WEB-DL')
+    await mkdir(saveDir, { recursive: true })
+    await seed('Movies/Other.2020.mkv', 'video')
+
+    const removed = await cleanupStagingLeftovers({
+      files: [makeFile('Dune.2021.1080p.WEB-DL.mkv')],
+      saveDir,
+      stagingDir
+    })
+
+    expect(removed).toBe(0)
+    await expect(stat(saveDir)).rejects.toThrow()
+    expect(await readFile(join(stagingDir, 'Movies', 'Other.2020.mkv'), 'utf8')).toBe('video')
+  })
+})
+
+describe('pruneStagingTree', () => {
+  it('refuses to prune outside the staging root', async () => {
+    const outsideDir = join(workdir, 'library', 'Release')
+    await mkdir(outsideDir, { recursive: true })
+    await writeFile(join(outsideDir, 'poster.jpg'), 'jpeg')
+
+    await pruneStagingTree(outsideDir, stagingDir)
+
+    expect(await readFile(join(outsideDir, 'poster.jpg'), 'utf8')).toBe('jpeg')
+  })
+
+  it('is a no-op when the release folder is already gone', async () => {
+    await expect(pruneStagingTree(join(stagingDir, 'missing'), stagingDir)).resolves.toBeUndefined()
+  })
+
+  it('never removes the staging root even when saveDir is the root itself', async () => {
+    await mkdir(join(stagingDir, 'release'), { recursive: true })
+
+    await pruneStagingTree(stagingDir, stagingDir)
+
+    await expect(stat(join(stagingDir, 'release'))).rejects.toThrow()
+    expect((await stat(stagingDir)).isDirectory()).toBe(true)
   })
 })

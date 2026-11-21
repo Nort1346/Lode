@@ -2,7 +2,12 @@ import { downloads } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { getMediaImportMode } from '#server/utils/library/media-settings'
+import { resolveStagingDir } from '#server/utils/library/importer'
+import { pruneStagingUntilGone } from '#server/utils/library/staging-cleanup'
+import { createLogger } from '#server/utils/logger'
 import type { DownloadRow } from '#server/types/torrent'
+
+const log = createLogger('TorrentDelete')
 
 // 'hardlink' and 'copy' guarantee the library has its own copy of the files
 // (unknown settings normalize to hardlink), so the torrent's files can always
@@ -54,8 +59,11 @@ export default defineEventHandler(async (event) => {
   const deleteFiles = await shouldDeleteTorrentFiles(download)
 
   if (download.torrentHash !== null) {
+    const qbit = useQBittorrent()
+    // Read the save path before the delete: qBittorrent removes the files but
+    // leaves the (now empty) release folders behind, so prune them afterwards.
+    const savePath = (await qbit.findTorrentByHash(download.torrentHash).catch(() => undefined))?.save_path ?? ''
     try {
-      const qbit = useQBittorrent()
       await qbit.deleteTorrent(download.torrentHash, deleteFiles)
       // qBittorrent drops the torrent from its list before the file delete finishes;
       // wait until it is gone so a quick re-add cannot race the in-progress delete
@@ -66,6 +74,20 @@ export default defineEventHandler(async (event) => {
       }
     } catch {
       // qBittorrent might be offline
+    }
+
+    if (deleteFiles && savePath !== '') {
+      const config = useRuntimeConfig()
+      const stagingDir = resolveStagingDir(download.savePath, {
+        downloadPathMovies: (config.downloadPathMovies as string | undefined) ?? '',
+        downloadPathSeries: (config.downloadPathSeries as string | undefined) ?? ''
+      })
+      if (stagingDir !== null) {
+        await pruneStagingUntilGone(savePath, stagingDir).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err)
+          log.warn(`staging prune after delete failed: id=${download.id}: ${msg}`)
+        })
+      }
     }
   }
 

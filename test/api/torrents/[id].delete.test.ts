@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mkdir, mkdtemp, rm, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const { mockGetMediaImportMode } = vi.hoisted(() => ({ mockGetMediaImportMode: vi.fn() }))
 
@@ -6,6 +9,8 @@ const mockGetUserSession = vi.fn()
 const mockGet = vi.fn()
 const mockRun = vi.fn(() => ({ changes: 1 }))
 const mockDeleteTorrent = vi.fn()
+const mockFindTorrentByHash = vi.fn((_hash: string) => Promise.resolve(undefined as { save_path?: string } | undefined))
+const mockUseRuntimeConfig = vi.fn(() => ({ downloadPathMovies: '', downloadPathSeries: '' }))
 const mockLogActivity = vi.fn()
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
@@ -32,9 +37,11 @@ vi.stubGlobal(
 vi.stubGlobal(
   'useQBittorrent',
   vi.fn(() => ({
-    deleteTorrent: mockDeleteTorrent
+    deleteTorrent: mockDeleteTorrent,
+    findTorrentByHash: mockFindTorrentByHash
   }))
 )
+vi.stubGlobal('useRuntimeConfig', mockUseRuntimeConfig)
 
 vi.mock('#server/utils/library/media-settings', () => ({
   getMediaImportMode: mockGetMediaImportMode
@@ -196,5 +203,52 @@ describe('torrents/[id].delete', () => {
 
     const result = await handler(mockEvent)
     expect(result).toEqual({ success: true })
+  })
+
+  it('prunes the empty release folders qBittorrent leaves behind', async () => {
+    const staging = await mkdtemp(join(tmpdir(), 'lode-delete-staging-'))
+    const savePath = join(staging, 'Movies', 'Movie.2021.1080p.WEB-DL')
+    await mkdir(join(savePath, 'Subs'), { recursive: true })
+
+    try {
+      mockGetMediaImportMode.mockResolvedValue('move')
+      mockGet.mockReturnValue(download({ savePath: 'movies', organizeStatus: 'done' }))
+      // First call (the pre-delete lookup) sees the torrent; the wait-loop
+      // calls see it gone.
+      mockFindTorrentByHash.mockResolvedValueOnce({ save_path: savePath })
+      mockDeleteTorrent.mockResolvedValue(undefined)
+      mockUseRuntimeConfig.mockReturnValue({ downloadPathMovies: staging, downloadPathSeries: staging })
+
+      await handler(mockEvent)
+
+      await expect(stat(savePath)).rejects.toThrow()
+      await expect(stat(join(staging, 'Movies'))).rejects.toThrow()
+      // The staging root itself is never removed.
+      expect((await stat(staging)).isDirectory()).toBe(true)
+    } finally {
+      await rm(staging, { recursive: true, force: true })
+    }
+  })
+
+  it('does not prune when the delete keeps the files', async () => {
+    const staging = await mkdtemp(join(tmpdir(), 'lode-delete-staging-'))
+    const savePath = join(staging, 'Movies', 'Movie.2021.1080p.WEB-DL')
+    await mkdir(savePath, { recursive: true })
+
+    try {
+      mockGetMediaImportMode.mockResolvedValue('move')
+      // A completed row whose import has not settled keeps its files.
+      mockGet.mockReturnValue(download({ savePath: 'movies', organizeStatus: 'pending' }))
+      mockFindTorrentByHash.mockResolvedValueOnce({ save_path: savePath })
+      mockDeleteTorrent.mockResolvedValue(undefined)
+      mockUseRuntimeConfig.mockReturnValue({ downloadPathMovies: staging, downloadPathSeries: staging })
+
+      await handler(mockEvent)
+      expect(mockDeleteTorrent).toHaveBeenCalledWith('abc123', false)
+
+      expect((await stat(savePath)).isDirectory()).toBe(true)
+    } finally {
+      await rm(staging, { recursive: true, force: true })
+    }
   })
 })
