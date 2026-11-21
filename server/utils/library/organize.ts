@@ -1,4 +1,4 @@
-import type { MainFilePick, OrganizeEpisodeInput, OrganizeMovieInput } from '#server/types/media-organize'
+import type { ExtraFilePlan, MainFilePick, OrganizeEpisodeInput, OrganizeMovieInput } from '#server/types/media-organize'
 import type { TorrentFile } from '#server/types/torrent'
 
 const VIDEO_EXTENSIONS = new Set(['mkv', 'mp4', 'avi', 'mov', 'm2ts', 'ts', 'wmv', 'flv'])
@@ -97,33 +97,59 @@ export function selectVideoFiles(files: TorrentFile[]): MainFilePick[] {
     .sort((a, b) => b.size - a.size)
 }
 
-// Sidecar files (subtitles, nfo) that belong to one video: same folder, an
-// allowed extension and a stem that starts with the video stem, so
-// `Movie.en.srt` and `Movie.forced.srt` follow `Movie.mkv` but unrelated
-// artwork or other episodes do not.
-export function selectExtraFiles(
+// Plans where every extra file of the torrent lands. With the feature enabled
+// all files with an allowed extension are imported - not only same-folder
+// sidecars, so `ang.srt` at the root and `subs/ang.srt` are taken as well:
+//
+// - a sidecar in the same folder as a video, whose stem starts with the video
+//   stem, follows that video (`Movie.en.srt` next to `Movie.mkv`);
+// - a file with the full video stem from any folder (e.g. `subs/Movie.en.srt`)
+//   follows that video too;
+// - everything else is release level and lands once, next to the first
+//   imported video - a season pack must not get one copy of `ang.srt` per
+//   episode.
+export function planExtraFileImports(
   files: TorrentFile[],
-  videoName: string,
+  videoNames: readonly string[],
   extensions: readonly string[]
-): MainFilePick[] {
-  const video = splitRelativePath(videoName)
-  const videoStem = splitExtension(video.base).stem
-  if (videoStem === '') return []
-
+): ExtraFilePlan {
   const allowed = new Set(extensions.map((ext) => ext.toLowerCase()))
-  const picks: MainFilePick[] = []
+  const videos = videoNames
+    .map((name) => {
+      const parts = splitRelativePath(name)
+      return { name, dir: parts.dir, stem: splitExtension(parts.base).stem }
+    })
+    .filter((video) => video.stem !== '')
+
+  const byVideo = new Map<string, MainFilePick[]>()
+  const releaseLevel: MainFilePick[] = []
 
   for (const file of files) {
     if (file.size <= 0) continue
     const parts = splitRelativePath(file.name)
-    if (parts.dir !== video.dir) continue
     const { stem, ext } = splitExtension(parts.base)
     if (ext === '' || !allowed.has(ext)) continue
-    if (extraSuffix(stem, videoStem) === null) continue
-    picks.push({ index: file.index, name: file.name, size: file.size })
+
+    // Same-folder sidecars are attributed first, then a full-stem match from
+    // any folder; anything else is release level.
+    const owner =
+      videos.find((video) => video.dir === parts.dir && extraSuffix(stem, video.stem) !== null) ??
+      videos.find((video) => extraSuffix(stem, video.stem) !== null)
+
+    const pick: MainFilePick = { index: file.index, name: file.name, size: file.size }
+    if (owner !== undefined) {
+      const picks = byVideo.get(owner.name)
+      if (picks === undefined) {
+        byVideo.set(owner.name, [pick])
+      } else {
+        picks.push(pick)
+      }
+    } else {
+      releaseLevel.push(pick)
+    }
   }
 
-  return picks
+  return { byVideo, releaseLevel }
 }
 
 // Suffix that follows the video stem (`Movie.en.srt` -> `.en`), or null when
@@ -139,7 +165,10 @@ function extraSuffix(candidateStem: string, videoStem: string): string | null {
 
 // Maps a sidecar name onto the organized video name, keeping language/forced
 // suffixes: `Movie.en.srt` next to `Dune (2021) 1080p WEB-DL.mkv` becomes
-// `Dune (2021) 1080p WEB-DL.en.srt` in the same library folder.
+// `Dune (2021) 1080p WEB-DL.en.srt` in the same library folder. A file whose
+// stem does not match the video (`ang.srt`) keeps its own stem as a
+// language-like suffix (`...WEB-DL.ang.srt`), so several release-level extras
+// never collide onto one name.
 export function buildExtraFileRelativePath(input: {
   videoSourceName: string
   videoTargetRelativePath: string
@@ -151,7 +180,7 @@ export function buildExtraFileRelativePath(input: {
   const extraParts = splitExtension(extra.base)
   const extension = extraParts.ext === '' ? 'bin' : extraParts.ext
 
-  const suffix = extraSuffix(extraParts.stem, sourceVideoStem) ?? ''
+  const suffix = extraSuffix(extraParts.stem, sourceVideoStem) ?? (extraParts.stem === '' ? '' : `.${extraParts.stem}`)
   const safeSuffix = /^[.\w -]*$/.test(suffix) ? suffix : ''
 
   const target = splitRelativePath(input.videoTargetRelativePath)

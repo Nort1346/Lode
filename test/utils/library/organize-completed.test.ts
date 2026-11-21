@@ -266,6 +266,81 @@ describe('organizeCompletedDownload', () => {
     await expect(stat(join(libraryDir, 'Dune (2021)/poster.jpg'))).rejects.toThrow()
   })
 
+  it('imports release-level subtitles from the root and subfolders next to the movie', async () => {
+    await seedStaging('Dune.2021.1080p.WEB-DL.mkv')
+    await seedStaging('ang.srt', 'root-sub')
+    await seedStaging('subs/pol.srt', 'folder-sub')
+    const files = [
+      makeFile('Dune.2021.1080p.WEB-DL.mkv', 11),
+      makeFile('ang.srt', 4),
+      makeFile('subs/pol.srt', 4)
+    ]
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload('h', makeJob(), makeDeps(qbit, { importExtraFiles: true }))
+
+    expect(result.status).toBe('done')
+    expect(result.extrasImported).toBe(2)
+    // No stem match: each keeps its own stem as a language-like suffix.
+    expect(await readFile(join(libraryDir, 'Dune (2021)/Dune (2021) 1080p web-dl.ang.srt'), 'utf8')).toBe('root-sub')
+    expect(await readFile(join(libraryDir, 'Dune (2021)/Dune (2021) 1080p web-dl.pol.srt'), 'utf8')).toBe('folder-sub')
+  })
+
+  it('moves release-level subtitles out of staging in move mode', async () => {
+    await seedStaging('Dune.2021.1080p.WEB-DL.mkv')
+    await seedStaging('subs/ang.srt', 'folder-sub')
+    const files = [makeFile('Dune.2021.1080p.WEB-DL.mkv', 11), makeFile('subs/ang.srt', 4)]
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob(),
+      makeDeps(qbit, { importExtraFiles: true, importMode: 'move' })
+    )
+
+    expect(result.status).toBe('done')
+    expect(result.extrasImported).toBe(1)
+    expect(await readFile(join(libraryDir, 'Dune (2021)/Dune (2021) 1080p web-dl.ang.srt'), 'utf8')).toBe('folder-sub')
+    await expect(stat(join(stagingDir, 'subs/ang.srt'))).rejects.toThrow()
+  })
+
+  it('imports a release-level subtitle only once for a season pack', async () => {
+    const names = ['Show.S01E01.1080p.WEB-DL.mkv', 'Show.S01E02.1080p.WEB-DL.mkv']
+    for (const name of names) await seedStaging(name)
+    await seedStaging('subs/ang.srt', 'pack-sub')
+    const files = [...names.map((name) => makeFile(name, 50)), makeFile('subs/ang.srt', 4)]
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob({ savePath: 'series', torrentName: 'Show.S01', label: 'Show', mediaType: 'tv' }),
+      makeDeps(qbit, { importExtraFiles: true })
+    )
+
+    expect(result.status).toBe('done')
+    expect(result.importedFiles).toBe(2)
+    expect(result.extrasImported).toBe(1)
+    expect(await readFile(join(libraryDir, 'Show/Season 01/Show - S01E01 1080p web-dl.ang.srt'), 'utf8')).toBe(
+      'pack-sub'
+    )
+    await expect(stat(join(libraryDir, 'Show/Season 01/Show - S01E02 1080p web-dl.ang.srt'))).rejects.toThrow()
+  })
+
+  it('attaches a cross-folder sidecar to its episode', async () => {
+    await seedStaging('Show.S01E01.1080p.WEB-DL.mkv')
+    await seedStaging('subs/Show.S01E01.1080p.WEB-DL.pl.srt', 'pl-sub')
+    const files = [makeFile('Show.S01E01.1080p.WEB-DL.mkv', 11), makeFile('subs/Show.S01E01.1080p.WEB-DL.pl.srt', 4)]
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob({ savePath: 'series', torrentName: 'Show.S01E01', label: 'Show', mediaType: 'tv' }),
+      makeDeps(qbit, { importExtraFiles: true })
+    )
+
+    expect(result.status).toBe('done')
+    expect(result.extrasImported).toBe(1)
+    expect(await readFile(join(libraryDir, 'Show/Season 01/Show - S01E01 1080p web-dl.pl.srt'), 'utf8')).toBe(
+      'pl-sub'
+    )
+  })
+
   it('ignores extra files when the setting is off', async () => {
     await seedStaging('Dune.2021.1080p.WEB-DL.mkv')
     await seedStaging('Dune.2021.1080p.WEB-DL.en.srt', 'subs')

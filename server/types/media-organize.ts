@@ -46,6 +46,14 @@ export interface MainFilePick {
   size: number
 }
 
+// Where every extra file of a torrent lands: sidecars follow their video,
+// release-level files (no video stem match) land once, next to the first
+// imported video.
+export interface ExtraFilePlan {
+  byVideo: Map<string, MainFilePick[]>
+  releaseLevel: MainFilePick[]
+}
+
 export type MediaImportMethod = 'hardlink' | 'copy' | 'move'
 
 export interface ImportSingleFileResult {
