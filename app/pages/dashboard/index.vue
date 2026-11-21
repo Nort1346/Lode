@@ -43,8 +43,6 @@ async function fetchData() {
       completedToday: statsRes.completedSince
     }
     activeList.value = listRes.downloads ?? []
-    // Feed the ETA tracker before the next render so labels/borders are fresh
-    trackPoll(listRes.downloads ?? [])
     lastFetchOk = true
   } catch (e: unknown) {
     // Keep previous data on failure; toast only on the first failure so the poll loop does not spam
@@ -132,7 +130,7 @@ function getDisplayName(dl: Download): string {
 }
 
 const { qualityConfig } = useQualityConfig()
-const { trackPoll, etaState, etaLabel } = useEtaTracker()
+const { etaState, etaLabel } = useEtaTracker()
 
 function cardBorderClass(dl: Download): string {
   if (dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok') {

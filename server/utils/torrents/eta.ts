@@ -1,6 +1,8 @@
-export const QBITTORRENT_UNKNOWN_ETA = 24000
+import { UNRELIABLE_ETA_SECONDS } from '#shared/eta-tracker'
 
-export const UNRELIABLE_ETA_SECONDS = 48 * 60 * 60
+export { UNRELIABLE_ETA_SECONDS }
+
+export const QBITTORRENT_UNKNOWN_ETA = 24000
 
 export function normalizeEta(eta: number): number {
   if (!Number.isFinite(eta) || eta <= 0) return 0

@@ -55,7 +55,7 @@
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NUXT_TORRENT_SYNC_INTERVAL_MS` | `10000` | Background torrent sync interval (ms; not listed in `.env.example`) |
+| `NUXT_TORRENT_SYNC_INTERVAL_MS` | `10000` | Background torrent sync interval (ms; not listed in `.env.example`). Keep it below 5 minutes - the server-side ETA re-anchors when polls are further apart and never warms up above that |
 | `DB_DRIVER` | `sqlite` | Database driver: `sqlite` or `postgres` |
 | `DATABASE_URL` | - | PostgreSQL connection URL (required when `DB_DRIVER=postgres`) |
 | `POSTGRES_PASSWORD` | - | Postgres password (passed to the `postgres` service via compose `env_file`; required for the postgres setup) |

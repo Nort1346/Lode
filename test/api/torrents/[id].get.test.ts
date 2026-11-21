@@ -54,7 +54,14 @@ describe('torrents/[id].get', () => {
     mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: null, status: 'completed' })
 
     const result = await handler(mockEvent)
-    expect(result).toEqual({ id: 'dl-1', userId: 'u1', torrentHash: null, status: 'completed' })
+    expect(result).toEqual({
+      id: 'dl-1',
+      userId: 'u1',
+      torrentHash: null,
+      status: 'completed',
+      etaSeconds: 0,
+      etaState: 'calculating'
+    })
     expect(mockFindTorrentByHash).not.toHaveBeenCalled()
   })
 
@@ -198,7 +205,14 @@ describe('torrents/[id].get', () => {
     mockFindTorrentByHash.mockRejectedValue(new Error('Connection refused'))
 
     const result = await handler(mockEvent)
-    expect(result).toEqual({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', status: 'downloading' })
+    expect(result).toEqual({
+      id: 'dl-1',
+      userId: 'u1',
+      torrentHash: 'abc123',
+      status: 'downloading',
+      etaSeconds: 0,
+      etaState: 'calculating'
+    })
   })
 
   it('throws 403 for unauthorized user', async () => {

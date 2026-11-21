@@ -10,11 +10,19 @@ import type { DiscordDownloadNotifyInput } from '#server/types/discord'
 import { notifyDownloadComplete } from '#server/utils/notifications/notifications'
 import { createLogger } from '#server/utils/logger'
 import { normalizeEta } from '#server/utils/torrents/eta'
+import { trackServerEta } from '#server/utils/torrents/eta-tracker'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
+import type { EtaTrackerInput } from '#shared/eta-tracker'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
-import { CHECKING_STATES, COMPLETED_STATES, PAUSED_DOWNLOAD_STATES, type SyncResult } from '#server/types/torrent'
+import {
+  CHECKING_STATES,
+  COMPLETED_STATES,
+  PAUSED_DOWNLOAD_STATES,
+  type DownloadRow,
+  type SyncResult
+} from '#server/types/torrent'
 
 const log = createLogger('TorrentSync')
 
@@ -295,9 +303,27 @@ function notifyDiscord(
     })
 }
 
+// Tracker sample for one row; the fields that come from qBittorrent or from the
+// status the sync just wrote are passed as overrides.
+function etaSample(dl: DownloadRow, status: string, overrides: Partial<EtaTrackerInput> = {}): EtaTrackerInput {
+  return {
+    id: dl.id,
+    status,
+    createdAt: dl.createdAt,
+    sizeBytes: dl.sizeBytes,
+    downloadedBytes: dl.downloadedBytes,
+    numSeeds: dl.numSeeds,
+    downloadSpeed: dl.downloadSpeed,
+    ...overrides
+  }
+}
+
 export async function syncTorrentStatus(): Promise<SyncResult> {
   const db = await useDbAsync()
   const result: SyncResult = { synced: 0, completed: 0, failed: 0, removed: 0 }
+  // Fresh rows for the shared ETA tracker. Recorded in one poll at the end so
+  // every row of this sync is sampled at the same instant.
+  const etaSamples: EtaTrackerInput[] = []
 
   // Runs before the early return so a crash-interrupted import is retried even
   // when nothing is actively downloading. Backgrounded so a long copy cannot
@@ -315,7 +341,12 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
       .where(inArray(downloads.status, ['checking', 'downloading', 'paused']))
   )
 
-  if (activeDownloads.length === 0) return result
+  if (activeDownloads.length === 0) {
+    // Lets the shared tracker sweep entries that went stale while nothing was
+    // active (e.g. after a download finished between two syncs).
+    trackServerEta([])
+    return result
+  }
 
   const allUsers = await dbAll(db.select().from(users))
   const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
@@ -323,6 +354,11 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
 
   const countdownEnabled = await isPrepCountdownEnabled()
   const autoRemoveCompleted = (await getSetting(SETTINGS.QBIT_AUTO_REMOVE_COMPLETED)) === 'true'
+
+  // Timestamp of this qBittorrent snapshot. Overlapping syncs finish in
+  // arbitrary order, so the tracker must compare snapshot times, not finish
+  // times - otherwise an older snapshot could overwrite a newer sample.
+  const etaSampledAt = Date.now()
 
   let qbitTorrents
   try {
@@ -425,6 +461,7 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
             .where(eq(downloads.id, dl.id))
         )
         result.completed++
+        etaSamples.push(etaSample(dl, 'completed', { downloadedBytes: dl.sizeBytes, numSeeds: 0, downloadSpeed: 0 }))
         if (inferredComplete) {
           log.info(
             `marked as completed - torrent no longer in qBittorrent (auto-remove enabled): id=${dl.id} hash=${dl.torrentHash} name="${dl.torrentName}" last progress=${lastProgressPct.toFixed(1)}%`
@@ -454,12 +491,14 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           )
           await dbRun(db.update(downloads).set({ status: 'removed' }).where(eq(downloads.id, dl.id)))
           result.removed++
+          etaSamples.push(etaSample(dl, 'removed', { numSeeds: 0, downloadSpeed: 0 }))
         } else {
           log.warn(
             `marking download as failed - torrent never appeared in qBittorrent: id=${dl.id} hash=${dl.torrentHash} name="${dl.torrentName}" progress=${dl.progress}%`
           )
           await dbRun(db.update(downloads).set({ status: 'failed' }).where(eq(downloads.id, dl.id)))
           result.failed++
+          etaSamples.push(etaSample(dl, 'failed', { numSeeds: 0, downloadSpeed: 0 }))
         }
       }
       continue
@@ -492,6 +531,14 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           })
           .where(eq(downloads.id, dl.id))
       )
+      etaSamples.push(
+        etaSample(dl, 'checking', {
+          sizeBytes: qbitTorrent.size,
+          downloadedBytes: qbitTorrent.downloaded,
+          numSeeds,
+          downloadSpeed: 0
+        })
+      )
       result.synced++
       continue
     }
@@ -523,6 +570,14 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           .where(eq(downloads.id, dl.id))
       )
       result.completed++
+      etaSamples.push(
+        etaSample(dl, 'completed', {
+          sizeBytes: qbitTorrent.size,
+          downloadedBytes: qbitTorrent.downloaded,
+          numSeeds: swarmSeedCount(qbitTorrent),
+          downloadSpeed: 0
+        })
+      )
       void organizeAfterComplete(
         {
           id: dl.id,
@@ -591,10 +646,22 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
           })
           .where(eq(downloads.id, dl.id))
       )
+      etaSamples.push(
+        etaSample(dl, nextStatus, {
+          sizeBytes: qbitTorrent.size,
+          downloadedBytes: qbitTorrent.downloaded,
+          numSeeds,
+          downloadSpeed: isPaused ? 0 : qbitTorrent.dlspeed
+        })
+      )
     }
 
     result.synced++
   }
+
+  // One poll with the fresh snapshot: all rows of this sync share the same
+  // sample timestamp, so the speed window is not distorted by per-row drift.
+  trackServerEta(etaSamples, etaSampledAt)
 
   return result
 }
