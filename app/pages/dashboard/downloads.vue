@@ -379,7 +379,7 @@ const savePathLabels = computed<Record<string, string>>(() => ({
           <div v-else-if="dl.status === 'completed'" class="space-y-2">
             <template v-if="dl.notifiedAt === null">
               <div class="flex items-center justify-between text-xs">
-                <span class="flex items-center gap-1.5 font-medium text-violet-600 dark:text-violet-400">
+                <span class="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
                   <UIcon
                     name="i-lucide-package-open"
                     class="size-3.5"
@@ -387,24 +387,22 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                   />
                   {{ dl.organizeProgress ? t('downloads.prepCopying') : t('downloads.prepTitle') }}
                 </span>
-                <span class="font-medium text-violet-600 dark:text-violet-400">
-                  {{ prepPercent(dl).toFixed(1) }}%
-                </span>
+                <span class="font-medium text-amber-600 dark:text-amber-400"> {{ prepPercent(dl).toFixed(1) }}% </span>
               </div>
+              <!-- Same shape as the download bar above: a plain solid fill, so the
+                   dashboard reads as one system. Amber marks the preparation phase. -->
               <div
                 role="progressbar"
                 :aria-valuenow="prepPercent(dl)"
                 aria-valuemin="0"
                 aria-valuemax="100"
                 :aria-label="t('downloads.prepTitle')"
-                class="w-full h-2.5 rounded-full overflow-hidden bg-violet-500/15 dark:bg-violet-500/10 ring-1 ring-inset ring-violet-500/25"
+                class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10"
               >
                 <div
-                  class="relative h-full rounded-full overflow-hidden bg-linear-to-r from-violet-500 via-fuchsia-500 to-pink-500 shadow-[0_0_10px_rgba(168,85,247,0.45)] transition-[width] duration-1000 ease-linear"
-                  :style="{ width: `${Math.max(prepPercent(dl), 1)}%` }"
-                >
-                  <span class="prep-shimmer absolute inset-0" />
-                </div>
+                  class="h-full min-w-0.5 rounded-full bg-amber-500 transition-[width] duration-1000 ease-linear"
+                  :style="{ width: `${Math.max(prepPercent(dl), 0.5)}%` }"
+                />
               </div>
               <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
                 <span>{{ prepDetail(dl) }}</span>
@@ -434,29 +432,3 @@ const savePathLabels = computed<Record<string, string>>(() => ({
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Deliberately different from the download bar: violet/fuchsia with a moving
-   highlight, so the two phases are never confused at a glance. */
-.prep-shimmer {
-  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.45) 45%, transparent 70%);
-  background-size: 220% 100%;
-  animation: prep-shimmer 1.6s linear infinite;
-}
-
-@keyframes prep-shimmer {
-  from {
-    background-position: 220% 0;
-  }
-  to {
-    background-position: -120% 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .prep-shimmer {
-    animation: none;
-    opacity: 0.35;
-  }
-}
-</style>
