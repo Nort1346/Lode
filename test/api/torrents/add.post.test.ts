@@ -17,6 +17,7 @@ const mockIsDiskCheckEnabled = vi.hoisted(() => vi.fn())
 const mockGetDiskMinFreeGb = vi.hoisted(() => vi.fn())
 const mockLogActivity = vi.hoisted(() => vi.fn())
 const mockApplySeedingPolicy = vi.hoisted(() => vi.fn())
+const mockIsMediaManageEnabled = vi.hoisted(() => vi.fn(async () => false))
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
 vi.stubGlobal('readBody', mockReadBody)
@@ -52,6 +53,9 @@ vi.mock('#server/utils/logger', () => ({
 }))
 vi.mock('#server/utils/torrents/seeding', () => ({
   applySeedingPolicy: mockApplySeedingPolicy
+}))
+vi.mock('#server/utils/library/media-settings', () => ({
+  isMediaManageEnabled: mockIsMediaManageEnabled
 }))
 
 import handler from '#server/api/torrents/add.post'
@@ -175,6 +179,7 @@ describe('torrents/add.post', () => {
     )
     mockQbit.findTorrentByHash.mockResolvedValue(undefined)
     mockApplySeedingPolicy.mockResolvedValue(undefined)
+    mockIsMediaManageEnabled.mockResolvedValue(false)
   })
 
   const mockEvent = {} as never
@@ -304,8 +309,9 @@ describe('torrents/add.post', () => {
     expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({ numSeeds: -1, numLeechs: -1 }))
   })
 
-  it('downloads into the staging dir when configured', async () => {
+  it('downloads into the staging dir when organization is enabled and staging is configured', async () => {
     stubConfig({ downloadPathMovies: '/data/downloads/movies' })
+    mockIsMediaManageEnabled.mockResolvedValue(true)
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
 
     const result = await handler(mockEvent)
@@ -313,6 +319,23 @@ describe('torrents/add.post', () => {
     expect(mockQbit.addTorrent).toHaveBeenCalledWith(
       'magnet:?xt=urn:btih:abc',
       '/data/downloads/movies',
+      'movies',
+      expect.stringMatching(/^dl-/)
+    )
+  })
+
+  it('downloads into the library when organization is disabled, even with staging configured', async () => {
+    // With organization off nothing would ever import the files out of
+    // staging, so the download must not land there.
+    stubConfig({ downloadPathMovies: '/data/downloads/movies' })
+    mockIsMediaManageEnabled.mockResolvedValue(false)
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'magnet:?xt=urn:btih:abc',
+      '/data/movies',
       'movies',
       expect.stringMatching(/^dl-/)
     )
