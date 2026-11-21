@@ -53,8 +53,6 @@ async function fetchDownloads() {
     })
     downloads.value = res.downloads
     total.value = res.total
-    // Feed the ETA tracker before the next render so labels/borders are fresh
-    trackPoll(res.downloads)
     // Clamp after deletes shrink the list, otherwise the page can point past the last page
     const totalPages = Math.max(1, Math.ceil(res.total / PAGE_SIZE))
     if (page.value > totalPages) page.value = totalPages
@@ -113,7 +111,7 @@ function getDisplayName(dl: Download): string {
 }
 
 const { qualityConfig } = useQualityConfig()
-const { trackPoll, etaState, etaLabel } = useEtaTracker()
+const { etaState, etaLabel } = useEtaTracker()
 
 function cardBorderClass(dl: Download): string {
   if (dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok') {

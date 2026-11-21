@@ -1,6 +1,6 @@
 import { describe, it, expect, it as vitestIt } from 'vitest'
-import { createEtaTrackerRegistry } from '../../app/composables/useEtaTracker'
-import type { Download, EtaDisplay, EtaTrackerRegistry } from '../../app/types/downloads'
+import { createEtaTrackerRegistry, ETA_MAX_POLL_GAP_MS, ETA_TRACKER_STALE_MS } from '#shared/eta-tracker'
+import type { EtaDisplay, EtaTrackerInput, EtaTrackerRegistry } from '#shared/eta-tracker'
 
 // Regression: right after a download starts, the UI used to show qBittorrent's
 // raw `eta` as stored by the server. qBittorrent computes that ETA as
@@ -25,32 +25,15 @@ const SIZE = 1024 ** 3 // 1 GiB
 const FAST = 10 * 1024 * 1024 // 10 MiB/s
 const SLOW = 1024 * 1024 // 1 MiB/s
 
-function makeDl(overrides: Partial<Download> = {}): Download {
+function makeDl(overrides: Partial<EtaTrackerInput> = {}): EtaTrackerInput {
   return {
     id: 'dl-1',
-    userId: 'user-1',
-    label: 'Movie 2024',
-    torrentName: 'Movie.2024.2160p.WEB',
-    magnetLink: 'magnet:?xt=urn:btih:0000000000000000000000000000000000000000',
-    savePath: 'movies',
     status: 'downloading',
-    torrentHash: '0000000000000000000000000000000000000000',
-    progress: 0,
-    etaSeconds: 7200, // the server keeps storing its raw, unreliable ETA
-    downloadSpeed: 0,
-    uploadSpeed: 0,
     sizeBytes: SIZE,
     downloadedBytes: 0,
     numSeeds: 3,
-    numLeechs: 1,
+    downloadSpeed: 0,
     createdAt: new Date(T0).toISOString(),
-    completedAt: null,
-    notifiedAt: null,
-    posterUrl: null,
-    indexerName: null,
-    resolution: null,
-    organizeStatus: 'pending',
-    organizeError: null,
     ...overrides
   }
 }
@@ -69,9 +52,9 @@ interface Step {
 
 // Feeds one row per step into a fresh-registry poll cycle at the given clock
 // time and records the display pipeline result for each step.
-function drive(registry: EtaTrackerRegistry, base: Download, steps: Step[]): EtaDisplay[] {
+function drive(registry: EtaTrackerRegistry, base: EtaTrackerInput, steps: Step[]): EtaDisplay[] {
   return steps.map((step) => {
-    const row: Download = {
+    const row: EtaTrackerInput = {
       ...base,
       status: step.status ?? 'downloading',
       downloadedBytes: step.bytes,
@@ -336,17 +319,18 @@ describe('eta tracker (lifecycle)', () => {
     expect(registry.displayFor(done, T0 + 9000)).toEqual({ state: 'calculating', etaSeconds: null })
   })
 
-  it('drops tracker entries that have not been seen for over two minutes', () => {
+  it('drops tracker entries that have not been seen for the stale window', () => {
     const registry = createEtaTrackerRegistry()
     const oldDl = makeDl({ id: 'dl-old', downloadedBytes: fastBytes(3000) })
     registry.trackPoll([oldDl], T0 + 3000)
     expect(registry.size()).toBe(1)
 
-    const freshDl = makeDl({ id: 'dl-new', createdAt: new Date(T0 + 130_000).toISOString() })
-    registry.trackPoll([freshDl], T0 + 133_000)
+    const staleAt = T0 + 3000 + ETA_TRACKER_STALE_MS + 1000
+    const freshDl = makeDl({ id: 'dl-new', createdAt: new Date(staleAt).toISOString() })
+    registry.trackPoll([freshDl], staleAt)
 
     expect(registry.size()).toBe(1) // dl-old swept, dl-new kept
-    expect(registry.displayFor(oldDl, T0 + 133_000)).toEqual({ state: 'calculating', etaSeconds: null })
+    expect(registry.displayFor(oldDl, staleAt)).toEqual({ state: 'calculating', etaSeconds: null })
   })
 
   it('tracks concurrent downloads independently', () => {
@@ -379,26 +363,32 @@ describe('eta tracker (lifecycle)', () => {
 
   it('re-anchors after a poll gap larger than the allowed gap', () => {
     const registry = createEtaTrackerRegistry()
+    // Large file so the samples below do not reach 100% progress.
+    const bigSize = 200 * 1024 ** 3
+    const base = makeDl({ sizeBytes: bigSize })
     for (const t of [3000, 6000, 9000, 12000, 15000]) {
-      registry.trackPoll([makeDl({ downloadedBytes: fastBytes(t) })], T0 + t)
+      registry.trackPoll([{ ...base, downloadedBytes: fastBytes(t) }], T0 + t)
     }
     // t=15s: still in the 20s warm-up window
-    expect(registry.displayFor(makeDl({ downloadedBytes: fastBytes(15000) }), T0 + 15000).state).toBe('collecting')
+    expect(registry.displayFor({ ...base, downloadedBytes: fastBytes(15000) }, T0 + 15000).state).toBe('collecting')
 
-    // 30s without a poll (page switch), then the row comes back
-    const gapBytes = fastBytes(45000)
-    registry.trackPoll([makeDl({ downloadedBytes: gapBytes })], T0 + 45000)
-    expect(registry.displayFor(makeDl({ downloadedBytes: gapBytes }), T0 + 45000)).toEqual({
+    // Longer than the allowed gap (e.g. a very slow background sync), then the
+    // row comes back - no sample can be derived from that stale dt.
+    const gapMs = ETA_MAX_POLL_GAP_MS + 30_000
+    const gapBytes = fastBytes(gapMs)
+    registry.trackPoll([{ ...base, downloadedBytes: gapBytes }], T0 + gapMs)
+    expect(registry.displayFor({ ...base, downloadedBytes: gapBytes }, T0 + gapMs)).toEqual({
       state: 'calculating',
       etaSeconds: null
     })
 
-    for (const t of [48000, 51000, 54000, 57000, 60000]) {
-      registry.trackPoll([makeDl({ downloadedBytes: fastBytes(t) })], T0 + t)
+    const endMs = gapMs + 15_000
+    for (let t = gapMs + 3000; t <= endMs; t += 3000) {
+      registry.trackPoll([{ ...base, downloadedBytes: fastBytes(t) }], T0 + t)
     }
-    expect(registry.displayFor(makeDl({ downloadedBytes: fastBytes(60000) }), T0 + 60000)).toEqual({
+    expect(registry.displayFor({ ...base, downloadedBytes: fastBytes(endMs) }, T0 + endMs)).toEqual({
       state: 'ready',
-      etaSeconds: 42
+      etaSeconds: Math.round((bigSize - fastBytes(endMs)) / FAST)
     })
   })
 
@@ -486,5 +476,43 @@ describe('eta tracker (false positives and error paths)', () => {
     registry.trackPoll([dl], T0 + 6000)
 
     expect(registry.displayFor(dl, T0 + 12000)).toEqual({ state: 'calculating', etaSeconds: null })
+  })
+})
+
+describe('eta tracker (shared server registry)', () => {
+  it('ignores duplicate reads inside the minimum sample interval', () => {
+    const registry = createEtaTrackerRegistry()
+    for (const t of [3000, 6000, 9000, 12000, 15000, 18000]) {
+      registry.trackPoll([makeDl({ downloadedBytes: fastBytes(t) })], T0 + t)
+    }
+
+    // Several users / the background sync can read the same qBittorrent
+    // snapshot within a fraction of a second. Those reads must not enter the
+    // median as zero-speed samples.
+    for (let i = 0; i < 10; i++) {
+      const now = T0 + 18_000 + i * 100
+      registry.trackPoll([makeDl({ downloadedBytes: fastBytes(18000) })], now)
+    }
+
+    const row = makeDl({ downloadedBytes: fastBytes(21000) })
+    registry.trackPoll([row], T0 + 21000)
+
+    expect(registry.displayFor(row, T0 + 21000)).toEqual({ state: 'ready', etaSeconds: 81 })
+  })
+
+  it('ignores an older snapshot that finishes after a newer one', () => {
+    const registry = createEtaTrackerRegistry()
+    for (const t of [3000, 6000, 9000, 12000, 15000, 18000]) {
+      registry.trackPoll([makeDl({ downloadedBytes: fastBytes(t) })], T0 + t)
+    }
+
+    const newer = makeDl({ downloadedBytes: fastBytes(21000) })
+    registry.trackPoll([newer], T0 + 21000)
+    expect(registry.displayFor(newer, T0 + 21000)).toEqual({ state: 'ready', etaSeconds: 81 })
+
+    // A sync that read qBittorrent at 18s finished after the 21s one: its
+    // older bytes must neither reset the anchor nor lower the estimate.
+    registry.trackPoll([makeDl({ downloadedBytes: fastBytes(18000) })], T0 + 19500)
+    expect(registry.displayFor(newer, T0 + 21000)).toEqual({ state: 'ready', etaSeconds: 81 })
   })
 })

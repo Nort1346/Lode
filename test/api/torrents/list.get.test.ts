@@ -109,6 +109,10 @@ describe('torrents/list.get', () => {
         page: 1
       })
     )
+    // The handler decorates every row with the server-computed ETA state.
+    expect(result.downloads).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'dl-1', etaState: 'calculating', etaSeconds: 0 })])
+    )
     expect(mockSyncTorrentStatus).toHaveBeenCalled()
   })
 

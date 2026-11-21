@@ -46,6 +46,26 @@ During that window the badge stays `ok` and the ETA shows "Calculating…". A co
 0-seed count on a torrent that is not downloading is flagged `dead`, because the
 release most likely has no active seeders.
 
+## ETA Estimation
+
+The ETA is calculated once on the server and shared by every user, so opening the page mid-download
+(or on a second device) shows the already warmed-up value instead of restarting sample collection.
+
+- **`shared/eta-tracker.ts`** holds the pure sampling pipeline: a sliding window of the last 5 speed
+  samples, the median of that window, a start-up warm-up window, a minimum amount of observed progress,
+  and hysteresis so the countdown ticks down smoothly instead of flickering.
+- **`server/utils/torrents/eta-tracker.ts`** keeps one in-memory registry per server process, fed by the
+  background sync plus `/api/torrents/*` reads. Samples closer than 2s together are ignored so several
+  users or a background tick cannot push fake zero-speed samples into the window.
+- The registry lives in process memory, not in a shared store: with several replicas each process estimates
+  on its own and the values can differ between instances. The shipped compose runs a single Lode container.
+  Nothing is persisted, so a server restart starts collecting again.
+- Keep `NUXT_TORRENT_SYNC_INTERVAL_MS` below 5 minutes (`ETA_MAX_POLL_GAP_MS`); a slower sync re-anchors on
+  every tick and the ETA never warms up.
+- API responses replace the raw qBittorrent `eta_seconds` with the stabilised estimate and add `etaState`
+  (`collecting`, `waiting-seeders`, `calculating`, `ready`). Only `ready` carries a number.
+- The client (`useEtaTracker`) just formats `etaState` / `etaSeconds`; it no longer samples speed itself.
+
 ## Prep Countdown
 
 When a download completes, a simulated "file preparation" countdown is shown:

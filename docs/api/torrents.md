@@ -65,6 +65,7 @@ GET /api/torrents/list?page=1&limit=10&status=downloading
       "status": "downloading",
       "progress": 0.75,
       "etaSeconds": 3600,
+      "etaState": "ready",
       "downloadSpeed": 10485760,
       "uploadSpeed": 524288,
       "sizeBytes": 2147483648,
@@ -86,6 +87,11 @@ GET /api/torrents/list?page=1&limit=10&status=downloading
 ```
 
 `username` is only present when an admin requests the list.
+
+`etaSeconds` is the server-computed estimate shared by all users, and `etaState` says how to render it:
+`collecting` (still in the start-up warm-up window), `waiting-seeders` (confirmed zero seeders and no
+speed), `calculating` (not enough observed progress yet), or `ready` (show `etaSeconds`). While the
+state is not `ready`, `etaSeconds` is `0` and clients show a label instead of a countdown.
 
 ---
 
