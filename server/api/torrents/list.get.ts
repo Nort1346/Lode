@@ -2,6 +2,7 @@ import { downloads, users } from '#server/database/schema'
 import { eq, and, count, inArray } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll } from '#server/utils/db'
 import { syncTorrentStatus, notifyJellyfinIfNeeded } from '#server/utils/torrents/torrent-sync'
+import { getImportProgress } from '#server/utils/library/import-progress'
 import { downloadsOrderBy } from '#server/utils/torrents/download-order'
 import { applyServerEta } from '#server/utils/torrents/eta-tracker'
 import type { DownloadRow, SupportedStatus } from '#server/types/torrent'
@@ -78,6 +79,12 @@ export default defineEventHandler(async (event) => {
     for (const dl of results) {
       dl.username = userMap.get(dl.userId) ?? 'unknown'
     }
+  }
+
+  // Live import progress lives in memory (see import-progress.ts), so it is
+  // merged in here for the poll that renders the preparation bar.
+  for (const dl of results) {
+    dl.organizeProgress = getImportProgress(dl.id)
   }
 
   // The ETA is sampled and stabilised server-side (shared by every user), so

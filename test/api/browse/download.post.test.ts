@@ -25,6 +25,7 @@ const mockClearSessionCache = vi.hoisted(() => vi.fn())
 const mockPerformTrackerLogin = vi.hoisted(() => vi.fn())
 const mockDecryptAES = vi.hoisted(() => vi.fn())
 const mockApplySeedingPolicy = vi.hoisted(() => vi.fn())
+const mockIsMediaManageEnabled = vi.hoisted(() => vi.fn())
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
 vi.stubGlobal('readBody', mockReadBody)
@@ -81,6 +82,9 @@ vi.mock('#server/utils/logger', () => ({
 }))
 vi.mock('#server/utils/torrents/seeding', () => ({
   applySeedingPolicy: mockApplySeedingPolicy
+}))
+vi.mock('#server/utils/library/media-settings', () => ({
+  isMediaManageEnabled: mockIsMediaManageEnabled
 }))
 
 import handler from '#server/api/browse/download.post'
@@ -178,6 +182,7 @@ describe('browse/download.post', () => {
     })
     mockCheckForDangerousFiles.mockReturnValue({ safe: true, dangerousFiles: [] })
     mockGetImageUrl.mockImplementation((path: string | null) => (path ? `https://image.tmdb.org${path}` : null))
+    mockIsMediaManageEnabled.mockResolvedValue(false)
     stubConfig()
     mockDb.select.mockReset()
     mockDb.select.mockReturnValue({
@@ -324,8 +329,9 @@ describe('browse/download.post', () => {
     )
   })
 
-  it('downloads into the staging dir when configured', async () => {
+  it('downloads into the staging dir when organization is enabled and staging is configured', async () => {
     stubConfig({ downloadPathMovies: '/data/downloads/movies' })
+    mockIsMediaManageEnabled.mockResolvedValue(true)
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
 
     const result = await handler(mockEvent)
@@ -339,8 +345,27 @@ describe('browse/download.post', () => {
     )
   })
 
+  it('downloads into the library when organization is disabled, even with staging configured', async () => {
+    // With organization off nothing would ever import the files out of
+    // staging, so the download must not land there.
+    stubConfig({ downloadPathMovies: '/data/downloads/movies' })
+    mockIsMediaManageEnabled.mockResolvedValue(false)
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'magnet:?xt=urn:btih:abc',
+      '/data/movies',
+      'movies',
+      expect.stringMatching(/^dl-/),
+      { v1: null, v2: null }
+    )
+  })
+
   it('ignores staging dirs for non-media categories', async () => {
     stubConfig({ downloadPathMovies: '/data/downloads/movies', downloadPathSeries: '/data/downloads/series' })
+    mockIsMediaManageEnabled.mockResolvedValue(true)
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'games', label: 'test' })
 
     const result = await handler(mockEvent)

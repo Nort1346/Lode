@@ -107,9 +107,10 @@ Configure defaults for new users:
 
 ## Prep Countdown
 
-Configure the simulated file preparation countdown:
+Configure the simulated file preparation phase:
 - Enable/disable
 - Set simulated copy speed (1-100 MB/s)
+- The dashboard merges the countdown with the real import byte progress into a single preparation bar, and holds the ready notification (Jellyfin, Discord, push) until a running library import finishes
 
 ## Discord Settings
 

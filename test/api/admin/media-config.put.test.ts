@@ -119,4 +119,25 @@ describe('admin/media-config.put', () => {
     expect(mockPutSetting).toHaveBeenCalledWith('media_import_extra_files', 'true')
     expect(mockPutSetting).toHaveBeenCalledWith('media_extra_file_extensions', 'srt,nfo')
   })
+
+  it('persists the staging cleanup toggle', async () => {
+    vi.stubGlobal(
+      'readBody',
+      vi.fn(async () => ({ cleanupStaging: true }))
+    )
+
+    await handler(mockEvent)
+
+    expect(mockPutSetting).toHaveBeenCalledWith('media_cleanup_staging', 'true')
+  })
+
+  it('rejects a non-boolean cleanupStaging', async () => {
+    vi.stubGlobal(
+      'readBody',
+      vi.fn(async () => ({ cleanupStaging: 'true' }))
+    )
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: cleanupStaging must be a boolean')
+    expect(mockPutSetting).not.toHaveBeenCalled()
+  })
 })

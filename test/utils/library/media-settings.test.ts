@@ -18,6 +18,7 @@ import {
   getMediaImportMode,
   isImportExtraFilesEnabled,
   isMediaManageEnabled,
+  isStagingCleanupEnabled,
   parseExtraFileExtensions,
   parseImportMode
 } from '#server/utils/library/media-settings'
@@ -93,6 +94,7 @@ describe('settings-backed helpers', () => {
       if (key === 'media_import_mode') return 'copy'
       if (key === 'media_import_extra_files') return 'true'
       if (key === 'media_extra_file_extensions') return 'srt,nfo'
+      if (key === 'media_cleanup_staging') return 'true'
       return undefined
     })
     const config = await getMediaConfig()
@@ -100,7 +102,13 @@ describe('settings-backed helpers', () => {
       enabled: true,
       importMode: 'copy',
       importExtraFiles: true,
-      extraFileExtensions: ['srt', 'nfo']
+      extraFileExtensions: ['srt', 'nfo'],
+      cleanupStaging: true
     })
+  })
+
+  it('isStagingCleanupEnabled is off by default', async () => {
+    mockRepos.settings.get.mockResolvedValue(undefined)
+    await expect(isStagingCleanupEnabled()).resolves.toBe(false)
   })
 })

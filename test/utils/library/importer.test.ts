@@ -113,6 +113,17 @@ describe('importSingleFile', () => {
 
     await expect(stat(`${target}.partial`)).rejects.toThrow()
   })
+
+  it('reports the copied byte count through the progress callback', async () => {
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+    const reports: number[] = []
+
+    await importSingleFile(source, target, 'copy', (bytes) => reports.push(bytes))
+
+    expect(reports.length).toBeGreaterThan(0)
+    expect(reports).toContain('video-bytes'.length)
+  })
 })
 
 describe('resolveStagingDir', () => {

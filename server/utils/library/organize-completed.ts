@@ -9,7 +9,7 @@ import {
   buildExtraFileRelativePath,
   buildMovieRelativePath,
   getExtensionLower,
-  selectExtraFiles,
+  planExtraFileImports,
   selectVideoFiles
 } from '#server/utils/library/organize'
 import {
@@ -19,7 +19,21 @@ import {
   resolveLibraryDir,
   resolveStagingDir
 } from '#server/utils/library/importer'
-import type { MediaImportMode, OrganizeJobInput, OrganizeResult, OrganizeStatus } from '#server/types/media-organize'
+import { cleanupStagingLeftovers } from '#server/utils/library/staging-cleanup'
+import {
+  completeImportFile,
+  finishImportProgress,
+  reportImportBytes,
+  startImportProgress
+} from '#server/utils/library/import-progress'
+import type {
+  ExtraFilePlan,
+  MainFilePick,
+  MediaImportMode,
+  OrganizeJobInput,
+  OrganizeResult,
+  OrganizeStatus
+} from '#server/types/media-organize'
 import type { TorrentFile } from '#server/types/torrent'
 import type { QBittorrentClient } from '#server/utils/clients/qbittorrent'
 
@@ -36,6 +50,7 @@ export interface OrganizeDeps {
   importMode: MediaImportMode
   importExtraFiles: boolean
   extraFileExtensions: readonly string[]
+  cleanupStaging: boolean
 }
 
 interface ImportTarget {
@@ -236,30 +251,38 @@ function isSameOrInside(parent: string, child: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
 }
 
+// Imports the planned extra files next to one video target. Extras follow the
+// configured import mode, so a `move` import takes them out of staging as
+// well (and the staging cleanup can prune whatever is left behind).
 async function importExtras(input: {
-  files: TorrentFile[]
-  sourceName: string
-  targetRelativePath: string
+  extras: MainFilePick[]
+  videoSourceName: string
+  videoTargetRelativePath: string
   libraryDir: string
   sourceRoot: string
-  extensions: readonly string[]
+  importMode: MediaImportMode
+  usedPaths: Set<string>
 }): Promise<number> {
-  if (input.extensions.length === 0) return 0
+  if (input.extras.length === 0) return 0
 
-  const extras = selectExtraFiles(input.files, input.sourceName, input.extensions)
   let imported = 0
-  for (const extra of extras) {
-    const relativePath = buildExtraFileRelativePath({
-      videoSourceName: input.sourceName,
-      videoTargetRelativePath: input.targetRelativePath,
+  for (const extra of input.extras) {
+    let relativePath = buildExtraFileRelativePath({
+      videoSourceName: input.videoSourceName,
+      videoTargetRelativePath: input.videoTargetRelativePath,
       extraName: extra.name
     })
+    // Two extras can map onto one name (e.g. `subs/ang.srt` and `ang.srt`);
+    // append a counter so the second is not overwritten.
+    if (input.usedPaths.has(relativePath)) {
+      relativePath = uniqueExtraPath(relativePath, input.usedPaths)
+    }
+    input.usedPaths.add(relativePath)
     try {
-      // Extras are always copied: they are small and must not break seeding.
       await importSingleFile(
         join(input.sourceRoot, extra.name),
         buildAbsoluteTarget(input.libraryDir, relativePath),
-        'copy'
+        input.importMode
       )
       imported++
     } catch (err) {
@@ -270,6 +293,22 @@ async function importExtras(input: {
     }
   }
   return imported
+}
+
+function uniqueExtraPath(relativePath: string, used: Set<string>): string {
+  const slash = relativePath.lastIndexOf('/')
+  const dir = slash >= 0 ? relativePath.slice(0, slash + 1) : ''
+  const base = relativePath.slice(slash + 1)
+  const dot = base.lastIndexOf('.')
+  const stem = dot > 0 ? base.slice(0, dot) : base
+  const ext = dot > 0 ? base.slice(dot) : ''
+  let n = 2
+  let candidate = relativePath
+  while (used.has(candidate)) {
+    candidate = `${dir}${stem}-${n}${ext}`
+    n++
+  }
+  return candidate
 }
 
 // Organizes one freshly completed download into the library, *arr style: the
@@ -311,6 +350,14 @@ export async function organizeCompletedDownload(
     return buildResult({ status: 'failed', error: built.errors[0] ?? 'no importable file found' })
   }
 
+  const extrasPlan: ExtraFilePlan | null = deps.importExtraFiles
+    ? planExtraFileImports(
+        files,
+        built.targets.map((target) => target.sourceName),
+        deps.extraFileExtensions
+      )
+    : null
+
   let saveDir: string
   try {
     const torrent = await deps.qbit.findTorrentByHash(hash)
@@ -342,60 +389,102 @@ export async function organizeCompletedDownload(
   let failedFiles = built.errors.length
   let firstTarget: string | null = null
   let firstError: string | null = built.errors[0] ?? null
+  let firstImportedSource: { target: ImportTarget; root: string } | null = null
+  const usedExtraPaths = new Set<string>()
 
-  for (const target of built.targets) {
-    const source = await locateSource(roots, target.sourceName)
-    if (source === null) {
-      failedFiles++
-      firstError ??= saveDirInLibrary
-        ? `download files live inside the library (${saveDir}), not in staging; re-download it`
-        : `source file not found: ${target.sourceName}`
-      log.warn(
-        `source file not found: hash=${hash} file="${target.sourceName}" save_path=${saveDir} staging=${stagingDir}${
-          saveDirInLibrary ? ' (save path is inside the library)' : ''
-        }`
-      )
-      continue
-    }
+  const fileSizes = new Map(files.map((file) => [file.name, file.size]))
+  const totalBytes = built.targets.reduce((sum, target) => sum + (fileSizes.get(target.sourceName) ?? 0), 0)
+  startImportProgress(job.downloadId, totalBytes, built.targets.length)
 
-    const absoluteTarget = buildAbsoluteTarget(libraryDir, target.relativePath)
-    // Copy and move overwrite an existing file, while a hardlink answers
-    // EEXIST. Check first so a duplicate release is skipped in every mode.
-    if (await targetExists(absoluteTarget)) {
-      skippedFiles++
-      firstTarget ??= target.relativePath
-      continue
-    }
-
-    try {
-      const outcome = await importSingleFile(source.path, absoluteTarget, deps.importMode)
-      importedFiles++
-      firstTarget ??= target.relativePath
-      log.info(`imported "${target.sourceName}" -> ${target.relativePath} via ${outcome.method}`)
-
-      if (deps.importExtraFiles) {
-        extrasImported += await importExtras({
-          files,
-          sourceName: target.sourceName,
-          targetRelativePath: target.relativePath,
-          libraryDir,
-          sourceRoot: source.root,
-          extensions: deps.extraFileExtensions
-        })
+  try {
+    for (const target of built.targets) {
+      const source = await locateSource(roots, target.sourceName)
+      if (source === null) {
+        failedFiles++
+        firstError ??= saveDirInLibrary
+          ? `download files live inside the library (${saveDir}), not in staging; re-download it`
+          : `source file not found: ${target.sourceName}`
+        log.warn(
+          `source file not found: hash=${hash} file="${target.sourceName}" save_path=${saveDir} staging=${stagingDir}${
+            saveDirInLibrary ? ' (save path is inside the library)' : ''
+          }`
+        )
+        continue
       }
-    } catch (err) {
-      // A second download of the same release targets the same file name; the
-      // first import already placed it, so skip instead of failing.
-      if (isEexist(err)) {
+
+      const absoluteTarget = buildAbsoluteTarget(libraryDir, target.relativePath)
+      // Copy and move overwrite an existing file, while a hardlink answers
+      // EEXIST. Check first so a duplicate release is skipped in every mode.
+      if (await targetExists(absoluteTarget)) {
         skippedFiles++
         firstTarget ??= target.relativePath
         continue
       }
-      const msg = err instanceof Error ? err.message : String(err)
-      failedFiles++
-      firstError ??= `${target.sourceName}: ${msg}`
-      log.warn(`organize failed for ${hash}: ${target.sourceName}: ${msg}`)
+
+      try {
+        const outcome = await importSingleFile(source.path, absoluteTarget, deps.importMode, (bytes) =>
+          reportImportBytes(job.downloadId, bytes)
+        )
+        importedFiles++
+        firstImportedSource ??= { target, root: source.root }
+        completeImportFile(job.downloadId, fileSizes.get(target.sourceName) ?? 0)
+        firstTarget ??= target.relativePath
+        log.info(`imported "${target.sourceName}" -> ${target.relativePath} via ${outcome.method}`)
+
+        const videoExtras = extrasPlan?.byVideo.get(target.sourceName)
+        if (videoExtras !== undefined && videoExtras.length > 0) {
+          extrasImported += await importExtras({
+            extras: videoExtras,
+            videoSourceName: target.sourceName,
+            videoTargetRelativePath: target.relativePath,
+            libraryDir,
+            sourceRoot: source.root,
+            importMode: deps.importMode,
+            usedPaths: usedExtraPaths
+          })
+        }
+      } catch (err) {
+        // A second download of the same release targets the same file name; the
+        // first import already placed it, so skip instead of failing.
+        if (isEexist(err)) {
+          skippedFiles++
+          firstTarget ??= target.relativePath
+          continue
+        }
+        const msg = err instanceof Error ? err.message : String(err)
+        failedFiles++
+        firstError ??= `${target.sourceName}: ${msg}`
+        log.warn(`organize failed for ${hash}: ${target.sourceName}: ${msg}`)
+      }
     }
+  } finally {
+    finishImportProgress(job.downloadId)
+  }
+
+  // Release-level extras (no video stem match, e.g. `ang.srt` at the root or
+  // in `subs/`) land once, next to the first imported video - a season pack
+  // must not get one copy per episode.
+  const releaseLevelExtras = extrasPlan?.releaseLevel ?? []
+  if (releaseLevelExtras.length > 0 && firstImportedSource !== null) {
+    extrasImported += await importExtras({
+      extras: releaseLevelExtras,
+      videoSourceName: firstImportedSource.target.sourceName,
+      videoTargetRelativePath: firstImportedSource.target.relativePath,
+      libraryDir,
+      sourceRoot: firstImportedSource.root,
+      importMode: deps.importMode,
+      usedPaths: usedExtraPaths
+    })
+  }
+
+  // `move` already takes the video out of the torrent; with the opt-in cleanup
+  // the rest of the release (covers, .url, .screens, ...) goes too. A partial
+  // import keeps the torrent intact so the admin can see what happened.
+  if (deps.cleanupStaging && deps.importMode === 'move' && failedFiles === 0 && skippedFiles === 0) {
+    await cleanupStagingLeftovers({ files, saveDir, stagingDir }).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      log.warn(`staging cleanup failed for ${hash}: ${msg}`)
+    })
   }
 
   const counts = { importedFiles, skippedFiles, extrasImported }
