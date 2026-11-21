@@ -1,4 +1,9 @@
-import type { ExtraFilePlan, MainFilePick, OrganizeEpisodeInput, OrganizeMovieInput } from '#server/types/media-organize'
+import type {
+  ExtraFilePlan,
+  MainFilePick,
+  OrganizeEpisodeInput,
+  OrganizeMovieInput
+} from '#server/types/media-organize'
 import type { TorrentFile } from '#server/types/torrent'
 
 const VIDEO_EXTENSIONS = new Set(['mkv', 'mp4', 'avi', 'mov', 'm2ts', 'ts', 'wmv', 'flv'])

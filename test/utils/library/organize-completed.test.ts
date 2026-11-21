@@ -270,11 +270,7 @@ describe('organizeCompletedDownload', () => {
     await seedStaging('Dune.2021.1080p.WEB-DL.mkv')
     await seedStaging('ang.srt', 'root-sub')
     await seedStaging('subs/pol.srt', 'folder-sub')
-    const files = [
-      makeFile('Dune.2021.1080p.WEB-DL.mkv', 11),
-      makeFile('ang.srt', 4),
-      makeFile('subs/pol.srt', 4)
-    ]
+    const files = [makeFile('Dune.2021.1080p.WEB-DL.mkv', 11), makeFile('ang.srt', 4), makeFile('subs/pol.srt', 4)]
     const qbit = makeQbit(files, stagingDir)
     const result = await organizeCompletedDownload('h', makeJob(), makeDeps(qbit, { importExtraFiles: true }))
 
@@ -336,9 +332,7 @@ describe('organizeCompletedDownload', () => {
 
     expect(result.status).toBe('done')
     expect(result.extrasImported).toBe(1)
-    expect(await readFile(join(libraryDir, 'Show/Season 01/Show - S01E01 1080p web-dl.pl.srt'), 'utf8')).toBe(
-      'pl-sub'
-    )
+    expect(await readFile(join(libraryDir, 'Show/Season 01/Show - S01E01 1080p web-dl.pl.srt'), 'utf8')).toBe('pl-sub')
   })
 
   it('ignores extra files when the setting is off', async () => {
@@ -420,10 +414,7 @@ describe('organizeCompletedDownload', () => {
     const folder = 'Dune.2021.1080p.WEB-DL'
     await seedStaging(`${folder}/Dune.2021.1080p.WEB-DL.mkv`)
     await seedStaging(`${folder}/poster.jpg`, 'jpeg')
-    const files = [
-      makeFile(`${folder}/Dune.2021.1080p.WEB-DL.mkv`, 11),
-      makeFile(`${folder}/poster.jpg`, 4)
-    ]
+    const files = [makeFile(`${folder}/Dune.2021.1080p.WEB-DL.mkv`, 11), makeFile(`${folder}/poster.jpg`, 4)]
     const qbit = makeQbit(files, stagingDir)
     const result = await organizeCompletedDownload('h', makeJob(), makeDeps(qbit, { importMode: 'move' }))
 
@@ -435,10 +426,7 @@ describe('organizeCompletedDownload', () => {
     const folder = 'Dune.2021.1080p.WEB-DL'
     await seedStaging(`${folder}/Dune.2021.1080p.WEB-DL.mkv`)
     await seedStaging(`${folder}/poster.jpg`, 'jpeg')
-    const files = [
-      makeFile(`${folder}/Dune.2021.1080p.WEB-DL.mkv`, 11),
-      makeFile(`${folder}/poster.jpg`, 4)
-    ]
+    const files = [makeFile(`${folder}/Dune.2021.1080p.WEB-DL.mkv`, 11), makeFile(`${folder}/poster.jpg`, 4)]
     const qbit = makeQbit(files, stagingDir)
     const result = await organizeCompletedDownload(
       'h',

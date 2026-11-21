@@ -79,7 +79,10 @@ describe('planExtraFileImports', () => {
       makeFile('Other.mkv', 10, 4)
     ]
     const plan = planExtraFileImports(files, ['Movie.2021.mkv'], extensions)
-    expect(plan.byVideo.get('Movie.2021.mkv')?.map((pick) => pick.name)).toEqual(['Movie.2021.en.srt', 'Movie.2021.nfo'])
+    expect(plan.byVideo.get('Movie.2021.mkv')?.map((pick) => pick.name)).toEqual([
+      'Movie.2021.en.srt',
+      'Movie.2021.nfo'
+    ])
     expect(plan.releaseLevel).toEqual([])
   })
 

@@ -351,7 +351,11 @@ export async function organizeCompletedDownload(
   }
 
   const extrasPlan: ExtraFilePlan | null = deps.importExtraFiles
-    ? planExtraFileImports(files, built.targets.map((target) => target.sourceName), deps.extraFileExtensions)
+    ? planExtraFileImports(
+        files,
+        built.targets.map((target) => target.sourceName),
+        deps.extraFileExtensions
+      )
     : null
 
   let saveDir: string
