@@ -28,7 +28,9 @@ function makeDownload(overrides: Partial<Download> = {}): Download {
     posterUrl: null,
     indexerName: null,
     resolution: null,
-    organizeStatus: 'pending',
+    // 'skipped' = no import to wait for (organization off or a non-media
+    // category), so the bar is driven by the countdown alone.
+    organizeStatus: 'skipped',
     organizeError: null,
     ...overrides
   }
@@ -37,43 +39,66 @@ function makeDownload(overrides: Partial<Download> = {}): Download {
 // 1000 bytes at 10 B/s = a 100 s countdown.
 const SPEED = 10
 
+function makeProgress(percent: number) {
+  return {
+    percent,
+    copiedBytes: Math.round((percent / 100) * 1000),
+    totalBytes: 1000,
+    speedBytesPerSecond: SPEED,
+    filesDone: 1,
+    filesTotal: 2
+  }
+}
+
 describe('computePrepPercent', () => {
   it('returns 0 without a completion timestamp', () => {
-    expect(computePrepPercent(makeDownload({ completedAt: null }), SPEED, COMPLETED_AT)).toBe(0)
+    expect(computePrepPercent(makeDownload({ completedAt: null }), SPEED, true, COMPLETED_AT)).toBe(0)
   })
 
-  it('follows the simulated countdown', () => {
-    const download = makeDownload()
-    expect(computePrepPercent(download, SPEED, COMPLETED_AT + 50_000)).toBe(50)
+  it('follows the simulated countdown when no import is involved', () => {
+    expect(computePrepPercent(makeDownload(), SPEED, true, COMPLETED_AT + 50_000)).toBe(50)
   })
 
   it('rounds to one decimal place', () => {
-    const download = makeDownload()
-    expect(computePrepPercent(download, SPEED, COMPLETED_AT + 33_333)).toBe(33.3)
+    expect(computePrepPercent(makeDownload(), SPEED, true, COMPLETED_AT + 33_333)).toBe(33.3)
   })
 
-  it('lets the real import progress win when it is further along', () => {
-    const download = makeDownload({
-      organizeProgress: {
-        percent: 80,
-        copiedBytes: 800,
-        totalBytes: 1000,
-        speedBytesPerSecond: 10,
-        filesDone: 1,
-        filesTotal: 2
-      }
-    })
-    expect(computePrepPercent(download, SPEED, COMPLETED_AT + 10_000)).toBe(80)
+  it('follows the live copy while an import is in flight', () => {
+    const download = makeDownload({ organizeStatus: 'pending', organizeProgress: makeProgress(40) })
+    expect(computePrepPercent(download, SPEED, true, COMPLETED_AT + 90_000)).toBe(40)
   })
 
-  it('stays at 100 once the import is done and the progress entry is gone', () => {
-    // 60 s into a 100 s countdown: without the done check the bar would drop
-    // from 100% back to 60% after the import finished.
+  it('caps a fast import by the countdown instead of jumping to 100', () => {
+    // A hardlink import finishes in seconds: the files are already in the
+    // library, but the notification still waits for the countdown, so the bar
+    // waits with it instead of claiming 100% early.
     const download = makeDownload({ organizeStatus: 'done', organizeProgress: null })
-    expect(computePrepPercent(download, SPEED, COMPLETED_AT + 60_000)).toBe(100)
+    expect(computePrepPercent(download, SPEED, true, COMPLETED_AT + 60_000)).toBe(60)
+  })
+
+  it('reports 0 for a pending import without a live entry', () => {
+    // Right after a restart: the bytes are not in the library yet and the
+    // retry sweep has not run.
+    const download = makeDownload({ organizeStatus: 'pending', organizeProgress: null })
+    expect(computePrepPercent(download, SPEED, true, COMPLETED_AT + 60_000)).toBe(0)
+  })
+
+  it('follows the copy when the countdown is disabled', () => {
+    const download = makeDownload({ organizeStatus: 'pending', organizeProgress: makeProgress(40) })
+    expect(computePrepPercent(download, SPEED, false, COMPLETED_AT + 90_000)).toBe(40)
+  })
+
+  it('does not wait for a failed import, which the notification ignores', () => {
+    const download = makeDownload({ organizeStatus: 'failed', organizeProgress: null })
+    expect(computePrepPercent(download, SPEED, true, COMPLETED_AT + 60_000)).toBe(60)
+  })
+
+  it('reaches 100 exactly when both gates are open', () => {
+    const download = makeDownload({ organizeStatus: 'done', organizeProgress: null })
+    expect(computePrepPercent(download, SPEED, true, COMPLETED_AT + 100_000)).toBe(100)
   })
 
   it('treats a zero speed as an instantly finished countdown', () => {
-    expect(computePrepPercent(makeDownload(), 0, COMPLETED_AT)).toBe(100)
+    expect(computePrepPercent(makeDownload(), 0, true, COMPLETED_AT)).toBe(100)
   })
 })

@@ -29,14 +29,17 @@ const cancelling = ref<string | null>(null)
 const page = ref(1)
 const total = ref(0)
 const PAGE_SIZE = 10
+// Server defaults (server/api/prep-config.get.ts): countdown off, 15 MB/s.
 const prepSpeedMb = ref(15)
+const prepCountdownEnabled = ref(false)
 
 async function fetchPrepConfig() {
   try {
     const data = await $fetch<{ enabled: boolean; speedMb: number }>('/api/prep-config')
     prepSpeedMb.value = data.speedMb
+    prepCountdownEnabled.value = data.enabled
   } catch {
-    // keep default
+    // keep defaults
   }
 }
 
@@ -128,12 +131,12 @@ const hasActivePrep = computed(() =>
   downloads.value.some((dl) => dl.status === 'completed' && dl.notifiedAt === null && Boolean(dl.organizeProgress))
 )
 
-// One bar for the whole preparation phase: the simulated countdown (which
-// covers hardlink/rename, that finish instantly) plus the real bytes copied
-// into the library. computePrepPercent keeps the higher value, so the bar never
-// moves backwards and never claims "done" while an upload is still running.
+// One bar for the whole preparation phase: the simulated countdown (when
+// enabled) and the real bytes copied into the library. computePrepPercent
+// follows the slower of the two, so the bar hits 100 exactly when the row
+// turns green and never moves backwards.
 function prepPercent(dl: Download): number {
-  return computePrepPercent(dl, prepSpeedMb.value * 1024 * 1024)
+  return computePrepPercent(dl, prepSpeedMb.value * 1024 * 1024, prepCountdownEnabled.value)
 }
 
 function prepDetail(dl: Download): string {
