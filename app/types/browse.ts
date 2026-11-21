@@ -2,6 +2,15 @@ import type { Genre } from './media'
 
 export type SearchPhase = 'idle' | 'debouncing' | 'loading' | 'success' | 'empty' | 'error'
 
+// Geometry of the segmented type control's sliding thumb, measured from the
+// active button's offset metrics (offsetParent = the control container)
+export interface TypeThumbRect {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
 // A tier query that did not complete: 'timeout' hit the per-request deadline
 // (a slow indexer behind Prowlarr), 'error' failed for another reason
 export interface SlowQueryInfo {
