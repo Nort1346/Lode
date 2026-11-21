@@ -190,6 +190,151 @@ The route is fixed (no path parameters) - credentials must always be provided in
 
 ---
 
+## Indexers (Prowlarr)
+
+All routes proxy the connected Prowlarr `/api/v1/indexer*` API and require an admin session. Prowlarr must be configured with `NUXT_PROWLARR_URL` and `NUXT_PROWLARR_API_KEY`.
+
+### List Indexers
+```
+GET /api/admin/indexers
+```
+
+Returns indexers with Prowlarr stats, background-disabled status and the matching Lode tracker entry.
+
+### Create Indexer
+```
+POST /api/admin/indexers
+```
+
+### Body
+```json
+{
+  "indexer": {
+    "name": "MyIndexer",
+    "enable": true,
+    "priority": 25,
+    "appProfileId": 1,
+    "tags": [],
+    "definitionName": "myindexer",
+    "implementation": "Cardigann",
+    "implementationName": "Cardigann",
+    "configContract": "CardigannSettings",
+    "protocol": "torrent",
+    "privacy": "private",
+    "fields": [{ "name": "baseUrl", "value": "https://tracker.example/" }]
+  },
+  "tracker": {
+    "enabled": true,
+    "trackerType": "guid",
+    "cookie": "session_cookie_value"
+  }
+}
+```
+
+`tracker` is optional and only used for non-public indexers. Provide either `cookie` or `loginUrl + loginUsername + loginPassword`.
+
+### Get Indexer
+```
+GET /api/admin/indexers/[id]
+```
+
+### Update Indexer
+```
+PUT /api/admin/indexers/[id]
+```
+
+Same body as create. The server merges the payload with the existing Prowlarr resource, so omitted hidden fields are preserved.
+
+### Quick Update
+```
+PATCH /api/admin/indexers/[id]
+```
+
+### Body
+```json
+{ "enable": true, "priority": 10, "appProfileId": 1 }
+```
+
+### Delete Indexer
+```
+DELETE /api/admin/indexers/[id]
+```
+
+The matching tracker entry is kept and reported as `trackerStillLinked`.
+
+### Bulk Update
+```
+PUT /api/admin/indexers/bulk
+```
+
+### Body
+```json
+{ "ids": [1, 2], "enable": false }
+```
+
+### Bulk Delete
+```
+DELETE /api/admin/indexers/bulk
+```
+
+### Body
+```json
+{ "ids": [1, 2] }
+```
+
+### Schema Catalog
+```
+GET /api/admin/indexers/schema?q=&privacy=&protocol=&page=1&limit=24
+```
+
+The full Prowlarr schema is cached in memory for five minutes and filtered/paginated server-side.
+
+### Schema Definition
+```
+GET /api/admin/indexers/schema/[name]
+```
+
+Returns the full definition including fields and base URL options.
+
+### Metadata
+```
+GET /api/admin/indexers/meta
+```
+
+Returns app profiles, tags and the Prowlarr version.
+
+### Test Indexer
+```
+POST /api/admin/indexers/test
+```
+
+### Body
+```json
+{ "id": 1 }
+```
+
+or
+
+```json
+{ "indexer": { "...": "same shape as create" } }
+```
+
+### Test All
+```
+POST /api/admin/indexers/test-all
+```
+
+Returns `{ "results": [{ "id": 1, "isValid": true, "validationFailures": [] }] }`.
+
+### CAPTCHA
+```
+POST /api/admin/indexers/captcha
+```
+
+Body is the same as the test route. Returns `{ "captchaRequest": { "type": "image", "contentType": "image/png", "imageData": "..." } }`.
+
+---
+
 ## Brute Force
 
 ### Get Config

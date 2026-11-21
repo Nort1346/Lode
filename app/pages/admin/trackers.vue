@@ -11,8 +11,11 @@ definePageMeta({
 const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
 const toast = useToast()
+const route = useRoute()
 
 const trackers = ref<CustomTracker[]>([])
+const linkedIndexers = ref<string[]>([])
+const indexersLoaded = ref(false)
 const loading = ref(true)
 const showModal = ref(false)
 const editTracker = ref<CustomTracker | null>(null)
@@ -33,6 +36,7 @@ async function fetchTrackers() {
   try {
     const res = await $fetch<{ trackers: CustomTracker[] }>('/api/admin/trackers')
     trackers.value = res.trackers
+    await fetchLinkedIndexers()
   } catch {
     // silently fail
   } finally {
@@ -40,12 +44,33 @@ async function fetchTrackers() {
   }
 }
 
-onMounted(fetchTrackers)
+async function fetchLinkedIndexers() {
+  try {
+    const res = await $fetch<{ indexers: Array<{ name: string }> }>('/api/admin/indexers')
+    linkedIndexers.value = res.indexers.map((indexer) => indexer.name)
+    indexersLoaded.value = true
+  } catch {
+    linkedIndexers.value = []
+    indexersLoaded.value = false
+  }
+}
+
+onMounted(() => {
+  void fetchTrackers()
+
+  const queryIndexer = route.query.indexer
+  if (typeof queryIndexer === 'string' && queryIndexer.trim().length > 0) {
+    openCreate()
+    formIndexerName.value = queryIndexer.trim()
+  }
+})
 
 const SKELETON_COLUMNS: SkeletonColumn[] = [
   { type: 'text', width: 'w-32' },
   { type: 'badge', width: 'w-16', hidden: 'hidden lg:table-cell' },
   { type: 'text', width: 'w-28', hidden: 'hidden md:table-cell' },
+  { type: 'badge', width: 'w-20', hidden: 'hidden xl:table-cell' },
+  { type: 'badge', width: 'w-20', hidden: 'hidden xl:table-cell' },
   { type: 'toggle' },
   { type: 'text', width: 'w-24', hidden: 'hidden md:table-cell' },
   { type: 'actions', actionsCount: 2 }
@@ -206,6 +231,10 @@ function getMethodLabel(tracker: CustomTracker): string {
   if (tracker.trackerType === 'counting') return t('trackers.typeCounting')
   return tracker.loginUrl !== null && tracker.loginUrl !== '' ? t('trackers.methodLogin') : t('trackers.methodCookie')
 }
+
+function hasLinkedIndexer(indexerName: string): boolean {
+  return linkedIndexers.value.includes(indexerName)
+}
 </script>
 
 <template>
@@ -225,9 +254,18 @@ function getMethodLabel(tracker: CustomTracker): string {
       </div>
     </div>
 
-    <div v-reveal="'fade'" class="card p-5 mb-6 flex items-center justify-between">
+    <div v-reveal="'fade'" class="card p-5 mb-6 flex flex-wrap items-center justify-between gap-3">
       <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ t('trackers.listTitle') }}</h2>
-      <UButton icon="i-lucide-plus" :label="t('trackers.addTracker')" size="sm" @click="openCreate" />
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          icon="i-lucide-server"
+          :label="t('trackers.manageIndexers')"
+          variant="outline"
+          size="sm"
+          to="/admin/indexers"
+        />
+        <UButton icon="i-lucide-plus" :label="t('trackers.addTracker')" size="sm" @click="openCreate" />
+      </div>
     </div>
 
     <AdminTableSkeleton v-if="loading" :columns="SKELETON_COLUMNS" />
@@ -254,6 +292,11 @@ function getMethodLabel(tracker: CustomTracker): string {
                 class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden md:table-cell"
               >
                 {{ t('trackers.tableCookie') }}
+              </th>
+              <th
+                class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase hidden xl:table-cell"
+              >
+                {{ t('trackers.tableProwlarr') }}
               </th>
               <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase">
                 {{ t('trackers.tableStatus') }}
@@ -297,6 +340,22 @@ function getMethodLabel(tracker: CustomTracker): string {
                       ? tracker.loginUsername
                       : maskCookie(tracker.cookie)
                 }}
+              </td>
+              <td class="px-4 py-3 hidden xl:table-cell">
+                <span v-if="!indexersLoaded" class="text-sm text-zinc-400">-</span>
+                <span
+                  v-else-if="hasLinkedIndexer(tracker.indexerName)"
+                  class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/15 text-green-700 dark:text-green-400"
+                >
+                  {{ t('trackers.linkedIndexer') }}
+                </span>
+                <span
+                  v-else
+                  class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                  :title="t('trackers.orphanIndexerHint')"
+                >
+                  {{ t('trackers.orphanIndexer') }}
+                </span>
               </td>
               <td class="px-4 py-3">
                 <button
