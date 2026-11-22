@@ -11,20 +11,16 @@ const appConfig = useAppConfig()
 const loading = ref(false)
 const serverError = ref('')
 
-const currentPassword = ref('')
 const newPassword = ref('')
 
-const visible = reactive({ current: false, next: false })
+const visible = reactive({ next: false })
 
 const newPasswordError = computed(() => {
   if (newPassword.value && newPassword.value.length < 8) return t('profile.passwordTooShort')
-  if (newPassword.value && newPassword.value === currentPassword.value) return t('profile.passwordSame')
   return ''
 })
 
-const canSubmit = computed(
-  () => !!currentPassword.value && !!newPassword.value && !newPasswordError.value && !loading.value
-)
+const canSubmit = computed(() => !!newPassword.value && !newPasswordError.value && !loading.value)
 
 async function submit() {
   if (!canSubmit.value) return
@@ -34,7 +30,7 @@ async function submit() {
   try {
     await $fetch('/api/user/password', {
       method: 'POST',
-      body: { currentPassword: currentPassword.value, newPassword: newPassword.value }
+      body: { newPassword: newPassword.value }
     })
     emit('changed')
   } catch (e: unknown) {
@@ -59,30 +55,6 @@ async function submit() {
 
     <template #body>
       <form class="space-y-4" @submit.prevent="submit">
-        <UFormField :label="t('profile.currentPassword')">
-          <UInput
-            v-model="currentPassword"
-            :type="visible.current ? 'text' : 'password'"
-            class="w-full"
-            autocomplete="current-password"
-            :disabled="loading"
-          >
-            <template #trailing>
-              <UButton
-                type="button"
-                color="neutral"
-                variant="link"
-                size="sm"
-                :icon="visible.current ? appConfig.ui.icons.eyeOff : appConfig.ui.icons.eye"
-                :aria-label="visible.current ? t('profile.hidePassword') : t('profile.showPassword')"
-                :aria-pressed="visible.current"
-                :disabled="loading"
-                @click="visible.current = !visible.current"
-              />
-            </template>
-          </UInput>
-        </UFormField>
-
         <UFormField :label="t('profile.newPassword')" :error="newPasswordError || undefined">
           <UInput
             v-model="newPassword"
