@@ -135,7 +135,9 @@
     "noTorrents": "Brak dostępnych pobrań",
     "loadError": "Nie udało się załadować szczegółów serialu.",
     "season_one": "sezon",
-    "season_many": "sezonów"
+    "season_many": "sezonów",
+    "otherReleases": "Pozostałe wydania",
+    "otherReleasesHint": "Wydania, których numer odcinka nie został jeszcze rozpoznany (np. świeżo dodany odcinek). Wszystkie wyniki z Prowlarr są widoczne."
   },
   "submit": {
     "title": "Dodaj torrent",

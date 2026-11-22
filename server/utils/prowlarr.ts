@@ -174,20 +174,15 @@ function deduplicateResults(results: ProwlarrResult[]): ProwlarrResult[] {
   return deduplicated
 }
 
-// A single query returning at least this many results is considered healthy -
-// the remaining ladder queries are skipped instead of fired.
-const HEALTHY_RESULT_COUNT = 5
+// Generous safety bound on text queries for one search. Each TMDB title gets
+// its own tier and every tier is fired - cutting the ladder at four queries
+// used to drop all alternative titles, which is exactly where localized and
+// scene releases often live. The IMDB branch adds at most one more request.
+const MAX_SEARCH_QUERIES = 12
 
-// Hard cap on text queries fired for a single search (movie/TV/season). The
-// IMDB branch (searchTv only) adds at most one more. Tune together with
-// QUERIES_PER_NAME - raising one without the other just shifts where the cap
-// bites.
-const MAX_SEARCH_QUERIES = 4
-
-// Per-name sub-cap: each name keeps its most specific and its bare-name
-// query. The middle tier (e.g. "Show S01" without the year) is a recall
-// subset of the bare-name query, so it is dropped first when the cap bites.
-const QUERIES_PER_NAME = 2
+// Per-name bound. Tiers currently hold at most two queries, so this only
+// matters if a tier is extended later; it is kept above that size on purpose.
+const QUERIES_PER_NAME = 3
 
 // Max concurrent in-flight requests to Prowlarr, shared across ladders from
 // parallel users. Prowlarr's own HTTP API has no documented client rate
@@ -230,20 +225,26 @@ function uniqueNames(names: string[]): string[] {
 // catches releases the specific queries miss (localized "Sezon 01" naming,
 // missing year, alternate titles) - season/episode filtering happens later in
 // the browse endpoints.
+//
+// TV season queries deliberately omit the year. TMDB's `first_air_date` year
+// is the year of the *pilot*, so "Show S05 2019" finds nothing for a 2025
+// season while the release itself is named just "Show.S05E03". The year is
+// only useful for movies, where it disambiguates remakes.
 function buildNameTiers(names: string[], seasonPad: string | null, year: string): string[][] {
   const tiers: string[][] = []
   for (const name of names) {
     const tier =
       seasonPad !== null
-        ? [`${name} S${seasonPad} ${year}`.trim(), `${name} S${seasonPad}`.trim(), name]
+        ? [`${name} S${seasonPad}`.trim(), name]
         : [`${name} ${year}`.trim(), name]
     tiers.push(uniqueNames(tier))
   }
   return tiers
 }
 
-// Applies the per-name sub-cap (most specific + bare name) and the total cap,
-// keeping tier order so the most relevant queries fire first.
+// Keeps every query of every title tier (bounded by the two caps above) in
+// relevance order. Nothing is dropped just because an earlier query was
+// successful - every indexer answer may hold a different release.
 function selectLadderQueries(tiers: string[][]): string[] {
   const selected: string[] = []
   for (const tier of tiers) {
@@ -385,10 +386,33 @@ export class ProwlarrClient {
     altTitles: string[],
     year: string,
     categories?: number[],
-    onProgress?: ProwlarrProgressCallback
+    onProgress?: ProwlarrProgressCallback,
+    imdbId?: string | null
   ): Promise<ProwlarrResult[]> {
     const names = uniqueNames([title, originalTitle, ...altTitles])
-    return this.runQueryLadder(buildNameTiers(names, null, year), categories, onProgress)
+    const textResults = this.runQueryLadder(buildNameTiers(names, null, year), categories, onProgress)
+
+    // The text ladder covers the private trackers whose releases carry no
+    // IMDb ID. Public indexers answer an IMDb movie search much more
+    // precisely, so run both in parallel and merge.
+    if (imdbId !== null && imdbId !== undefined && imdbId.length > 0) {
+      const imdbResults = await this.searchByImdb(imdbId, 'movie', categories).then(
+        (results) => {
+          onProgress?.({ kind: 'imdb', results: results.length })
+          return results
+        },
+        (err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err)
+          log.warn(`searchMovie: IMDB search failed: ${msg}`)
+          onProgress?.({ kind: 'imdb', results: 0 })
+          return [] as ProwlarrResult[]
+        }
+      )
+      const text = await textResults
+      return deduplicateResults([...text, ...imdbResults])
+    }
+
+    return textResults
   }
 
   async searchByQuery(query: string, categories?: number[]): Promise<ProwlarrResult[]> {
@@ -423,10 +447,11 @@ export class ProwlarrClient {
   // Runs the query ladder in PARALLEL and MERGES every result set instead of
   // stopping at the first non-empty one - a sparse first hit (e.g. a single
   // weak episode release) must not hide a full season pack that a broader
-  // query finds. The ladder is capped (per name and in total) and bounded by
-  // the shared request limiter, so one missing show cannot turn a page load
-  // into a query storm. Once a single query returns a healthy result set, the
-  // queries still queued for a slot are skipped. A failing query is logged
+  // query finds. Every query in the capped ladder is fired: an early "healthy"
+  // set of five results used to skip the bare-name query, which hid brand new
+  // episodes whose release names carry no year. The ladder is capped (per name
+  // and in total) and bounded by the shared request limiter, so one missing
+  // show cannot turn a page load into a query storm. A failing query is logged
   // and dropped instead of failing the whole search.
   private async runQueryLadder(
     tiers: string[][],
@@ -438,24 +463,14 @@ export class ProwlarrClient {
     const startedAt = Date.now()
 
     const merged: ProwlarrResult[] = []
-    let fired = 0
-    let healthy = false
 
     onProgress?.({ kind: 'start', queries: total })
 
     await Promise.all(
       queries.map(async (query, qi) => {
         const index = qi + 1
-        if (healthy) return
         await this.limiter.acquire()
         try {
-          // Re-check after acquiring the slot: a healthy set may have arrived
-          // while this query was still queued.
-          if (healthy) {
-            onProgress?.({ kind: 'query', state: 'skipped', index, total, text: query })
-            return
-          }
-          fired += 1
           log.info(`search: "${query}"`)
           onProgress?.({ kind: 'query', state: 'start', index, total, text: query })
           try {
@@ -463,9 +478,6 @@ export class ProwlarrClient {
             log.info(`search: "${query}" -> ${results.length} results`)
             onProgress?.({ kind: 'query', state: 'done', index, total, text: query, results: results.length })
             merged.push(...results)
-            if (results.length >= HEALTHY_RESULT_COUNT) {
-              healthy = true
-            }
           } catch (err) {
             const reason = err instanceof ProwlarrTimeoutError ? 'timeout' : 'error'
             const msg = err instanceof Error ? err.message : String(err)
@@ -478,9 +490,7 @@ export class ProwlarrClient {
       })
     )
 
-    log.info(
-      `search: fired ${fired}/${queries.length} queries in ${Date.now() - startedAt}ms, pool=${merged.length} results`
-    )
+    log.info(`search: fired ${total} queries in ${Date.now() - startedAt}ms, pool=${merged.length} results`)
     return deduplicateResults(merged)
   }
 

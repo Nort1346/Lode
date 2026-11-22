@@ -213,6 +213,40 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
     return { kind: 'multiseason-pack', seasons, episodes: [], airDate: null }
   }
 
+  // A season token plus an episode keyword is a plain S/E release in Polish
+  // ("Sezon 3 Odcinek 5") and daily-press naming, not a season pack. Without
+  // this, those releases were filed under season packs and the episode stayed
+  // empty in the UI - a frequent "new episode is hiding" report.
+  if (seasonTokens.length === 1 && keywordEpisodes.length > 0) {
+    const season = seasonTokens[0] ?? 0
+    const episodes = uniqSorted(keywordEpisodes)
+    return episodes.length === 1
+      ? { kind: 'episode', seasons: [season], episodes, airDate: null }
+      : { kind: 'multi-episode', seasons: [season], episodes, airDate: null }
+  }
+
+  // A bare number right after a season token is an episode ("Show S03 - 05"),
+  // not a pack. Token-based on purpose: a raw regex would also see the "1" in
+  // a title such as "9-1-1" as an episode.
+  if (seasonTokens.length === 1) {
+    const season = seasonTokens[0] ?? 0
+    let bareEpisode: number | null = null
+    for (let i = 0; i < tokens.length - 1 && bareEpisode === null; i++) {
+      if (seasonToken(tokens[i] ?? '') === season) {
+        for (const next of [tokens[i + 1], tokens[i + 2]]) {
+          const n = toInt(next ?? '')
+          if (n !== null && n >= 1 && n <= MAX_EPISODE && !isYear(n)) {
+            bareEpisode = n
+            break
+          }
+        }
+      }
+    }
+    if (bareEpisode !== null) {
+      return { kind: 'episode', seasons: [season], episodes: [bareEpisode], airDate: null }
+    }
+  }
+
   if (seasonTokens.length > 0) {
     const seasons = uniqSorted(seasonTokens)
     if (seasons.length === 1) {
@@ -254,11 +288,9 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
     return { kind: 'absolute', seasons: [], episodes: uniqSorted(keywordEpisodes), airDate: null }
   }
   const marked = /(?:^|[-([])\s*0*(\d{1,4})(?![0-9a-z])(?:$|[\s\-)\].])/.exec(lower)
-  if (marked !== null) {
-    const n = Number.parseInt(marked[1] ?? '', 10)
-    if (n >= 1 && n <= MAX_ABSOLUTE && !isYear(n)) {
-      return { kind: 'absolute', seasons: [], episodes: [n], airDate: null }
-    }
+  const absolute = marked !== null ? Number.parseInt(marked[1] ?? '', 10) : NaN
+  if (Number.isInteger(absolute) && absolute >= 1 && absolute <= MAX_ABSOLUTE && !isYear(absolute)) {
+    return { kind: 'absolute', seasons: [], episodes: [absolute], airDate: null }
   }
 
   // Complete-series packs without any season token.
@@ -280,16 +312,33 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
 /**
  * Episode-bucket matcher used by the torrent search: only true single episodes
  * land under an episode. Multi-episode ranges are packs (see titleIsSeasonPack),
- * so picking E02 never silently matches a torrent holding E01-E03. Daily
- * releases carry air dates, not episode numbers, so they never match here.
+ * so picking E02 never silently matches a torrent holding E01-E03.
+ *
+ * Two extra hints make recently aired releases visible:
+ * - daily shows are named after their air date, not SxxExx, so they are matched
+ *   against the TMDB episode's air date;
+ * - anime often uses absolute numbering, so the number is checked against both
+ *   the per-season TMDB number and the running number across previous seasons.
  */
-export function titleMatchesEpisode(title: string, seasonNumber: number, episodeNumber: number): boolean {
+export function titleMatchesEpisode(
+  title: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  airDate: string | null = null,
+  absoluteNumber: number | null = null
+): boolean {
   const info = parseEpisodeInfo(title)
   if (info.kind === 'episode') {
     return info.seasons.includes(seasonNumber) && info.episodes.includes(episodeNumber)
   }
+  if (info.kind === 'daily') {
+    return airDate !== null && info.airDate === airDate
+  }
   if (info.kind === 'absolute') {
-    return info.episodes.includes(episodeNumber)
+    if (absoluteNumber !== null && info.episodes.includes(absoluteNumber)) return true
+    // Without an absolute offset (or for the first season) the per-season
+    // number is the only information available.
+    if (seasonNumber === 1 || absoluteNumber === null) return info.episodes.includes(episodeNumber)
   }
   return false
 }

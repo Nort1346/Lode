@@ -123,6 +123,10 @@ export interface SeasonSearchPayload {
   }
   episodes: EpisodePayload[]
   seasonPacks: SeasonPackPayload[]
+  // Releases of this show whose naming does not map to a known TMDB episode
+  // or pack (new episodes TMDB has not listed yet, date/exotic numbering).
+  // Kept so no Prowlarr result is ever silently hidden.
+  otherTorrents: EpisodeTorrentPayload[]
 }
 
 export interface MovieSearchPayload {

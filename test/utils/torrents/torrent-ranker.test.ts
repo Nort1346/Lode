@@ -120,6 +120,25 @@ describe('rankTorrents', () => {
     }
   })
 
+  it('ranks the real title first but keeps every other result visible', () => {
+    const results = [
+      ...mockResults.map((r) => ({ ...r, title: r.title.replace('Movie', 'The Doll') })),
+      {
+        ...mockResults[0]!,
+        title: 'The Doll Squad (1973) [1080p] [BDRip] [AC3-wasik] [Lektor PL]',
+        size: 20_000_000_000,
+        seeders: 500
+      }
+    ] as ProwlarrResult[]
+
+    const ranked = rankTorrents(results, 'movie', 'The Doll', '2025', undefined, ['The Doll', 'Lalka'])
+
+    // Nothing is filtered out: the user explicitly wants every Prowlarr hit.
+    expect(ranked).toHaveLength(results.length)
+    expect(ranked[0]!.title).toContain('The Doll.2024')
+    expect(ranked[ranked.length - 1]!.title).toContain('The Doll Squad')
+  })
+
   it('marks top N as recommended', () => {
     const ranked = rankTorrents(mockResults, 'movie', 'Movie', '2024')
     const recommendedCount = ranked.filter((r) => r.recommended).length

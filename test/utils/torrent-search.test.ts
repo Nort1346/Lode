@@ -128,7 +128,15 @@ describe('searchMovieTorrents', () => {
 
     const outcome = await searchMovieTorrents(1, 'pl', (e) => events.push(e))
 
-    expect(mockClient.searchMovie).toHaveBeenCalledWith('Movie', 'Movie', [], '2024', [2000], expect.any(Function))
+    expect(mockClient.searchMovie).toHaveBeenCalledWith(
+      'Movie',
+      'Movie',
+      [],
+      '2024',
+      [2000],
+      expect.any(Function),
+      undefined
+    )
     expect(outcome.kind).toBe('ok')
     if (outcome.kind === 'ok') {
       expect(outcome.found).toBe(1)
@@ -137,6 +145,40 @@ describe('searchMovieTorrents', () => {
       ])
     }
     expect(events).toEqual([{ kind: 'start', queries: 1 }])
+  })
+
+  it('passes every TMDB title to the ranker and keeps every Prowlarr result', async () => {
+    const raw = [
+      rawRelease({ title: 'Movie.2024.1080p' }),
+      rawRelease({ title: 'Movie.Squad.1973.1080p', size: 200 })
+    ]
+    const mockClient = { searchMovie: vi.fn().mockResolvedValue(raw) }
+    mockUseProwlarr.mockReturnValue(mockClient)
+    mockGetMovieDetails.mockResolvedValue({
+      id: 1,
+      title: 'Movie',
+      original_title: 'Film',
+      imdb_id: 'tt1',
+      release_date: '2024-01-01',
+      alternative_titles: [{ title: 'Alt Movie' }]
+    })
+    mockRankTorrents.mockImplementation((torrents: unknown[]) =>
+      (torrents as Array<ReturnType<typeof rawRelease>>).map((t) => rankedRelease(t))
+    )
+
+    const outcome = await searchMovieTorrents(1, 'en')
+
+    expect(mockClient.searchMovie).toHaveBeenCalledWith(
+      'Movie',
+      'Film',
+      ['Alt Movie'],
+      '2024',
+      [2000],
+      undefined,
+      'tt1'
+    )
+    expect(mockRankTorrents).toHaveBeenCalledWith(raw, 'movie', 'Movie', '2024', {}, ['Movie', 'Film', 'Alt Movie'])
+    if (outcome.kind === 'ok') expect(outcome.found).toBe(2)
   })
 })
 
@@ -276,6 +318,32 @@ describe('searchSeasonTorrents', () => {
     if (outcome.kind === 'ok') {
       expect(outcome.payload.seasonPacks).toHaveLength(1)
       expect(outcome.payload.seasonPacks[0]?.isSeasonPack).toBe(false)
+      expect(outcome.payload.otherTorrents).toEqual([])
+    }
+  })
+
+  it('keeps unmapped releases in the otherTorrents bucket instead of hiding them', async () => {
+    const mockClient = {
+      searchTv: vi.fn().mockResolvedValue([
+        rawRelease({ title: 'Show.S01E01.1080p' }),
+        rawRelease({ title: 'Show.Sezon.1.Odcinek.99.1080p', size: 200 })
+      ])
+    }
+    mockUseProwlarr.mockReturnValue(mockClient)
+    mockRankTorrents.mockImplementation((torrents: unknown[]) =>
+      (torrents as Array<ReturnType<typeof rawRelease>>).map((t) => rankedRelease(t))
+    )
+
+    const outcome = await searchSeasonTorrents(2, 1, 'en')
+
+    expect(outcome.kind).toBe('ok')
+    if (outcome.kind === 'ok') {
+      // E99 is not in this season's TMDB episode list, so it cannot be filed
+      // under an episode - but it must still be visible to the user.
+      expect(outcome.payload.episodes[0]?.torrents).toHaveLength(1)
+      expect(outcome.payload.otherTorrents).toHaveLength(1)
+      expect(outcome.payload.otherTorrents[0]?.title).toContain('Odcinek.99')
+      expect(outcome.found).toBe(2)
     }
   })
 })

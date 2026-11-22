@@ -23,7 +23,7 @@
 
         <div v-if="episode.torrents.length > 0" class="mt-3 space-y-2 torrent-list">
           <BrowseTorrentRow
-            v-for="(tr, tIdx) in episode.torrents.slice(0, 3)"
+            v-for="(tr, tIdx) in episode.torrents"
             :key="tIdx"
             :torrent="tr"
             :loading="downloadingKey === `ep-${episode.episodeNumber}-${tIdx}`"

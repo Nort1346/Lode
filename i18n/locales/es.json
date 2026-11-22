@@ -135,7 +135,9 @@
     "noTorrents": "No hay descargas disponibles",
     "loadError": "No se pudieron cargar los detalles de la serie.",
     "season_one": "temporada",
-    "season_many": "temporadas"
+    "season_many": "temporadas",
+    "otherReleases": "Otros lanzamientos",
+    "otherReleasesHint": "Lanzamientos cuyo episodio aún no se reconoce (por ejemplo, un episodio recién estrenado). Se muestran todos los resultados de Prowlarr."
   },
   "submit": {
     "title": "Añadir torrent",

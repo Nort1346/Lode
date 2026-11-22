@@ -135,7 +135,9 @@
     "noTorrents": "No downloads available",
     "loadError": "Failed to load TV show details.",
     "season_one": "season",
-    "season_many": "seasons"
+    "season_many": "seasons",
+    "otherReleases": "Other releases",
+    "otherReleasesHint": "Releases whose episode is not recognized yet (for example a brand new episode). Every Prowlarr result is shown."
   },
   "submit": {
     "title": "Submit Torrent",

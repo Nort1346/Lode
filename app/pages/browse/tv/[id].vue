@@ -300,6 +300,40 @@
           <p>{{ t('browse.torrentFilters.noMatches') }}</p>
           <p class="mt-1 text-xs">{{ t('browse.torrentFilters.hiddenCount', { count: hiddenCount }) }}</p>
         </div>
+
+        <div v-if="visibleOther.length > 0" class="mt-6">
+          <h3 class="mb-1 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+            {{ t('tv.otherReleases') }}
+          </h3>
+          <p class="mb-3 text-xs text-zinc-400 dark:text-zinc-500">{{ t('tv.otherReleasesHint') }}</p>
+          <TransitionGroup appear name="filter-list" tag="div" class="relative flex flex-col gap-1 torrent-list">
+            <BrowseTorrentRow
+              v-for="(torrent, otherIdx) in visibleOther"
+              :key="torrentKey(torrent)"
+              :style="`--i: ${otherIdx}`"
+              :torrent="torrent"
+              :loading="downloadingKey === `other-${otherIdx}`"
+              :disabled="downloadActive || (torrent.magnetLink === null && torrent.guid === null && torrent.downloadUrl === null)"
+              :limit-exceeded="isPrivateLimitExceeded(torrent.isPrivate)"
+              :is-dev="isDev"
+              :debug-open="debugOpenKey === `other-${otherIdx}`"
+              @download="
+                downloadTorrent(
+                  torrent.magnetLink,
+                  `${show?.name ?? ''} ${torrent.title}`,
+                  `other-${otherIdx}`,
+                  undefined,
+                  torrent.guid,
+                  torrent.indexer,
+                  torrent.downloadUrl,
+                  torrent.size,
+                  torrent.resolution
+                )
+              "
+              @toggle-debug="toggleDebug(`other-${otherIdx}`)"
+            />
+          </TransitionGroup>
+        </div>
       </div>
     </div>
 
@@ -446,7 +480,7 @@ watch(
 const seasonItems = computed<TorrentFilterItem[]>(() => {
   const payload = seasonPayload.value
   if (payload === null) return []
-  return [...payload.seasonPacks, ...payload.episodes.flatMap((ep) => ep.torrents)]
+  return [...payload.seasonPacks, ...payload.episodes.flatMap((ep) => ep.torrents), ...payload.otherTorrents]
 })
 
 const visiblePacks = computed(() => {
@@ -468,8 +502,17 @@ const visibleEpisodes = computed(() => {
     .filter((ep) => ep.torrents.length > 0 || !strict)
 })
 
+const visibleOther = computed(() => {
+  const payload = seasonPayload.value
+  if (payload === null) return []
+  return (payload.otherTorrents ?? []).filter((torrent) => matchesFilters(torrent, filterState.value))
+})
+
 const visibleCount = computed(
-  () => visiblePacks.value.length + visibleEpisodes.value.reduce((sum, ep) => sum + ep.torrents.length, 0)
+  () =>
+    visiblePacks.value.length +
+    visibleEpisodes.value.reduce((sum, ep) => sum + ep.torrents.length, 0) +
+    visibleOther.value.length
 )
 const hiddenCount = computed(() => seasonItems.value.length - visibleCount.value)
 

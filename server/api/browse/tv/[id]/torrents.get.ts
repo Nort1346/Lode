@@ -65,9 +65,12 @@ export default defineEventHandler(async (event) => {
           altTitles
         )
       }
+      // The text ladder also finds other shows sharing a word with this one;
+      // pass all titles to the ranker so this show's releases come first.
+      const titles = [show.name, show.original_name, ...(show.alternative_names ?? []).map((a) => a.name)]
       // Flat all-seasons list: no per-season context, so everything is scored
       // with the single-episode size table
-      torrents = rankTorrents(rawResults, 'series', show.name, year, rankingConfig)
+      torrents = rankTorrents(rawResults, 'series', show.name, year, rankingConfig, titles)
     } catch {
       // Prowlarr might be offline
     }

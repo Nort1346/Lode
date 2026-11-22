@@ -135,7 +135,9 @@
     "noTorrents": "Keine verfügbaren Downloads",
     "loadError": "Serien-Details konnten nicht geladen werden.",
     "season_one": "Staffel",
-    "season_many": "Staffeln"
+    "season_many": "Staffeln",
+    "otherReleases": "Weitere Veröffentlichungen",
+    "otherReleasesHint": "Veröffentlichungen, deren Folge noch nicht erkannt wurde (z. B. eine ganz neue Folge). Alle Prowlarr-Ergebnisse werden angezeigt."
   },
   "submit": {
     "title": "Torrent hinzufügen",
