@@ -371,8 +371,10 @@ export async function searchSeasonTorrents(
   )
 
   // A range such as `S1-8E1-96` is a pack of many episodes, not one episode and
-  // not a whole-season pack. Split its absolute range per TMDB season so it
-  // lands in the right season's "Episode packs" section.
+  // not a whole-season pack. Some releases number episodes continuously across
+  // all seasons, others repeat the same range in every listed season. TMDB's
+  // season sizes tell us which one we are looking at.
+  const seasonList = show.seasons ?? []
   const episodePackInfos = new Map<string, EpisodeInfo>()
   const episodePackTorrents = rawTorrents.filter((t) => {
     const info = parsedInfos.get(t.title)
@@ -393,10 +395,23 @@ export async function searchSeasonTorrents(
     rankingConfig,
     showTitles,
     matchYears
-  ).map((t) => {
-    const info = episodePackInfos.get(t.title) ?? parseEpisodeInfo(t.title)
-    return toEpisodePackPayload(t, info, episodeNumbersForSeason(info, seasonNumber, show.seasons ?? []))
-  })
+  )
+    .map((t) => {
+      const info = episodePackInfos.get(t.title) ?? parseEpisodeInfo(t.title)
+      const covered = seasonList.filter(
+        (season) => season.season_number > 0 && info.seasons.includes(season.season_number)
+      )
+      const longestSeason = Math.max(0, ...covered.map((season) => season.episode_count))
+      const lastEpisode = info.episodes[info.episodes.length - 1] ?? 0
+      // `E01-E10` over several seasons repeats in each of them; `E01-E96`
+      // is a running number and must be cut by season lengths.
+      const perSeason = covered.length > 1 && lastEpisode > 0 && lastEpisode <= longestSeason
+      const seasonEpisodes = perSeason ? info.episodes : episodeNumbersForSeason(info, seasonNumber, seasonList)
+      return toEpisodePackPayload(t, info, seasonEpisodes)
+    })
+    // A range may not reach every season named in the title (`S1-8E1-15`).
+    // Do not show an empty "Episodes" label in that case.
+    .filter((pack) => pack.seasonEpisodes.length > 0)
 
   // Nothing relevant is discarded: releases that do not map onto a TMDB
   // episode or pack (a just-aired episode TMDB has not added yet, unusual

@@ -270,8 +270,8 @@ test.describe('browse', () => {
           tags: [],
           isPrivate: false,
           seasons: [1, 2],
-          episodes: [1, 2, 3],
-          seasonEpisodes: [1, 2]
+          episodes: Array.from({ length: 24 }, (_, i) => i + 1),
+          seasonEpisodes: Array.from({ length: 12 }, (_, i) => i + 1)
         }
       ],
       otherTorrents: []
@@ -289,7 +289,12 @@ test.describe('browse', () => {
     await gotoPage(page, `/browse/tv/703`)
 
     await expect(page.getByRole('heading', { name: 'Episode Packs' })).toBeVisible()
-    await expect(page.getByText('Seasons 1-2 · Episodes 1-2')).toBeVisible()
+    await expect(page.getByText('Seasons 1-2 · Episodes 1-12')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add pack' })).toBeVisible()
+
+    // The pack is still available after switching to the other covered season.
+    await page.getByText('Season 1 (2 ep.)').first().click()
+    await page.getByRole('option', { name: /Season 2/ }).click()
+    await expect(page.getByText('Seasons 1-2 · Episodes 1-12')).toBeVisible()
   })
 })

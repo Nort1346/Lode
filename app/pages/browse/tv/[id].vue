@@ -275,7 +275,7 @@
               @download="
                 downloadTorrent(
                   pack.magnetLink,
-                  episodePackLabel(pack),
+                  seasonPackLabel(pack),
                   `episode-pack-${idx}`,
                   'pack',
                   pack.guid,
@@ -390,7 +390,7 @@
 
 <script setup lang="ts">
 import type { ShowData, SeasonData } from '~/types/browse'
-import type { EpisodePack, EpisodeTorrent, SeasonPack } from '~/types/media'
+import type { EpisodeTorrent } from '~/types/media'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
 import { emptyFilters, hasActiveFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
@@ -560,11 +560,7 @@ const visibleCount = computed(
 )
 const hiddenCount = computed(() => seasonItems.value.length - visibleCount.value)
 
-function seasonPackLabel(pack: SeasonPack): string {
-  return seasonPackDownloadLabel(show.value?.name ?? '', pack.seasons ?? [], selectedSeason.value)
-}
-
-function episodePackLabel(pack: EpisodePack): string {
+function seasonPackLabel(pack: { seasons: number[] }): string {
   return seasonPackDownloadLabel(show.value?.name ?? '', pack.seasons ?? [], selectedSeason.value)
 }
 

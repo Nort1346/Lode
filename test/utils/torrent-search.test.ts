@@ -416,9 +416,37 @@ describe('searchSeasonTorrents', () => {
       expect(outcome.payload.otherTorrents).toEqual([])
     }
 
+    // The absolute range ends before season 3 - no empty card is shown there.
+    const beyondReach = await searchSeasonTorrents(2, 3, 'en')
+    if (beyondReach.kind !== 'ok') throw new Error('expected a successful search')
+    expect(beyondReach.payload.episodePacks).toEqual([])
+
     const outside = await searchSeasonTorrents(2, 9, 'en')
     if (outside.kind !== 'ok') throw new Error('expected a successful search')
     expect(outside.payload.episodePacks).toEqual([])
+  })
+
+  it('repeats a per-season episode range on every listed season', async () => {
+    mockGetTvShowDetails.mockResolvedValue({
+      id: 2,
+      name: 'Show',
+      original_name: 'Show',
+      first_air_date: '2020-01-01',
+      seasons: Array.from({ length: 3 }, (_, i) => ({ season_number: i + 1, episode_count: 10 })),
+      external_ids: { imdb_id: null }
+    })
+    const title = 'Show.S01-S03.E01-E10.1080p'
+    mockUseProwlarr.mockReturnValue({ searchTv: vi.fn().mockResolvedValue([rawRelease({ title })]) })
+    mockRankTorrents.mockImplementation((torrents: unknown[]) =>
+      (torrents as Array<ReturnType<typeof rawRelease>>).map((t) => rankedRelease(t))
+    )
+
+    for (const season of [1, 2, 3]) {
+      const outcome = await searchSeasonTorrents(2, season, 'en')
+      if (outcome.kind !== 'ok') throw new Error('expected a successful search')
+      expect(outcome.payload.episodePacks).toHaveLength(1)
+      expect(outcome.payload.episodePacks[0]?.seasonEpisodes).toEqual(Array.from({ length: 10 }, (_, i) => i + 1))
+    }
   })
 
   it('keeps unmapped releases from this season but excludes other seasons', async () => {
