@@ -134,7 +134,7 @@ describe('browse/movie/[id]/torrents.get', () => {
     // the 6th argument is the optional progress callback (unused by the JSON
     // endpoint), the 7th is the TMDB IMDb id used for the parallel ID search
     expect(mockClient.searchMovie).toHaveBeenCalledWith('Movie', 'Movie', [], '2024', [2000], undefined, undefined)
-    expect(mockRankTorrents).toHaveBeenCalledWith([{ title: 'raw' }], 'movie', 'Movie', '2024', {}, ['Movie', 'Movie'])
+    expect(mockRankTorrents).toHaveBeenCalledWith([{ title: 'raw' }], 'movie', 'Movie', '2024', {}, ['Movie'])
   })
 
   it('passes alternative titles as extra search queries, english first for non-english locale', async () => {

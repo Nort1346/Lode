@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { releaseMatchesTitle, titleMatchStrength } from '#server/utils/torrents/release-match'
+import { titleMatchDetails, titleMatchStrength } from '#server/utils/torrents/release-match'
 
 describe('release-match/titleMatchStrength', () => {
   const movieCases: Array<{ release: string; titles: string[]; expected: number }> = [
@@ -55,9 +55,25 @@ describe('release-match/titleMatchStrength', () => {
     expect(titleMatchStrength('It.Chapter.Two.2019.1080p', ['It'], '2017', 'movie')).toBe(0)
   })
 
-  it('allows later air years for TV seasons but rejects older remakes', () => {
+  it('accepts both the pilot year and the season year for TV', () => {
     expect(titleMatchStrength('Show.S05E03.1080p', ['Show'], '2019', 'tv')).toBe(2)
     expect(titleMatchStrength('Show.1978.S01E01', ['Show'], '2005', 'tv')).toBe(0)
+    // The 2005 revival is a different show from the 1963 original.
+    expect(titleMatchStrength('Doctor.Who.2005.S01E01.1080p', ['Doctor Who'], '1963', 'tv')).toBe(0)
+    expect(titleMatchStrength('Doctor.Who.2005.S01E01.1080p', ['Doctor Who'], '1963', 'tv', ['2005'])).toBe(2)
+    // Polish trackers often keep the pilot year in every season's name.
+    expect(titleMatchStrength('Show.2010.S05E01.1080p', ['Show'], '2012', 'tv', ['2012'])).toBe(0)
+    expect(titleMatchStrength('Show.2010.S05E01.1080p', ['Show'], '2012', 'tv', ['2012', '2010'])).toBe(2)
+  })
+
+  it('does not read a year that is part of the title as the release year', () => {
+    expect(titleMatchStrength('1917.2019.1080p.BluRay', ['1917'], '2019', 'movie')).toBe(2)
+    expect(titleMatchStrength('2001.A.Space.Odyssey.1968.1080p', ['2001: A Space Odyssey'], '1968', 'movie')).toBe(2)
+    expect(titleMatchDetails('1917.2019.1080p', ['1917'], '2019', 'movie')).toEqual({
+      strength: 2,
+      yearMatches: true
+    })
+    expect(titleMatchDetails('1917.2024.1080p', ['1917'], '2019', 'movie').yearMatches).toBe(false)
   })
 
   it('accepts TV naming with season words, locale tags and absolute numbers', () => {
@@ -74,9 +90,12 @@ describe('release-match/titleMatchStrength', () => {
   })
 })
 
-describe('release-match/releaseMatchesTitle', () => {
-  it('is true for any non-zero match strength', () => {
-    expect(releaseMatchesTitle('Doll.2025.1080p', ['The Doll'], '2025', 'movie')).toBe(true)
-    expect(releaseMatchesTitle('The.Doll.Squad.1973', ['The Doll'], '2025', 'movie')).toBe(false)
+describe('release-match/titleMatchDetails', () => {
+  it('reports a year match only when the year is not part of the title', () => {
+    expect(titleMatchDetails('Doll.2025.1080p', ['The Doll'], '2025', 'movie').yearMatches).toBe(true)
+    expect(titleMatchDetails('The.Doll.Squad.1973', ['The Doll'], '2025', 'movie')).toEqual({
+      strength: 0,
+      yearMatches: false
+    })
   })
 })

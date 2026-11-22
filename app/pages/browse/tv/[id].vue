@@ -317,19 +317,7 @@
               :limit-exceeded="isPrivateLimitExceeded(torrent.isPrivate)"
               :is-dev="isDev"
               :debug-open="debugOpenKey === `other-${otherIdx}`"
-              @download="
-                downloadTorrent(
-                  torrent.magnetLink,
-                  `${show?.name ?? ''} ${torrent.title}`,
-                  `other-${otherIdx}`,
-                  undefined,
-                  torrent.guid,
-                  torrent.indexer,
-                  torrent.downloadUrl,
-                  torrent.size,
-                  torrent.resolution
-                )
-              "
+              @download="downloadOtherTorrent(torrent, otherIdx)"
               @toggle-debug="toggleDebug(`other-${otherIdx}`)"
             />
           </TransitionGroup>
@@ -368,6 +356,7 @@
 
 <script setup lang="ts">
 import type { ShowData, SeasonData } from '~/types/browse'
+import type { EpisodeTorrent } from '~/types/media'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
 import { emptyFilters, hasActiveFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
@@ -613,6 +602,20 @@ async function downloadTorrent(
     downloadingPackIdx.value = null
     finishDownload()
   }
+}
+
+function downloadOtherTorrent(torrent: EpisodeTorrent, idx: number) {
+  void downloadTorrent(
+    torrent.magnetLink,
+    `${show.value?.name ?? ''} ${torrent.title}`,
+    `other-${idx}`,
+    undefined,
+    torrent.guid,
+    torrent.indexer,
+    torrent.downloadUrl,
+    torrent.size,
+    torrent.resolution
+  )
 }
 
 // When navigating show -> show the component is reused: a slow response for the previous

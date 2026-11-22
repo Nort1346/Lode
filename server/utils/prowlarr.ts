@@ -180,9 +180,11 @@ function deduplicateResults(results: ProwlarrResult[]): ProwlarrResult[] {
 // scene releases often live. The IMDB branch adds at most one more request.
 const MAX_SEARCH_QUERIES = 12
 
-// Per-name bound. Tiers currently hold at most two queries, so this only
-// matters if a tier is extended later; it is kept above that size on purpose.
-const QUERIES_PER_NAME = 3
+// Whole-ladder wall clock budget. One request may take up to 45s; with three
+// concurrent slots, 12 queries could otherwise keep a search alive for three
+// minutes - far past the client's 60s stale watchdog. Queries still queued
+// when this budget is gone emit a `skipped` event instead of firing.
+const MAX_LADDER_WALL_MS = 50_000
 
 // Max concurrent in-flight requests to Prowlarr, shared across ladders from
 // parallel users. Prowlarr's own HTTP API has no documented client rate
@@ -242,26 +244,11 @@ function buildNameTiers(names: string[], seasonPad: string | null, year: string)
   return tiers
 }
 
-// Keeps every query of every title tier (bounded by the two caps above) in
-// relevance order. Nothing is dropped just because an earlier query was
-// successful - every indexer answer may hold a different release.
+// Flattens the per-title tiers in relevance order. No query is dropped just
+// because an earlier one returned results - a different indexer may hold a
+// release that only that specific query finds. The only cut is the safety cap.
 function selectLadderQueries(tiers: string[][]): string[] {
-  const selected: string[] = []
-  for (const tier of tiers) {
-    if (tier.length <= QUERIES_PER_NAME) {
-      selected.push(...tier)
-      continue
-    }
-    const mostSpecific = tier[0]
-    const bareName = tier[tier.length - 1]
-    if (mostSpecific !== undefined) {
-      selected.push(mostSpecific)
-    }
-    if (bareName !== undefined && bareName !== mostSpecific) {
-      selected.push(bareName)
-    }
-  }
-  return selected.slice(0, MAX_SEARCH_QUERIES)
+  return tiers.flat().slice(0, MAX_SEARCH_QUERIES)
 }
 
 // Bounds concurrent in-flight requests. A released slot is transferred
@@ -307,14 +294,25 @@ export class ProwlarrClient {
   private apiKey: string
   private readonly limiter = new SlotLimiter(PROWLARR_MAX_CONCURRENT)
   private readonly queryTimeoutMs: number
+  private readonly ladderTimeoutMs: number
 
-  constructor(baseUrl: string, apiKey: string, queryTimeoutMs: number = PROWLARR_QUERY_TIMEOUT_MS) {
+  constructor(
+    baseUrl: string,
+    apiKey: string,
+    queryTimeoutMs: number = PROWLARR_QUERY_TIMEOUT_MS,
+    ladderTimeoutMs: number = MAX_LADDER_WALL_MS
+  ) {
     this.baseUrl = baseUrl.replace(/\/+$/, '')
     this.apiKey = apiKey
     this.queryTimeoutMs = queryTimeoutMs
+    this.ladderTimeoutMs = ladderTimeoutMs
   }
 
-  private async request(path: string, params: Record<string, string> = {}): Promise<unknown> {
+  private async request(
+    path: string,
+    params: Record<string, string> = {},
+    timeoutMs: number = this.queryTimeoutMs
+  ): Promise<unknown> {
     const url = new URL(`${this.baseUrl}${path}`)
     url.searchParams.set('apikey', this.apiKey)
     for (const [k, v] of Object.entries(params)) {
@@ -322,8 +320,8 @@ export class ProwlarrClient {
     }
 
     // One deadline per request, covering the 429 backoff and retry as well
-    const signal = AbortSignal.timeout(this.queryTimeoutMs)
-    let response = await this.fetchWithTimeout(url.toString(), signal)
+    const signal = AbortSignal.timeout(timeoutMs)
+    let response = await this.fetchWithTimeout(url.toString(), signal, timeoutMs)
     if (response.status === 429) {
       // Back off before one retry - indexers behind Prowlarr rate-limit hard,
       // and hammering a 429 only lengthens the cooldown. Honor Retry-After
@@ -334,9 +332,9 @@ export class ProwlarrClient {
       log.warn(`Prowlarr returned 429, backing off ${delayMs}ms before one retry`)
       await new Promise<void>((resolve) => setTimeout(resolve, delayMs))
       if (signal.aborted) {
-        throw new ProwlarrTimeoutError(`Prowlarr request timed out after ${this.queryTimeoutMs}ms`)
+        throw new ProwlarrTimeoutError(`Prowlarr request timed out after ${timeoutMs}ms`)
       }
-      response = await this.fetchWithTimeout(url.toString(), signal)
+      response = await this.fetchWithTimeout(url.toString(), signal, timeoutMs)
     }
     if (!response.ok) {
       throw new Error(`Prowlarr API error ${response.status}`)
@@ -344,12 +342,12 @@ export class ProwlarrClient {
     return response.json()
   }
 
-  private async fetchWithTimeout(url: string, signal: AbortSignal): Promise<Response> {
+  private async fetchWithTimeout(url: string, signal: AbortSignal, timeoutMs: number): Promise<Response> {
     try {
       return await fetch(url, { signal })
     } catch (err) {
       if (isAbortError(err)) {
-        throw new ProwlarrTimeoutError(`Prowlarr request timed out after ${this.queryTimeoutMs}ms`)
+        throw new ProwlarrTimeoutError(`Prowlarr request timed out after ${timeoutMs}ms`)
       }
       throw err
     }
@@ -415,7 +413,7 @@ export class ProwlarrClient {
     return textResults
   }
 
-  async searchByQuery(query: string, categories?: number[]): Promise<ProwlarrResult[]> {
+  async searchByQuery(query: string, categories?: number[], timeoutMs?: number): Promise<ProwlarrResult[]> {
     const catsKey = categories?.join(',') ?? 'all'
     const cacheKey = `prowlarr:query:${query}:${catsKey}`
     const cached = await cacheGet<ProwlarrResult[]>(cacheKey)
@@ -425,7 +423,7 @@ export class ProwlarrClient {
     if (categories !== undefined && categories.length > 0) {
       params.categories = categories.join(',')
     }
-    const raw = (await this.request('/api/v1/search', params)) as ProwlarrRelease[]
+    const raw = (await this.request('/api/v1/search', params, timeoutMs)) as ProwlarrRelease[]
 
     const customNames = await getEnabledCustomTrackerNames()
     const rawItems = raw ?? []
@@ -449,10 +447,10 @@ export class ProwlarrClient {
   // weak episode release) must not hide a full season pack that a broader
   // query finds. Every query in the capped ladder is fired: an early "healthy"
   // set of five results used to skip the bare-name query, which hid brand new
-  // episodes whose release names carry no year. The ladder is capped (per name
-  // and in total) and bounded by the shared request limiter, so one missing
-  // show cannot turn a page load into a query storm. A failing query is logged
-  // and dropped instead of failing the whole search.
+  // episodes whose release names carry no year. The ladder is capped and
+  // bounded by a wall-clock budget plus the shared request limiter, so one
+  // missing show cannot turn a page load into a query storm. A failing query
+  // is logged and dropped instead of failing the whole search.
   private async runQueryLadder(
     tiers: string[][],
     categories?: number[],
@@ -461,8 +459,10 @@ export class ProwlarrClient {
     const queries = selectLadderQueries(tiers)
     const total = queries.length
     const startedAt = Date.now()
+    const deadline = startedAt + this.ladderTimeoutMs
 
     const merged: ProwlarrResult[] = []
+    let fired = 0
 
     onProgress?.({ kind: 'start', queries: total })
 
@@ -471,10 +471,20 @@ export class ProwlarrClient {
         const index = qi + 1
         await this.limiter.acquire()
         try {
+          const remaining = deadline - Date.now()
+          if (remaining <= 0) {
+            log.warn(`search: "${query}" skipped - ladder budget exhausted`)
+            onProgress?.({ kind: 'query', state: 'skipped', index, total, text: query })
+            return
+          }
+          // A slow indexer must not push the whole ladder past the client's
+          // stale watchdog, so each request gets what is left of the budget.
+          const timeoutMs = Math.min(this.queryTimeoutMs, remaining)
+          fired += 1
           log.info(`search: "${query}"`)
           onProgress?.({ kind: 'query', state: 'start', index, total, text: query })
           try {
-            const results = await this.searchByQuery(query, categories)
+            const results = await this.searchByQuery(query, categories, timeoutMs)
             log.info(`search: "${query}" -> ${results.length} results`)
             onProgress?.({ kind: 'query', state: 'done', index, total, text: query, results: results.length })
             merged.push(...results)
@@ -490,7 +500,7 @@ export class ProwlarrClient {
       })
     )
 
-    log.info(`search: fired ${total} queries in ${Date.now() - startedAt}ms, pool=${merged.length} results`)
+    log.info(`search: fired ${fired}/${total} queries in ${Date.now() - startedAt}ms, pool=${merged.length} results`)
     return deduplicateResults(merged)
   }
 

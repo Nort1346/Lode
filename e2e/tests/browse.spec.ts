@@ -41,4 +41,48 @@ test.describe('browse', () => {
 
     await expect(page.getByRole('heading', { name: TV_TITLE })).toBeVisible()
   })
+
+  test('shows Prowlarr releases that cannot be mapped to a TMDB episode yet', async ({ page }) => {
+    const payload = {
+      show: { id: 703, name: TV_TITLE },
+      season: { seasonNumber: 1, name: 'Season 1', overview: '', posterUrl: null, airDate: null },
+      episodes: [],
+      seasonPacks: [],
+      otherTorrents: [
+        {
+          title: 'E2E.New.Episode.2026.1080p.WEB-DL',
+          size: 1000,
+          sizeFormatted: '1000 B',
+          seeders: 5,
+          leechers: 0,
+          indexer: 'TestIndexer',
+          magnetLink: 'magnet:?xt=urn:btih:e2e',
+          downloadUrl: null,
+          guid: null,
+          score: 80,
+          percentage: 80,
+          recommended: false,
+          resolution: '1080p',
+          source: 'WEB',
+          language: null,
+          tags: [],
+          isPrivate: false
+        }
+      ]
+    }
+    await page.route('**/api/browse/tv/**/torrents-stream*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' },
+        body:
+          `data: ${JSON.stringify({ type: 'start', queries: 1 })}\n\n` +
+          `data: ${JSON.stringify({ type: 'done', found: 1, data: payload })}\n\n`
+      })
+    })
+
+    await gotoPage(page, `/browse/tv/703`)
+
+    await expect(page.getByText('Other releases')).toBeVisible()
+    await expect(page.getByText('E2E.New.Episode.2026.1080p.WEB-DL')).toBeVisible()
+  })
 })

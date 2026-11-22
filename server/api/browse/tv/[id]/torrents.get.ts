@@ -3,7 +3,7 @@ import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { checkDailyLimit } from '#server/utils/limits'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
-import { pickAlternativeTitles } from '#server/utils/browse-utils'
+import { pickAlternativeTitles, titleCandidates } from '#server/utils/browse-utils'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -67,10 +67,18 @@ export default defineEventHandler(async (event) => {
       }
       // The text ladder also finds other shows sharing a word with this one;
       // pass all titles to the ranker so this show's releases come first.
-      const titles = [show.name, show.original_name, ...(show.alternative_names ?? []).map((a) => a.name)]
+      const titles = titleCandidates(
+        show.name,
+        show.original_name,
+        (show.alternative_names ?? []).map((a) => a.name)
+      )
+      // Every season has its own air year; a release may use any of them.
+      const seasonYears = (show.seasons ?? [])
+        .map((s) => s.air_date?.slice(0, 4) ?? '')
+        .filter((s) => s.length > 0)
       // Flat all-seasons list: no per-season context, so everything is scored
       // with the single-episode size table
-      torrents = rankTorrents(rawResults, 'series', show.name, year, rankingConfig, titles)
+      torrents = rankTorrents(rawResults, 'series', show.name, year, rankingConfig, titles, [year, ...seasonYears])
     } catch {
       // Prowlarr might be offline
     }

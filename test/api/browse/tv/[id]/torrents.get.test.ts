@@ -132,7 +132,7 @@ describe('browse/tv/[id]/torrents.get', () => {
       isPrivate: true
     })
     expect(mockClient.searchTv).toHaveBeenCalledWith('Show', 'Show', '2020', 'tt9', null, [5000], [])
-    expect(mockRankTorrents).toHaveBeenCalledWith([{ title: 'raw' }], 'series', 'Show', '2020', {}, ['Show', 'Show'])
+    expect(mockRankTorrents).toHaveBeenCalledWith([{ title: 'raw' }], 'series', 'Show', '2020', {}, ['Show'], ['2020'])
   })
 
   it('retries with the original name when the first search is empty', async () => {

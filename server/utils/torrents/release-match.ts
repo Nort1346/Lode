@@ -1,9 +1,10 @@
-import type { MatchMediaKind } from '#server/types/release-match'
+import type { MatchMediaKind, TitleMatchDetail } from '#server/types/release-match'
 
 // Prowlarr text search is a fuzzy, AND-based query. Searching "The Doll" also
 // returns "The Doll Squad", "Gabby's Dollhouse" and "The Dollmaker" - the
 // indexer matched the words somewhere in the title, not the whole title. Those
-// releases must never end up on the TMDB page for "The Doll".
+// releases are demoted below the real ones, never hidden: the user asked to
+// see every result Prowlarr returned.
 
 // Tokens that are release metadata rather than part of the work's title. They
 // are allowed around the title candidate (and between the candidate and the
@@ -230,19 +231,32 @@ function matchesSegment(segment: string[], candidate: string[], kind: MatchMedia
   return 0
 }
 
-function extractYear(tokens: string[]): number | null {
+function extractYear(tokens: string[], ignored: ReadonlySet<string>): number | null {
   for (const token of tokens) {
-    if (isYearToken(token)) return Number(token)
+    // A year can be part of the title ("1917", "2001: A Space Odyssey"). Such
+    // a token must not be read as the release year - otherwise the correct
+    // release of those films gets demoted as a "wrong year".
+    if (!ignored.has(token) && isYearToken(token)) return Number(token)
   }
   return null
 }
 
-function matchStrengthForTitle(
+function acceptableYears(year: string | null, altYears: string[]): number[] {
+  const years: number[] = []
+  for (const value of [year, ...altYears]) {
+    if (value === null || !isYearToken(value)) continue
+    const parsed = Number(value)
+    if (!years.includes(parsed)) years.push(parsed)
+  }
+  return years
+}
+
+function matchForTitle(
   releaseTitle: string,
   candidateTitle: string,
-  year: string | null,
+  years: number[],
   kind: MatchMediaKind
-): number {
+): TitleMatchDetail {
   // Strip leading bracketed groups such as "[SubsPlease]" before tokenizing.
   const cleaned = releaseTitle.replace(/^\s*(?:\[[^\]]*\]|\([^)]*\)|\{[^}]*\})\s*/u, '')
   const allTokens = tokenize(cleaned)
@@ -251,51 +265,56 @@ function matchStrengthForTitle(
     .map((part) => tokenize(part))
     .filter((part) => part.length > 0)
 
-  if (segments.length === 0) return 0
+  const candidate = tokenize(candidateTitle)
+  if (segments.length === 0 || candidate.length === 0) return { strength: 0, yearMatches: false }
 
-  const expectedYear = year !== null && isYearToken(year) ? Number(year) : null
-  const releaseYear = extractYear(allTokens)
-  if (expectedYear !== null && releaseYear !== null) {
-    const yearDiff = Math.abs(releaseYear - expectedYear)
-    const valid = kind === 'movie' ? yearDiff <= 1 : releaseYear >= expectedYear - 1
-    if (!valid) return 0
+  const releaseYear = extractYear(allTokens, new Set(candidate))
+  const yearMatches = releaseYear !== null && years.some((expected) => Math.abs(releaseYear - expected) <= 1)
+  if (releaseYear !== null && years.length > 0 && !yearMatches) {
+    return { strength: 0, yearMatches: false }
   }
 
-  const candidate = tokenize(candidateTitle)
-  if (candidate.length === 0) return 0
   let best = 0
   for (const segment of segments) {
     const strength = matchesSegment(segment, candidate, kind)
     if (strength > best) best = strength
   }
-  return best
+  return { strength: best, yearMatches: best > 0 ? yearMatches : false }
 }
 
 /**
- * 2 = the title starts the release name, 1 = it matches without the leading
- * article, 0 = it is not this work. Used as a *ranking signal*, never as a
- * filter: the user must still see every release Prowlarr returned.
+ * Matches a release against all known titles. `altYears` lets a TV season
+ * accept both the show's pilot year and the season's own air year; without it
+ * a four-year gap between them would demote perfectly good releases.
+ *
+ * Used as a *ranking signal*, never as a filter: every Prowlarr result stays
+ * visible to the user.
  */
-export function titleMatchStrength(
+export function titleMatchDetails(
   releaseTitle: string,
   titles: string[],
   year: string | null,
-  kind: MatchMediaKind
-): number {
-  let best = 0
+  kind: MatchMediaKind,
+  altYears: string[] = []
+): TitleMatchDetail {
+  const years = acceptableYears(year, altYears)
+  let best: TitleMatchDetail = { strength: 0, yearMatches: false }
   for (const title of titles) {
-    const strength = matchStrengthForTitle(releaseTitle, title, year, kind)
-    if (strength > best) best = strength
-    if (best === 2) break
+    const detail = matchForTitle(releaseTitle, title, years, kind)
+    const better =
+      detail.strength > best.strength || (detail.strength === best.strength && detail.yearMatches && !best.yearMatches)
+    if (better) best = detail
+    if (best.strength === 2 && best.yearMatches) break
   }
   return best
 }
 
-export function releaseMatchesTitle(
+export function titleMatchStrength(
   releaseTitle: string,
   titles: string[],
   year: string | null,
-  kind: MatchMediaKind
-): boolean {
-  return titleMatchStrength(releaseTitle, titles, year, kind) > 0
+  kind: MatchMediaKind,
+  altYears: string[] = []
+): number {
+  return titleMatchDetails(releaseTitle, titles, year, kind, altYears).strength
 }

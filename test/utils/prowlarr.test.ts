@@ -417,6 +417,52 @@ describe('ProwlarrClient', () => {
     expect(events.filter((e) => e.kind === 'imdb')).toEqual([{ kind: 'imdb', results: 1 }])
   })
 
+  it('searchMovie keeps text results when the IMDb branch fails', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    const fail = { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+    mockFetch.mockImplementation(async (input: unknown) =>
+      String(input).includes('imdbid') ? fail : okJson([release({ title: 'TextHit', size: 10 })])
+    )
+    const client = new ProwlarrClient('http://p', 'k')
+    const events: ProwlarrProgressEvent[] = []
+
+    const results = await client.searchMovie('Movie', 'Movie', [], '2020', [2000], (e) => events.push(e), 'tt1')
+
+    expect(results.map((r) => r.title)).toEqual(expect.arrayContaining(['TextHit']))
+    expect(events.filter((e) => e.kind === 'imdb')).toEqual([{ kind: 'imdb', results: 0 }])
+  })
+
+  it('stops queued ladder queries once the whole-ladder budget runs out', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockImplementation(async (_input: unknown, init?: { signal?: AbortSignal | null }) => {
+      const signal = init?.signal
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, 1000)
+        const onAbort = () => {
+          clearTimeout(timer)
+          reject(signal?.reason ?? new DOMException('aborted', 'AbortError'))
+        }
+        if (signal?.aborted) return onAbort()
+        signal?.addEventListener('abort', onAbort, { once: true })
+      })
+      return okJson([])
+    })
+    // 12 queries, 3 slots, 150ms whole-ladder budget: only the first wave is
+    // fired and the rest are skipped well before the 1s per-request delay.
+    const client = new ProwlarrClient('http://p', 'k', 1000, 150)
+    const events: ProwlarrProgressEvent[] = []
+
+    const started = Date.now()
+    const results = await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt', 'Alt2', 'Alt3'], (e) =>
+      events.push(e)
+    )
+
+    expect(results).toEqual([])
+    expect(Date.now() - started).toBeLessThan(1000)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'start')).toHaveLength(3)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'skipped').length).toBeGreaterThan(0)
+  })
+
   it('bounds total ladder latency by the concurrency cap, not the sequential sum', async () => {
     mockCacheGet.mockResolvedValue(null)
     const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))

@@ -139,6 +139,17 @@ describe('rankTorrents', () => {
     expect(ranked[ranked.length - 1]!.title).toContain('The Doll Squad')
   })
 
+  it('awards the configurable year weight only when the release year matches', () => {
+    const config = {
+      ...DEFAULT_RANKING_CONFIG,
+      titleRelevance: { ...DEFAULT_RANKING_CONFIG.titleRelevance, yearWeight: 50 }
+    }
+    const withYear = rankTorrents([movieRelease('Movie.2024.1080p', 5, 1)], 'movie', 'Movie', '2024', config)
+    const withoutYear = rankTorrents([movieRelease('Movie.1080p', 5, 1)], 'movie', 'Movie', '2024', config)
+
+    expect(withYear[0]!.score - withoutYear[0]!.score).toBe(50)
+  })
+
   it('marks top N as recommended', () => {
     const ranked = rankTorrents(mockResults, 'movie', 'Movie', '2024')
     const recommendedCount = ranked.filter((r) => r.recommended).length

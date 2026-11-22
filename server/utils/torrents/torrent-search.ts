@@ -2,7 +2,7 @@ import { getMovieDetails, getSeasonDetails, getTvShowDetails, getImageUrl } from
 import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
-import { pickAlternativeTitles } from '#server/utils/browse-utils'
+import { pickAlternativeTitles, titleCandidates } from '#server/utils/browse-utils'
 import { titleIsSeasonPack, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
 import { createLogger } from '#server/utils/logger'
 import type { ProwlarrResult, ProwlarrProgressCallback, ProwlarrProgressEvent } from '#server/types/prowlarr'
@@ -145,7 +145,11 @@ export async function searchMovieTorrents(
     // brings back "The Doll Squad" and "Gabby's Dollhouse". Pass every TMDB
     // title to the ranker so the real releases sort to the top; no result is
     // dropped, the user still sees everything Prowlarr returned.
-    const titles = [movie.title, movie.original_title, ...(movie.alternative_titles ?? []).map((a) => a.title)]
+    const titles = titleCandidates(
+      movie.title,
+      movie.original_title,
+      (movie.alternative_titles ?? []).map((a) => a.title)
+    )
     const torrents = rankTorrents(rawResults, 'movie', movie.title, year, rankingConfig, titles).map(toTorrentPayload)
     log.info(`Movie "${movie.title}": ranked ${torrents.length} Prowlarr results`)
     const payload: MovieSearchPayload = { torrents }
@@ -223,7 +227,15 @@ export async function searchSeasonTorrents(
 
   // All titles are passed to the ranker so releases of this show sort above
   // same-numbered episodes from other shows, without hiding any result.
-  const showTitles = [show.name, show.original_name, ...(show.alternative_names ?? []).map((a) => a.name)]
+  const showTitles = titleCandidates(
+    show.name,
+    show.original_name,
+    (show.alternative_names ?? []).map((a) => a.name)
+  )
+  // A release may carry the show's pilot year or the year this particular
+  // season aired. Accept both (within a year) so neither is demoted.
+  const seasonYear = season.air_date?.slice(0, 4) ?? ''
+  const matchYears = seasonYear === '' ? [] : [year, seasonYear]
 
   // Anime releases often use running (absolute) episode numbers instead of
   // SxxExx. Add up the episodes of the earlier seasons to map them back.
@@ -243,7 +255,7 @@ export async function searchSeasonTorrents(
     if (episodeTorrents.length > 0) {
       log.info(`Episode ${ep.episode_number}: ${episodeTorrents.length} torrents matched`)
     }
-    const ranked = rankTorrents(episodeTorrents, 'series', show.name, year, rankingConfig, showTitles)
+    const ranked = rankTorrents(episodeTorrents, 'series', show.name, year, rankingConfig, showTitles, matchYears)
 
     return {
       id: ep.id,
@@ -268,9 +280,15 @@ export async function searchSeasonTorrents(
     log.info(`Season packs: ${seasonPackTorrents.length} found`)
   }
 
-  const seasonPacks = rankTorrents(seasonPackTorrents, 'seasonPack', show.name, year, rankingConfig, showTitles).map(
-    toSeasonPackPayload
-  )
+  const seasonPacks = rankTorrents(
+    seasonPackTorrents,
+    'seasonPack',
+    show.name,
+    year,
+    rankingConfig,
+    showTitles,
+    matchYears
+  ).map(toSeasonPackPayload)
 
   // Nothing from Prowlarr is discarded: releases that do not map onto a TMDB
   // episode or pack (a just-aired episode TMDB has not added yet, unusual
@@ -281,7 +299,8 @@ export async function searchSeasonTorrents(
     show.name,
     year,
     rankingConfig,
-    showTitles
+    showTitles,
+    matchYears
   ).map(toEpisodePayload)
   if (otherTorrents.length > 0) {
     log.info(`Other (unmapped) releases: ${otherTorrents.length}`)
