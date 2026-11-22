@@ -789,21 +789,52 @@ const genreMoviePending = reactive<Record<number, boolean>>({})
 const genreTvItems = reactive<Record<number, MediaCarouselItem[]>>({})
 const genreTvPending = reactive<Record<number, boolean>>({})
 
+// Genre carousels load from IntersectionObserver callbacks after mount, where
+// `useFetch` is not allowed (NUXT_E3003), so use `$fetch` instead. The request
+// token per genre prevents a locale switch mid-flight from applying stale data.
+function makeGenreLoader(
+  items: Record<number, MediaCarouselItem[]>,
+  pending: Record<number, boolean>,
+  mediaType: 'movie' | 'tv'
+) {
+  const loaded = new Set<number>()
+  const requests = new Map<number, number>()
+
+  async function load(id: number) {
+    const req = (requests.get(id) ?? 0) + 1
+    requests.set(id, req)
+    pending[id] = true
+    try {
+      const res = await $fetch<{ items: MediaCarouselItem[] }>('/api/browse/genre', {
+        query: { genreId: id, mediaType, locale: locale.value }
+      })
+      if (requests.get(id) === req) items[id] = res.items ?? []
+    } catch {
+      // TMDB failure: keep the carousel empty (matches the old null-data behavior)
+    } finally {
+      if (requests.get(id) === req) pending[id] = false
+    }
+  }
+
+  return {
+    markVisible(id: number) {
+      loaded.add(id)
+      void load(id)
+    },
+    reloadAll() {
+      for (const id of loaded) void load(id)
+    }
+  }
+}
+
+const movieGenreLoader = makeGenreLoader(genreMovieItems, genreMoviePending, 'movie')
+const tvGenreLoader = makeGenreLoader(genreTvItems, genreTvPending, 'tv')
+
 for (const g of movieGenres) {
   watch(
     () => genreVisible[`movie-${g.id}`],
     (visible) => {
-      if (visible !== true) return
-      const { data: d, pending: p } = useFetch('/api/browse/genre', {
-        query: computed(() => ({ genreId: g.id, mediaType: 'movie', locale: locale.value })),
-        watch: [locale]
-      })
-      watchEffect(() => {
-        genreMoviePending[g.id] = p.value
-        if (d.value?.items) {
-          genreMovieItems[g.id] = d.value.items as MediaCarouselItem[]
-        }
-      })
+      if (visible === true) movieGenreLoader.markVisible(g.id)
     },
     { once: true }
   )
@@ -813,21 +844,16 @@ for (const g of tvGenres) {
   watch(
     () => genreVisible[`tv-${g.id}`],
     (visible) => {
-      if (visible !== true) return
-      const { data: d, pending: p } = useFetch('/api/browse/genre', {
-        query: computed(() => ({ genreId: g.id, mediaType: 'tv', locale: locale.value })),
-        watch: [locale]
-      })
-      watchEffect(() => {
-        genreTvPending[g.id] = p.value
-        if (d.value?.items) {
-          genreTvItems[g.id] = d.value.items as MediaCarouselItem[]
-        }
-      })
+      if (visible === true) tvGenreLoader.markVisible(g.id)
     },
     { once: true }
   )
 }
+
+watch(locale, () => {
+  movieGenreLoader.reloadAll()
+  tvGenreLoader.reloadAll()
+})
 </script>
 
 <style scoped>

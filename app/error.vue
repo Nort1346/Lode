@@ -6,7 +6,6 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const colorMode = useColorMode()
 const { loggedIn } = useUserSession()
 
 // eslint-disable-next-line @typescript-eslint/no-deprecated -- h3 error objects carry `statusCode` at runtime in Nuxt 4.5; `status` is typing-only
@@ -16,11 +15,7 @@ useSeoMeta({
   title: () => (is404.value ? t('notFound.metaTitle') : t('error.metaTitle'))
 })
 
-function toggleTheme() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
-
-const isDark = computed(() => colorMode.value === 'dark')
+const { isDark, toggleTheme } = useThemeToggle()
 
 function goPrimary() {
   void navigateTo(loggedIn.value ? '/dashboard' : '/login')
