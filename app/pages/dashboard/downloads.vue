@@ -21,6 +21,10 @@ const { data: me } = useFetch('/api/user/me')
 const { confirm } = useConfirmDialog()
 const toast = useToast()
 
+useSeoMeta({
+  title: () => `${t('dashboard.myDownloads')} | ${t('seo.title')}`
+})
+
 const canSubmit = computed(() => me.value?.canSubmit === true || user.value?.role === 'admin')
 
 const downloads = ref<Download[]>([])

@@ -12,6 +12,10 @@ const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
 const toast = useToast()
 
+useSeoMeta({
+  title: () => `${t('trackers.title')} | ${t('seo.title')}`
+})
+
 const trackers = ref<CustomTracker[]>([])
 const loading = ref(true)
 const showModal = ref(false)

@@ -12,7 +12,7 @@ const { loggedIn } = useUserSession()
 const is404 = computed(() => props.error?.statusCode === 404)
 
 useSeoMeta({
-  title: () => (is404.value ? t('notFound.metaTitle') : t('error.metaTitle'))
+  title: () => `${is404.value ? t('notFound.metaTitle') : t('error.metaTitle')} | ${t('seo.title')}`
 })
 
 const { isDark, toggleTheme } = useThemeToggle()

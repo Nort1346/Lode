@@ -11,6 +11,10 @@ const { t } = useI18n()
 const toast = useToast()
 const { confirm } = useConfirmDialog()
 
+useSeoMeta({
+  title: () => `${t('ranking.title')} | ${t('seo.title')}`
+})
+
 const config = ref<RankingConfig>(structuredClone(DEFAULT_RANKING_CONFIG))
 const originalConfig = ref<string>('')
 const loading = ref(true)

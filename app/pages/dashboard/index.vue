@@ -14,6 +14,10 @@ const { confirm } = useConfirmDialog()
 const toast = useToast()
 const { tmdbBlocked } = useServiceHealth()
 
+useSeoMeta({
+  title: () => `${t('dashboard.title')} | ${t('seo.title')}`
+})
+
 const stats = ref({
   activeTorrents: 0,
   downloadsToday: 0,
