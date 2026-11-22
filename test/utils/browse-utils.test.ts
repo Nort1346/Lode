@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { markInLibrary } from '#server/utils/browse-utils'
+import { markInLibrary, titleCandidates } from '#server/utils/browse-utils'
 import type { SyncProvider } from '#server/utils/sync/types'
 
 describe('markInLibrary', () => {
@@ -31,6 +31,16 @@ describe('markInLibrary', () => {
     expect(result.find((i) => i.id === 1)?.inLibrary).toBe(false)
     expect(result.find((i) => i.id === 2)?.inLibrary).toBe(true)
     expect(result.find((i) => i.id === 3)?.inLibrary).toBe(false)
+  })
+
+  it('caps and deduplicates ranking title candidates without losing the primary title', () => {
+    expect(titleCandidates('The Doll', 'Lalka', ['Doll', 'Lalka', 'Alternative'], 3)).toEqual([
+      'The Doll',
+      'Lalka',
+      'Doll'
+    ])
+    expect(titleCandidates('Show', '', ['', '  '])).toEqual(['Show'])
+    expect(titleCandidates('Show', 'Show', ['Alt'], 8)).toEqual(['Show', 'Alt'])
   })
 
   it('preserves original item properties', async () => {

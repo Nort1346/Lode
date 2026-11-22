@@ -2,6 +2,12 @@ import type { ProwlarrResult } from '#server/types/prowlarr'
 import type { ParsedTitle, RankedTorrent } from '#server/types/torrent'
 import type { RankingConfig, ReleaseKind } from '#server/types/ranking'
 import { DEFAULT_RANKING_CONFIG } from '#server/types/ranking'
+import { titleMatchDetails } from '#server/utils/torrents/release-match'
+
+// Seeder counts and language bonuses routinely outweigh a 45-point title
+// penalty, so a release of the wrong work is scaled down as well. Every result
+// remains in the list, it just sinks below the real ones.
+const MISMATCH_SCORE_FACTOR = 0.35
 
 function getConfig(overrides?: RankingConfig): RankingConfig {
   if (overrides !== undefined) return overrides
@@ -389,23 +395,16 @@ function scoreGroup(parsed: ParsedTitle, config: RankingConfig): number {
   return (rawScore / DEFAULT_RANKING_CONFIG.weights.group) * config.weights.group
 }
 
-function scoreTitleRelevance(torrentTitle: string, mediaTitle: string, year: string, config: RankingConfig): number {
-  if (mediaTitle.length === 0) return 0
-
-  const lower = torrentTitle.toLowerCase()
-  const titleLower = mediaTitle.toLowerCase()
-
-  const words = titleLower.split(/\s+/).filter((w) => w.length >= 3)
-  if (words.length === 0) return 0
-
-  const matchedWords = words.filter((w) => lower.includes(w))
-  if (matchedWords.length === 0) return config.titleRelevance.penalty
-
-  const wordScore = Math.round((matchedWords.length / words.length) * config.titleRelevance.wordWeight)
-  const yearScore = year !== '' && lower.includes(year) ? config.titleRelevance.yearWeight : 0
-  const fullTitleScore = lower.includes(titleLower) ? config.titleRelevance.fullTitleWeight : 0
-
-  return wordScore + yearScore + fullTitleScore
+function scoreTitleRelevance(strength: number, yearMatches: boolean, config: RankingConfig): number {
+  if (strength === 2) {
+    return (
+      config.titleRelevance.wordWeight +
+      config.titleRelevance.fullTitleWeight +
+      (yearMatches ? config.titleRelevance.yearWeight : 0)
+    )
+  }
+  if (strength === 1) return config.titleRelevance.wordWeight
+  return config.titleRelevance.penalty
 }
 
 function calculateScore(
@@ -413,7 +412,9 @@ function calculateScore(
   kind: ReleaseKind,
   mediaTitle: string,
   year: string,
-  config: RankingConfig
+  config: RankingConfig,
+  candidateTitles: string[],
+  altYears: string[]
 ): number {
   const parsed = parseTorrentTitle(result.title, config)
 
@@ -423,9 +424,26 @@ function calculateScore(
   const size = scoreSize(result.size, kind, config)
   const source = scoreSource(parsed, config)
   const group = scoreGroup(parsed, config)
-  const titleRelevance = scoreTitleRelevance(result.title, mediaTitle, year, config)
+  const base = resolution + language + seeders + size + source + group
 
-  return resolution + language + seeders + size + source + group + titleRelevance
+  // A ranker call without a media title is used as a plain size/quality
+  // calculator (see the size-table tests), so keep that case neutral.
+  if (mediaTitle.length === 0) return base
+
+  // Whole-token title matching decides relevance. "The Doll" must not be
+  // outranked by "The Doll Squad" or "Gabby's Dollhouse" just because those
+  // titles happen to contain the same substring. Nothing is filtered out: a
+  // mismatch only moves a release down the list.
+  const titles = candidateTitles.length > 0 ? candidateTitles : [mediaTitle]
+  const { strength, yearMatches } = titleMatchDetails(
+    result.title,
+    titles,
+    year,
+    kind === 'movie' ? 'movie' : 'tv',
+    altYears
+  )
+  const total = base + scoreTitleRelevance(strength, yearMatches, config)
+  return strength === 0 ? total * MISMATCH_SCORE_FACTOR : total
 }
 
 export function rankTorrents(
@@ -433,7 +451,9 @@ export function rankTorrents(
   kind: ReleaseKind = 'movie',
   mediaTitle = '',
   year = '',
-  config?: RankingConfig
+  config?: RankingConfig,
+  candidateTitles: string[] = [],
+  altYears: string[] = []
 ): RankedTorrent[] {
   const cfg = getConfig(config)
   const scoreMax =
@@ -448,7 +468,7 @@ export function rankTorrents(
     cfg.titleRelevance.fullTitleWeight
 
   const ranked = results.map((result) => {
-    const score = calculateScore(result, kind, mediaTitle, year, cfg)
+    const score = calculateScore(result, kind, mediaTitle, year, cfg, candidateTitles, altYears)
     const percentage = scoreMax > 0 ? Math.max(0, Math.min(100, Math.round((score / scoreMax) * 100))) : 0
     const parsed = parseTorrentTitle(result.title, cfg)
     return { ...result, score, percentage, recommended: false, parsed, isSeasonPack: kind === 'seasonPack' }

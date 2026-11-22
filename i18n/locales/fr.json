@@ -123,6 +123,8 @@
     "download": "Ajouter",
     "limitReached": "Limite",
     "noTorrents": "Aucun téléchargement trouvé.",
+    "otherResults": "Autres résultats",
+    "otherResultsHint": "Résultats au titre similaire qui pourraient concerner un autre film. Affichés séparément pour éviter toute confusion.",
     "loadError": "Impossible de charger les détails du film."
   },
   "tv": {
@@ -135,7 +137,10 @@
     "noTorrents": "Aucun téléchargement disponible",
     "loadError": "Impossible de charger les détails de la série.",
     "season_one": "saison",
-    "season_many": "saisons"
+    "season_many": "saisons",
+    "moreResults": "Plus de résultats",
+    "otherReleases": "Autres sorties",
+    "otherReleasesHint": "Sorties de cette saison qui n'ont pas encore pu être associées à un épisode connu, par exemple un épisode récemment diffusé."
   },
   "submit": {
     "title": "Ajouter un torrent",

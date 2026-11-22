@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { parseEpisodeInfo, titleIsSeasonPack, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
+import {
+  parseEpisodeInfo,
+  releaseBelongsToSeason,
+  titleIsSeasonPack,
+  titleMatchesEpisode
+} from '#server/utils/torrents/release-episode'
 
 describe('release-episode/parseEpisodeInfo', () => {
   const cases: Array<{ name: string; kind: string; seasons: number[]; episodes: number[]; airDate: string | null }> = [
@@ -32,6 +37,11 @@ describe('release-episode/parseEpisodeInfo', () => {
     { name: 'Show.EP.1090.1080p', kind: 'absolute', seasons: [], episodes: [1090], airDate: null },
     { name: '[SubsPlease] One Piece - 1090 (1080p)', kind: 'absolute', seasons: [], episodes: [1090], airDate: null },
     { name: 'Show.Odc.12.1080p', kind: 'absolute', seasons: [], episodes: [12], airDate: null },
+    // Season + episode word forms (Polish trackers and daily-press naming)
+    { name: 'Show.Sezon.3.Odcinek.5.1080p', kind: 'episode', seasons: [3], episodes: [5], airDate: null },
+    { name: 'Show.Season.2.Episode.4.720p', kind: 'episode', seasons: [2], episodes: [4], airDate: null },
+    { name: 'Show.S03.Odc.5.1080p', kind: 'episode', seasons: [3], episodes: [5], airDate: null },
+    { name: 'Show.S03.-.05.1080p', kind: 'episode', seasons: [3], episodes: [5], airDate: null },
     // Unknown / no info
     { name: 'Dune.Part.Two.2024.1080p.WEB-DL.x264-GROUP', kind: 'unknown', seasons: [], episodes: [], airDate: null },
     { name: 'The.100.2014.1080p.WEB-DL', kind: 'unknown', seasons: [], episodes: [], airDate: null },
@@ -89,6 +99,52 @@ describe('release-episode/titleMatchesEpisode', () => {
   for (const c of cases) {
     it(`"${c.title}" s=${c.season} e=${c.episode} -> ${c.expected}`, () => {
       expect(titleMatchesEpisode(c.title, c.season, c.episode)).toBe(c.expected)
+    })
+  }
+})
+
+describe('release-episode/titleMatchesEpisode with extra hints', () => {
+  const daily = 'Show.2026.11.20.1080p.WEB-DL'
+
+  it('matches daily releases by their air date', () => {
+    expect(titleMatchesEpisode(daily, 1, 5, '2026-11-20')).toBe(true)
+    expect(titleMatchesEpisode(daily, 1, 5, '2026-11-19')).toBe(false)
+    expect(titleMatchesEpisode(daily, 1, 5)).toBe(false)
+  })
+
+  it('matches Polish season/episode word forms', () => {
+    expect(titleMatchesEpisode('Show.Sezon.3.Odcinek.5.1080p', 3, 5)).toBe(true)
+    expect(titleMatchesEpisode('Show.Sezon.3.Odcinek.5.1080p', 3, 6)).toBe(false)
+    expect(titleMatchesEpisode('Show.S03.-.05.1080p', 3, 5)).toBe(true)
+  })
+
+  it('maps absolute anime numbers using the running episode offset', () => {
+    // Season 1 has 12 episodes, so absolute 13 is season 2 episode 1.
+    expect(titleMatchesEpisode('[Group] Show - 13 (1080p)', 2, 1, null, 13)).toBe(true)
+    expect(titleMatchesEpisode('[Group] Show - 13 (1080p)', 2, 1, null, 0)).toBe(false)
+    expect(titleMatchesEpisode('[Group] Show - 05 (1080p)', 1, 5, null, 5)).toBe(true)
+  })
+})
+
+describe('release-episode/releaseBelongsToSeason', () => {
+  const cases: Array<{ title: string; season: number; expected: boolean }> = [
+    { title: 'Show.S02E01.1080p', season: 1, expected: false },
+    { title: 'Show.S02E01.1080p', season: 2, expected: true },
+    { title: 'Show.Sezon.2.Odcinek.5.1080p', season: 1, expected: false },
+    { title: 'Show.Season.2.Episode.5.1080p', season: 2, expected: true },
+    { title: 'Show.2x05.1080p', season: 1, expected: false },
+    { title: 'Show.S02.1080p.WEB-DL', season: 1, expected: false },
+    { title: 'Show.S01-S02.1080p', season: 1, expected: true },
+    { title: 'Show.S01-S02.1080p', season: 3, expected: false },
+    // No season marker: may be a just-aired episode, so keep it.
+    { title: 'Show.New.Episode.2026.11.20.1080p', season: 1, expected: true },
+    { title: '[Group] Show - 1090 (1080p)', season: 1, expected: true },
+    { title: 'Show.1080p.WEB-DL', season: 2, expected: true }
+  ]
+
+  for (const c of cases) {
+    it(`"${c.title}" belongs to season ${c.season} -> ${c.expected}`, () => {
+      expect(releaseBelongsToSeason(c.title, c.season)).toBe(c.expected)
     })
   }
 })

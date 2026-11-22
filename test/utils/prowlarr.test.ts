@@ -334,21 +334,20 @@ describe('ProwlarrClient', () => {
     expect(results.map((r) => r.title)).toEqual(expect.arrayContaining(['Hit:Show 2020', 'Hit:Show']))
   })
 
-  it('skips the queued ladder query once a healthy set arrives', async () => {
+  it('fires every ladder query even when one returns a healthy set', async () => {
     mockCacheGet.mockResolvedValue(null)
     mockFetch.mockResolvedValue(okJson([1, 2, 3, 4, 5].map((i) => release({ title: `R${i}`, size: i * 10 }))))
     const client = new ProwlarrClient('http://p', 'k')
 
     const results = await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt'])
 
-    // 3 names x 2 (per-name cap) = 6 -> capped to 4; 3 run in parallel and all
-    // return a healthy set (5), so the 4th query, still waiting for a slot, is
-    // skipped
+    // All 3 names x 2 tiers run: an early healthy set must not suppress the
+    // queries that could hold releases a different indexer only returned once.
     expect(results).toHaveLength(5)
-    expect(mockFetch).toHaveBeenCalledTimes(3)
+    expect(mockFetch).toHaveBeenCalledTimes(6)
   })
 
-  it('caps the season ladder at two queries per name and four in total', async () => {
+  it('queries every title, including alternatives, without cutting the season ladder', async () => {
     mockCacheGet.mockResolvedValue(null)
     mockFetch.mockResolvedValue(okJson([]))
     const client = new ProwlarrClient('http://p', 'k')
@@ -356,12 +355,12 @@ describe('ProwlarrClient', () => {
     await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt'])
 
     const queries = mockFetch.mock.calls.map((call) => new URL(String(call[0])).searchParams.get('query') ?? '')
-    // per-name cap keeps most-specific + bare name; the total cap keeps the
-    // first 4 (the alt-title tier is cut)
-    expect(queries).toEqual(['Show S01 2020', 'Show', 'Orig S01 2020', 'Orig'])
+    // No year in TV season queries: TMDB's year is the pilot year, while new
+    // season releases are named "Show.S05E03" with no year at all.
+    expect(queries).toEqual(['Show S01', 'Show', 'Orig S01', 'Orig', 'Alt S01', 'Alt'])
   })
 
-  it('searchMovie caps the ladder at the total query limit', async () => {
+  it('searchMovie queries all titles instead of cutting the ladder short', async () => {
     mockCacheGet.mockResolvedValue(null)
     mockFetch.mockImplementation(async (input: unknown) => {
       const query = new URL(String(input)).searchParams.get('query') ?? ''
@@ -371,12 +370,17 @@ describe('ProwlarrClient', () => {
 
     const results = await client.searchMovie('Movie', 'Original Movie', ['Alt Movie'], '2020', [2000])
 
-    // 3 names x 2 tiers = 6 queries -> capped to 4: the alt-title tier is the
-    // first to go, the top names keep both of their queries
     const queries = mockFetch.mock.calls.map((call) => new URL(String(call[0])).searchParams.get('query') ?? '')
-    expect(queries).toEqual(['Movie 2020', 'Movie', 'Original Movie 2020', 'Original Movie'])
+    expect(queries).toEqual(['Movie 2020', 'Movie', 'Original Movie 2020', 'Original Movie', 'Alt Movie 2020', 'Alt Movie'])
     expect(results.map((r) => r.title)).toEqual(
-      expect.arrayContaining(['Hit:Movie 2020', 'Hit:Movie', 'Hit:Original Movie 2020', 'Hit:Original Movie'])
+      expect.arrayContaining([
+        'Hit:Movie 2020',
+        'Hit:Movie',
+        'Hit:Original Movie 2020',
+        'Hit:Original Movie',
+        'Hit:Alt Movie 2020',
+        'Hit:Alt Movie'
+      ])
     )
   })
 
@@ -395,6 +399,68 @@ describe('ProwlarrClient', () => {
     expect(results.map((r) => r.title)).toEqual(
       expect.arrayContaining(['Hit:Movie 2020', 'Hit:Movie', 'Hit:Alt Movie 2020', 'Hit:Alt Movie'])
     )
+  })
+
+  it('searchMovie merges the IMDb branch with the text ladder', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockImplementation(async (input: unknown) =>
+      String(input).includes('imdbid')
+        ? okJson([release({ title: 'ImdbHit', size: 10 })])
+        : okJson([release({ title: `Hit:${new URL(String(input)).searchParams.get('query') ?? ''}`, size: 20 })])
+    )
+    const client = new ProwlarrClient('http://p', 'k')
+    const events: ProwlarrProgressEvent[] = []
+
+    const results = await client.searchMovie('Movie', 'Movie', [], '2020', [2000], (e) => events.push(e), 'tt1')
+
+    expect(results.map((r) => r.title)).toEqual(expect.arrayContaining(['ImdbHit', 'Hit:Movie 2020', 'Hit:Movie']))
+    expect(events.filter((e) => e.kind === 'imdb')).toEqual([{ kind: 'imdb', results: 1 }])
+  })
+
+  it('searchMovie keeps text results when the IMDb branch fails', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    const fail = { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+    mockFetch.mockImplementation(async (input: unknown) =>
+      String(input).includes('imdbid') ? fail : okJson([release({ title: 'TextHit', size: 10 })])
+    )
+    const client = new ProwlarrClient('http://p', 'k')
+    const events: ProwlarrProgressEvent[] = []
+
+    const results = await client.searchMovie('Movie', 'Movie', [], '2020', [2000], (e) => events.push(e), 'tt1')
+
+    expect(results.map((r) => r.title)).toEqual(expect.arrayContaining(['TextHit']))
+    expect(events.filter((e) => e.kind === 'imdb')).toEqual([{ kind: 'imdb', results: 0 }])
+  })
+
+  it('stops queued ladder queries once the whole-ladder budget runs out', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockImplementation(async (_input: unknown, init?: { signal?: AbortSignal | null }) => {
+      const signal = init?.signal
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, 1000)
+        const onAbort = () => {
+          clearTimeout(timer)
+          reject(signal?.reason ?? new DOMException('aborted', 'AbortError'))
+        }
+        if (signal?.aborted) return onAbort()
+        signal?.addEventListener('abort', onAbort, { once: true })
+      })
+      return okJson([])
+    })
+    // 12 queries, 3 slots, 150ms whole-ladder budget: only the first wave is
+    // fired and the rest are skipped well before the 1s per-request delay.
+    const client = new ProwlarrClient('http://p', 'k', 1000, 150)
+    const events: ProwlarrProgressEvent[] = []
+
+    const started = Date.now()
+    const results = await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt', 'Alt2', 'Alt3'], (e) =>
+      events.push(e)
+    )
+
+    expect(results).toEqual([])
+    expect(Date.now() - started).toBeLessThan(1000)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'start')).toHaveLength(3)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'skipped').length).toBeGreaterThan(0)
   })
 
   it('bounds total ladder latency by the concurrency cap, not the sequential sum', async () => {
@@ -545,7 +611,7 @@ describe('ProwlarrClient', () => {
     expect(events.some((e) => e.kind === 'imdb')).toBe(false)
   })
 
-  it('emits a skipped event for the queued query once a healthy set arrives', async () => {
+  it('emits progress for every query even when the first results are healthy', async () => {
     mockCacheGet.mockResolvedValue(null)
     mockFetch.mockResolvedValue(okJson([1, 2, 3, 4, 5].map((i) => release({ title: `R${i}`, size: i * 10 }))))
     const client = new ProwlarrClient('http://p', 'k')
@@ -553,10 +619,9 @@ describe('ProwlarrClient', () => {
 
     await client.searchTv('Show', 'Orig', '2020', null, 1, undefined, ['Alt'], (e) => events.push(e))
 
-    // 3 queries run, the 4th (still waiting for a slot) is skipped
-    expect(events.filter((e) => e.kind === 'query' && e.state === 'start')).toHaveLength(3)
-    expect(events.filter((e) => e.kind === 'query' && e.state === 'skipped')).toHaveLength(1)
-    expect(events.filter((e) => e.kind === 'query' && e.state === 'done')).toHaveLength(3)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'start')).toHaveLength(6)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'skipped')).toHaveLength(0)
+    expect(events.filter((e) => e.kind === 'query' && e.state === 'done')).toHaveLength(6)
   })
 
   it('emits an imdb event for the parallel IMDB branch', async () => {

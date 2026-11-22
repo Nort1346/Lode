@@ -123,6 +123,8 @@
     "download": "Dodaj",
     "limitReached": "Limit",
     "noTorrents": "Nie znaleziono pobrań.",
+    "otherResults": "Pozostałe wyniki",
+    "otherResultsHint": "Wyniki o podobnym tytule, które mogą dotyczyć innego filmu. Pokazywane osobno, aby uniknąć pomyłek.",
     "loadError": "Nie udało się załadować szczegółów filmu."
   },
   "tv": {
@@ -135,7 +137,10 @@
     "noTorrents": "Brak dostępnych pobrań",
     "loadError": "Nie udało się załadować szczegółów serialu.",
     "season_one": "sezon",
-    "season_many": "sezonów"
+    "season_many": "sezonów",
+    "moreResults": "Więcej wyników",
+    "otherReleases": "Pozostałe wydania",
+    "otherReleasesHint": "Wydania z tego sezonu, których nie udało się jeszcze przypisać do znanego odcinka, np. świeżo wyemitowany odcinek."
   },
   "submit": {
     "title": "Dodaj torrent",

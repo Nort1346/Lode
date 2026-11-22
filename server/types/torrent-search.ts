@@ -123,10 +123,18 @@ export interface SeasonSearchPayload {
   }
   episodes: EpisodePayload[]
   seasonPacks: SeasonPackPayload[]
+  // Releases of this show whose naming does not map to a known TMDB episode
+  // or pack (new episodes TMDB has not listed yet, date/exotic numbering).
+  // Kept so no Prowlarr result is ever silently hidden.
+  otherTorrents: EpisodeTorrentPayload[]
 }
 
 export interface MovieSearchPayload {
   torrents: TorrentSearchTorrent[]
+  // Prowlarr's fuzzy text search also returns films that merely share a word
+  // with the title. Kept in a separate, clearly labelled group so no result
+  // is lost but the wrong film is never presented as the requested one.
+  otherTorrents: TorrentSearchTorrent[]
 }
 
 // Outcomes of the shared search orchestration (server/utils/torrents/torrent-search.ts)

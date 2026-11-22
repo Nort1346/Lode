@@ -96,4 +96,5 @@ export interface SeasonData {
   season: { seasonNumber: number; name: string; posterUrl: string | null }
   episodes: Episode[]
   seasonPacks: import('./media').SeasonPack[]
+  otherTorrents: import('./media').EpisodeTorrent[]
 }
