@@ -316,10 +316,24 @@ describe('syncTorrentStatus', () => {
     )
   })
 
-  it('sends exactly one discord notification for overlapping sync runs', async () => {
-    mockActiveAll.mockReturnValue([makeDl()])
+  it('does not send the ready notification at completion while the import is pending', async () => {
+    // The ready notification waits for the library import: sending it here
+    // would announce media that is still being copied.
+    mockActiveAll.mockReturnValue([makeDl({ organizeStatus: 'pending' })])
     mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
     mockGetAllTorrents.mockReturnValue([makeQbit({ progress: 1, completion_on: 1 })])
+
+    await syncTorrentStatus()
+
+    expect(mockSendWebhook).not.toHaveBeenCalled()
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+  })
+
+  it('sends exactly one ready notification for overlapping notify sweeps', async () => {
+    mockActiveAll.mockReturnValue([
+      makeDl({ status: 'completed', completedAt: new Date(Date.now() - 1000).toISOString() })
+    ])
+    mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
 
     let resolveWebhook: () => void = () => {}
     const gate = new Promise<void>((resolve) => {
@@ -327,8 +341,8 @@ describe('syncTorrentStatus', () => {
     })
     mockSendWebhook.mockReturnValueOnce(gate)
 
-    const first = syncTorrentStatus()
-    const second = syncTorrentStatus()
+    const first = notifyJellyfinIfNeeded()
+    const second = notifyJellyfinIfNeeded()
     await vi.waitFor(() => expect(mockSendWebhook).toHaveBeenCalledTimes(1))
     resolveWebhook()
     await first
@@ -450,6 +464,13 @@ describe('syncTorrentStatus', () => {
 
     expect(result).toEqual({ synced: 1, completed: 1, failed: 0, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+
+    // The ready notification is sent by the sweep once the row is settled.
+    mockActiveAll.mockReturnValue([
+      makeDl({ status: 'completed', completedAt: new Date(Date.now() - 1000).toISOString(), organizeStatus: 'done' })
+    ])
+    await notifyJellyfinIfNeeded()
     expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
   })
 
@@ -464,6 +485,12 @@ describe('syncTorrentStatus', () => {
 
     expect(result).toEqual({ synced: 1, completed: 1, failed: 0, removed: 0 })
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', progress: 100 }))
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+
+    mockActiveAll.mockReturnValue([
+      makeDl({ status: 'completed', completedAt: new Date(Date.now() - 1000).toISOString(), organizeStatus: 'done' })
+    ])
+    await notifyJellyfinIfNeeded()
     expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
   })
 
@@ -504,6 +531,36 @@ describe('syncTorrentStatus', () => {
     const result = await syncTorrentStatus()
 
     expect(result).toEqual({ synced: 2, completed: 2, failed: 0, removed: 0 })
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+
+    // The sweep sends one ready notification per settled row, each with its
+    // own metadata.
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        id: 'dl-avengers',
+        torrentHash: 'h-avengers',
+        torrentName: 'Avengers 2012',
+        label: 'Avengers',
+        posterUrl: 'https://image.tmdb.org/p/avengers.jpg',
+        tmdbId: 299536,
+        status: 'completed',
+        completedAt: new Date(Date.now() - 1000).toISOString(),
+        organizeStatus: 'done'
+      }),
+      makeDl({
+        id: 'dl-sheep',
+        torrentHash: 'h-sheep',
+        torrentName: 'The Sheep Detectives 2023',
+        label: 'The Sheep Detectives',
+        posterUrl: 'https://image.tmdb.org/p/sheep.jpg',
+        tmdbId: 123456,
+        status: 'completed',
+        completedAt: new Date(Date.now() - 1000).toISOString(),
+        organizeStatus: 'done'
+      })
+    ])
+    await notifyJellyfinIfNeeded()
+
     expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(2)
     expect(mockNotifyDownloadComplete).toHaveBeenCalledWith(
       'u1',
@@ -923,7 +980,7 @@ describe('notifyJellyfinIfNeeded', () => {
     expect(mockDb.update).not.toHaveBeenCalled()
   })
 
-  it('marks notified without touching completedAt when the countdown is disabled and Jellyfin is absent', async () => {
+  it('marks notified and sends the ready notification when the countdown is disabled and Jellyfin is absent', async () => {
     mockActiveAll.mockReturnValue([makeDl({ status: 'completed', completedAt: completedAtPast() })])
     mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
 
@@ -931,8 +988,8 @@ describe('notifyJellyfinIfNeeded', () => {
 
     expect(mockSet).toHaveBeenCalledTimes(1)
     expect(mockSet.mock.calls[0]?.[0]).toEqual({ notifiedAt: expect.any(String) })
-    expect(mockSendWebhook).not.toHaveBeenCalled()
-    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+    expect(mockSendWebhook).toHaveBeenCalledTimes(1)
+    expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
   })
 
   it('notifies Jellyfin and invalidates the library cache once the prep countdown elapses', async () => {
@@ -1039,6 +1096,8 @@ describe('notifyJellyfinIfNeeded', () => {
     expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
     expect(mockJellyfin.invalidateLibraryCache).not.toHaveBeenCalled()
     expect(mockDb.update).not.toHaveBeenCalled()
+    expect(mockSendWebhook).not.toHaveBeenCalled()
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
   })
 
   it('gates on the pending row alone, without reading the media config', async () => {

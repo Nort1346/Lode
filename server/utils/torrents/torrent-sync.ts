@@ -39,10 +39,10 @@ const NEW_DOWNLOAD_GRACE_MS = 2 * 60 * 1000
 let firstSyncReported = false
 const zeroSeedDownloads = new Set<string>()
 
-// Downloads whose completion webhook is currently being dispatched. The sync
-// runs on a timer and is also triggered by API reads, so two overlapping runs
-// can observe the same newly-completed row; the guard keeps the notification
-// exactly-once without touching notifiedAt (which the Jellyfin pass owns).
+// Downloads whose completion webhook is currently being dispatched. The ready
+// pass is single-flight (notifySweepRunning), so this is a second line of
+// defence: a slow webhook that outlives its sweep must not be dispatched again
+// by a later pass.
 const discordInflight = new Set<string>()
 
 // Downloads whose library import is currently running. The completion path and
@@ -56,12 +56,17 @@ const organizeInflight = new Set<string>()
 // would overwrite the settled 'done' status with 'skipped'.
 let pendingSweepRunning = false
 
+// The ready-notification pass is triggered by the timer and by API reads, so
+// two overlapping runs could both see notifiedAt as null and send twice.
+let notifySweepRunning = false
+
 export function resetSyncDiagnostics(): void {
   firstSyncReported = false
   zeroSeedDownloads.clear()
   discordInflight.clear()
   organizeInflight.clear()
   pendingSweepRunning = false
+  notifySweepRunning = false
 }
 
 interface OrganizeSource {
@@ -304,6 +309,13 @@ function notifyDiscord(
     })
 }
 
+// A completed media row whose library import has not settled yet. The ready
+// notification must wait for it: pointing Jellyfin (or a push) at a folder the
+// import is still writing would announce media that is not there yet.
+function waitsForImport(dl: Pick<DownloadRow, 'savePath' | 'organizeStatus'>): boolean {
+  return (dl.savePath === 'movies' || dl.savePath === 'series') && dl.organizeStatus === 'pending'
+}
+
 // Tracker sample for one row; the fields that come from qBittorrent or from the
 // status the sync just wrote are passed as overrides.
 function etaSample(dl: DownloadRow, status: string, overrides: Partial<EtaTrackerInput> = {}): EtaTrackerInput {
@@ -349,11 +361,6 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     return result
   }
 
-  const allUsers = await dbAll(db.select().from(users))
-  const userMap = new Map(allUsers.map((u) => [u.id, u.username]))
-  const discordIdMap = new Map(allUsers.map((u) => [u.id, u.discordId ?? null]))
-
-  const countdownEnabled = await isPrepCountdownEnabled()
   const autoRemoveCompleted = (await getSetting(SETTINGS.QBIT_AUTO_REMOVE_COMPLETED)) === 'true'
 
   // Timestamp of this qBittorrent snapshot. Overlapping syncs finish in
@@ -468,20 +475,9 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
             `marked as completed - torrent no longer in qBittorrent (auto-remove enabled): id=${dl.id} hash=${dl.torrentHash} name="${dl.torrentName}" last progress=${lastProgressPct.toFixed(1)}%`
           )
         }
-        if (!countdownEnabled) {
-          void notifyDiscord(dl, userMap, discordIdMap)
-          void notifyDownloadComplete(
-            dl.userId,
-            dl.id,
-            dl.mediaType,
-            dl.label || dl.torrentName || 'Download',
-            dl.posterUrl,
-            dl.sizeBytes,
-            dl.savePath,
-            dl.tmdbId,
-            dl.torrentName
-          )
-        }
+        // The ready notification is sent by notifyJellyfinIfNeeded once the
+        // prep gates open (countdown elapsed and import settled), so it never
+        // announces a download that is still being imported.
       } else {
         // Distinguish a torrent that existed in qBittorrent and was deleted (e.g. manually
         // removed via the qB WebUI) from one that never appeared there (failed add).
@@ -591,20 +587,8 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
         },
         qbitTorrent.hash
       )
-      if (!countdownEnabled) {
-        void notifyDiscord(dl, userMap, discordIdMap)
-        void notifyDownloadComplete(
-          dl.userId,
-          dl.id,
-          dl.mediaType,
-          dl.label || dl.torrentName || 'Download',
-          dl.posterUrl,
-          dl.sizeBytes,
-          dl.savePath,
-          dl.tmdbId,
-          dl.torrentName
-        )
-      }
+      // The ready notification is sent by notifyJellyfinIfNeeded once the prep
+      // gates open (countdown elapsed and import settled).
     } else {
       const isPaused = PAUSED_DOWNLOAD_STATES.has(qbitTorrent.state)
       const nextStatus = isPaused ? 'paused' : 'downloading'
@@ -667,7 +651,21 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
   return result
 }
 
+// Single sender of the ready notification: Jellyfin, Discord and push are all
+// dispatched here, once the countdown has elapsed and the library import has
+// settled. The completion path in syncTorrentStatus never notifies, so a
+// download that is still being imported cannot announce itself as ready.
 export async function notifyJellyfinIfNeeded(): Promise<void> {
+  if (notifySweepRunning) return
+  notifySweepRunning = true
+  try {
+    await notifyJellyfinIfNeededOnce()
+  } finally {
+    notifySweepRunning = false
+  }
+}
+
+async function notifyJellyfinIfNeededOnce(): Promise<void> {
   const db = await useDbAsync()
   const jellyfin = useJellyfin()
 
@@ -703,9 +701,9 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
     // disabled organization is marked skipped immediately), so gating on the
     // row alone is fail-closed - no config read that could fail open.
     // Categories without an import (games/books/music) are unaffected.
-    const waitsForImport = (dl.savePath === 'movies' || dl.savePath === 'series') && dl.organizeStatus === 'pending'
+    const importPending = waitsForImport(dl)
 
-    if (elapsed >= prepDelay && !waitsForImport) {
+    if (elapsed >= prepDelay && !importPending) {
       if (jellyfin !== null) {
         const targetPath = savePathMap[dl.savePath]
         if (targetPath !== undefined) {
@@ -719,20 +717,21 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
           needsCacheInvalidation = true
         }
       }
-      if (countdownEnabled) {
-        void notifyDiscord(dl, userMap, discordIdMap)
-        void notifyDownloadComplete(
-          dl.userId,
-          dl.id,
-          dl.mediaType,
-          dl.label || dl.torrentName || 'Download',
-          dl.posterUrl,
-          dl.sizeBytes,
-          dl.savePath,
-          dl.tmdbId,
-          dl.torrentName
-        )
-      }
+      // Sent here even with the countdown disabled: the import gate is the
+      // reason the notification waited, so the countdown flag only controls
+      // the delay, never who sends.
+      void notifyDiscord(dl, userMap, discordIdMap)
+      void notifyDownloadComplete(
+        dl.userId,
+        dl.id,
+        dl.mediaType,
+        dl.label || dl.torrentName || 'Download',
+        dl.posterUrl,
+        dl.sizeBytes,
+        dl.savePath,
+        dl.tmdbId,
+        dl.torrentName
+      )
       await dbRun(db.update(downloads).set({ notifiedAt: new Date().toISOString() }).where(eq(downloads.id, dl.id)))
     }
   }
