@@ -39,10 +39,10 @@ const NEW_DOWNLOAD_GRACE_MS = 2 * 60 * 1000
 let firstSyncReported = false
 const zeroSeedDownloads = new Set<string>()
 
-// Downloads whose completion webhook is currently being dispatched. The sync
-// runs on a timer and is also triggered by API reads, so two overlapping runs
-// can observe the same newly-completed row; the guard keeps the notification
-// exactly-once without touching notifiedAt (which the Jellyfin pass owns).
+// Downloads whose completion webhook is currently being dispatched. The ready
+// pass is single-flight (notifySweepRunning), so this is a second line of
+// defence: a slow webhook that outlives its sweep must not be dispatched again
+// by a later pass.
 const discordInflight = new Set<string>()
 
 // Downloads whose library import is currently running. The completion path and
