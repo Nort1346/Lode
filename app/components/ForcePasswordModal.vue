@@ -13,9 +13,8 @@ const serverError = ref('')
 
 const currentPassword = ref('')
 const newPassword = ref('')
-const confirmPassword = ref('')
 
-const visible = reactive({ current: false, next: false, confirm: false })
+const visible = reactive({ current: false, next: false })
 
 const newPasswordError = computed(() => {
   if (newPassword.value && newPassword.value.length < 8) return t('profile.passwordTooShort')
@@ -23,19 +22,8 @@ const newPasswordError = computed(() => {
   return ''
 })
 
-const confirmPasswordError = computed(() => {
-  if (confirmPassword.value && newPassword.value !== confirmPassword.value) return t('profile.passwordMismatch')
-  return ''
-})
-
 const canSubmit = computed(
-  () =>
-    !!currentPassword.value &&
-    !!newPassword.value &&
-    !!confirmPassword.value &&
-    !newPasswordError.value &&
-    !confirmPasswordError.value &&
-    !loading.value
+  () => !!currentPassword.value && !!newPassword.value && !newPasswordError.value && !loading.value
 )
 
 async function submit() {
@@ -114,30 +102,6 @@ async function submit() {
                 :aria-pressed="visible.next"
                 :disabled="loading"
                 @click="visible.next = !visible.next"
-              />
-            </template>
-          </UInput>
-        </UFormField>
-
-        <UFormField :label="t('profile.confirmPassword')" :error="confirmPasswordError || undefined">
-          <UInput
-            v-model="confirmPassword"
-            :type="visible.confirm ? 'text' : 'password'"
-            class="w-full"
-            autocomplete="new-password"
-            :disabled="loading"
-          >
-            <template #trailing>
-              <UButton
-                type="button"
-                color="neutral"
-                variant="link"
-                size="sm"
-                :icon="visible.confirm ? appConfig.ui.icons.eyeOff : appConfig.ui.icons.eye"
-                :aria-label="visible.confirm ? t('profile.hidePassword') : t('profile.showPassword')"
-                :aria-pressed="visible.confirm"
-                :disabled="loading"
-                @click="visible.confirm = !visible.confirm"
               />
             </template>
           </UInput>
