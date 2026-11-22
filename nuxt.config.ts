@@ -5,7 +5,7 @@ const rootDir = fileURLToPath(new URL('.', import.meta.url))
 
 // `nuxt-auth-utils` 0.6 reads Nuxt's appSecret instead of NUXT_SESSION_PASSWORD.
 // Keep the old variable working in development; production aliases it at runtime
-// in scripts/start.mjs so the secret never gets baked into the build.
+// in scripts/start.mjs so the secret won't be baked into the build.
 if (import.meta.dev && !process.env.NUXT_APP_SECRET && process.env.NUXT_SESSION_PASSWORD) {
   process.env.NUXT_APP_SECRET = process.env.NUXT_SESSION_PASSWORD
 }
@@ -72,7 +72,7 @@ export default defineNuxtConfig({
     tmdbBaseUrl: '',
     prowlarrUrl: 'http://127.0.0.1:9900',
     prowlarrApiKey: '',
-    qbittorrentUrl: 'http://127.0.0.1:8080',
+    qbittorrentUrl: 'http://127.0.0.1:9900',
     qbittorrentApiKey: '',
     jellyfinUrl: '',
     jellyfinApiKey: '',
@@ -142,8 +142,7 @@ export default defineNuxtConfig({
       ]
     },
     workbox: {
-      globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
-      importScripts: ['/sw-push.js']
+      globPatterns: ['**/*.{js,css,ico,png,svg,woff2}']
     },
     client: {
       installPrompt: true,
