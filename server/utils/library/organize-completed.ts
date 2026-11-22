@@ -493,11 +493,13 @@ export async function organizeCompletedDownload(
   // (deleteFiles=false) - the library copy is the only one left. A failure is
   // best-effort: the missing-files sweep removes it on a later sync.
   if (deps.importMode === 'move' && failedFiles === 0 && skippedFiles === 0 && importedFiles > 0) {
+    let removed = true
     await deps.qbit.deleteTorrent(hash, false).catch((err: unknown) => {
+      removed = false
       const msg = err instanceof Error ? err.message : String(err)
       log.warn(`failed to remove moved torrent from qBittorrent for ${hash}: ${msg}`)
     })
-    log.info(`removed moved torrent from qBittorrent: ${hash}`)
+    if (removed) log.info(`removed moved torrent from qBittorrent: ${hash}`)
   }
 
   const counts = { importedFiles, skippedFiles, extrasImported }

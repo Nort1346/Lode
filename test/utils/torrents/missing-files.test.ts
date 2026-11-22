@@ -4,9 +4,13 @@ interface Row {
   id: string
   torrentHash: string | null
   organizeStatus: string
+  completedAt: string | null
 }
 
+const COMPLETED_AT = '2026-01-01T00:10:00.000Z'
+
 const mockRows = vi.hoisted(() => vi.fn((): Row[] => []))
+const mockWhere = vi.hoisted(() => vi.fn(() => ({ all: () => mockRows() })))
 const mockGetAllTorrents = vi.hoisted(() => vi.fn())
 const mockDeleteTorrent = vi.hoisted(() => vi.fn())
 const mockLog = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }))
@@ -17,15 +21,18 @@ vi.stubGlobal(
   'useDb',
   vi.fn(() => ({
     select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({ all: () => mockRows() }))
-      }))
+      from: vi.fn(() => ({ where: mockWhere }))
     }))
   }))
 )
 
 vi.mock('#server/database/schema', () => ({
-  downloads: { id: 'id', status: 'status', organizeStatus: 'organizeStatus', torrentHash: 'torrentHash' }
+  downloads: {
+    id: 'id',
+    status: 'status',
+    organizeStatus: 'organizeStatus',
+    torrentHash: 'torrentHash'
+  }
 }))
 
 vi.mock('drizzle-orm', () => ({
@@ -66,8 +73,8 @@ function torrent(hash: string, state: string) {
   }
 }
 
-function row(id: string, torrentHash: string | null): Row {
-  return { id, torrentHash, organizeStatus: 'done' }
+function row(id: string, torrentHash: string | null, completedAt: string | null = COMPLETED_AT): Row {
+  return { id, torrentHash, organizeStatus: 'done', completedAt }
 }
 
 describe('removeOrganizedMissingFileTorrents', () => {
@@ -78,6 +85,15 @@ describe('removeOrganizedMissingFileTorrents', () => {
     mockGetAllTorrents.mockResolvedValue([])
     mockDeleteTorrent.mockReset()
     mockDeleteTorrent.mockResolvedValue(undefined)
+  })
+
+  it('queries only completed rows whose organize status is done', async () => {
+    await expect(removeOrganizedMissingFileTorrents()).resolves.toBe(0)
+
+    expect(mockWhere).toHaveBeenCalledWith({
+      and: [{ key: 'completed' }, { key: 'done' }]
+    })
+    expect(mockGetAllTorrents).not.toHaveBeenCalled()
   })
 
   it('does not query qBittorrent when there are no organized downloads', async () => {
@@ -115,6 +131,28 @@ describe('removeOrganizedMissingFileTorrents', () => {
     expect(mockDeleteTorrent).toHaveBeenNthCalledWith(1, 'h1', false)
     expect(mockDeleteTorrent).toHaveBeenNthCalledWith(2, 'h2', false)
     expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining('failed to remove missing-files torrent'))
+  })
+
+  it('keeps a torrent re-added after the download completed', async () => {
+    mockRows.mockReturnValue([row('dl-1', 'h1')])
+    const reAdded = torrent('h1', 'missingFiles')
+    reAdded.added_on = Math.floor(new Date(COMPLETED_AT).getTime() / 1000) + 60
+    mockGetAllTorrents.mockResolvedValue([reAdded])
+
+    await expect(removeOrganizedMissingFileTorrents()).resolves.toBe(0)
+
+    expect(mockDeleteTorrent).not.toHaveBeenCalled()
+  })
+
+  it('keeps a torrent that never completed and rows without a completion timestamp', async () => {
+    mockRows.mockReturnValue([row('dl-1', 'h1'), row('dl-2', 'h2', null)])
+    const neverCompleted = torrent('h1', 'missingFiles')
+    neverCompleted.completion_on = 0
+    mockGetAllTorrents.mockResolvedValue([neverCompleted, torrent('h2', 'missingFiles')])
+
+    await expect(removeOrganizedMissingFileTorrents()).resolves.toBe(0)
+
+    expect(mockDeleteTorrent).not.toHaveBeenCalled()
   })
 
   it('swallows qBittorrent fetch failures', async () => {

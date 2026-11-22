@@ -698,6 +698,19 @@ describe('syncTorrentStatus', () => {
     expect(mockGetAllTorrents).not.toHaveBeenCalled()
   })
 
+  it('drops a torrent stuck in missingFiles for an already organized download', async () => {
+    mockActiveAll.mockReturnValue([
+      makeDl({ status: 'completed', organizeStatus: 'done', completedAt: '2026-01-01T00:10:00.000Z' })
+    ])
+    mockGetAllTorrents.mockReturnValue([
+      makeQbit({ hash: 'h1', state: 'missingFiles', progress: 1, completion_on: 1, added_on: 1 })
+    ])
+
+    await syncTorrentStatus()
+
+    await vi.waitFor(() => expect(mockDeleteTorrent).toHaveBeenCalledWith('h1', false))
+  })
+
   it('retries a completed download left pending by an interrupted organize run', async () => {
     mockActiveAll.mockReturnValue([])
     mockPendingAll.mockReturnValue([

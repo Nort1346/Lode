@@ -28,13 +28,24 @@ export async function removeOrganizedMissingFileTorrents(): Promise<number> {
 
     const qbit = useQBittorrent()
     const torrents = await qbit.getAllTorrents()
-    const missingHashes = new Set(torrents.filter((t) => t.state === MISSING_FILES_STATE).map((t) => t.hash))
-    if (missingHashes.size === 0) return 0
+    // completion_on > 0 keeps a re-added torrent that has not finished yet out
+    // of the sweep; a missing-files torrent from a real import did complete.
+    const missingByHash = new Map(
+      torrents
+        .filter((t) => t.state === MISSING_FILES_STATE && t.completion_on > 0)
+        .map((t) => [t.hash, t] as const)
+    )
+    if (missingByHash.size === 0) return 0
 
     let removed = 0
     for (const row of candidates) {
       const hash = row.torrentHash
-      if (hash === null || !missingHashes.has(hash)) continue
+      if (hash === null || row.completedAt === null) continue
+      const torrent = missingByHash.get(hash)
+      if (torrent === undefined) continue
+      // A torrent re-added after this row completed is a different one, even
+      // though the hash matches. Never delete it on the strength of an old row.
+      if (torrent.added_on * 1000 > new Date(row.completedAt).getTime()) continue
       try {
         // deleteFiles=false is essential: the library copy is the only one
         // left after a move import.
