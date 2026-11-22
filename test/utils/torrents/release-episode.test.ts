@@ -25,9 +25,23 @@ describe('release-episode/parseEpisodeInfo', () => {
     { name: 'Show.Season.2.COMPLETE.1080p', kind: 'season-pack', seasons: [2], episodes: [], airDate: null },
     { name: 'Show.Sezon.1.1080p.PL', kind: 'season-pack', seasons: [1], episodes: [], airDate: null },
     { name: 'Show.Complete.Season.2.1080p', kind: 'season-pack', seasons: [2], episodes: [], airDate: null },
+    { name: 'Show.Season.1.i_c.1080p.WEB-DL', kind: 'season-pack', seasons: [1], episodes: [], airDate: null },
     // Multi-season packs
     { name: 'Show.S01-S03.1080p.WEB-DL', kind: 'multiseason-pack', seasons: [1, 2, 3], episodes: [], airDate: null },
     { name: 'Show.Season.1-2.1080p', kind: 'multiseason-pack', seasons: [1, 2], episodes: [], airDate: null },
+    {
+      name: 'Severance.2022.Seasons.1.and.2.Complete.1080p.WEB.x264-i_c',
+      kind: 'multiseason-pack',
+      seasons: [1, 2],
+      episodes: [],
+      airDate: null
+    },
+    { name: 'Show.Seasons.1.i.2.1080p', kind: 'multiseason-pack', seasons: [1, 2], episodes: [], airDate: null },
+    { name: 'Show.Seasons.1.2.1080p', kind: 'multiseason-pack', seasons: [1, 2], episodes: [], airDate: null },
+    { name: 'Show.Seasons.1.and.3.1080p', kind: 'multiseason-pack', seasons: [1, 3], episodes: [], airDate: null },
+    { name: 'Show.Seasons.1&2.1080p', kind: 'multiseason-pack', seasons: [1, 2], episodes: [], airDate: null },
+    { name: 'Show.Seasons.1.3.1080p', kind: 'multiseason-pack', seasons: [1, 3], episodes: [], airDate: null },
+    { name: 'Show.Season.1-3.1080p', kind: 'multiseason-pack', seasons: [1, 2, 3], episodes: [], airDate: null },
     // Complete series
     { name: 'Show.Complete.Series.720p.HDTV', kind: 'complete-series', seasons: [], episodes: [], airDate: null },
     // Daily / date-based
@@ -136,6 +150,9 @@ describe('release-episode/releaseBelongsToSeason', () => {
     { title: 'Show.S02.1080p.WEB-DL', season: 1, expected: false },
     { title: 'Show.S01-S02.1080p', season: 1, expected: true },
     { title: 'Show.S01-S02.1080p', season: 3, expected: false },
+    { title: 'Severance.2022.Seasons.1.and.2.Complete.1080p', season: 1, expected: true },
+    { title: 'Severance.2022.Seasons.1.and.2.Complete.1080p', season: 2, expected: true },
+    { title: 'Severance.2022.Seasons.1.and.2.Complete.1080p', season: 3, expected: false },
     // No season marker: may be a just-aired episode, so keep it.
     { title: 'Show.New.Episode.2026.11.20.1080p', season: 1, expected: true },
     { title: '[Group] Show - 1090 (1080p)', season: 1, expected: true },
@@ -154,6 +171,9 @@ describe('release-episode/titleIsSeasonPack', () => {
     { title: 'Show.S01.1080p.WEB-DL', season: 1, expected: true },
     { title: 'Show.S01.1080p.WEB-DL', season: 2, expected: false },
     { title: 'Show.S01-S03.1080p', season: 2, expected: true },
+    { title: 'Severance.2022.Seasons.1.and.2.Complete.1080p.WEB.x264-i_c', season: 1, expected: true },
+    { title: 'Severance.2022.Seasons.1.and.2.Complete.1080p.WEB.x264-i_c', season: 2, expected: true },
+    { title: 'Severance.2022.Seasons.1.and.2.Complete.1080p.WEB.x264-i_c', season: 3, expected: false },
     { title: 'Show.Season.2.COMPLETE.1080p', season: 2, expected: true },
     { title: 'Show.Complete.Series.720p', season: 5, expected: true },
     { title: 'Show.Complete.Season.1080p', season: 1, expected: true },

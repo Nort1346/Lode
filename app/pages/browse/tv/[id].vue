@@ -242,7 +242,7 @@
               @download="
                 downloadTorrent(
                   pack.magnetLink,
-                  `${show?.name ?? ''} S${String(selectedSeason).padStart(2, '0')} Season Pack`,
+                  seasonPackLabel(pack),
                   String(idx),
                   'pack',
                   pack.guid,
@@ -313,7 +313,9 @@
               :style="`--i: ${otherIdx}`"
               :torrent="torrent"
               :loading="downloadingKey === `other-${otherIdx}`"
-              :disabled="downloadActive || (torrent.magnetLink === null && torrent.guid === null && torrent.downloadUrl === null)"
+              :disabled="
+                downloadActive || (torrent.magnetLink === null && torrent.guid === null && torrent.downloadUrl === null)
+              "
               :limit-exceeded="isPrivateLimitExceeded(torrent.isPrivate)"
               :is-dev="isDev"
               :debug-open="debugOpenKey === `other-${otherIdx}`"
@@ -356,10 +358,11 @@
 
 <script setup lang="ts">
 import type { ShowData, SeasonData } from '~/types/browse'
-import type { EpisodeTorrent } from '~/types/media'
+import type { EpisodeTorrent, SeasonPack } from '~/types/media'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
 import { emptyFilters, hasActiveFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
+import { seasonPackDownloadLabel } from '~/utils/season-label'
 import type { TorrentFilterItem, TorrentFiltersState } from '#shared/torrent-filters'
 
 const route = useRoute()
@@ -511,6 +514,10 @@ const visibleCount = computed(
     visibleOther.value.length
 )
 const hiddenCount = computed(() => seasonItems.value.length - visibleCount.value)
+
+function seasonPackLabel(pack: SeasonPack): string {
+  return seasonPackDownloadLabel(show.value?.name ?? '', pack.seasons ?? [], selectedSeason.value)
+}
 
 function isPrivateLimitExceeded(isPrivate: boolean): boolean {
   if (!isPrivate) return false

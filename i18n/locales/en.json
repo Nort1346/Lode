@@ -131,6 +131,8 @@
     "seasons": "Seasons",
     "seasonPacks": "Season Packs",
     "seasonPack": "Season Pack",
+    "multiseasonPack": "Seasons {seasons}",
+    "downloadSeasonsRange": "Add seasons {seasons}",
     "downloadSeason": "Add full season",
     "limitReached": "Limit",
     "episodes": "ep.",

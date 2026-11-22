@@ -131,6 +131,8 @@
     "seasons": "Sezony",
     "seasonPacks": "Pakiety sezonowe",
     "seasonPack": "Pakiet sezonowy",
+    "multiseasonPack": "Sezony {seasons}",
+    "downloadSeasonsRange": "Dodaj sezony {seasons}",
     "downloadSeason": "Dodaj cały sezon",
     "limitReached": "Limit",
     "episodes": "odc.",
