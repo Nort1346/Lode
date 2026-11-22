@@ -1,0 +1,52 @@
+name: db-parity
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  db-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: lode
+          POSTGRES_USER: lode
+          POSTGRES_PASSWORD: lode
+        ports:
+          - 54335:5432
+        options: >-
+          --health-cmd "pg_isready -U lode"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Install node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run DB parity tests (SQLite + PostgreSQL)
+        # The URL is assembled from parts at runtime: a literal user:*** URL
+        # in this file gets mangled by credential redaction (and the SCRAM
+        # proof then fails with "password authentication failed").
+        env:
+          LODE_PG_TEST_USER: lode
+          LODE_PG_TEST_PASSWORD: lode
+          LODE_PG_TEST_HOST: 127.0.0.1:54335
+        run: |
+          export LODE_PG_TEST_URL="postgres://${LODE_PG_TEST_USER}:${LODE_PG_TEST_PASSWORD}@${LODE_PG_TEST_HOST}/postgres"
+          pnpm exec vitest run -c vitest.db-parity.config.ts
