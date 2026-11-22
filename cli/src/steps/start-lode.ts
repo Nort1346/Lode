@@ -36,12 +36,23 @@ export async function startLode(ctx: StepContext): Promise<void> {
     ENV_KEYS.prowlarrUrl,
     selection.prowlarr === 'local' ? INTERNAL_URLS.prowlarr : urls.prowlarr
   )
-  updateEnv(
-    dir,
-    ENV_FILE,
-    ENV_KEYS.jellyfinUrl,
-    selection.mediaMode === 'local' ? INTERNAL_URLS.jellyfin : urls.jellyfin
-  )
+  if (selection.mediaProvider === 'plex') {
+    updateEnv(
+      dir,
+      ENV_FILE,
+      ENV_KEYS.plexUrl,
+      selection.mediaMode === 'local' ? INTERNAL_URLS.plex : urls.plex
+    )
+    updateEnv(dir, ENV_FILE, ENV_KEYS.jellyfinUrl, '')
+  } else {
+    updateEnv(
+      dir,
+      ENV_FILE,
+      ENV_KEYS.jellyfinUrl,
+      selection.mediaMode === 'local' ? INTERNAL_URLS.jellyfin : urls.jellyfin
+    )
+    updateEnv(dir, ENV_FILE, ENV_KEYS.plexUrl, '')
+  }
   updateEnv(dir, ENV_FILE, ENV_KEYS.flaresolverrUrl, selection.flaresolverr ? INTERNAL_URLS.flaresolverr : '')
   if (selection.dbDriver === 'postgres') {
     const pgPass = readEnvValue(dir, ENV_FILE, ENV_KEYS.postgresPassword)

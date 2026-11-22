@@ -1,5 +1,6 @@
 import { getActiveSyncProviders } from '#server/utils/sync'
 import { useJellyfin } from '#server/utils/clients/jellyfin'
+import { usePlex } from '#server/utils/clients/plex'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -8,8 +9,9 @@ export default defineEventHandler(async (event) => {
 
   return {
     providers: providers.map((p) => ({ name: p.name, enabled: true })),
-    // "Configured" means the connection is set (URL + API key), independent of
-    // whether Jellyfin sync is currently enabled.
-    jellyfinConfigured: useJellyfin() !== null
+    // "Configured" means the connection is set (URL + API key / token), independent
+    // of whether sync for that provider is currently enabled.
+    jellyfinConfigured: useJellyfin() !== null,
+    plexConfigured: usePlex() !== null
   }
 })

@@ -18,6 +18,10 @@ gosu appuser node scripts/migrate.mjs
 echo "[entrypoint] Setting up Jellyfin libraries..."
 gosu appuser node scripts/setup-jellyfin.mjs
 
+# Auto-create Plex libraries if URL and token are configured
+echo "[entrypoint] Setting up Plex libraries..."
+gosu appuser node scripts/setup-plex.mjs
+
 # Drop privileges and exec the CMD (allows override via docker-compose)
 echo "[entrypoint] Starting Lode..."
 exec gosu appuser "$@"

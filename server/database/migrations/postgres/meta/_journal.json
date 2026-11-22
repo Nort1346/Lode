@@ -57,6 +57,13 @@
       "when": 1791567803038,
       "tag": "0007_lush_lucky_pierre",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794406830541,
+      "tag": "0008_cold_dark_phoenix",
+      "breakpoints": true
     }
   ]
 }

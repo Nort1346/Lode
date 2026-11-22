@@ -144,8 +144,27 @@ describe('admin/users/[id]/sync.post', () => {
       {
         autoSync: true,
         syncAvatar: true
-      }
+      },
+      { plex: { autoSync: true, syncAvatar: true } }
     )
+    expect(mockSyncUserCreate).not.toHaveBeenCalled()
+    expect(mockHash).not.toHaveBeenCalled()
+  })
+
+  it('re-syncs a Plex-only user without generating a password', async () => {
+    vi.stubGlobal(
+      'getRouterParam',
+      vi.fn(() => 'u1')
+    )
+    stubDb(makeUser())
+    mockGetProviderUserId.mockImplementation(async (_id: string, provider: string) =>
+      provider === 'plex' ? 'plex-1' : null
+    )
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ success: true, action: 'synced', tempPassword: undefined })
+    expect(mockSyncUserUpdate).toHaveBeenCalled()
     expect(mockSyncUserCreate).not.toHaveBeenCalled()
     expect(mockHash).not.toHaveBeenCalled()
   })
@@ -169,7 +188,8 @@ describe('admin/users/[id]/sync.post', () => {
     expect(mockSyncUserCreate).toHaveBeenCalledWith(
       'u1',
       { username: 'user1', password: result.tempPassword },
-      { autoSync: true, syncAvatar: true }
+      { autoSync: true, syncAvatar: true },
+      { plex: { autoSync: true, syncAvatar: true } }
     )
     expect(mockSyncUserUpdate).not.toHaveBeenCalled()
   })

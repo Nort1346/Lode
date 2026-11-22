@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const providers = await getActiveSyncProviders()
-  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
+  const libraryProviders = providers.filter((p) => typeof p.isItemInLibrary === 'function')
 
   const id = Number(getRouterParam(event, 'id'))
   if (isNaN(id)) {
@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
       }))
   }
 
-  const [marked] = await markInLibrary([rawShow], libraryProvider)
+  const [marked] = await markInLibrary([rawShow], libraryProviders)
 
   return { show: marked }
 })

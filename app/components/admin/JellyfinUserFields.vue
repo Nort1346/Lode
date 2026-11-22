@@ -149,7 +149,7 @@ onMounted(() => {
       Jellyfin
     </h3>
 
-    <JellyfinStatusBanner v-if="jellyfinConfigured" :status="jellyfinStatus" />
+    <MediaServerStatusBanner v-if="jellyfinConfigured" :status="jellyfinStatus" />
 
     <div v-if="jellyfinConfigured" class="grid grid-cols-1 lg:grid-cols-[auto_1fr_1fr] gap-4">
       <div class="flex flex-col items-center gap-3 lg:w-45 lg:self-center">

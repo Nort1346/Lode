@@ -4,6 +4,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import Redis from 'ioredis'
 import type { ServiceStatus } from '#server/types/admin'
 import { checkJellyfinStatus } from '#server/utils/clients/jellyfin'
+import { checkPlexStatus } from '#server/utils/clients/plex'
 import { checkQbittorrent, checkProwlarr, checkTmdb } from '#server/utils/health'
 import { useDbAsync } from '#server/utils/db'
 import { createLogger } from '#server/utils/logger'
@@ -88,7 +89,13 @@ async function checkRedis(config: ReturnType<typeof useRuntimeConfig>): Promise<
       maxRetriesPerRequest: 1,
       connectTimeout: 3000,
       lazyConnect: true,
-      enableOfflineQueue: false
+      enableOfflineQueue: false,
+      // One-shot probe: without this, ioredis keeps retrying after a failed
+      // connect and emits unhandled 'error' events while Redis is down.
+      retryStrategy: () => null
+    })
+    client.on('error', () => {
+      // The connection failure already surfaces as a connect() rejection below.
     })
     await client.connect()
     const pong = await client.ping()
@@ -141,6 +148,7 @@ export default defineEventHandler(async (event: H3Event) => {
     checkQbittorrent(config),
     checkProwlarr(config),
     checkJellyfinStatus(),
+    checkPlexStatus(),
     checkTmdb(config),
     checkRedis(config),
     checkDiscord(config),

@@ -13,6 +13,7 @@ const toast = useToast()
 const { confirm } = useConfirmDialog()
 const { copyToClipboard } = useCopyToClipboard()
 const { configured: jellyfinConfigured } = useJellyfinConfigured()
+const { configured: plexConfigured } = usePlexConfigured()
 
 useSeoMeta({
   title: () => `${t('admin.userTitle')} | ${t('seo.title')}`
@@ -39,6 +40,9 @@ const form = reactive({
   jellyfinEnableLiveTvAccess: true,
   jellyfinEnableLiveTvManagement: false,
   jellyfinMaxActiveSessions: 0,
+  plexLibraryAccess: 'all' as string[] | 'all',
+  plexEnableLiveTvAccess: true,
+  plexEnableSync: true,
   expiresAt: null as string | null
 })
 
@@ -106,6 +110,9 @@ function resetForm() {
   form.jellyfinEnableLiveTvAccess = true
   form.jellyfinEnableLiveTvManagement = false
   form.jellyfinMaxActiveSessions = 0
+  form.plexLibraryAccess = 'all'
+  form.plexEnableLiveTvAccess = true
+  form.plexEnableSync = true
 }
 
 // Bumped on every open: preset/defaults responses from an older "create" session must not
@@ -141,6 +148,24 @@ async function fetchPresets(session: number) {
     form.jellyfinEnableLiveTvAccess = true
     form.jellyfinEnableLiveTvManagement = false
     form.jellyfinMaxActiveSessions = 0
+  }
+
+  try {
+    const res = await $fetch('/api/admin/plex/presets')
+    if (session !== formSession) return
+    const data = res as {
+      libraryAccess: string[] | 'all'
+      liveTvAccess: boolean
+      sync: boolean
+    }
+    form.plexLibraryAccess = data.libraryAccess
+    form.plexEnableLiveTvAccess = data.liveTvAccess
+    form.plexEnableSync = data.sync
+  } catch {
+    if (session !== formSession) return
+    form.plexLibraryAccess = 'all'
+    form.plexEnableLiveTvAccess = true
+    form.plexEnableSync = true
   }
 }
 
@@ -199,6 +224,9 @@ function openEdit(user: AdminUser) {
   form.jellyfinEnableLiveTvAccess = user.jellyfinEnableLiveTvAccess ?? true
   form.jellyfinEnableLiveTvManagement = user.jellyfinEnableLiveTvManagement ?? false
   form.jellyfinMaxActiveSessions = user.jellyfinMaxActiveSessions ?? 0
+  form.plexLibraryAccess = user.plexLibraryAccess ?? 'all'
+  form.plexEnableLiveTvAccess = user.plexEnableLiveTvAccess ?? true
+  form.plexEnableSync = user.plexEnableSync ?? true
   form.expiresAt = user.expiresAt ?? null
   pendingAvatarFile.value = null
   pendingAvatarRemoved.value = false
@@ -252,6 +280,9 @@ async function saveUser() {
         jellyfinEnableLiveTvAccess: form.jellyfinEnableLiveTvAccess,
         jellyfinEnableLiveTvManagement: form.jellyfinEnableLiveTvManagement,
         jellyfinMaxActiveSessions: form.jellyfinMaxActiveSessions,
+        plexLibraryAccess: form.plexLibraryAccess,
+        plexEnableLiveTvAccess: form.plexEnableLiveTvAccess,
+        plexEnableSync: form.plexEnableSync,
         expiresAt: form.expiresAt
       }
       if (form.password) body.password = form.password
@@ -342,9 +373,12 @@ async function toggleActive(user: { id: string; isActive: boolean }) {
 }
 
 async function forceSync(user: AdminUser) {
+  // Plex-only setups get managed-user wording: there is no local password to
+  // generate, the flow creates a managed home user on the Plex home.
+  const plexOnly = plexConfigured.value && !jellyfinConfigured.value
   const confirmed = await confirm({
     title: t('common.confirm'),
-    description: t('admin.forceSyncConfirm'),
+    description: plexOnly ? t('admin.plexForceSyncConfirm') : t('admin.forceSyncConfirm'),
     confirmLabel: t('common.confirm'),
     cancelLabel: t('common.cancel')
   })
@@ -360,7 +394,7 @@ async function forceSync(user: AdminUser) {
     if (res.action === 'created' && res.tempPassword !== undefined && res.tempPassword !== '') {
       tempPasswordValue.value = res.tempPassword
       tempPasswordModal.value = true
-      toast.add({ title: t('admin.forceSyncCreated'), color: 'success' })
+      toast.add({ title: plexOnly ? t('admin.plexForceSyncCreated') : t('admin.forceSyncCreated'), color: 'success' })
     } else {
       toast.add({ title: t('admin.forceSyncSynced'), color: 'success' })
     }
@@ -561,7 +595,7 @@ function onExpiresAtInput(event: Event) {
                     variant="ghost"
                     size="xs"
                     :loading="syncingUserId === u.id"
-                    :disabled="!jellyfinConfigured"
+                    :disabled="!jellyfinConfigured && !plexConfigured"
                     :title="t('admin.forceSync')"
                     @click="forceSync(u)"
                   />
@@ -691,6 +725,13 @@ function onExpiresAtInput(event: Event) {
             :jellyfin-configured="jellyfinConfigured"
             @update:avatar="pendingAvatarFile = $event"
             @update:avatar-removed="pendingAvatarRemoved = $event"
+          />
+
+          <AdminPlexUserFields
+            v-model:plex-library-access="form.plexLibraryAccess"
+            v-model:plex-enable-live-tv-access="form.plexEnableLiveTvAccess"
+            v-model:plex-enable-sync="form.plexEnableSync"
+            :plex-configured="plexConfigured"
           />
 
           <UAlert v-if="error" :description="error" color="error" variant="subtle" />

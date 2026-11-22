@@ -1,0 +1,1 @@
+ALTER TABLE `sync_user_settings` ADD `enable_sync` integer DEFAULT true NOT NULL;

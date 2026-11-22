@@ -3,7 +3,6 @@
 // layout it is never transformed, so it runs at runtime and raises NUXT_E1007
 // in dev (plus a `nostics` HMR warning per SSR render). Each page declares its
 // own middleware via its own `definePageMeta`.
-
 const { user, clear } = useUserSession()
 const route = useRoute()
 const { t, locale, locales, setLocale } = useI18n()

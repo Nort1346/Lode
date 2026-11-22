@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const providers = await getActiveSyncProviders()
-  const libraryProvider = providers.find((p) => typeof p.isItemInLibrary === 'function')
+  const libraryProviders = providers.filter((p) => typeof p.isItemInLibrary === 'function')
 
   const query = getQuery(event)
   const locale = (query.locale as string) ?? 'en'
@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
       rating: item.vote_average
     }))
 
-    const marked = await markInLibrary(results, libraryProvider)
+    const marked = await markInLibrary(results, libraryProviders)
 
     return { items: marked }
   } catch (err) {

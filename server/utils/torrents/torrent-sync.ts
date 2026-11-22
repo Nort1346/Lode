@@ -14,6 +14,7 @@ import { trackServerEta } from '#server/utils/torrents/eta-tracker'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import type { EtaTrackerInput } from '#shared/eta-tracker'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
+import { usePlex, notifyPlexDownloaded } from '#server/utils/clients/plex'
 import { getSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
 import {
@@ -668,6 +669,7 @@ export async function notifyJellyfinIfNeeded(): Promise<void> {
 async function notifyJellyfinIfNeededOnce(): Promise<void> {
   const db = await useDbAsync()
   const jellyfin = useJellyfin()
+  const plex = usePlex()
 
   const countdownEnabled = await isPrepCountdownEnabled()
   const prepSpeedMb = await getPrepSpeedMb()
@@ -704,9 +706,9 @@ async function notifyJellyfinIfNeededOnce(): Promise<void> {
     const importPending = waitsForImport(dl)
 
     if (elapsed >= prepDelay && !importPending) {
-      if (jellyfin !== null) {
-        const targetPath = savePathMap[dl.savePath]
-        if (targetPath !== undefined) {
+      const targetPath = savePathMap[dl.savePath]
+      if (targetPath !== undefined) {
+        if (jellyfin !== null) {
           // Point Jellyfin at the organized file folder when the import ran,
           // otherwise fall back to the library root.
           const notifyPath =
@@ -715,6 +717,13 @@ async function notifyJellyfinIfNeededOnce(): Promise<void> {
               : targetPath
           await jellyfin.notifyMediaUpdated([notifyPath]).catch(() => {})
           needsCacheInvalidation = true
+        }
+        // Post-download refresh (D6): ask Plex to rescan the affected section.
+        // notifyPlexDownloaded no-ops when Plex is unconfigured and swallows its
+        // own errors; the .catch is a backstop mirroring the Jellyfin call so a
+        // Plex hiccup never affects the download flow.
+        if (plex !== null) {
+          await notifyPlexDownloaded(targetPath).catch(() => {})
         }
       }
       // Sent here even with the countdown disabled: the import gate is the

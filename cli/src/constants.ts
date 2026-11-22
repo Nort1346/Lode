@@ -47,6 +47,8 @@ export const ENV_KEYS = {
   downloadPathSeries: 'NUXT_DOWNLOAD_PATH_SERIES',
   jellyfinUrl: 'NUXT_JELLYFIN_URL',
   jellyfinApiKey: 'NUXT_JELLYFIN_API_KEY',
+  plexUrl: 'NUXT_PLEX_URL',
+  plexToken: 'NUXT_PLEX_TOKEN',
   flaresolverrUrl: 'NUXT_FLARESOLVERR_URL',
   tmdbApiKey: 'NUXT_TMDB_API_KEY',
   discordWebhookUrl: 'NUXT_DISCORD_WEBHOOK_URL'
@@ -56,6 +58,7 @@ export const INTERNAL_URLS = {
   qbittorrent: 'http://qbittorrent:8080',
   prowlarr: 'http://prowlarr:9696',
   jellyfin: 'http://jellyfin:8096',
+  plex: 'http://plex:32400',
   flaresolverr: 'http://flaresolverr:8191',
   redis: 'redis://redis:6379'
 } as const
@@ -64,6 +67,7 @@ export const PORTS = {
   lode: 5757,
   qbittorrent: 8080,
   jellyfin: 8096,
+  plex: 32400,
   prowlarr: 9900,
   flaresolverr: 8191,
   dozzle: 8082,
@@ -76,6 +80,7 @@ export const PORT_TIMEOUTS = {
   qbittorrent: 60_000,
   prowlarr: 60_000,
   jellyfin: 90_000,
+  plex: 90_000,
   postgres: 30_000,
   lode: 120_000
 } as const
@@ -104,6 +109,8 @@ export const OPTION_LABELS = {
   prowlarrExternal: 'External Prowlarr (you host it)',
   jellyfinLocal: 'Jellyfin (local container)',
   jellyfinExternal: 'Jellyfin (external)',
+  plexLocal: 'Plex (local container)',
+  plexExternal: 'Plex (external)',
   mediaNone: 'No media server',
   flaresolverr: 'FlareSolverr - CAPTCHA bypass for private trackers',
   dozzle: 'Dozzle - Docker log viewer'
@@ -116,6 +123,7 @@ export const SERVICE_DISPLAY_NAMES: Record<string, string> = {
   qbittorrent: 'qBittorrent',
   prowlarr: 'Prowlarr',
   jellyfin: 'Jellyfin',
+  plex: 'Plex',
   flaresolverr: 'FlareSolverr',
   dozzle: 'Dozzle'
 }
@@ -124,12 +132,20 @@ export function serviceDisplayName(service: string): string {
   return SERVICE_DISPLAY_NAMES[service] ?? service.charAt(0).toUpperCase() + service.slice(1)
 }
 
+/** The local media container/service name ('' when no local media server is selected). */
+export function mediaServiceFor(selection: SetupSelection): string {
+  if (selection.mediaMode !== 'local') return ''
+  return selection.mediaProvider === 'plex' ? 'plex' : 'jellyfin'
+}
+
 export function composeFilesFor(selection: SetupSelection): ComposeFileName[] {
   const files: ComposeFileName[] = ['docker-compose.yml']
   if (selection.dbDriver === 'postgres') files.push('docker-compose.postgres.yml')
   if (selection.qbittorrent === 'local') files.push('docker-compose.qbittorrent.yml')
   if (selection.prowlarr === 'local') files.push('docker-compose.prowlarr.yml')
-  if (selection.mediaMode === 'local') files.push('docker-compose.jellyfin.yml')
+  if (selection.mediaMode === 'local') {
+    files.push(selection.mediaProvider === 'plex' ? 'docker-compose.plex.yml' : 'docker-compose.jellyfin.yml')
+  }
   if (selection.flaresolverr) files.push('docker-compose.flaresolverr.yml')
   if (selection.dozzle) files.push('docker-compose.dozzle.yml')
   return files
@@ -140,7 +156,7 @@ export function infraServicesFor(selection: SetupSelection): string[] {
   if (selection.dbDriver === 'postgres') services.push('postgres')
   if (selection.qbittorrent === 'local') services.push('qbittorrent')
   if (selection.prowlarr === 'local') services.push('prowlarr')
-  if (selection.mediaMode === 'local') services.push('jellyfin')
+  if (selection.mediaMode === 'local') services.push(mediaServiceFor(selection))
   if (selection.flaresolverr) services.push('flaresolverr')
   if (selection.dozzle) services.push('dozzle')
   return services

@@ -13,4 +13,5 @@ export interface JellyfinUserFieldsProps {
 
 export interface SyncProvidersResponse {
   jellyfinConfigured: boolean
+  plexConfigured: boolean
 }
