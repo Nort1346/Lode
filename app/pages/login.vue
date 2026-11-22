@@ -6,6 +6,10 @@ definePageMeta({
 const { loggedIn, fetch: fetchSession } = useUserSession()
 const { t } = useI18n()
 
+useSeoMeta({
+  title: () => `${t('login.signIn')} | ${t('seo.title')}`
+})
+
 if (loggedIn.value) {
   void navigateTo('/dashboard')
 }

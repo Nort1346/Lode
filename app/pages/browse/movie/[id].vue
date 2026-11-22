@@ -457,6 +457,12 @@ const { data, pending, error } = await useFetch<{ movie: MovieData }>(
 
 const movie = computed(() => data.value?.movie ?? null)
 
+// Plain app title while the movie is loading (and on load failure); the actual
+// movie name once it has arrived
+useSeoMeta({
+  title: () => (movie.value ? `${movie.value.title} | ${t('seo.title')}` : t('seo.title'))
+})
+
 const {
   phase: searchPhase,
   queriesTotal,

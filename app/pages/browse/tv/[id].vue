@@ -404,6 +404,13 @@ const {
 )
 
 const show = computed(() => showData.value?.show ?? null)
+
+// Plain app title while the show is loading (and on load failure); the actual
+// show name once it has arrived
+useSeoMeta({
+  title: () => (show.value ? `${show.value.name} | ${t('seo.title')}` : t('seo.title'))
+})
+
 const { data: limits } = useFetch('/api/user/limits')
 
 const seasonOptions = computed(() => {

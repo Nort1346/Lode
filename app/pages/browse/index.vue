@@ -341,6 +341,10 @@ const route = useRoute()
 const router = useRouter()
 const { tmdbBlocked } = useServiceHealth()
 
+useSeoMeta({
+  title: () => `${t('nav.browse')} | ${t('seo.title')}`
+})
+
 const searchParams = reactive({
   q: '',
   type: 'all',
