@@ -141,9 +141,8 @@ export default defineNuxtConfig({
         }
       ]
     },
-    workbox: {
-      globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
-      importScripts: ['/sw-push.js']
+    generateSW: {
+      globPatterns: ['**/*.{js,css,ico,png,svg,woff2}']
     },
     client: {
       installPrompt: true,
