@@ -430,10 +430,9 @@ function calculateScore(
   // calculator (see the size-table tests), so keep that case neutral.
   if (mediaTitle.length === 0) return base
 
-  // Whole-token title matching decides relevance. "The Doll" must not be
-  // outranked by "The Doll Squad" or "Gabby's Dollhouse" just because those
-  // titles happen to contain the same substring. Nothing is filtered out: a
-  // mismatch only moves a release down the list.
+  // Whole-token title matching decides relevance. The requested title must not
+  // be outranked by unrelated releases that merely contain the same substring.
+  // Nothing is filtered out: a mismatch only moves a release down the list.
   const titles = candidateTitles.length > 0 ? candidateTitles : [mediaTitle]
   const { strength, yearMatches } = titleMatchDetails(
     result.title,

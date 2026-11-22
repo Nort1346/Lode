@@ -131,6 +131,10 @@
     "seasons": "Sezony",
     "seasonPacks": "Pakiety sezonowe",
     "seasonPack": "Pakiet sezonowy",
+    "episodePacks": "Pakiety odcinków",
+    "episodePack": "Pakiet odcinków",
+    "episodePackRange": "Sezony {seasons} · Odcinki {episodes}",
+    "downloadEpisodePack": "Dodaj pakiet",
     "multiseasonPack": "Sezony {seasons}",
     "downloadSeasonsRange": "Dodaj sezony {seasons}",
     "downloadSeason": "Dodaj cały sezon",
@@ -677,6 +681,7 @@
     "seasonFull": "Sezon {season} (cały sezon)",
     "fullSeason": "cały sezon",
     "seasonsPack": "Sezony {from}-{to} (pakiet)",
+    "episodesPack": "Sezony {from}-{to}, odcinki {episodeFrom}-{episodeTo} (pakiet)",
     "completeSeries": "(cały serial)",
     "airedOn": "emisja {date}",
     "episodeN": "Odcinek {n}"

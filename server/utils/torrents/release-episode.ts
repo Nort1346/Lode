@@ -141,6 +141,45 @@ function keywordEpisodeToken(token: string): number | null {
 }
 
 /**
+ * A single release that spans both a season range and an episode range,
+ * e.g. `S1-8E1-96` or `S01-S03.E01-E12`. Treat it as one pack instead of
+ * letting the season token and a trailing bare number turn it into a bogus
+ * single episode. Only multi-season forms land here; single-season ranges
+ * are already handled by the multi-episode rules below.
+ */
+function parseEpisodePack(lower: string): EpisodeInfo | null {
+  const match =
+    /(?:^|[^a-z0-9])s(\d{1,2})\s*-\s*s?(\d{1,2})[\s._]*e(\d{1,3})\s*-\s*e?(\d{1,3})(?![0-9])/.exec(lower) ??
+    /(?:^|[^a-z0-9])season[\s._]+(\d{1,2})\s*-\s*(\d{1,2})[^\d]*episode[\s._]+(\d{1,3})\s*-\s*(\d{1,3})(?![0-9])/.exec(
+      lower
+    )
+  if (match === null) return null
+
+  const seasonFrom = Number.parseInt(match[1] ?? '', 10)
+  const seasonTo = Number.parseInt(match[2] ?? '', 10)
+  const episodeFrom = Number.parseInt(match[3] ?? '', 10)
+  const episodeTo = Number.parseInt(match[4] ?? '', 10)
+  if (
+    seasonFrom < 1 ||
+    seasonTo < seasonFrom ||
+    seasonTo > MAX_SEASON ||
+    episodeFrom < 1 ||
+    episodeTo < episodeFrom ||
+    episodeTo > MAX_EPISODE ||
+    episodeTo - episodeFrom > MAX_ABSOLUTE
+  ) {
+    return null
+  }
+
+  return {
+    kind: 'episode-pack',
+    seasons: rangeList(seasonFrom, seasonTo),
+    episodes: rangeList(episodeFrom, episodeTo),
+    airDate: null
+  }
+}
+
+/**
  * Single token-based implementation for season/episode detection in release
  * names. Everything is matched on whole tokens (case insensitive) or explicit
  * raw-string markers (dash/bracket episode numbers, dates) - never with naive
@@ -150,6 +189,9 @@ function keywordEpisodeToken(token: string): number | null {
 export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
   const lower = releaseName.toLowerCase()
   const tokens = tokenize(releaseName)
+
+  const pack = parseEpisodePack(lower)
+  if (pack !== null) return pack
   // Only a real dash range expands; "Seasons 1 3" stays the explicit set {1,3}.
   const hasSeasonRange = /(?:^|[^a-z])(?:season|sezon)s?[\s._]*\d{1,2}\s*-\s*\d{1,2}(?![0-9])/.test(lower)
 
@@ -273,7 +315,7 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
 
   // A bare number right after a season token is an episode ("Show S03 - 05"),
   // not a pack. Token-based on purpose: a raw regex would also see the "1" in
-  // a title such as "9-1-1" as an episode.
+  // a hyphenated number in the show's title as an episode.
   if (seasonTokens.length === 1) {
     const season = seasonTokens[0] ?? 0
     let bareEpisode: number | null = null
@@ -401,6 +443,7 @@ export function releaseBelongsToSeason(title: string, seasonNumber: number): boo
   switch (info.kind) {
     case 'episode':
     case 'multi-episode':
+    case 'episode-pack':
     case 'season-pack':
     case 'multiseason-pack':
       return info.seasons.length === 0 || info.seasons.includes(seasonNumber)
@@ -420,8 +463,7 @@ export function releaseBelongsToSeason(title: string, seasonNumber: number): boo
  * Returns the parsed info so callers can build a payload without parsing the
  * same release title a second time.
  */
-export function seasonPackInfo(title: string, seasonNumber: number): EpisodeInfo | null {
-  const info = parseEpisodeInfo(title)
+export function seasonPackFromInfo(info: EpisodeInfo, seasonNumber: number): EpisodeInfo | null {
   if (info.kind === 'season-pack' || info.kind === 'multiseason-pack') {
     return info.seasons.length === 0 || info.seasons.includes(seasonNumber) ? info : null
   }
@@ -430,6 +472,10 @@ export function seasonPackInfo(title: string, seasonNumber: number): EpisodeInfo
   }
   if (info.kind === 'complete-series') return info
   return null
+}
+
+export function seasonPackInfo(title: string, seasonNumber: number): EpisodeInfo | null {
+  return seasonPackFromInfo(parseEpisodeInfo(title), seasonNumber)
 }
 
 export function titleIsSeasonPack(title: string, seasonNumber: number): boolean {

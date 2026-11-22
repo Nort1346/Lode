@@ -257,6 +257,38 @@
           </TransitionGroup>
         </div>
 
+        <div v-if="visibleEpisodePacks.length > 0" class="mb-6">
+          <h3 class="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ t('tv.episodePacks') }}</h3>
+          <TransitionGroup appear name="filter-list" tag="div" class="relative flex flex-col gap-4 torrent-list">
+            <BrowseEpisodePackCard
+              v-for="(pack, idx) in visibleEpisodePacks"
+              :key="torrentKey(pack)"
+              :style="`--i: ${idx}`"
+              :pack="pack"
+              :loading="downloadingEpisodePackIdx === idx"
+              :disabled="
+                downloadActive ||
+                (pack.magnetLink === null && pack.guid === null && pack.downloadUrl === null) ||
+                isPrivateLimitExceeded(pack.isPrivate)
+              "
+              :limit-exceeded="isPrivateLimitExceeded(pack.isPrivate)"
+              @download="
+                downloadTorrent(
+                  pack.magnetLink,
+                  episodePackLabel(pack),
+                  `episode-pack-${idx}`,
+                  'pack',
+                  pack.guid,
+                  pack.indexer,
+                  pack.downloadUrl,
+                  pack.size,
+                  pack.resolution
+                )
+              "
+            />
+          </TransitionGroup>
+        </div>
+
         <TransitionGroup
           v-if="visibleEpisodes.length > 0"
           appear
@@ -358,7 +390,7 @@
 
 <script setup lang="ts">
 import type { ShowData, SeasonData } from '~/types/browse'
-import type { EpisodeTorrent, SeasonPack } from '~/types/media'
+import type { EpisodePack, EpisodeTorrent, SeasonPack } from '~/types/media'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
 import { emptyFilters, hasActiveFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
@@ -384,6 +416,7 @@ watch(
 )
 const downloadingKey = ref<string | null>(null)
 const downloadingPackIdx = ref<number | null>(null)
+const downloadingEpisodePackIdx = ref<number | null>(null)
 const { active: downloadActive, startDownload, finishDownload } = useDownloadOverlay()
 const requesting = ref(false)
 const requestStatus = ref<RequestStatus>(null)
@@ -479,7 +512,12 @@ watch(
 const seasonItems = computed<TorrentFilterItem[]>(() => {
   const payload = seasonPayload.value
   if (payload === null) return []
-  return [...payload.seasonPacks, ...payload.episodes.flatMap((ep) => ep.torrents), ...payload.otherTorrents]
+  return [
+    ...payload.seasonPacks,
+    ...(payload.episodePacks ?? []),
+    ...payload.episodes.flatMap((ep) => ep.torrents),
+    ...payload.otherTorrents
+  ]
 })
 
 const visiblePacks = computed(() => {
@@ -501,6 +539,12 @@ const visibleEpisodes = computed(() => {
     .filter((ep) => ep.torrents.length > 0 || !strict)
 })
 
+const visibleEpisodePacks = computed(() => {
+  const payload = seasonPayload.value
+  if (payload === null) return []
+  return (payload.episodePacks ?? []).filter((pack) => matchesFilters(pack, filterState.value))
+})
+
 const visibleOther = computed(() => {
   const payload = seasonPayload.value
   if (payload === null) return []
@@ -510,12 +554,17 @@ const visibleOther = computed(() => {
 const visibleCount = computed(
   () =>
     visiblePacks.value.length +
+    visibleEpisodePacks.value.length +
     visibleEpisodes.value.reduce((sum, ep) => sum + ep.torrents.length, 0) +
     visibleOther.value.length
 )
 const hiddenCount = computed(() => seasonItems.value.length - visibleCount.value)
 
 function seasonPackLabel(pack: SeasonPack): string {
+  return seasonPackDownloadLabel(show.value?.name ?? '', pack.seasons ?? [], selectedSeason.value)
+}
+
+function episodePackLabel(pack: EpisodePack): string {
   return seasonPackDownloadLabel(show.value?.name ?? '', pack.seasons ?? [], selectedSeason.value)
 }
 
@@ -543,7 +592,11 @@ async function downloadTorrent(
   if (!(await guardDownload())) return
 
   if (type === 'pack') {
-    downloadingPackIdx.value = Number(key)
+    if (key.startsWith('episode-pack-')) {
+      downloadingEpisodePackIdx.value = Number(key.slice('episode-pack-'.length))
+    } else {
+      downloadingPackIdx.value = Number(key)
+    }
   } else {
     downloadingKey.value = key
   }
@@ -614,6 +667,7 @@ async function downloadTorrent(
   } finally {
     downloadingKey.value = null
     downloadingPackIdx.value = null
+    downloadingEpisodePackIdx.value = null
     finishDownload()
   }
 }

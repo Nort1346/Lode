@@ -384,6 +384,43 @@ describe('searchSeasonTorrents', () => {
     expect(third.payload.seasonPacks).toEqual([])
   })
 
+  it('splits an episode range pack into the episodes of the selected season', async () => {
+    mockGetTvShowDetails.mockResolvedValue({
+      id: 2,
+      name: 'Show',
+      original_name: 'Show',
+      first_air_date: '2020-01-01',
+      seasons: Array.from({ length: 8 }, (_, i) => ({
+        season_number: i + 1,
+        episode_count: 10
+      })),
+      external_ids: { imdb_id: null }
+    })
+    const title = 'Show.S1-8E1-15.1080p.WEB-DL'
+    mockUseProwlarr.mockReturnValue({ searchTv: vi.fn().mockResolvedValue([rawRelease({ title })]) })
+    mockRankTorrents.mockImplementation((torrents: unknown[]) =>
+      (torrents as Array<ReturnType<typeof rawRelease>>).map((t) => rankedRelease(t))
+    )
+
+    const cases: Array<[season: number, episodes: number[]]> = [
+      [1, Array.from({ length: 10 }, (_, i) => i + 1)],
+      [2, Array.from({ length: 5 }, (_, i) => i + 1)]
+    ]
+    for (const [season, episodes] of cases) {
+      const outcome = await searchSeasonTorrents(2, season, 'en')
+      if (outcome.kind !== 'ok') throw new Error('expected a successful search')
+      expect(outcome.payload.episodePacks).toHaveLength(1)
+      expect(outcome.payload.episodePacks[0]?.seasonEpisodes).toEqual(episodes)
+      expect(outcome.payload.episodePacks[0]?.seasons).toHaveLength(8)
+      expect(outcome.payload.seasonPacks).toEqual([])
+      expect(outcome.payload.otherTorrents).toEqual([])
+    }
+
+    const outside = await searchSeasonTorrents(2, 9, 'en')
+    if (outside.kind !== 'ok') throw new Error('expected a successful search')
+    expect(outside.payload.episodePacks).toEqual([])
+  })
+
   it('keeps unmapped releases from this season but excludes other seasons', async () => {
     const mockClient = {
       searchTv: vi

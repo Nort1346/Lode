@@ -1,6 +1,7 @@
 export type EpisodeKind =
   | 'episode'
   | 'multi-episode'
+  | 'episode-pack'
   | 'season-pack'
   | 'multiseason-pack'
   | 'complete-series'
