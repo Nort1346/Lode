@@ -11,6 +11,11 @@ definePageMeta({
 const { t, locale } = useI18n()
 const toast = useToast()
 const { smallerThan } = useBreakpoints()
+
+useSeoMeta({
+  title: () => `${t('requests.title')} | ${t('seo.title')}`
+})
+
 const items = ref<Request[]>([])
 const loading = ref(true)
 const page = ref(1)

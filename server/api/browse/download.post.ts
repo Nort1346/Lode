@@ -16,15 +16,17 @@ import { normalizeEta } from '#server/utils/torrents/eta'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import { extractMagnetInfoHashes, primaryTorrentHash } from '#server/utils/clients/qbittorrent'
 import { computeTorrentInfoHashes, computeTorrentTotalSize, hasUsableHash } from '#server/utils/torrents/info-hash'
-import { resolveUrlTorrentHashes } from '#server/utils/torrents/url-torrent'
+import { fetchTorrentFromUrl } from '#server/utils/torrents/url-torrent'
 import { findLiveDuplicateByLink } from '#server/utils/torrents/live-duplicate'
 import { resolveStagingDir } from '#server/utils/library/importer'
+import { isMediaManageEnabled } from '#server/utils/library/media-settings'
 import { applySeedingPolicy } from '#server/utils/torrents/seeding'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
 import type { DownloadBody } from '#server/types/browse'
 import {
   SAVE_PATH_KEYS,
+  type FetchedTorrent,
   type MagnetInfoHashes,
   type QBitTorrent,
   type SavePathKey,
@@ -59,7 +61,8 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<DownloadBody>(event)
-    const rawMagnetLink = body.magnetLink ?? ''
+    // Some clients send `magnet://`, which is not a valid magnet URI.
+    const magnetLink = (body.magnetLink ?? '').replace(/^magnet:\/\//, 'magnet:')
     const downloadUrl = body.downloadUrl ?? ''
     const guidUrl = body.guid ?? ''
     const indexer = body.indexer ?? ''
@@ -75,17 +78,24 @@ export default defineEventHandler(async (event) => {
         ? Math.min(Math.floor(rawTorrentSize), Number.MAX_SAFE_INTEGER)
         : 0
 
-    const hasMagnet = rawMagnetLink.length > 0
+    const hasMagnet = magnetLink.length > 0
     const hasDownloadUrl = downloadUrl.length > 0
     const hasGuid = guidUrl.length > 0
     const isPrivateTrackerEnabled = await isPrivateTracker(indexer)
+
+    // Prowlarr puts its own proxy URL in `magnetUrl` for some indexers, so the
+    // fetchable source is not always `downloadUrl`. Only real magnets are left
+    // for qBittorrent to resolve itself.
+    const magnetIsUrl = magnetLink.startsWith('http://') || magnetLink.startsWith('https://')
+    const sourceUrl = hasDownloadUrl ? downloadUrl : magnetIsUrl ? magnetLink : ''
+    const hasSourceUrl = sourceUrl.length > 0
 
     log.info(
       `[Download:1:START] user=${session.user.username} role=${session.user.role} indexer="${indexer}" isPrivate=${isPrivateTrackerEnabled} hasGuid=${hasGuid} hasMagnet=${hasMagnet} hasDownloadUrl=${hasDownloadUrl} label="${label}" savePath=${savePath}`
     )
     if (hasGuid) log.info(`[Download:1:START]   guid=${guidUrl}`)
     if (hasDownloadUrl) log.info(`[Download:1:START]   downloadUrl=${downloadUrl.substring(0, 120)}`)
-    if (hasMagnet) log.info(`[Download:1:START]   magnet=${rawMagnetLink.substring(0, 80)}`)
+    if (hasMagnet) log.info(`[Download:1:START]   magnet=${magnetLink.substring(0, 80)}`)
 
     // ── 2: VALIDATE ───────────────────────────────────────────
     if (!hasMagnet && !hasGuid && !hasDownloadUrl) {
@@ -95,10 +105,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    let torrentUrl = hasDownloadUrl ? downloadUrl : rawMagnetLink
-    if (torrentUrl.startsWith('magnet://')) {
-      torrentUrl = torrentUrl.replace(/^magnet:\/\//, 'magnet:')
-    }
+    const torrentUrl = hasDownloadUrl ? downloadUrl : magnetLink
 
     if (!torrentUrl.startsWith('magnet:') && !torrentUrl.startsWith('http://') && !torrentUrl.startsWith('https://')) {
       log.error(`[Download:2:VALIDATE] ✗ invalid torrentUrl prefix: ${torrentUrl.substring(0, 40)}`)
@@ -146,12 +153,16 @@ export default defineEventHandler(async (event) => {
 
     // Optional *arr-style staging: qBittorrent downloads into the staging dir
     // and Lode imports finished files into the library (media organization).
-    // Without it, downloads land straight in the library as before.
-    const stagingPath = resolveStagingDir(savePath, {
-      downloadPathMovies: (config.downloadPathMovies as string | undefined) ?? '',
-      downloadPathSeries: (config.downloadPathSeries as string | undefined) ?? ''
-    })
-    const targetPath = stagingPath ?? libraryPath
+    // Staging is only used while organization is enabled - with it off nothing
+    // would ever move the files out, so downloads must land in the library.
+    let targetPath = libraryPath
+    if (await isMediaManageEnabled()) {
+      targetPath =
+        resolveStagingDir(savePath, {
+          downloadPathMovies: (config.downloadPathMovies as string | undefined) ?? '',
+          downloadPathSeries: (config.downloadPathSeries as string | undefined) ?? ''
+        }) ?? libraryPath
+    }
     log.info(`[Download:4:PATH] savePath=${savePath} → ${targetPath}`)
 
     const disks = (config.disks as string)
@@ -225,8 +236,12 @@ export default defineEventHandler(async (event) => {
       let infoHash: string | null = null
       let fileHashes: MagnetInfoHashes = { v1: null, v2: null }
 
-      const magnetHashes = hasMagnet ? extractMagnetInfoHashes(rawMagnetLink) : null
+      const magnetHashes = hasMagnet ? extractMagnetInfoHashes(magnetLink) : null
       const magnetHash = magnetHashes !== null ? primaryTorrentHash(magnetHashes) : null
+      // Prowlarr sometimes fills `magnetUrl` with its own proxy URL instead of a
+      // real magnet. Only a parseable magnet is a source qBittorrent can use
+      // without reaching the indexer, so keep it aside for the add below.
+      const usableMagnet = hasUsableHash(magnetHashes) && magnetLink.startsWith('magnet:') ? magnetLink : null
 
       // ── 3d: DISK PRE-CHECK (known size from search/indexer) ───
       const preDisk = await checkTargetDiskForDownload(disks, targetPath, knownSizeBytes)
@@ -529,19 +544,30 @@ export default defineEventHandler(async (event) => {
           log.warn(`[Download:8:QBIT] ⚠ addTorrentFile returned null after ${Date.now() - t3}ms`)
         }
       } else {
-        // ── 8b: QBIT addTorrent (magnet/downloadUrl) ─────────────
-        storedMagnetLink = hasDownloadUrl ? `download:${downloadUrl}` : torrentUrl
-        // Hash unknown and no usable magnet: try resolving it from the URL
-        // bytes so the live qBittorrent pre-check can detect duplicates.
-        // Fail-open: any failure falls through to the checks below.
-        let urlHashes: MagnetInfoHashes | null = null
-        if (!hasUsableHash(magnetHashes) && hasDownloadUrl) {
-          urlHashes = await resolveUrlTorrentHashes(downloadUrl)
-          if (urlHashes === null) {
-            log.info(`[Download:8:QBIT] could not resolve torrent hash from URL, proceeding without pre-check`)
+        // ── 8b: QBIT addTorrentFile / addTorrent (magnet/downloadUrl) ─
+        storedMagnetLink = hasSourceUrl ? `download:${sourceUrl}` : torrentUrl
+        // Hash unknown and no usable magnet: fetch the .torrent once, server
+        // side. The bytes are handed to qBittorrent so it never has to reach
+        // the indexer/proxy itself - its container or host cannot necessarily
+        // resolve the address Lode used (localhost, a compose service name, a
+        // seedbox host). Fail-open: any failure falls back to the URL below.
+        let fetched: FetchedTorrent | null = null
+        if (!hasUsableHash(magnetHashes) && hasSourceUrl) {
+          fetched = await fetchTorrentFromUrl(sourceUrl)
+          if (fetched === null) {
+            const host = (() => {
+              try {
+                return new URL(sourceUrl).host
+              } catch {
+                return 'the indexer'
+              }
+            })()
+            log.warn(`[Download:8:QBIT] could not fetch the .torrent from ${host}, passing the URL to qBittorrent`)
+          } else {
+            log.info(`[Download:8:QBIT] fetched ${fetched.kind} server-side, used as the source`)
           }
         }
-        const effectiveHashes = hasUsableHash(magnetHashes) ? magnetHashes : (urlHashes ?? magnetHashes)
+        const effectiveHashes = hasUsableHash(magnetHashes) ? magnetHashes : (fetched?.hashes ?? magnetHashes)
         if (!hasUsableHash(effectiveHashes)) {
           // Still unknown: nominate old rows by stored link, but let live
           // qBittorrent state decide. Read-only, never touches old rows.
@@ -556,18 +582,39 @@ export default defineEventHandler(async (event) => {
           }
         }
         setCooldown(userId)
-        log.info(`[Download:8:QBIT] addTorrent (magnet/url): url=${torrentUrl.substring(0, 100)}, tag=${dlTag}`)
         const t3 = Date.now()
         let outcome: TorrentAddOutcome
         try {
-          outcome = await qbit.addTorrent(torrentUrl, targetPath, savePath, dlTag, effectiveHashes)
+          if (fetched?.kind === 'file') {
+            const torrentFileName = `${label.replace(/[^a-zA-Z0-9._-]/g, '_')}.torrent`
+            log.info(
+              `[Download:8:QBIT] addTorrentFile (fetched ${fetched.buffer.length}B): fileName=${torrentFileName}, tag=${dlTag}`
+            )
+            outcome = await qbit.addTorrentFile(
+              fetched.buffer,
+              torrentFileName,
+              targetPath,
+              savePath,
+              dlTag,
+              effectiveHashes
+            )
+          } else {
+            // Prefer a real magnet over the indexer URL: it reaches qBittorrent
+            // without any HTTP request from the qBittorrent side. The URL stays
+            // the last resort, exactly as before this change.
+            const source = fetched?.kind === 'magnet' ? fetched.magnet : (usableMagnet ?? torrentUrl)
+            log.info(
+              `[Download:8:QBIT] addTorrent (${fetched?.kind ?? (usableMagnet !== null ? 'magnet' : 'url')}): url=${source.substring(0, 100)}`
+            )
+            outcome = await qbit.addTorrent(source, targetPath, savePath, dlTag, effectiveHashes)
+          }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
           if (msg.includes('already exists')) {
             log.warn(`[Download:8:QBIT] torrent already exists in qBittorrent: ${msg}`)
             throw createError({ statusCode: 409, statusMessage: 'Torrent already exists in qBittorrent' })
           }
-          log.error(`[Download:8:QBIT] ✗ addTorrent failed in ${Date.now() - t3}ms: ${msg}`)
+          log.error(`[Download:8:QBIT] ✗ add failed in ${Date.now() - t3}ms: ${msg}`)
           throw createError({ statusCode: 502, statusMessage: `qBittorrent error: ${msg}` })
         }
         if (outcome.status === 'existing') {
@@ -585,7 +632,7 @@ export default defineEventHandler(async (event) => {
             `[Download:8:QBIT] ✓ added in ${Date.now() - t3}ms: hash=${torrent.hash} name="${torrent.name}" size=${torrent.size}`
           )
         } else {
-          log.warn(`[Download:8:QBIT] ⚠ addTorrent returned null after ${Date.now() - t3}ms`)
+          log.warn(`[Download:8:QBIT] ⚠ add returned null after ${Date.now() - t3}ms`)
         }
       }
 

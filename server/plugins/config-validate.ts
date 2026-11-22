@@ -8,7 +8,7 @@ export default defineNitroPlugin(() => {
     savePathSeries: config.savePathSeries,
     qbittorrentUrl: config.qbittorrentUrl,
     qbittorrentApiKey: config.qbittorrentApiKey,
-    sessionPassword: process.env.NUXT_SESSION_PASSWORD ?? '',
+    appSecret: config.appSecret,
     tmdbApiKey: config.tmdbApiKey,
     prowlarrApiKey: config.prowlarrApiKey,
     trackerEncryptionKey: config.trackerEncryptionKey,

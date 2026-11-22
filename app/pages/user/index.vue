@@ -10,6 +10,10 @@ const { t } = useI18n()
 const toast = useToast()
 const { generatePreviews, getAvailableStyles } = useDicebear()
 
+useSeoMeta({
+  title: () => `${t('profile.title')} | ${t('seo.title')}`
+})
+
 const { data: profile } = useFetch<UserProfile>('/api/user/me')
 const saving = ref(false)
 const uploading = ref(false)

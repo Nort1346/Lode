@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// Auth middleware is declared per page (definePageMeta only works in pages,
-// not in layouts) - every protected page lists 'auth' (plus 'admin' where needed).
+// No `definePageMeta` here: it is a page-only compiler macro. Called from a
+// layout it is never transformed, so it runs at runtime and raises NUXT_E1007
+// in dev (plus a `nostics` HMR warning per SSR render). Each page declares its
+// own middleware via its own `definePageMeta`.
 const { user, clear } = useUserSession()
 const route = useRoute()
-const colorMode = useColorMode()
 const { t, locale, locales, setLocale } = useI18n()
 const { modalVisible: downloadBlockedVisible } = useDownloadGuard()
 const {
@@ -61,11 +62,7 @@ const navigation = computed(() => {
   return items
 })
 
-function toggleTheme() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
-
-const isDark = computed(() => colorMode.value === 'dark')
+const { isDark, toggleTheme } = useThemeToggle()
 
 onMounted(() => {
   connect()

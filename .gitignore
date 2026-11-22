@@ -1,10 +1,15 @@
 # Nuxt dev/build outputs
 .output
 .data
+.data-e2e
 .nuxt
 .nitro
 .cache
 dist
+
+# E2E test artifacts
+test-results
+playwright-report
 
 # Node dependencies
 node_modules
@@ -38,6 +43,7 @@ public/avatars
 prowlarr-config
 data
 media
+media-stag
 
 # Agents
 .agents

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/logo_full.svg" alt="Lode" style="margin: 20px 0;">
+  <img src="./public/logo.webp" alt="Lode" width="300" style="margin: 20px 0;">
 </p>
 
 <p align="center">

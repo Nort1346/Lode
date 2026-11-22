@@ -1,17 +1,30 @@
 import { downloads } from '#server/database/schema'
 import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
-import { getSetting } from '#server/utils/settings'
-import { SETTINGS } from '#server/types/settings'
+import { getMediaImportMode } from '#server/utils/library/media-settings'
+import { resolveStagingDir } from '#server/utils/library/importer'
+import { pruneStagingUntilGone } from '#server/utils/library/staging-cleanup'
+import { createLogger } from '#server/utils/logger'
+import type { DownloadRow } from '#server/types/torrent'
 
-// Only 'hardlink' and 'copy' guarantee the library has its own copy of the
-// file (an unset setting defaults to hardlink). 'move', an unknown value or an
-// unreadable setting keeps the files: losing a staging copy is harmless,
-// losing the library movie is not.
-async function shouldDeleteTorrentFiles(): Promise<boolean> {
+const log = createLogger('TorrentDelete')
+
+// 'hardlink' and 'copy' guarantee the library has its own copy of the files
+// (unknown settings normalize to hardlink), so the torrent's files can always
+// go with the torrent. 'move' is different: the files only leave the save
+// path after a successful import. While a download is incomplete the save
+// path holds partial garbage that must go with the torrent; a completed
+// download whose import has not settled yet keeps its files, because in move
+// mode they are the only complete copy. An unreadable setting keeps the
+// files too: losing a staging copy is harmless, losing the library movie is
+// not.
+async function shouldDeleteTorrentFiles(download: Pick<DownloadRow, 'status' | 'organizeStatus'>): Promise<boolean> {
   try {
-    const mode = await getSetting(SETTINGS.MEDIA_IMPORT_MODE)
-    return mode === undefined || mode === '' || mode === 'hardlink' || mode === 'copy'
+    if ((await getMediaImportMode()) !== 'move') return true
+    // The import already took the files out of the save path; only release
+    // leftovers remain there, so they can go.
+    if (download.organizeStatus === 'done') return true
+    return download.status !== 'completed'
   } catch {
     return false
   }
@@ -39,14 +52,18 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
-  // In 'move' mode the torrent's file *is* the library file, so asking
-  // qBittorrent to delete files would wipe the organized movie/show. In
-  // 'hardlink'/'copy' modes the staging copy can go: the library copy survives.
-  const deleteFiles = await shouldDeleteTorrentFiles()
+  // In 'move' mode the torrent's file *is* the library file until the import
+  // moves it out, so asking qBittorrent to delete files would wipe the only
+  // complete copy. In 'hardlink'/'copy' modes the staging copy can go: the
+  // library copy survives.
+  const deleteFiles = await shouldDeleteTorrentFiles(download)
 
   if (download.torrentHash !== null) {
+    const qbit = useQBittorrent()
+    // Read the save path before the delete: qBittorrent removes the files but
+    // leaves the (now empty) release folders behind, so prune them afterwards.
+    const savePath = (await qbit.findTorrentByHash(download.torrentHash).catch(() => undefined))?.save_path ?? ''
     try {
-      const qbit = useQBittorrent()
       await qbit.deleteTorrent(download.torrentHash, deleteFiles)
       // qBittorrent drops the torrent from its list before the file delete finishes;
       // wait until it is gone so a quick re-add cannot race the in-progress delete
@@ -57,6 +74,20 @@ export default defineEventHandler(async (event) => {
       }
     } catch {
       // qBittorrent might be offline
+    }
+
+    if (deleteFiles && savePath !== '') {
+      const config = useRuntimeConfig()
+      const stagingDir = resolveStagingDir(download.savePath, {
+        downloadPathMovies: (config.downloadPathMovies as string | undefined) ?? '',
+        downloadPathSeries: (config.downloadPathSeries as string | undefined) ?? ''
+      })
+      if (stagingDir !== null) {
+        await pruneStagingUntilGone(savePath, stagingDir).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err)
+          log.warn(`staging prune after delete failed: id=${download.id}: ${msg}`)
+        })
+      }
     }
   }
 

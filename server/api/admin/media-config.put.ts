@@ -58,6 +58,13 @@ export default defineEventHandler(async (event) => {
     await putSetting(SETTINGS.MEDIA_EXTRA_FILE_EXTENSIONS, extraFileExtensions)
   }
 
+  if (body.cleanupStaging !== undefined) {
+    if (typeof body.cleanupStaging !== 'boolean') {
+      throw createError({ statusCode: 400, statusMessage: 'cleanupStaging must be a boolean' })
+    }
+    await putSetting(SETTINGS.MEDIA_CLEANUP_STAGING, body.cleanupStaging ? 'true' : 'false')
+  }
+
   await logActivity(event, {
     action: 'media_config_update',
     userId: admin.id,
@@ -66,7 +73,8 @@ export default defineEventHandler(async (event) => {
       enabled,
       importMode,
       importExtraFiles: body.importExtraFiles,
-      extraFileExtensions
+      extraFileExtensions,
+      cleanupStaging: body.cleanupStaging
     })
   })
 

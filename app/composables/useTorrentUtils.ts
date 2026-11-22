@@ -1,7 +1,10 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { UNRELIABLE_ETA_SECONDS } from '#shared/eta-tracker'
 import type { EtaInput, EtaState, TorrentQuality } from '~/types/downloads'
+
+export { UNRELIABLE_ETA_SECONDS }
 
 export function formatEta(seconds: number): string {
   if (seconds <= 0) return '--'
@@ -12,8 +15,6 @@ export function formatEta(seconds: number): string {
   if (m > 0) return `${m}m ${s}s`
   return `${s}s`
 }
-
-export const UNRELIABLE_ETA_SECONDS = 48 * 60 * 60
 
 export function getEtaState(dl: EtaInput): EtaState {
   // -1 means the seed count is unknown (first announce pending) - keep the
@@ -83,17 +84,6 @@ export function getTorrentQuality(dl: { numSeeds: number; downloadSpeed: number 
   if (seeds < 5) return 'poor'
   if (seeds < 20) return 'slow'
   return 'ok'
-}
-
-export function useEtaLabel() {
-  const { t } = useI18n()
-
-  return function etaLabel(dl: EtaInput): string {
-    const state = getEtaState(dl)
-    if (state === 'waiting-seeders') return t('dashboard.etaWaitingSeeders')
-    if (state === 'calculating') return t('dashboard.etaCalculating')
-    return formatEta(dl.etaSeconds)
-  }
 }
 
 export function useQualityConfig() {

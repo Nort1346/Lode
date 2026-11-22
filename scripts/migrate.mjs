@@ -118,7 +118,9 @@ if (driver === 'postgres') {
 } else {
   const { default: Database } = await import(u('better-sqlite3/lib/index.js'))
 
-  const dataDir = resolve(cwd, '.data')
+  // DB_DATA_DIR (optional) relocates the data directory (see
+  // server/database/drivers/sqlite.ts) so E2E tests can use an isolated DB.
+  const dataDir = resolve(cwd, process.env.DB_DATA_DIR || '.data')
   if (!existsSync(dataDir)) {
     mkdirSync(dataDir, { recursive: true })
   }

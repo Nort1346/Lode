@@ -123,19 +123,26 @@
     "download": "Add",
     "limitReached": "Limit",
     "noTorrents": "No downloads found.",
+    "otherResults": "Other results",
+    "otherResultsHint": "Results with a similar title that may belong to a different movie. Shown separately to avoid confusion.",
     "loadError": "Failed to load movie details."
   },
   "tv": {
     "seasons": "Seasons",
     "seasonPacks": "Season Packs",
     "seasonPack": "Season Pack",
+    "multiseasonPack": "Seasons {seasons}",
+    "downloadSeasonsRange": "Add seasons {seasons}",
     "downloadSeason": "Add full season",
     "limitReached": "Limit",
     "episodes": "ep.",
     "noTorrents": "No downloads available",
     "loadError": "Failed to load TV show details.",
     "season_one": "season",
-    "season_many": "seasons"
+    "season_many": "seasons",
+    "moreResults": "More results",
+    "otherReleases": "Other releases",
+    "otherReleasesHint": "Releases from this season that could not be matched to a known episode yet, for example a newly aired episode."
   },
   "submit": {
     "title": "Submit Torrent",
@@ -275,7 +282,9 @@
   "downloads": {
     "prepReady": "Ready",
     "prepRemainingSec": "~{s}s remaining",
-    "prepRemainingMin": "~{m}m remaining"
+    "prepRemainingMin": "~{m}m remaining",
+    "prepTitle": "Preparing",
+    "prepCopying": "Importing to library"
   },
   "admin": {
     "userTitle": "User Management",
@@ -501,9 +510,12 @@
     "mediaStagingMissingMovies": "NUXT_DOWNLOAD_PATH_MOVIES is not set: movie downloads go straight to the library and cannot be organized.",
     "mediaStagingMissingSeries": "NUXT_DOWNLOAD_PATH_SERIES is not set: series downloads go straight to the library and cannot be organized.",
     "mediaExtraFiles": "Import extra files",
-    "mediaExtraFilesHint": "Copy subtitles and sidecar files (nfo, etc.) next to the imported video, like Radarr's Import Extra Files.",
+    "mediaExtraFilesHint": "Imports subtitles and sidecar files (nfo, etc.) next to the video from every folder in the release (root, subs/, ...), using the selected import mode.",
     "mediaExtraExtensions": "Extra file extensions",
-    "mediaExtraExtensionsHint": "Comma separated list, e.g. srt, sub, ass, nfo. Only files in the same folder as the video are imported.",
+    "mediaExtraExtensionsHint": "Comma separated list, e.g. srt, sub, ass, nfo. Every file with one of these extensions is imported - sidecars named after the video follow it, the rest lands next to the main file.",
+    "mediaCleanupStaging": "Clean up staging after import",
+    "mediaCleanupStagingHint": "After a successful import, removes everything the torrent left behind in staging - covers, .screens, .url, .txt, plus any video or subtitle the importer did not take. Empty release folders are removed as well. Only applies to the Move mode (nothing is left to seed). The library is never touched.",
+    "mediaCleanupStagingMoveOnly": "Only available in Move mode.",
     "qbittorrentSaved": "qBittorrent settings saved",
     "qbittorrentError": "Failed to save qBittorrent settings",
     "liveLogs": "Live Logs",

@@ -25,6 +25,10 @@ function buildRows(ctx: StepContext): SummaryRow[] {
     rows.push({ label: 'FlareSolverr', value: 'http://localhost:8191', url: 'http://localhost:8191' })
   rows.push({ label: 'Database', value: selection.dbDriver })
   if (selection.dbDriver === 'postgres') rows.push({ label: 'PostgreSQL', value: 'localhost:5432 / lode' })
+  rows.push({
+    label: 'Media organization',
+    value: ctx.staging ? 'staging ready - enable in Admin > Settings' : 'off (no staging dirs)'
+  })
   if (selection.dozzle) rows.push({ label: 'Dozzle', value: 'http://localhost:8082', url: 'http://localhost:8082' })
   return rows
 }

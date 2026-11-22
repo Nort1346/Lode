@@ -30,6 +30,23 @@ export function pickAlternativeTitles(
   return candidates.slice(0, max).map((c) => c.title)
 }
 
+// Title candidates used for *ranking*: the first titles TMDB gives us are the
+// most reliable. Capping them keeps matching cost and false positives bounded
+// (the search ladder itself uses pickAlternativeTitles with a smaller cap).
+export function titleCandidates(primary: string, original: string, alternatives: string[], max = 8): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const title of [primary, original, ...alternatives]) {
+    const trimmed = title.trim()
+    const key = trimmed.toLowerCase()
+    if (key.length === 0 || seen.has(key)) continue
+    seen.add(key)
+    result.push(trimmed)
+    if (result.length >= max) break
+  }
+  return result
+}
+
 // Marks each item with `inLibrary` if it exists in ANY of the given providers'
 // libraries (OR semantics - D7). With two media servers connected, an item that
 // lives in either one counts as in-library. A provider that throws is treated as

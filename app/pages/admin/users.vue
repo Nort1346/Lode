@@ -14,6 +14,10 @@ const { confirm } = useConfirmDialog()
 const { copyToClipboard } = useCopyToClipboard()
 const { configured: jellyfinConfigured } = useJellyfinConfigured()
 const { configured: plexConfigured } = usePlexConfigured()
+
+useSeoMeta({
+  title: () => `${t('admin.userTitle')} | ${t('seo.title')}`
+})
 const users = ref<AdminUser[]>([])
 const loading = ref(true)
 const showModal = ref(false)

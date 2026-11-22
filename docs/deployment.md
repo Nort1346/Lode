@@ -109,7 +109,7 @@ exec gosu appuser "$@"
 ## Production Tips
 
 1. **Change admin password** immediately after first deploy
-2. **Set `NUXT_SESSION_PASSWORD`** to a random 32+ character string
+2. **Set `NUXT_APP_SECRET`** to a random 32+ character string (`NUXT_SESSION_PASSWORD` still works as a deprecated fallback)
 3. **Use PostgreSQL** for multi-user production
 4. **Enable Redis** for caching (`NUXT_REDIS_URL`)
 5. **Configure disk monitoring** with `NUXT_DISKS=/mnt/storage`
@@ -130,6 +130,30 @@ docker compose -f docker-compose.yml -f docker-compose.plex.yml up -d
 4. **Users**: enable Plex sync in Admin → Settings → Sync Providers. New users get a managed home user on your Plex account plus a server share; no per-user Plex password is stored.
 
 Plex share endpoints live in `PlexTvClient` (`server/utils/clients/plex.ts`) and are community-documented, so a plex.tv response-shape change is a one-file fix.
+
+## Troubleshooting
+
+### A torrent sits at 0% and never finds a source
+
+qBittorrent never got the `.torrent` metadata. It usually means the URL Lode passed along
+(or that was typed into qBittorrent) points at an address qBittorrent cannot reach:
+
+- `localhost` / `127.0.0.1` inside a container is that container, not the host. Prowlarr
+  builds the download links from the address Lode used, so `NUXT_PROWLARR_URL=http://localhost:9900`
+  produces links that only the host can fetch.
+- With the whole stack in compose, keep `NUXT_PROWLARR_URL=http://prowlarr:9696` and
+  `NUXT_QBITTORRENT_URL=http://qbittorrent:8080` (the `.env.example` defaults).
+- With a hybrid setup (Lode via `pnpm dev` on the host, Prowlarr/qBittorrent in Docker), use the
+  host's LAN IP (`http://192.168.1.50:9900`) so both sides can reach it.
+
+Lode fetches the `.torrent` itself for browse downloads and only passes the URL as a fallback,
+so the metadata usually arrives even when qBittorrent cannot resolve the indexer host. Remove the
+stuck torrent and add it again after fixing the URL - it will not recover on its own.
+
+### qBittorrent reports "connection refused" in the Lode logs
+
+`NUXT_QBITTORRENT_URL` is not reachable from the Lode process. Inside compose use
+`http://qbittorrent:8080`; for Lode on the host use `http://localhost:8080`.
 
 ## Environment Variables
 

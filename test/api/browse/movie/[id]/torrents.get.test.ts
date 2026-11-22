@@ -106,7 +106,7 @@ describe('browse/movie/[id]/torrents.get', () => {
 
     const result = await handler(mockEvent)
 
-    expect(result).toEqual({ torrents: [] })
+    expect(result).toEqual({ torrents: [], otherTorrents: [] })
     expect(mockRankTorrents).not.toHaveBeenCalled()
   })
 
@@ -131,9 +131,10 @@ describe('browse/movie/[id]/torrents.get', () => {
       source: 'WEB',
       language: 'EN'
     })
-    // the 6th argument is the optional progress callback (unused by the JSON endpoint)
-    expect(mockClient.searchMovie).toHaveBeenCalledWith('Movie', 'Movie', [], '2024', [2000], undefined)
-    expect(mockRankTorrents).toHaveBeenCalledWith([{ title: 'raw' }], 'movie', 'Movie', '2024', {})
+    // the 6th argument is the optional progress callback (unused by the JSON
+    // endpoint), the 7th is the TMDB IMDb id used for the parallel ID search
+    expect(mockClient.searchMovie).toHaveBeenCalledWith('Movie', 'Movie', [], '2024', [2000], undefined, undefined)
+    expect(mockRankTorrents).toHaveBeenCalledWith([{ title: 'raw' }], 'movie', 'Movie', '2024', {}, ['Movie'])
   })
 
   it('passes alternative titles as extra search queries, english first for non-english locale', async () => {
@@ -162,6 +163,7 @@ describe('browse/movie/[id]/torrents.get', () => {
       ['Alt Title', 'Other Title'],
       '2024',
       [2000],
+      undefined,
       undefined
     )
   })
@@ -178,6 +180,6 @@ describe('browse/movie/[id]/torrents.get', () => {
 
     const result = await handler(mockEvent)
 
-    expect(result).toEqual({ torrents: [] })
+    expect(result).toEqual({ torrents: [], otherTorrents: [] })
   })
 })

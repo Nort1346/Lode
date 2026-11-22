@@ -5,6 +5,10 @@ definePageMeta({
 })
 
 const { t } = useI18n()
+
+useSeoMeta({
+  title: () => `${t('settings.title')} | ${t('seo.title')}`
+})
 </script>
 
 <template>

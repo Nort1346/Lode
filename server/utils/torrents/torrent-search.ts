@@ -2,8 +2,10 @@ import { getMovieDetails, getSeasonDetails, getTvShowDetails, getImageUrl } from
 import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
-import { pickAlternativeTitles } from '#server/utils/browse-utils'
-import { titleIsSeasonPack, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
+import { pickAlternativeTitles, titleCandidates } from '#server/utils/browse-utils'
+import { releaseBelongsToSeason, seasonPackInfo, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
+import type { EpisodeInfo } from '#server/types/release-episode'
+import { titleMatchStrength } from '#server/utils/torrents/release-match'
 import { createLogger } from '#server/utils/logger'
 import type { ProwlarrResult, ProwlarrProgressCallback, ProwlarrProgressEvent } from '#server/types/prowlarr'
 import type { RankedTorrent } from '#server/types/torrent'
@@ -22,13 +24,15 @@ import type {
 const log = createLogger('TorrentSearch')
 
 // Single source of truth lives in release-episode.ts (token-based, case
-// insensitive); these wrappers keep the call sites unchanged.
-function episodeRangeMatches(title: string, seasonNumber: number, episodeNumber: number): boolean {
-  return titleMatchesEpisode(title, seasonNumber, episodeNumber)
-}
-
-function isSeasonPack(title: string, seasonNumber: number): boolean {
-  return titleIsSeasonPack(title, seasonNumber)
+// insensitive); this wrapper keeps the call site short.
+function episodeRangeMatches(
+  title: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  airDate: string | null,
+  absoluteNumber: number
+): boolean {
+  return titleMatchesEpisode(title, seasonNumber, episodeNumber, airDate, absoluteNumber)
 }
 
 function toTorrentPayload(t: RankedTorrent): TorrentSearchTorrent {
@@ -75,10 +79,12 @@ function toEpisodePayload(t: RankedTorrent): EpisodeTorrentPayload {
   }
 }
 
-function toSeasonPackPayload(t: RankedTorrent): SeasonPackPayload {
+function toSeasonPackPayload(t: RankedTorrent, info: EpisodeInfo): SeasonPackPayload {
+  const seasons = info.kind === 'season-pack' || info.kind === 'multiseason-pack' ? info.seasons : []
   return {
     ...toEpisodePayload(t),
-    isSeasonPack: t.isSeasonPack
+    isSeasonPack: t.isSeasonPack,
+    seasons
   }
 }
 
@@ -114,7 +120,7 @@ export async function searchMovieTorrents(
 
   const prowlarr = useProwlarr()
   if (prowlarr === null) {
-    const payload: MovieSearchPayload = { torrents: [] }
+    const payload: MovieSearchPayload = { torrents: [], otherTorrents: [] }
     return { kind: 'ok', payload, found: 0 }
   }
 
@@ -132,14 +138,33 @@ export async function searchMovieTorrents(
       altTitles,
       year,
       [PROWLARR_CATEGORIES.MOVIES],
-      onProgress
+      onProgress,
+      movie.imdb_id
     )
-    const torrents = rankTorrents(rawResults, 'movie', movie.title, year, rankingConfig).map(toTorrentPayload)
-    const payload: MovieSearchPayload = { torrents }
-    return { kind: 'ok', payload, found: torrents.length }
+    // Prowlarr's text search matches any word in the title, so "The Doll" also
+    // brings back "The Doll Squad" and "Gabby's Dollhouse". Releases that do
+    // not name this film go into a separate bucket: nothing is lost, but they
+    // can never be mistaken for the requested movie or get a recommendation.
+    const titles = titleCandidates(
+      movie.title,
+      movie.original_title,
+      (movie.alternative_titles ?? []).map((a) => a.title)
+    )
+    const matches = rawResults.filter((r) => titleMatchStrength(r.title, titles, year, 'movie') > 0)
+    const matched = new Set(matches)
+    const others = rawResults.filter((r) => !matched.has(r))
+
+    const torrents = rankTorrents(matches, 'movie', movie.title, year, rankingConfig, titles).map(toTorrentPayload)
+    const otherTorrents = rankTorrents(others, 'movie', movie.title, year, rankingConfig, titles).map((t) => ({
+      ...toTorrentPayload(t),
+      recommended: false
+    }))
+    log.info(`Movie "${movie.title}": ${torrents.length} matches, ${otherTorrents.length} loose Prowlarr results`)
+    const payload: MovieSearchPayload = { torrents, otherTorrents }
+    return { kind: 'ok', payload, found: rawResults.length }
   } catch {
     // Prowlarr might be offline mid-search - return empty instead of failing
-    return { kind: 'ok', payload: { torrents: [] }, found: 0 }
+    return { kind: 'ok', payload: { torrents: [], otherTorrents: [] }, found: 0 }
   }
 }
 
@@ -208,14 +233,37 @@ export async function searchSeasonTorrents(
     log.warn(`Prowlarr not configured`)
   }
 
+  // All titles are passed to the ranker so releases of this show sort above
+  // same-numbered episodes from other shows, without hiding any result.
+  const showTitles = titleCandidates(
+    show.name,
+    show.original_name,
+    (show.alternative_names ?? []).map((a) => a.name)
+  )
+  // A release may carry the show's pilot year or the year this particular
+  // season aired. Accept both (within a year) so neither is demoted.
+  const seasonYear = season.air_date?.slice(0, 4) ?? ''
+  const matchYears = seasonYear === '' ? [] : [year, seasonYear]
+
+  // Anime releases often use running (absolute) episode numbers instead of
+  // SxxExx. Add up the episodes of the earlier seasons to map them back.
+  const priorEpisodes = (show.seasons ?? [])
+    .filter((s) => s.season_number > 0 && s.season_number < seasonNumber)
+    .reduce((sum, s) => sum + s.episode_count, 0)
+
   const rankingConfig = await getRankingConfig()
+  const matched = new Set<ProwlarrResult>()
 
   const episodes: EpisodePayload[] = (season.episodes ?? []).map((ep) => {
-    const episodeTorrents = rawTorrents.filter((t) => episodeRangeMatches(t.title, seasonNumber, ep.episode_number))
+    const absoluteNumber = priorEpisodes + ep.episode_number
+    const episodeTorrents = rawTorrents.filter((t) =>
+      episodeRangeMatches(t.title, seasonNumber, ep.episode_number, ep.air_date, absoluteNumber)
+    )
+    for (const torrent of episodeTorrents) matched.add(torrent)
     if (episodeTorrents.length > 0) {
       log.info(`Episode ${ep.episode_number}: ${episodeTorrents.length} torrents matched`)
     }
-    const ranked = rankTorrents(episodeTorrents, 'series', show.name, year, rankingConfig)
+    const ranked = rankTorrents(episodeTorrents, 'series', show.name, year, rankingConfig, showTitles, matchYears)
 
     return {
       id: ep.id,
@@ -234,14 +282,54 @@ export async function searchSeasonTorrents(
   // multi-episode ranges alike) lands here; per-episode buckets only get true
   // single episodes. The ranker is told the bucket kind explicitly and never
   // re-guesses it from the title.
-  const seasonPackTorrents = rawTorrents.filter((t) => isSeasonPack(t.title, seasonNumber))
+  // Parse once per release and reuse the result for the payload, instead of
+  // running the tokenizer again for every ranked pack.
+  // Key by title: rankTorrents() spreads results into new objects, so object
+  // identity would be lost between classification and payload mapping.
+  const packInfos = new Map<string, EpisodeInfo>()
+  const seasonPackTorrents = rawTorrents.filter((t) => {
+    const info = seasonPackInfo(t.title, seasonNumber)
+    if (info === null) return false
+    packInfos.set(t.title, info)
+    return true
+  })
+  for (const torrent of seasonPackTorrents) matched.add(torrent)
   if (seasonPackTorrents.length > 0) {
     log.info(`Season packs: ${seasonPackTorrents.length} found`)
   }
 
-  const seasonPacks = rankTorrents(seasonPackTorrents, 'seasonPack', show.name, year, rankingConfig).map(
-    toSeasonPackPayload
+  const seasonPacks = rankTorrents(
+    seasonPackTorrents,
+    'seasonPack',
+    show.name,
+    year,
+    rankingConfig,
+    showTitles,
+    matchYears
+  ).map((t) =>
+    toSeasonPackPayload(
+      t,
+      packInfos.get(t.title) ?? { kind: 'complete-series', seasons: [], episodes: [], airDate: null }
+    )
   )
+
+  // Nothing relevant is discarded: releases that do not map onto a TMDB
+  // episode or pack (a just-aired episode TMDB has not added yet, unusual
+  // numbering, ...) get their own bucket in the UI. Releases that explicitly
+  // belong to another season stay out of it - they show up when that season
+  // is selected instead.
+  const otherTorrents = rankTorrents(
+    rawTorrents.filter((t) => !matched.has(t) && releaseBelongsToSeason(t.title, seasonNumber)),
+    'series',
+    show.name,
+    year,
+    rankingConfig,
+    showTitles,
+    matchYears
+  ).map(toEpisodePayload)
+  if (otherTorrents.length > 0) {
+    log.info(`Other (unmapped) releases: ${otherTorrents.length}`)
+  }
 
   const payload: SeasonSearchPayload = {
     show: {
@@ -256,7 +344,8 @@ export async function searchSeasonTorrents(
       airDate: season.air_date
     },
     episodes,
-    seasonPacks
+    seasonPacks,
+    otherTorrents
   }
   return { kind: 'ok', payload, found: rawTorrents.length }
 }

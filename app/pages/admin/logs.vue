@@ -9,6 +9,11 @@ definePageMeta({
 
 const { t } = useI18n()
 const { smallerThan } = useBreakpoints()
+
+useSeoMeta({
+  title: () => `${t('logs.title')} | ${t('seo.title')}`
+})
+
 const logs = ref<ActivityLog[]>([])
 const loading = ref(true)
 const page = ref(1)

@@ -3,6 +3,13 @@ import { fileURLToPath } from 'node:url'
 
 const rootDir = fileURLToPath(new URL('.', import.meta.url))
 
+// `nuxt-auth-utils` 0.6 reads Nuxt's appSecret instead of NUXT_SESSION_PASSWORD.
+// Keep the old variable working in development; production aliases it at runtime
+// in scripts/start.mjs so the secret never gets baked into the build.
+if (import.meta.dev && !process.env.NUXT_APP_SECRET && process.env.NUXT_SESSION_PASSWORD) {
+  process.env.NUXT_APP_SECRET = process.env.NUXT_SESSION_PASSWORD
+}
+
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils', '@nuxtjs/i18n', '@vite-pwa/nuxt'],
 
@@ -36,6 +43,14 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  vite: {
+    optimizeDeps: {
+      // Loaded lazily by the /user page avatar picker; pre-bundle it so the
+      // first visit does not trigger a Vite runtime dep-discovery page reload
+      include: ['@dicebear/core']
+    }
+  },
+
   alias: {
     '#server': rootDir + 'server',
     '#db': rootDir + 'server/database',
@@ -47,13 +62,13 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    // Session signing secret, overridden at runtime via NUXT_APP_SECRET (32+ chars).
+    appSecret: '',
     public: {
       appVersion: '1.0.6',
       vapidPublicKey: ''
     },
     session: {
-      // Required by the nuxt-auth-utils module types; overridden at runtime via NUXT_SESSION_PASSWORD.
-      password: '',
       maxAge: 60 * 60 * 24 * 30,
       cookie: {
         secure: !import.meta.dev
@@ -61,6 +76,8 @@ export default defineNuxtConfig({
     },
     redisUrl: '',
     tmdbApiKey: '',
+    // Optional TMDB-compatible endpoint override (E2E tests point this at a local mock)
+    tmdbBaseUrl: '',
     prowlarrUrl: 'http://127.0.0.1:9900',
     prowlarrApiKey: '',
     qbittorrentUrl: 'http://127.0.0.1:8080',
@@ -134,9 +151,8 @@ export default defineNuxtConfig({
         }
       ]
     },
-    workbox: {
-      globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
-      importScripts: ['/sw-push.js']
+    generateSW: {
+      globPatterns: ['**/*.{js,css,ico,png,svg,woff2}']
     },
     client: {
       installPrompt: true,

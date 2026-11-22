@@ -11,6 +11,7 @@ import { generateSecrets } from './steps/secrets-gen'
 import { chooseDatabase } from './steps/database'
 import { chooseTimezone } from './steps/timezone'
 import { chooseComponents } from './steps/components'
+import { configureStaging } from './steps/staging'
 import { downloadComposeFiles } from './steps/compose-files'
 import { chooseLodeVersion } from './steps/lode-version'
 import { startServices } from './steps/services'
@@ -38,7 +39,8 @@ async function main(): Promise<void> {
     urls: { qbittorrent: '', prowlarr: '', jellyfin: '', plex: '' },
     composeFiles: ['docker-compose.yml'],
     qbitTempPass: '',
-    adminPass: ''
+    adminPass: '',
+    staging: false
   }
   await showBanner()
   await checkPrerequisites()
@@ -48,6 +50,7 @@ async function main(): Promise<void> {
   await chooseDatabase(ctx)
   await chooseTimezone()
   await chooseComponents(ctx)
+  await configureStaging(ctx)
   await downloadComposeFiles(ctx)
   await chooseLodeVersion(ctx)
   await startServices(ctx)

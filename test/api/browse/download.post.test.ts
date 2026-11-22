@@ -25,6 +25,7 @@ const mockClearSessionCache = vi.hoisted(() => vi.fn())
 const mockPerformTrackerLogin = vi.hoisted(() => vi.fn())
 const mockDecryptAES = vi.hoisted(() => vi.fn())
 const mockApplySeedingPolicy = vi.hoisted(() => vi.fn())
+const mockIsMediaManageEnabled = vi.hoisted(() => vi.fn())
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
 vi.stubGlobal('readBody', mockReadBody)
@@ -81,6 +82,9 @@ vi.mock('#server/utils/logger', () => ({
 }))
 vi.mock('#server/utils/torrents/seeding', () => ({
   applySeedingPolicy: mockApplySeedingPolicy
+}))
+vi.mock('#server/utils/library/media-settings', () => ({
+  isMediaManageEnabled: mockIsMediaManageEnabled
 }))
 
 import handler from '#server/api/browse/download.post'
@@ -178,6 +182,7 @@ describe('browse/download.post', () => {
     })
     mockCheckForDangerousFiles.mockReturnValue({ safe: true, dangerousFiles: [] })
     mockGetImageUrl.mockImplementation((path: string | null) => (path ? `https://image.tmdb.org${path}` : null))
+    mockIsMediaManageEnabled.mockResolvedValue(false)
     stubConfig()
     mockDb.select.mockReset()
     mockDb.select.mockReturnValue({
@@ -193,6 +198,9 @@ describe('browse/download.post', () => {
     mockQbit.getTorrentFiles.mockResolvedValue([{ name: 'file.mkv', size: 1000000 }])
     mockQbit.findTorrentByHash.mockResolvedValue(undefined)
     mockApplySeedingPolicy.mockResolvedValue(undefined)
+    // No test may reach the network: the URL is fetched by the handler now.
+    // Tests that need a specific response assign their own global.fetch.
+    global.fetch = vi.fn().mockRejectedValue(new Error('network disabled in tests'))
   })
 
   const mockEvent = {} as never
@@ -321,8 +329,9 @@ describe('browse/download.post', () => {
     )
   })
 
-  it('downloads into the staging dir when configured', async () => {
+  it('downloads into the staging dir when organization is enabled and staging is configured', async () => {
     stubConfig({ downloadPathMovies: '/data/downloads/movies' })
+    mockIsMediaManageEnabled.mockResolvedValue(true)
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
 
     const result = await handler(mockEvent)
@@ -336,8 +345,27 @@ describe('browse/download.post', () => {
     )
   })
 
+  it('downloads into the library when organization is disabled, even with staging configured', async () => {
+    // With organization off nothing would ever import the files out of
+    // staging, so the download must not land there.
+    stubConfig({ downloadPathMovies: '/data/downloads/movies' })
+    mockIsMediaManageEnabled.mockResolvedValue(false)
+    mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'movies', label: 'test' })
+
+    const result = await handler(mockEvent)
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'magnet:?xt=urn:btih:abc',
+      '/data/movies',
+      'movies',
+      expect.stringMatching(/^dl-/),
+      { v1: null, v2: null }
+    )
+  })
+
   it('ignores staging dirs for non-media categories', async () => {
     stubConfig({ downloadPathMovies: '/data/downloads/movies', downloadPathSeries: '/data/downloads/series' })
+    mockIsMediaManageEnabled.mockResolvedValue(true)
     mockReadBody.mockResolvedValue({ magnetLink: 'magnet:?xt=urn:btih:abc', savePath: 'games', label: 'test' })
 
     const result = await handler(mockEvent)
@@ -446,14 +474,14 @@ describe('browse/download.post', () => {
     expect(mockDb.update).not.toHaveBeenCalled()
   })
 
-  it('resolves the torrent hash from the download URL and blocks when present in qBittorrent', async () => {
+  it('fetches the .torrent server-side and blocks when present in qBittorrent', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       new Response(Buffer.from(TORRENT_FIXTURE_HEX, 'hex'), {
         status: 200,
         headers: { 'content-type': 'application/x-bittorrent' }
       })
     )
-    mockQbit.addTorrent.mockResolvedValue({
+    mockQbit.addTorrentFile.mockResolvedValue({
       status: 'existing',
       complete: false,
       torrent: { ...torrentResult, state: 'downloading', progress: 0.2, amount_left: 800000000 }
@@ -466,16 +494,140 @@ describe('browse/download.post', () => {
 
     const result = await handler(mockEvent)
 
-    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
-      'https://prowlarr.example/5/download?apikey=xyz',
+    // qBittorrent gets the bytes, never the URL: its container/host does not
+    // have to resolve whatever address Lode used for the indexer.
+    expect(mockQbit.addTorrent).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrentFile).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      'test.torrent',
       '/data/series',
       'series',
       expect.any(String),
       { v1: expect.any(String), v2: null }
     )
+    const sentBuffer = mockQbit.addTorrentFile.mock.calls[0]?.[0] as Buffer | undefined
+    expect(sentBuffer?.equals(Buffer.from(TORRENT_FIXTURE_HEX, 'hex'))).toBe(true)
     expect(result).toEqual({ alreadyDownloading: true, name: 'Test.Torrent.1080p' })
     expect(mockDb.insert).not.toHaveBeenCalled()
     expect(mockDb.update).not.toHaveBeenCalled()
+    vi.mocked(global.fetch).mockReset()
+  })
+
+  it('falls back to the URL when the torrent bytes cannot be fetched', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+    mockReadBody.mockResolvedValue({
+      downloadUrl: 'https://prowlarr.example/5/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrentFile).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'https://prowlarr.example/5/download?apikey=xyz',
+      '/data/series',
+      'series',
+      expect.any(String),
+      null
+    )
+    vi.mocked(global.fetch).mockReset()
+  })
+
+  it('follows a magnet redirect server-side instead of handing the URL over', async () => {
+    const magnet = `magnet:?xt=urn:btih:${'a'.repeat(40)}&dn=Test`
+    global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { location: magnet } }))
+    mockReadBody.mockResolvedValue({
+      downloadUrl: 'https://prowlarr.example/5/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrentFile).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(magnet, '/data/series', 'series', expect.any(String), {
+      v1: 'a'.repeat(40),
+      v2: null
+    })
+    vi.mocked(global.fetch).mockReset()
+  })
+
+  it('prefers a usable magnet over the indexer URL and skips the fetch', async () => {
+    const magnet = `magnet:?xt=urn:btih:${'a'.repeat(40)}&dn=Test`
+    mockReadBody.mockResolvedValue({
+      magnetLink: magnet,
+      downloadUrl: 'https://prowlarr.example/5/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toHaveProperty('success', true)
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrentFile).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(magnet, '/data/series', 'series', expect.any(String), {
+      v1: 'a'.repeat(40),
+      v2: null
+    })
+  })
+
+  it('fetches the .torrent when the indexer proxy URL arrives in magnetLink', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(Buffer.from(TORRENT_FIXTURE_HEX, 'hex'), {
+        status: 200,
+        headers: { 'content-type': 'application/x-bittorrent' }
+      })
+    )
+    // Prowlarr returns `magnetUrl` as its own proxy URL for some indexers, and
+    // `downloadUrl` can stay empty - the handler must still fetch it.
+    mockReadBody.mockResolvedValue({
+      magnetLink: 'https://prowlarr.example/3/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toHaveProperty('success', true)
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://prowlarr.example/3/download?apikey=xyz',
+      expect.objectContaining({ redirect: 'manual' })
+    )
+    expect(mockQbit.addTorrent).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrentFile).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      'test.torrent',
+      '/data/series',
+      'series',
+      expect.any(String),
+      { v1: expect.any(String), v2: null }
+    )
+    vi.mocked(global.fetch).mockReset()
+  })
+
+  it('falls back to the magnetLink URL when it cannot be fetched', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+    mockReadBody.mockResolvedValue({
+      magnetLink: 'https://prowlarr.example/3/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toHaveProperty('success', true)
+    expect(mockQbit.addTorrentFile).not.toHaveBeenCalled()
+    expect(mockQbit.addTorrent).toHaveBeenCalledWith(
+      'https://prowlarr.example/3/download?apikey=xyz',
+      '/data/series',
+      'series',
+      expect.any(String),
+      { v1: null, v2: null }
+    )
     vi.mocked(global.fetch).mockReset()
   })
 

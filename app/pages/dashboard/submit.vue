@@ -11,6 +11,10 @@ const { user } = useUserSession()
 const { t } = useI18n()
 const toast = useToast()
 
+useSeoMeta({
+  title: () => `${t('submit.title')} | ${t('seo.title')}`
+})
+
 const inputMode = ref<'magnet' | 'file' | 'url'>('magnet')
 const form = reactive({
   magnetLink: '',

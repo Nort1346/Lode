@@ -1,7 +1,7 @@
 import type { ServiceStatus } from '#server/types/admin'
 import type { ProwlarrIndexer, ProwlarrIndexerStatus } from '#server/types/prowlarr'
 import { normalizeUrl } from '#server/utils/url'
-import { resolveTmdbApiKey } from '#server/utils/tmdb'
+import { resolveTmdbApiKey, resolveTmdbBase } from '#server/utils/tmdb'
 
 // Per-check budget: a dead service must not stall the whole status response.
 const CHECK_TIMEOUT_MS = 5000
@@ -173,7 +173,7 @@ export async function checkTmdb(_config: ReturnType<typeof useRuntimeConfig>): P
 
   const start = Date.now()
   try {
-    const url = new URL('https://api.themoviedb.org/3/configuration')
+    const url = new URL(`${resolveTmdbBase()}/configuration`)
     url.searchParams.set('api_key', apiKey)
     const res = await fetch(url.toString(), { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) })
     if (res.status === 401) {

@@ -5,7 +5,7 @@ import { askSecret, instructions, log, stepHeader } from '../core/prompt'
 import type { StepContext } from '../types'
 
 export async function jellyfinApiKey(ctx: StepContext): Promise<void> {
-  stepHeader(11, 'Jellyfin API key')
+  stepHeader(12, 'Jellyfin API key')
   const dir = process.cwd()
   if (ctx.selection.mediaProvider !== 'jellyfin') {
     updateEnv(dir, ENV_FILE, ENV_KEYS.jellyfinUrl, '')

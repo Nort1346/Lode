@@ -7,7 +7,7 @@ const configSchema = z.object({
   downloadPathSeries: z.string().optional(),
   qbittorrentUrl: z.url().default('http://localhost:8080'),
   qbittorrentApiKey: z.string().optional(),
-  sessionPassword: z.string().min(32),
+  appSecret: z.string().min(32),
   tmdbApiKey: z.string().optional(),
   prowlarrApiKey: z.string().optional(),
   trackerEncryptionKey: z.string().min(1),

@@ -123,19 +123,26 @@
     "download": "Adicionar",
     "limitReached": "Limite",
     "noTorrents": "Nenhum download encontrado.",
+    "otherResults": "Outros resultados",
+    "otherResultsHint": "Resultados com título semelhante que podem corresponder a outro filme. Exibidos separadamente para evitar confusão.",
     "loadError": "Falha ao carregar os detalhes do filme."
   },
   "tv": {
     "seasons": "Temporadas",
     "seasonPacks": "Pacotes de Temporada",
     "seasonPack": "Pacote de Temporada",
+    "multiseasonPack": "Temporadas {seasons}",
+    "downloadSeasonsRange": "Adicionar temporadas {seasons}",
     "downloadSeason": "Adicionar temporada completa",
     "limitReached": "Limite",
     "episodes": "ep.",
     "noTorrents": "Nenhum download disponível",
     "loadError": "Falha ao carregar os detalhes da série.",
     "season_one": "temporada",
-    "season_many": "temporadas"
+    "season_many": "temporadas",
+    "moreResults": "Mais resultados",
+    "otherReleases": "Outros lançamentos",
+    "otherReleasesHint": "Lançamentos desta temporada que ainda não puderam ser associados a um episódio conhecido, por exemplo um episódio recém-exibido."
   },
   "submit": {
     "title": "Enviar Torrent",
@@ -275,7 +282,9 @@
   "downloads": {
     "prepReady": "Pronto",
     "prepRemainingSec": "~{s}s restantes",
-    "prepRemainingMin": "~{m}min restantes"
+    "prepRemainingMin": "~{m}min restantes",
+    "prepTitle": "Preparação",
+    "prepCopying": "Importando para a biblioteca"
   },
   "admin": {
     "userTitle": "Gerenciar Usuários",
@@ -501,9 +510,12 @@
     "mediaStagingMissingMovies": "NUXT_DOWNLOAD_PATH_MOVIES não definido: downloads de filmes vão direto para a biblioteca e não podem ser organizados.",
     "mediaStagingMissingSeries": "NUXT_DOWNLOAD_PATH_SERIES não definido: downloads de séries vão direto para a biblioteca e não podem ser organizados.",
     "mediaExtraFiles": "Importar arquivos extras",
-    "mediaExtraFilesHint": "Copia legendas e arquivos auxiliares (nfo etc.) junto ao vídeo importado, como a opção Import Extra Files do Radarr.",
+    "mediaExtraFilesHint": "Importa legendas e arquivos auxiliares (nfo etc.) junto ao vídeo, de qualquer pasta da liberação (raiz, subs/, ...), usando o modo de importação escolhido.",
     "mediaExtraExtensions": "Extensões de arquivos extras",
-    "mediaExtraExtensionsHint": "Lista separada por vírgulas, ex.: srt, sub, ass, nfo. Apenas arquivos na mesma pasta do vídeo são importados.",
+    "mediaExtraExtensionsHint": "Lista separada por vírgulas, ex.: srt, sub, ass, nfo. Todos os arquivos com uma dessas extensões são importados - os auxiliares com o nome do vídeo o seguem e o resto fica junto ao arquivo principal.",
+    "mediaCleanupStaging": "Limpar o staging após a importação",
+    "mediaCleanupStagingHint": "Após uma importação bem-sucedida, remove tudo o que o torrent deixou no staging - capas, .screens, .url, .txt, além de arquivos de vídeo e legendas não importados. Pastas de release vazias também são removidas. Vale apenas no modo Mover (não sobra nada para semear). A biblioteca nunca é tocada.",
+    "mediaCleanupStagingMoveOnly": "Disponível apenas no modo Mover.",
     "qbittorrentSaved": "Configurações do qBittorrent salvas",
     "qbittorrentError": "Falha ao salvar as configurações do qBittorrent",
     "liveLogs": "Logs ao Vivo",

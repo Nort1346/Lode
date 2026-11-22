@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { envValueMeetsMinLength, readEnvValue, updateEnv, updateEnvFile } from '../../src/core/env'
+import { envValueMeetsMinLength, readEnvValue, removeEnv, updateEnv, updateEnvFile } from '../../src/core/env'
 
 describe('updateEnvFile', () => {
   it('replaces an active KEY= line', () => {
@@ -48,6 +48,17 @@ describe('env file access', () => {
     writeFileSync(path.join(dir, '.env'), '# B=\n')
     updateEnv(dir, '.env', 'B', 'v')
     expect(readEnvValue(dir, '.env', 'B')).toBe('v')
+  })
+
+  it('removeEnv deletes only the matching key', () => {
+    writeFileSync(path.join(dir, '.env'), 'A=1\nB=2\n')
+    removeEnv(dir, '.env', 'A')
+    expect(readEnvValue(dir, '.env', 'A')).toBe('')
+    expect(readEnvValue(dir, '.env', 'B')).toBe('2')
+  })
+
+  it('removeEnv is a no-op when the file does not exist', () => {
+    expect(() => removeEnv(dir, 'missing.env', 'A')).not.toThrow()
   })
 
   it('envValueMeetsMinLength checks the stored value length', () => {

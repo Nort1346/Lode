@@ -9,6 +9,10 @@ definePageMeta({
 const { t } = useI18n()
 const toast = useToast()
 
+useSeoMeta({
+  title: () => `${t('wishlist.title')} | ${t('seo.title')}`
+})
+
 const { data, refresh, pending } = useFetch<{ items: WishlistItem[] }>('/api/wishlist')
 const items = computed(() => data.value?.items ?? [])
 

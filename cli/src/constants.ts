@@ -16,11 +16,24 @@ export const STATE_VERSION = 1
 
 export const MEDIA_DIRS = ['media/Movies', 'media/Series'] as const
 
+// qBittorrent staging folders for media organization. Must stay under media/:
+// that is the only host dir mounted into both the lode and qbittorrent
+// containers (as /media), and it keeps staging on the same filesystem as the
+// library so the default hardlink import works.
+export const STAGING_HOST_DIRS = {
+  movies: 'media/downloads/movies',
+  series: 'media/downloads/series'
+} as const
+
+/** Container path prefix for the ./media host mount. */
+export const MEDIA_CONTAINER_PREFIX = '/media'
+
 export const DEFAULT_TIMEZONE = 'UTC'
 
 export const ENV_KEYS = {
   timezone: 'TZ',
-  sessionPassword: 'NUXT_SESSION_PASSWORD',
+  appSecret: 'NUXT_APP_SECRET',
+  legacySessionPassword: 'NUXT_SESSION_PASSWORD',
   trackerEncryptionKey: 'NUXT_TRACKER_ENCRYPTION_KEY',
   postgresPassword: 'POSTGRES_PASSWORD',
   dbDriver: 'DB_DRIVER',
@@ -30,6 +43,8 @@ export const ENV_KEYS = {
   qbittorrentApiKey: 'NUXT_QBITTORRENT_API_KEY',
   prowlarrUrl: 'NUXT_PROWLARR_URL',
   prowlarrApiKey: 'NUXT_PROWLARR_API_KEY',
+  downloadPathMovies: 'NUXT_DOWNLOAD_PATH_MOVIES',
+  downloadPathSeries: 'NUXT_DOWNLOAD_PATH_SERIES',
   jellyfinUrl: 'NUXT_JELLYFIN_URL',
   jellyfinApiKey: 'NUXT_JELLYFIN_API_KEY',
   plexUrl: 'NUXT_PLEX_URL',

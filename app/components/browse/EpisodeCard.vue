@@ -23,29 +23,72 @@
 
         <div v-if="episode.torrents.length > 0" class="mt-3 space-y-2 torrent-list">
           <BrowseTorrentRow
-            v-for="(tr, tIdx) in episode.torrents.slice(0, 3)"
-            :key="tIdx"
-            :torrent="tr"
-            :loading="downloadingKey === `ep-${episode.episodeNumber}-${tIdx}`"
-            :disabled="downloadActive || (tr.magnetLink === null && tr.guid === null && tr.downloadUrl === null)"
-            :limit-exceeded="isPrivateLimitExceeded(tr.isPrivate)"
+            v-for="entry in strongTorrents"
+            :key="entry.index"
+            :torrent="entry.torrent"
+            :loading="downloadingKey === `ep-${episode.episodeNumber}-${entry.index}`"
+            :disabled="
+              downloadActive ||
+              (entry.torrent.magnetLink === null && entry.torrent.guid === null && entry.torrent.downloadUrl === null)
+            "
+            :limit-exceeded="isPrivateLimitExceeded(entry.torrent.isPrivate)"
             :is-dev="isDev"
-            :debug-open="debugKey === `ep-${episode.episodeNumber}-${tIdx}`"
+            :debug-open="debugKey === `ep-${episode.episodeNumber}-${entry.index}`"
             @download="
               $emit('downloadTorrent', {
-                magnetLink: tr.magnetLink,
+                magnetLink: entry.torrent.magnetLink,
                 label: `${showName} S${String(selectedSeason).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')} ${episode.name}`,
-                key: `ep-${episode.episodeNumber}-${tIdx}`,
+                key: `ep-${episode.episodeNumber}-${entry.index}`,
                 type: undefined,
-                guid: tr.guid,
-                indexer: tr.indexer,
-                downloadUrl: tr.downloadUrl,
-                size: tr.size,
-                resolution: tr.resolution
+                guid: entry.torrent.guid,
+                indexer: entry.torrent.indexer,
+                downloadUrl: entry.torrent.downloadUrl,
+                size: entry.torrent.size,
+                resolution: entry.torrent.resolution
               })
             "
-            @toggle-debug="$emit('toggleDebug', `ep-${episode.episodeNumber}-${tIdx}`)"
+            @toggle-debug="$emit('toggleDebug', `ep-${episode.episodeNumber}-${entry.index}`)"
           />
+
+          <details v-if="weakTorrents.length > 0" class="group pt-1">
+            <summary
+              class="flex cursor-pointer items-center gap-1.5 rounded-md px-1 py-1 text-xs text-zinc-500 hover:text-amber-500 dark:text-zinc-400 dark:hover:text-amber-400"
+            >
+              <UIcon name="i-lucide-chevron-right" class="size-3 transition-transform group-open:rotate-90" />
+              {{ t('tv.moreResults') }} ({{ weakTorrents.length }})
+            </summary>
+            <div class="mt-2 space-y-2 torrent-list">
+              <BrowseTorrentRow
+                v-for="entry in weakTorrents"
+                :key="entry.index"
+                :torrent="entry.torrent"
+                :loading="downloadingKey === `ep-${episode.episodeNumber}-${entry.index}`"
+                :disabled="
+                  downloadActive ||
+                  (entry.torrent.magnetLink === null &&
+                    entry.torrent.guid === null &&
+                    entry.torrent.downloadUrl === null)
+                "
+                :limit-exceeded="isPrivateLimitExceeded(entry.torrent.isPrivate)"
+                :is-dev="isDev"
+                :debug-open="debugKey === `ep-${episode.episodeNumber}-${entry.index}`"
+                @download="
+                  $emit('downloadTorrent', {
+                    magnetLink: entry.torrent.magnetLink,
+                    label: `${showName} S${String(selectedSeason).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')} ${episode.name}`,
+                    key: `ep-${episode.episodeNumber}-${entry.index}`,
+                    type: undefined,
+                    guid: entry.torrent.guid,
+                    indexer: entry.torrent.indexer,
+                    downloadUrl: entry.torrent.downloadUrl,
+                    size: entry.torrent.size,
+                    resolution: entry.torrent.resolution
+                  })
+                "
+                @toggle-debug="$emit('toggleDebug', `ep-${episode.episodeNumber}-${entry.index}`)"
+              />
+            </div>
+          </details>
         </div>
 
         <p v-else class="mt-2 text-xs text-zinc-400 dark:text-zinc-500">{{ t('tv.noTorrents') }}</p>
@@ -57,7 +100,7 @@
 <script setup lang="ts">
 import type { Episode } from '~/types/browse'
 
-defineProps<{
+const props = defineProps<{
   episode: Episode
   showName: string
   selectedSeason: number
@@ -66,6 +109,16 @@ defineProps<{
   debugKey: string | null
   isPrivateLimitExceeded: (isPrivate: boolean) => boolean
 }>()
+
+// Releases below this match score are usually a different show with the same
+// episode number. Keep them available, but behind a disclosure item.
+const MIN_VISIBLE_PERCENTAGE = 25
+
+const rankedTorrents = computed(() => props.episode.torrents.map((torrent, index) => ({ torrent, index })))
+const strongTorrents = computed(() =>
+  rankedTorrents.value.filter((e) => e.torrent.percentage >= MIN_VISIBLE_PERCENTAGE)
+)
+const weakTorrents = computed(() => rankedTorrents.value.filter((e) => e.torrent.percentage < MIN_VISIBLE_PERCENTAGE))
 
 const { active: downloadActive } = useDownloadOverlay()
 

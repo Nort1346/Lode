@@ -1,5 +1,11 @@
 {
   "extends": "../.nuxt/tsconfig.server.json",
+  // DOM tests import app composables, which reference browser globals; the
+  // inherited server project has no DOM lib, so add it here (tests run in a
+  // DOM-capable environment via vitest anyway)
+  "compilerOptions": {
+    "lib": ["esnext", "dom", "dom.iterable", "webworker"]
+  },
   "include": ["**/*.ts", "../shared/auth.d.ts"],
   "exclude": ["../server/**/*", "../app/**/*"]
 }

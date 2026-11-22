@@ -14,6 +14,7 @@ import { computeTorrentInfoHashes, computeTorrentTotalSize, hasUsableHash } from
 import { readTorrentHashesFromResponse } from '#server/utils/torrents/url-torrent'
 import { findLiveDuplicateByLink } from '#server/utils/torrents/live-duplicate'
 import { resolveStagingDir } from '#server/utils/library/importer'
+import { isMediaManageEnabled } from '#server/utils/library/media-settings'
 import { extractMagnetHash, extractMagnetInfoHashes } from '#server/utils/clients/qbittorrent'
 import { createLogger } from '#server/utils/logger'
 import { assertExternalUrl } from '#server/utils/url-validate'
@@ -120,12 +121,16 @@ export default defineEventHandler(async (event) => {
 
   // Optional *arr-style staging: qBittorrent downloads into the staging dir
   // and Lode imports finished files into the library (media organization).
-  // Without it, downloads land straight in the library as before.
-  const stagingPath = resolveStagingDir(savePath, {
-    downloadPathMovies: (config.downloadPathMovies as string | undefined) ?? '',
-    downloadPathSeries: (config.downloadPathSeries as string | undefined) ?? ''
-  })
-  const targetPath = stagingPath ?? libraryPath
+  // Staging is only used while organization is enabled - with it off nothing
+  // would ever move the files out, so downloads must land in the library.
+  let targetPath = libraryPath
+  if (await isMediaManageEnabled()) {
+    targetPath =
+      resolveStagingDir(savePath, {
+        downloadPathMovies: (config.downloadPathMovies as string | undefined) ?? '',
+        downloadPathSeries: (config.downloadPathSeries as string | undefined) ?? ''
+      }) ?? libraryPath
+  }
 
   const disks = (config.disks as string)
     .split(',')

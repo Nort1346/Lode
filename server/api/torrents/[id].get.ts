@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbRun } from '#server/utils/db'
 import { CHECKING_STATES, COMPLETED_STATES, PAUSED_DOWNLOAD_STATES } from '#server/types/torrent'
 import { normalizeEta } from '#server/utils/torrents/eta'
+import { applyServerEta, trackServerEta } from '#server/utils/torrents/eta-tracker'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -29,6 +30,9 @@ export default defineEventHandler(async (event) => {
   if (download.torrentHash !== null) {
     try {
       const qbit = useQBittorrent()
+      // Snapshot time, not response time: overlapping reads may finish out of
+      // order and the shared tracker has to ignore older data.
+      const etaSampledAt = Date.now()
       const torrent = await qbit.findTorrentByHash(download.torrentHash)
 
       if (torrent !== undefined) {
@@ -59,7 +63,7 @@ export default defineEventHandler(async (event) => {
             .where(eq(downloads.id, id))
         )
 
-        return {
+        const updated = {
           ...download,
           progress: isComplete ? 100 : progressPct,
           etaSeconds: inactive ? 0 : normalizeEta(torrent.eta),
@@ -68,11 +72,13 @@ export default defineEventHandler(async (event) => {
           downloadedBytes: torrent.downloaded,
           status
         }
+        trackServerEta([updated], etaSampledAt)
+        return applyServerEta(updated)
       }
     } catch {
       // qBittorrent might be offline, return stored data
     }
   }
 
-  return download
+  return applyServerEta(download)
 })
