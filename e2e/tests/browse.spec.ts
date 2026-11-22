@@ -235,12 +235,12 @@ test.describe('browse', () => {
 
     await gotoPage(page, `/browse/tv/703`)
 
-    await expect(page.getByText('Seasons 1-2')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Add all seasons' })).toBeVisible()
+    await expect(page.getByText('Seasons 1-2', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add seasons 1-2' })).toBeVisible()
 
     // The same pack must also be usable from season 2's page.
     await page.getByText('Season 1 (2 ep.)').first().click()
     await page.getByRole('option', { name: /Season 2/ }).click()
-    await expect(page.getByText('Seasons 1-2')).toBeVisible()
+    await expect(page.getByText('Seasons 1-2', { exact: true })).toBeVisible()
   })
 })

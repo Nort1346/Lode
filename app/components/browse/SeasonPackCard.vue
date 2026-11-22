@@ -43,7 +43,11 @@
       @click="$emit('download')"
     >
       {{
-        limitExceeded ? t('tv.limitReached') : packSeasons.length > 1 ? t('tv.downloadSeasons') : t('tv.downloadSeason')
+        limitExceeded
+          ? t('tv.limitReached')
+          : packSeasons.length > 1
+            ? t('tv.downloadSeasonsRange', { seasons: seasonLabel })
+            : t('tv.downloadSeason')
       }}
     </UButton>
     <UButton v-if="isDev" size="xs" color="neutral" variant="ghost" icon="i-lucide-bug" @click="$emit('toggleDebug')" />
