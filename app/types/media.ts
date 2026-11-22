@@ -45,6 +45,7 @@ export interface SeasonPack extends BaseTorrentInfo {
   score: number
   recommended: boolean
   isSeasonPack: boolean
+  seasons: number[]
 }
 
 export type Genre = { id: number; name: string }

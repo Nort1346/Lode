@@ -70,6 +70,47 @@ function multiEpisodeToken(token: string): { season: number; episodes: number[] 
   return null
 }
 
+const SEASON_CONJUNCTIONS = new Set(['and', 'i', 'oraz', 'or', '&'])
+
+/**
+ * Reads a group of season numbers after a `season`/`sezon` keyword:
+ * `Season 1`, `Seasons 1 and 2`, `Sezon 1 i 3`, `Season 1-2`.
+ * Numbers joined by a conjunction are an explicit set; adjacent numbers or a
+ * dash-separated range are expanded into every season in between.
+ */
+function parseSeasonGroup(tokens: string[], start: number): { seasons: number[]; end: number; contiguous: boolean } {
+  const seasons: number[] = []
+  let index = start
+  let expectNumber = true
+  let hasConjunction = false
+
+  while (index < tokens.length) {
+    const token = tokens[index] ?? ''
+    const value = toInt(token)
+    if (expectNumber) {
+      if (value === null || value < 1 || value > MAX_SEASON) break
+      seasons.push(value)
+      expectNumber = false
+      index++
+      continue
+    }
+    if (SEASON_CONJUNCTIONS.has(token)) {
+      hasConjunction = true
+      expectNumber = true
+      index++
+      continue
+    }
+    if (value !== null && value >= 1 && value <= MAX_SEASON) {
+      seasons.push(value)
+      index++
+      continue
+    }
+    break
+  }
+
+  return { seasons: uniqSorted(seasons), end: index - 1, contiguous: !hasConjunction }
+}
+
 function seasonToken(token: string): number | null {
   const sMatch = /^s(\d{1,2})$/.exec(token)
   if (sMatch !== null) {
@@ -116,24 +157,23 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i] ?? ''
 
-    // Two-token keyword forms: `season 1`, `sezon 1-2`, `episode 5`, `odc 12`.
-    if (token === 'season' || token === 'sezon') {
-      const a = toInt(tokens[i + 1] ?? '')
-      const b = toInt(tokens[i + 2] ?? '')
-      if (a !== null && a <= MAX_SEASON && b !== null && b <= MAX_SEASON && (tokens[i + 2] ?? '').length <= 2) {
-        const from = Math.min(a, b)
-        const to = Math.max(a, b)
+    // Keyword forms: `season 1`, `seasons 1 and 2`, `sezon 1 i 2`, `season 1-3`.
+    if (token === 'season' || token === 'seasons' || token === 'sezon' || token === 'sezony') {
+      const group = parseSeasonGroup(tokens, i + 1)
+      if (group.seasons.length >= 2) {
+        const from = group.seasons[0] ?? 0
+        const to = group.seasons[group.seasons.length - 1] ?? 0
         return {
           kind: 'multiseason-pack',
-          seasons: rangeList(from, to),
+          seasons: group.contiguous ? rangeList(from, to) : group.seasons,
           episodes: [],
           airDate: null
         }
       }
-      if (a !== null && a <= MAX_SEASON) {
-        seasonTokens.push(a)
-        i++
-        continue
+      const only = group.seasons[0]
+      if (only !== undefined) {
+        seasonTokens.push(only)
+        i = group.end
       }
       continue
     }

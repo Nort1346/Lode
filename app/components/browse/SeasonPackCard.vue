@@ -7,6 +7,12 @@
         <UIcon name="i-lucide-layers" class="size-3" />
         {{ t('tv.seasonPack') }}
         <span
+          v-if="pack.seasons.length > 1"
+          class="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap text-purple-600 dark:text-purple-300"
+        >
+          {{ t('tv.multiseasonPack', { seasons: seasonLabel }) }}
+        </span>
+        <span
           class="font-bold"
           :class="
             pack.percentage >= 80 ? 'text-emerald-500' : pack.percentage >= 60 ? 'text-amber-500' : 'text-zinc-500'
@@ -36,7 +42,13 @@
       class="font-bold"
       @click="$emit('download')"
     >
-      {{ limitExceeded ? t('tv.limitReached') : t('tv.downloadSeason') }}
+      {{
+        limitExceeded
+          ? t('tv.limitReached')
+          : pack.seasons.length > 1
+            ? t('tv.downloadSeasons')
+            : t('tv.downloadSeason')
+      }}
     </UButton>
     <UButton v-if="isDev" size="xs" color="neutral" variant="ghost" icon="i-lucide-bug" @click="$emit('toggleDebug')" />
     <div
@@ -111,7 +123,7 @@
 <script setup lang="ts">
 import type { SeasonPack } from '~/types/media'
 
-defineProps<{
+const props = defineProps<{
   pack: SeasonPack
   loading: boolean
   disabled: boolean
@@ -119,6 +131,15 @@ defineProps<{
   isDev: boolean
   debugOpen: boolean
 }>()
+
+const seasonLabel = computed(() => {
+  const seasons = props.pack.seasons
+  if (seasons.length === 0) return ''
+  const contiguous = seasons.every((season, index) => index === 0 || season === (seasons[index - 1] ?? 0) + 1)
+  const first = seasons[0] ?? 0
+  const last = seasons[seasons.length - 1] ?? 0
+  return contiguous && seasons.length > 1 ? `${first}-${last}` : seasons.join(', ')
+})
 
 defineEmits<{
   download: []

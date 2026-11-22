@@ -365,6 +365,25 @@ describe('searchSeasonTorrents', () => {
     }
   })
 
+  it('exposes all seasons of a multi-season pack on each covered season page', async () => {
+    const title = 'Severance.2022.Seasons.1.and.2.Complete.1080p.WEB.x264-i_c'
+    mockUseProwlarr.mockReturnValue({ searchTv: vi.fn().mockResolvedValue([rawRelease({ title })]) })
+    mockRankTorrents.mockImplementation((torrents: unknown[]) =>
+      (torrents as Array<ReturnType<typeof rawRelease>>).map((t) => rankedRelease(t))
+    )
+
+    for (const season of [1, 2]) {
+      const outcome = await searchSeasonTorrents(2, season, 'en')
+      if (outcome.kind !== 'ok') throw new Error('expected a successful search')
+      expect(outcome.payload.seasonPacks).toHaveLength(1)
+      expect(outcome.payload.seasonPacks[0]?.seasons).toEqual([1, 2])
+    }
+
+    const third = await searchSeasonTorrents(2, 3, 'en')
+    if (third.kind !== 'ok') throw new Error('expected a successful search')
+    expect(third.payload.seasonPacks).toEqual([])
+  })
+
   it('keeps unmapped releases from this season but excludes other seasons', async () => {
     const mockClient = {
       searchTv: vi

@@ -98,6 +98,9 @@ export interface EpisodeTorrentPayload {
 
 export interface SeasonPackPayload extends EpisodeTorrentPayload {
   isSeasonPack: boolean
+  // Every season included in the pack, so a 1-2 release can be labelled on
+  // both season pages. Empty when the naming does not name explicit seasons.
+  seasons: number[]
 }
 
 export interface EpisodePayload {

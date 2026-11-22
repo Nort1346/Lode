@@ -131,6 +131,8 @@
     "seasons": "Staffeln",
     "seasonPacks": "Staffelpakete",
     "seasonPack": "Staffelpaket",
+    "multiseasonPack": "Staffeln {seasons}",
+    "downloadSeasons": "Alle Staffeln hinzufügen",
     "downloadSeason": "Ganze Staffel hinzufügen",
     "limitReached": "Limit",
     "episodes": "Folgen",

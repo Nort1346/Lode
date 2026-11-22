@@ -3,7 +3,12 @@ import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
 import { pickAlternativeTitles, titleCandidates } from '#server/utils/browse-utils'
-import { releaseBelongsToSeason, titleIsSeasonPack, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
+import {
+  parseEpisodeInfo,
+  releaseBelongsToSeason,
+  titleIsSeasonPack,
+  titleMatchesEpisode
+} from '#server/utils/torrents/release-episode'
 import { titleMatchStrength } from '#server/utils/torrents/release-match'
 import { createLogger } from '#server/utils/logger'
 import type { ProwlarrResult, ProwlarrProgressCallback, ProwlarrProgressEvent } from '#server/types/prowlarr'
@@ -83,9 +88,12 @@ function toEpisodePayload(t: RankedTorrent): EpisodeTorrentPayload {
 }
 
 function toSeasonPackPayload(t: RankedTorrent): SeasonPackPayload {
+  const info = parseEpisodeInfo(t.title)
+  const seasons = info.kind === 'season-pack' || info.kind === 'multiseason-pack' ? info.seasons : []
   return {
     ...toEpisodePayload(t),
-    isSeasonPack: t.isSeasonPack
+    isSeasonPack: t.isSeasonPack,
+    seasons
   }
 }
 
