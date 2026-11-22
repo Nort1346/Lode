@@ -362,6 +362,7 @@ import type { EpisodeTorrent, SeasonPack } from '~/types/media'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
 import { emptyFilters, hasActiveFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
+import { seasonPackDownloadLabel } from '~/utils/season-label'
 import type { TorrentFilterItem, TorrentFiltersState } from '#shared/torrent-filters'
 
 const route = useRoute()
@@ -515,12 +516,7 @@ const visibleCount = computed(
 const hiddenCount = computed(() => seasonItems.value.length - visibleCount.value)
 
 function seasonPackLabel(pack: SeasonPack): string {
-  const name = show.value?.name ?? ''
-  if (pack.seasons.length <= 1) {
-    return `${name} S${String(selectedSeason.value).padStart(2, '0')} Season Pack`
-  }
-  const seasons = pack.seasons.map((season) => `S${String(season).padStart(2, '0')}`).join('-')
-  return `${name} ${seasons} Season Pack`
+  return seasonPackDownloadLabel(show.value?.name ?? '', pack.seasons ?? [], selectedSeason.value)
 }
 
 function isPrivateLimitExceeded(isPrivate: boolean): boolean {

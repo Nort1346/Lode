@@ -25,6 +25,7 @@ describe('release-episode/parseEpisodeInfo', () => {
     { name: 'Show.Season.2.COMPLETE.1080p', kind: 'season-pack', seasons: [2], episodes: [], airDate: null },
     { name: 'Show.Sezon.1.1080p.PL', kind: 'season-pack', seasons: [1], episodes: [], airDate: null },
     { name: 'Show.Complete.Season.2.1080p', kind: 'season-pack', seasons: [2], episodes: [], airDate: null },
+    { name: 'Show.Season.1.i_c.1080p.WEB-DL', kind: 'season-pack', seasons: [1], episodes: [], airDate: null },
     // Multi-season packs
     { name: 'Show.S01-S03.1080p.WEB-DL', kind: 'multiseason-pack', seasons: [1, 2, 3], episodes: [], airDate: null },
     { name: 'Show.Season.1-2.1080p', kind: 'multiseason-pack', seasons: [1, 2], episodes: [], airDate: null },
@@ -38,6 +39,8 @@ describe('release-episode/parseEpisodeInfo', () => {
     { name: 'Show.Seasons.1.i.2.1080p', kind: 'multiseason-pack', seasons: [1, 2], episodes: [], airDate: null },
     { name: 'Show.Seasons.1.2.1080p', kind: 'multiseason-pack', seasons: [1, 2], episodes: [], airDate: null },
     { name: 'Show.Seasons.1.and.3.1080p', kind: 'multiseason-pack', seasons: [1, 3], episodes: [], airDate: null },
+    { name: 'Show.Seasons.1&2.1080p', kind: 'multiseason-pack', seasons: [1, 2], episodes: [], airDate: null },
+    { name: 'Show.Seasons.1.3.1080p', kind: 'multiseason-pack', seasons: [1, 3], episodes: [], airDate: null },
     { name: 'Show.Season.1-3.1080p', kind: 'multiseason-pack', seasons: [1, 2, 3], episodes: [], airDate: null },
     // Complete series
     { name: 'Show.Complete.Series.720p.HDTV', kind: 'complete-series', seasons: [], episodes: [], airDate: null },

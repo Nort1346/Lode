@@ -22,7 +22,7 @@ function pad2(n: number): string {
 function tokenize(name: string): string[] {
   return name
     .toLowerCase()
-    .split(/[\s._\-+[\](){}]+/)
+    .split(/[\s._\-+&[\](){}]+/)
     .filter((t) => t.length > 0)
 }
 
@@ -75,10 +75,14 @@ const SEASON_CONJUNCTIONS = new Set(['and', 'i', 'oraz', 'or', '&'])
 /**
  * Reads a group of season numbers after a `season`/`sezon` keyword:
  * `Season 1`, `Seasons 1 and 2`, `Sezon 1 i 3`, `Season 1-2`.
- * Numbers joined by a conjunction are an explicit set; adjacent numbers or a
- * dash-separated range are expanded into every season in between.
+ * Only an explicit dash range (`Season 1-3`) is expanded into every season in
+ * between; numbers joined by a conjunction or listed side by side are a set.
  */
-function parseSeasonGroup(tokens: string[], start: number): { seasons: number[]; end: number; contiguous: boolean } {
+function parseSeasonGroup(
+  tokens: string[],
+  start: number,
+  expandRange: boolean
+): { seasons: number[]; end: number; expand: boolean } {
   const seasons: number[] = []
   let index = start
   let expectNumber = true
@@ -108,7 +112,7 @@ function parseSeasonGroup(tokens: string[], start: number): { seasons: number[];
     break
   }
 
-  return { seasons: uniqSorted(seasons), end: index - 1, contiguous: !hasConjunction }
+  return { seasons: uniqSorted(seasons), end: index - 1, expand: expandRange && !hasConjunction }
 }
 
 function seasonToken(token: string): number | null {
@@ -146,6 +150,8 @@ function keywordEpisodeToken(token: string): number | null {
 export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
   const lower = releaseName.toLowerCase()
   const tokens = tokenize(releaseName)
+  // Only a real dash range expands; "Seasons 1 3" stays the explicit set {1,3}.
+  const hasSeasonRange = /(?:^|[^a-z])(?:season|sezon)s?[\s._]*\d{1,2}\s*-\s*\d{1,2}(?![0-9])/.test(lower)
 
   const epTokens: Array<{ season: number; episode: number }> = []
   const multiRanges: Array<{ season: number; episodes: number[] }> = []
@@ -159,13 +165,13 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
 
     // Keyword forms: `season 1`, `seasons 1 and 2`, `sezon 1 i 2`, `season 1-3`.
     if (token === 'season' || token === 'seasons' || token === 'sezon' || token === 'sezony') {
-      const group = parseSeasonGroup(tokens, i + 1)
+      const group = parseSeasonGroup(tokens, i + 1, hasSeasonRange)
       if (group.seasons.length >= 2) {
         const from = group.seasons[0] ?? 0
         const to = group.seasons[group.seasons.length - 1] ?? 0
         return {
           kind: 'multiseason-pack',
-          seasons: group.contiguous ? rangeList(from, to) : group.seasons,
+          seasons: group.expand ? rangeList(from, to) : group.seasons,
           episodes: [],
           airDate: null
         }
@@ -410,15 +416,22 @@ export function releaseBelongsToSeason(title: string, seasonNumber: number): boo
  * Pack matcher used by the torrent search: anything spanning more than one
  * episode (season packs, multi-season packs, multi-episode ranges, complete
  * series) is a pack. A range matches each season it spans.
+ *
+ * Returns the parsed info so callers can build a payload without parsing the
+ * same release title a second time.
  */
-export function titleIsSeasonPack(title: string, seasonNumber: number): boolean {
+export function seasonPackInfo(title: string, seasonNumber: number): EpisodeInfo | null {
   const info = parseEpisodeInfo(title)
   if (info.kind === 'season-pack' || info.kind === 'multiseason-pack') {
-    return info.seasons.length === 0 || info.seasons.includes(seasonNumber)
+    return info.seasons.length === 0 || info.seasons.includes(seasonNumber) ? info : null
   }
   if (info.kind === 'multi-episode') {
-    return info.seasons.includes(seasonNumber)
+    return info.seasons.includes(seasonNumber) ? info : null
   }
-  if (info.kind === 'complete-series') return true
-  return false
+  if (info.kind === 'complete-series') return info
+  return null
+}
+
+export function titleIsSeasonPack(title: string, seasonNumber: number): boolean {
+  return seasonPackInfo(title, seasonNumber) !== null
 }
