@@ -3,7 +3,8 @@ import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
 import { pickAlternativeTitles, titleCandidates } from '#server/utils/browse-utils'
-import { titleIsSeasonPack, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
+import { releaseBelongsToSeason, titleIsSeasonPack, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
+import { titleMatchStrength } from '#server/utils/torrents/release-match'
 import { createLogger } from '#server/utils/logger'
 import type { ProwlarrResult, ProwlarrProgressCallback, ProwlarrProgressEvent } from '#server/types/prowlarr'
 import type { RankedTorrent } from '#server/types/torrent'
@@ -120,7 +121,7 @@ export async function searchMovieTorrents(
 
   const prowlarr = useProwlarr()
   if (prowlarr === null) {
-    const payload: MovieSearchPayload = { torrents: [] }
+    const payload: MovieSearchPayload = { torrents: [], otherTorrents: [] }
     return { kind: 'ok', payload, found: 0 }
   }
 
@@ -142,21 +143,29 @@ export async function searchMovieTorrents(
       movie.imdb_id
     )
     // Prowlarr's text search matches any word in the title, so "The Doll" also
-    // brings back "The Doll Squad" and "Gabby's Dollhouse". Pass every TMDB
-    // title to the ranker so the real releases sort to the top; no result is
-    // dropped, the user still sees everything Prowlarr returned.
+    // brings back "The Doll Squad" and "Gabby's Dollhouse". Releases that do
+    // not name this film go into a separate bucket: nothing is lost, but they
+    // can never be mistaken for the requested movie or get a recommendation.
     const titles = titleCandidates(
       movie.title,
       movie.original_title,
       (movie.alternative_titles ?? []).map((a) => a.title)
     )
-    const torrents = rankTorrents(rawResults, 'movie', movie.title, year, rankingConfig, titles).map(toTorrentPayload)
-    log.info(`Movie "${movie.title}": ranked ${torrents.length} Prowlarr results`)
-    const payload: MovieSearchPayload = { torrents }
-    return { kind: 'ok', payload, found: torrents.length }
+    const matches = rawResults.filter((r) => titleMatchStrength(r.title, titles, year, 'movie') > 0)
+    const matched = new Set(matches)
+    const others = rawResults.filter((r) => !matched.has(r))
+
+    const torrents = rankTorrents(matches, 'movie', movie.title, year, rankingConfig, titles).map(toTorrentPayload)
+    const otherTorrents = rankTorrents(others, 'movie', movie.title, year, rankingConfig, titles).map((t) => ({
+      ...toTorrentPayload(t),
+      recommended: false
+    }))
+    log.info(`Movie "${movie.title}": ${torrents.length} matches, ${otherTorrents.length} loose Prowlarr results`)
+    const payload: MovieSearchPayload = { torrents, otherTorrents }
+    return { kind: 'ok', payload, found: rawResults.length }
   } catch {
     // Prowlarr might be offline mid-search - return empty instead of failing
-    return { kind: 'ok', payload: { torrents: [] }, found: 0 }
+    return { kind: 'ok', payload: { torrents: [], otherTorrents: [] }, found: 0 }
   }
 }
 
@@ -290,11 +299,13 @@ export async function searchSeasonTorrents(
     matchYears
   ).map(toSeasonPackPayload)
 
-  // Nothing from Prowlarr is discarded: releases that do not map onto a TMDB
+  // Nothing relevant is discarded: releases that do not map onto a TMDB
   // episode or pack (a just-aired episode TMDB has not added yet, unusual
-  // numbering, ...) get their own bucket in the UI.
+  // numbering, ...) get their own bucket in the UI. Releases that explicitly
+  // belong to another season stay out of it - they show up when that season
+  // is selected instead.
   const otherTorrents = rankTorrents(
-    rawTorrents.filter((t) => !matched.has(t)),
+    rawTorrents.filter((t) => !matched.has(t) && releaseBelongsToSeason(t.title, seasonNumber)),
     'series',
     show.name,
     year,

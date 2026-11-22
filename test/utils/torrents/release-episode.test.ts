@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { parseEpisodeInfo, titleIsSeasonPack, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
+import {
+  parseEpisodeInfo,
+  releaseBelongsToSeason,
+  titleIsSeasonPack,
+  titleMatchesEpisode
+} from '#server/utils/torrents/release-episode'
 
 describe('release-episode/parseEpisodeInfo', () => {
   const cases: Array<{ name: string; kind: string; seasons: number[]; episodes: number[]; airDate: string | null }> = [
@@ -119,6 +124,29 @@ describe('release-episode/titleMatchesEpisode with extra hints', () => {
     expect(titleMatchesEpisode('[Group] Show - 13 (1080p)', 2, 1, null, 0)).toBe(false)
     expect(titleMatchesEpisode('[Group] Show - 05 (1080p)', 1, 5, null, 5)).toBe(true)
   })
+})
+
+describe('release-episode/releaseBelongsToSeason', () => {
+  const cases: Array<{ title: string; season: number; expected: boolean }> = [
+    { title: 'Show.S02E01.1080p', season: 1, expected: false },
+    { title: 'Show.S02E01.1080p', season: 2, expected: true },
+    { title: 'Show.Sezon.2.Odcinek.5.1080p', season: 1, expected: false },
+    { title: 'Show.Season.2.Episode.5.1080p', season: 2, expected: true },
+    { title: 'Show.2x05.1080p', season: 1, expected: false },
+    { title: 'Show.S02.1080p.WEB-DL', season: 1, expected: false },
+    { title: 'Show.S01-S02.1080p', season: 1, expected: true },
+    { title: 'Show.S01-S02.1080p', season: 3, expected: false },
+    // No season marker: may be a just-aired episode, so keep it.
+    { title: 'Show.New.Episode.2026.11.20.1080p', season: 1, expected: true },
+    { title: '[Group] Show - 1090 (1080p)', season: 1, expected: true },
+    { title: 'Show.1080p.WEB-DL', season: 2, expected: true }
+  ]
+
+  for (const c of cases) {
+    it(`"${c.title}" belongs to season ${c.season} -> ${c.expected}`, () => {
+      expect(releaseBelongsToSeason(c.title, c.season)).toBe(c.expected)
+    })
+  }
 })
 
 describe('release-episode/titleIsSeasonPack', () => {

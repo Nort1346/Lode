@@ -106,7 +106,7 @@ describe('browse/movie/[id]/torrents.get', () => {
 
     const result = await handler(mockEvent)
 
-    expect(result).toEqual({ torrents: [] })
+    expect(result).toEqual({ torrents: [], otherTorrents: [] })
     expect(mockRankTorrents).not.toHaveBeenCalled()
   })
 
@@ -180,6 +180,6 @@ describe('browse/movie/[id]/torrents.get', () => {
 
     const result = await handler(mockEvent)
 
-    expect(result).toEqual({ torrents: [] })
+    expect(result).toEqual({ torrents: [], otherTorrents: [] })
   })
 })

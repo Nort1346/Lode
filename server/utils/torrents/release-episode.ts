@@ -344,6 +344,29 @@ export function titleMatchesEpisode(
 }
 
 /**
+ * Season guard for the "unmapped releases" bucket. A release that explicitly
+ * names a different season must not be offered while the user is looking at
+ * season 1 (or 2, ...). Releases without season information - daily shows,
+ * absolute numbering, plain titles - are kept: they may be a brand new
+ * episode TMDB has not listed yet.
+ */
+export function releaseBelongsToSeason(title: string, seasonNumber: number): boolean {
+  const info = parseEpisodeInfo(title)
+  switch (info.kind) {
+    case 'episode':
+    case 'multi-episode':
+    case 'season-pack':
+    case 'multiseason-pack':
+      return info.seasons.length === 0 || info.seasons.includes(seasonNumber)
+    case 'complete-series':
+    case 'daily':
+    case 'absolute':
+    case 'unknown':
+      return true
+  }
+}
+
+/**
  * Pack matcher used by the torrent search: anything spanning more than one
  * episode (season packs, multi-season packs, multi-episode ranges, complete
  * series) is a pack. A range matches each season it spans.

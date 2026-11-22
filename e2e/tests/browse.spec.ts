@@ -36,6 +36,49 @@ test.describe('browse', () => {
     await expect(page.getByText(MOVIE_OVERVIEW)).toBeVisible()
   })
 
+  test('keeps loose Prowlarr movie matches in a separate section', async ({ page }) => {
+    const torrent = (title: string) => ({
+      title,
+      size: 1000,
+      sizeFormatted: '1000 B',
+      seeders: 5,
+      leechers: 0,
+      indexer: 'TestIndexer',
+      magnetLink: 'magnet:?xt=urn:btih:e2e',
+      downloadUrl: null,
+      guid: null,
+      score: 80,
+      percentage: 80,
+      recommended: false,
+      resolution: '1080p',
+      source: 'WEB-DL',
+      language: null,
+      tags: [],
+      isPrivate: false
+    })
+    await page.route('**/api/browse/movie/**/torrents-stream*', async (route) => {
+      const data = {
+        torrents: [torrent('E2E.The.Movie.2024.1080p.WEB-DL')],
+        otherTorrents: [torrent('E2E.Similar.Title.Movie.1995.1080p')]
+      }
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' },
+        body:
+          `data: ${JSON.stringify({ type: 'start', queries: 2 })}\n\n` +
+          `data: ${JSON.stringify({ type: 'done', found: 2, data })}\n\n`
+      })
+    })
+
+    await gotoPage(page, `/browse/movie/${MOVIE_ID}`)
+
+    await expect(page.getByText('E2E.The.Movie.2024.1080p.WEB-DL')).toBeVisible()
+    const loose = page.locator('details', { hasText: 'Other results' })
+    await expect(loose).toBeVisible()
+    await loose.locator('summary').click()
+    await expect(loose.getByText('E2E.Similar.Title.Movie.1995.1080p')).toBeVisible()
+  })
+
   test('opens the TV show detail page with the show metadata', async ({ page }) => {
     await gotoPage(page, `/browse/tv/703`)
 

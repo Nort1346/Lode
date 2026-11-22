@@ -123,6 +123,8 @@
     "download": "Ajouter",
     "limitReached": "Limite",
     "noTorrents": "Aucun téléchargement trouvé.",
+    "otherResults": "Autres résultats",
+    "otherResultsHint": "Résultats au titre similaire qui pourraient concerner un autre film. Affichés séparément pour éviter toute confusion.",
     "loadError": "Impossible de charger les détails du film."
   },
   "tv": {
@@ -137,7 +139,7 @@
     "season_one": "saison",
     "season_many": "saisons",
     "otherReleases": "Autres sorties",
-    "otherReleasesHint": "Sorties dont l'épisode n'est pas encore reconnu (par exemple un épisode tout neuf). Tous les résultats Prowlarr sont affichés."
+    "otherReleasesHint": "Sorties de cette saison qui n'ont pas encore pu être associées à un épisode connu, par exemple un épisode récemment diffusé."
   },
   "submit": {
     "title": "Ajouter un torrent",

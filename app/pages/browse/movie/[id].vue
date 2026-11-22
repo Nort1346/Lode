@@ -370,6 +370,33 @@
           </div>
         </div>
       </TransitionGroup>
+
+      <details v-if="otherTorrents.length > 0" class="group mt-6">
+        <summary
+          class="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-white/50 px-4 py-3 text-sm font-semibold text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300"
+        >
+          <UIcon name="i-lucide-chevron-right" class="size-4 transition-transform group-open:rotate-90" />
+          {{ t('movie.otherResults') }} ({{ otherTorrents.length }})
+        </summary>
+        <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">{{ t('movie.otherResultsHint') }}</p>
+        <TransitionGroup appear name="filter-list" tag="div" class="relative mt-3 flex flex-col gap-1 torrent-list">
+          <BrowseTorrentRow
+            v-for="(torrent, otherIdx) in visibleOtherTorrents"
+            :key="torrentKey(torrent)"
+            :style="`--i: ${otherIdx}`"
+            :torrent="torrent"
+            :loading="downloadingOtherIdx === otherIdx"
+            :disabled="
+              downloadActive || (torrent.magnetLink === null && torrent.guid === null && torrent.downloadUrl === null)
+            "
+            :limit-exceeded="isPrivateLimitExceeded(torrent)"
+            :is-dev="isDev"
+            :debug-open="debugOpenOtherIdx === otherIdx"
+            @download="downloadOtherTorrent(torrent, otherIdx)"
+            @toggle-debug="toggleDebugOther(otherIdx)"
+          />
+        </TransitionGroup>
+      </details>
     </div>
 
     <UModal v-model:open="requestModalOpen">
@@ -421,6 +448,8 @@ const rejectedAdminNote = ref<string | null>(null)
 const wishlisted = ref(false)
 
 const debugOpenIdx = ref<number | null>(null)
+const downloadingOtherIdx = ref<number | null>(null)
+const debugOpenOtherIdx = ref<number | null>(null)
 const requestModalOpen = ref(false)
 const requestNote = ref('')
 const { t } = useI18n()
@@ -431,6 +460,10 @@ const isDev = computed(() => import.meta.dev && user.value?.role === 'admin')
 
 function toggleDebug(idx: number) {
   debugOpenIdx.value = debugOpenIdx.value === idx ? null : idx
+}
+
+function toggleDebugOther(idx: number) {
+  debugOpenOtherIdx.value = debugOpenOtherIdx.value === idx ? null : idx
 }
 
 const { copyToClipboard } = useCopyToClipboard()
@@ -467,9 +500,10 @@ const {
   payload: torrentPayload,
   limitInfo,
   start: startTorrentSearch
-} = useTorrentSearch<{ torrents: Torrent[] }>()
+} = useTorrentSearch<{ torrents: Torrent[]; otherTorrents: Torrent[] }>()
 
 const torrents = computed(() => torrentPayload.value?.torrents ?? [])
+const otherTorrents = computed(() => torrentPayload.value?.otherTorrents ?? [])
 const searching = computed(
   () => searchPhase.value === 'connecting' || searchPhase.value === 'searching' || searchPhase.value === 'finishing'
 )
@@ -485,6 +519,9 @@ watch(
   }
 )
 const visibleTorrents = computed(() => torrents.value.filter((torrent) => matchesFilters(torrent, filterState.value)))
+const visibleOtherTorrents = computed(() =>
+  otherTorrents.value.filter((torrent) => matchesFilters(torrent, filterState.value))
+)
 const hiddenTorrents = computed(() => torrents.value.length - visibleTorrents.value.length)
 
 const torrentStreamUrl = computed(
@@ -625,13 +662,14 @@ async function toggleWishlist() {
   }
 }
 
-async function downloadTorrent(torrent: Torrent, idx: number) {
+async function downloadTorrent(torrent: Torrent, idx: number, group: 'main' | 'other' = 'main') {
   const hasMagnet = torrent.magnetLink !== null && torrent.magnetLink.length > 0
   const hasGuid = torrent.guid !== null && torrent.guid.length > 0
   const hasDownloadUrl = torrent.downloadUrl !== null && torrent.downloadUrl.length > 0
   if (!hasMagnet && !hasGuid && !hasDownloadUrl) return
   if (!(await guardDownload())) return
-  downloadingIdx.value = idx
+  const loadingRef = group === 'other' ? downloadingOtherIdx : downloadingIdx
+  loadingRef.value = idx
   startDownload(movie.value?.title ?? t('download.adding'))
 
   try {
@@ -702,8 +740,12 @@ async function downloadTorrent(torrent: Torrent, idx: number) {
       toast.add({ title: t('download.error'), description: describeApiError(e, t).description, color: 'error' })
     }
   } finally {
-    downloadingIdx.value = null
+    loadingRef.value = null
     finishDownload()
   }
+}
+
+function downloadOtherTorrent(torrent: Torrent, idx: number) {
+  void downloadTorrent(torrent, idx, 'other')
 }
 </script>
