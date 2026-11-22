@@ -28,6 +28,19 @@ const activeList = ref<Download[]>([])
 const activeDownloads = computed(() => activeList.value)
 const loading = ref(true)
 const cancelling = ref<string | null>(null)
+// Server defaults (server/api/prep-config.get.ts): countdown off, 15 MB/s.
+const prepSpeedMb = ref(15)
+const prepCountdownEnabled = ref(false)
+
+async function fetchPrepConfig() {
+  try {
+    const data = await $fetch<{ enabled: boolean; speedMb: number }>('/api/prep-config')
+    prepSpeedMb.value = data.speedMb
+    prepCountdownEnabled.value = data.enabled
+  } catch {
+    // keep defaults
+  }
+}
 
 let fetchInFlight = false
 let lastFetchOk = true
@@ -39,14 +52,17 @@ async function fetchData() {
   try {
     const [statsRes, listRes] = await Promise.all([
       $fetch<{ active: number; createdSince: number; completedSince: number }>('/api/torrents/stats'),
-      $fetch<{ downloads: Download[] }>('/api/torrents/list?status=checking,downloading,paused&limit=50')
+      $fetch<{ downloads: Download[] }>('/api/torrents/list?status=checking,downloading,paused,completed&limit=50')
     ])
     stats.value = {
       activeTorrents: statsRes.active,
       downloadsToday: statsRes.createdSince,
       completedToday: statsRes.completedSince
     }
-    activeList.value = listRes.downloads ?? []
+    // A completed row is still "active" while its preparation (library import
+    // and ready countdown) has not settled: notifiedAt is what ends that
+    // phase, so only prepared rows stay in the list.
+    activeList.value = (listRes.downloads ?? []).filter((dl) => dl.status !== 'completed' || dl.notifiedAt === null)
     lastFetchOk = true
   } catch (e: unknown) {
     // Keep previous data on failure; toast only on the first failure so the poll loop does not spam
@@ -60,16 +76,48 @@ async function fetchData() {
   }
 }
 
-onMounted(fetchData)
-
-const intervalId = ref<ReturnType<typeof setInterval>>()
 onMounted(() => {
-  intervalId.value = setInterval(() => {
-    void fetchData()
-  }, 3000)
+  void fetchPrepConfig()
+  void fetchData()
 })
+
+const { lastNotification } = useNotifications()
+
+// Same rule as the downloads page: the ready notification and the row must
+// flip together. The server sets notifiedAt in the same pass that pushes this
+// SSE event, so a prepared download leaves the list on the event instead of
+// on the next poll.
+watch(lastNotification, (n) => {
+  if (n === null) return
+  const downloadId = n.data?.downloadId
+  if (typeof downloadId !== 'string' || !markDownloadReady(activeList.value, n)) return
+  activeList.value = activeList.value.filter((dl) => dl.id !== downloadId)
+})
+
+// Only a live byte copy needs the fast cadence: the countdown alone updates
+// in minute steps, so a plain countdown stays on the idle poll.
+const hasActivePrep = computed(() =>
+  activeList.value.some((dl) => dl.status === 'completed' && dl.notifiedAt === null && Boolean(dl.organizeProgress))
+)
+
+const IDLE_POLL_MS = 3000
+const PREP_POLL_MS = 1000
+
+let intervalId: ReturnType<typeof setInterval> | undefined
+function startPolling() {
+  if (intervalId) clearInterval(intervalId)
+  intervalId = setInterval(
+    () => {
+      void fetchData()
+    },
+    hasActivePrep.value ? PREP_POLL_MS : IDLE_POLL_MS
+  )
+}
+
+onMounted(startPolling)
+watch(hasActivePrep, startPolling)
 onUnmounted(() => {
-  if (intervalId.value) clearInterval(intervalId.value)
+  if (intervalId) clearInterval(intervalId)
 })
 
 const { data: trendingData } = useLazyFetch('/api/browse/trending', {
@@ -135,6 +183,35 @@ function getDisplayName(dl: Download): string {
 
 const { qualityConfig } = useQualityConfig()
 const { etaState, etaLabel } = useEtaTracker()
+
+function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
+  if (completedAt === null || completedAt === '') return ''
+  const prepSpeedBytes = prepSpeedMb.value * 1024 * 1024
+  const elapsed = (Date.now() - new Date(completedAt).getTime()) / 1000
+  const delay = sizeBytes / prepSpeedBytes
+  const remaining = Math.max(0, delay - elapsed)
+  if (remaining <= 0) return t('downloads.prepReady')
+  if (remaining < 60) return t('downloads.prepRemainingSec', { s: Math.ceil(remaining) })
+  return t('downloads.prepRemainingMin', { m: Math.ceil(remaining / 60) })
+}
+
+// One bar for the whole preparation phase: the simulated countdown (when
+// enabled) and the real bytes copied into the library. computePrepPercent
+// follows the slower of the two, so the bar hits 100 exactly when the row
+// turns green and never moves backwards.
+function prepPercent(dl: Download): number {
+  return computePrepPercent(dl, prepSpeedMb.value * 1024 * 1024, prepCountdownEnabled.value)
+}
+
+function prepDetail(dl: Download): string {
+  const progress = dl.organizeProgress
+  if (progress) {
+    return `${formatSize(progress.copiedBytes)} / ${formatSize(progress.totalBytes)} · ${formatSpeed(
+      progress.speedBytesPerSecond
+    )}`
+  }
+  return formatPrepTime(dl.completedAt, dl.sizeBytes)
+}
 
 function cardBorderClass(dl: Download): string {
   if (dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok') {
@@ -329,17 +406,21 @@ const savePathLabels = computed<Record<string, string>>(() => ({
               <UButton
                 icon="i-lucide-trash-2"
                 color="error"
-                :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
+                :variant="dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
                 size="xs"
                 :loading="cancelling === dl.id"
-                :label="t('download.delete')"
+                :label="
+                  dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok'
+                    ? t('common.deleteBad')
+                    : t('download.delete')
+                "
                 class="hidden sm:inline-flex"
                 @click="cancelTorrent(dl)"
               />
               <UButton
                 icon="i-lucide-trash-2"
                 color="error"
-                :variant="getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
+                :variant="dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok' ? 'solid' : 'ghost'"
                 size="xs"
                 :loading="cancelling === dl.id"
                 class="sm:hidden"
@@ -347,7 +428,42 @@ const savePathLabels = computed<Record<string, string>>(() => ({
               />
             </div>
 
-            <div class="space-y-2">
+            <!-- A completed row is only here while its preparation (import and
+                 ready countdown) has not settled, so it renders the same amber
+                 bar as the downloads page instead of finished-download stats. -->
+            <div v-if="dl.status === 'completed'" class="space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+                  <UIcon
+                    name="i-lucide-package-open"
+                    class="size-3.5"
+                    :class="dl.organizeProgress ? 'animate-pulse' : ''"
+                  />
+                  {{ dl.organizeProgress ? t('downloads.prepCopying') : t('downloads.prepTitle') }}
+                </span>
+                <span class="font-medium text-amber-600 dark:text-amber-400">{{ prepPercent(dl).toFixed(1) }}%</span>
+              </div>
+              <div
+                role="progressbar"
+                :aria-valuenow="prepPercent(dl)"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                :aria-label="t('downloads.prepTitle')"
+                class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10"
+              >
+                <div
+                  class="h-full min-w-0.5 rounded-full bg-amber-500 transition-[width] duration-1000 ease-linear"
+                  :style="{ width: `${Math.max(prepPercent(dl), 0.5)}%` }"
+                />
+              </div>
+              <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+                <span>{{ prepDetail(dl) }}</span>
+                <span v-if="dl.organizeProgress"
+                  >{{ dl.organizeProgress.filesDone }}/{{ dl.organizeProgress.filesTotal }}</span
+                >
+              </div>
+            </div>
+            <div v-else class="space-y-2">
               <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
                 <span class="font-medium text-zinc-900 dark:text-white">{{ dl.progress.toFixed(1) }}%</span>
                 <div class="flex items-center gap-3">
