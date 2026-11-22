@@ -12,15 +12,28 @@ const loading = ref(false)
 const serverError = ref('')
 
 const newPassword = ref('')
+const confirmPassword = ref('')
 
-const visible = reactive({ next: false })
+const visible = reactive({ next: false, confirm: false })
 
 const newPasswordError = computed(() => {
   if (newPassword.value && newPassword.value.length < 8) return t('profile.passwordTooShort')
   return ''
 })
 
-const canSubmit = computed(() => !!newPassword.value && !newPasswordError.value && !loading.value)
+const confirmPasswordError = computed(() => {
+  if (confirmPassword.value && newPassword.value !== confirmPassword.value) return t('profile.passwordMismatch')
+  return ''
+})
+
+const canSubmit = computed(
+  () =>
+    !!newPassword.value &&
+    !!confirmPassword.value &&
+    !newPasswordError.value &&
+    !confirmPasswordError.value &&
+    !loading.value
+)
 
 async function submit() {
   if (!canSubmit.value) return
@@ -74,6 +87,30 @@ async function submit() {
                 :aria-pressed="visible.next"
                 :disabled="loading"
                 @click="visible.next = !visible.next"
+              />
+            </template>
+          </UInput>
+        </UFormField>
+
+        <UFormField :label="t('profile.confirmPassword')" :error="confirmPasswordError || undefined">
+          <UInput
+            v-model="confirmPassword"
+            :type="visible.confirm ? 'text' : 'password'"
+            class="w-full"
+            autocomplete="new-password"
+            :disabled="loading"
+          >
+            <template #trailing>
+              <UButton
+                type="button"
+                color="neutral"
+                variant="link"
+                size="sm"
+                :icon="visible.confirm ? appConfig.ui.icons.eyeOff : appConfig.ui.icons.eye"
+                :aria-label="visible.confirm ? t('profile.hidePassword') : t('profile.showPassword')"
+                :aria-pressed="visible.confirm"
+                :disabled="loading"
+                @click="visible.confirm = !visible.confirm"
               />
             </template>
           </UInput>
