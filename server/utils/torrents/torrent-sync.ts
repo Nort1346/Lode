@@ -11,6 +11,7 @@ import { notifyDownloadComplete } from '#server/utils/notifications/notification
 import { createLogger } from '#server/utils/logger'
 import { normalizeEta } from '#server/utils/torrents/eta'
 import { trackServerEta } from '#server/utils/torrents/eta-tracker'
+import { removeOrganizedMissingFileTorrents } from '#server/utils/torrents/missing-files'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import type { EtaTrackerInput } from '#shared/eta-tracker'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
@@ -345,6 +346,11 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     const msg = err instanceof Error ? err.message : String(err)
     log.warn(`pending organize sweep failed: ${msg}`)
   })
+
+  // Import after a `move` leaves qBittorrent pointing at files that are now in
+  // the library. Drop those stuck "Missing Files" torrents (files are kept)
+  // instead of letting them accumulate in the client.
+  void removeOrganizedMissingFileTorrents()
 
   // Paused and checking rows are synced too so external pause/resume and file verification are picked up
   const activeDownloads = await dbAll(

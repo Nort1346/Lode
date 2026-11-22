@@ -615,7 +615,19 @@ describe('QBittorrentClient', () => {
       'http://qb:8080/api/v2/torrents/setShareLimits',
       expect.objectContaining({
         method: 'POST',
-        body: `hashes=${HASH}&ratioLimit=0&seedingTimeLimit=0&inactiveSeedingTimeLimit=0&shareLimitAction=Stop`
+        body: `hashes=${HASH}&ratioLimit=0&seedingTimeLimit=0&inactiveSeedingTimeLimit=0&shareLimitAction=Stop&shareLimitsMode=Default`
+      })
+    )
+  })
+
+  it('setShareLimits forwards an explicit shareLimitsMode', async () => {
+    mockFetch.mockResolvedValue(okResponse())
+
+    await client.setShareLimits(HASH, 1, 60, -1, 'Remove', 'MatchAll')
+
+    expect(mockFetch.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        body: `hashes=${HASH}&ratioLimit=1&seedingTimeLimit=60&inactiveSeedingTimeLimit=-1&shareLimitAction=Remove&shareLimitsMode=MatchAll`
       })
     )
   })

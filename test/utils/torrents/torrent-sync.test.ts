@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { join } from 'node:path'
 
 const mockGetAllTorrents = vi.fn()
+const mockDeleteTorrent = vi.fn()
 vi.stubGlobal(
   'useQBittorrent',
-  vi.fn(() => ({ getAllTorrents: mockGetAllTorrents }))
+  vi.fn(() => ({ getAllTorrents: mockGetAllTorrents, deleteTorrent: mockDeleteTorrent }))
 )
 
 const mockSettingGet = vi.fn((_cond?: { key?: string }) => undefined as { value: string } | undefined)
@@ -41,11 +42,12 @@ const mockSchema = vi.hoisted(() => ({
 }))
 
 // The pending sweep queries completed rows with organizeStatus='pending'; the
-// where() mock recognises that composite condition so it can serve a different
-// fixture than the active-download query.
+// missing-files sweep queries the same status with organizeStatus='done'. The
+// where() mock distinguishes them by the organizeStatus value so each gets its
+// own fixture (and the pending sweep keeps its single-sweep call count).
 function isPendingSweepQuery(cond: unknown): boolean {
   const parts = (cond as { and?: Array<{ key?: string }> } | undefined)?.and
-  return Array.isArray(parts) && parts.some((part) => part.key === 'completed')
+  return Array.isArray(parts) && parts.some((part) => part.key === 'pending')
 }
 
 const mockDb = {
