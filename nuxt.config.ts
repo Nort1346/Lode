@@ -68,6 +68,8 @@ export default defineNuxtConfig({
     },
     redisUrl: '',
     tmdbApiKey: '',
+    // Optional TMDB-compatible endpoint override (E2E tests point this at a local mock)
+    tmdbBaseUrl: '',
     prowlarrUrl: 'http://127.0.0.1:9900',
     prowlarrApiKey: '',
     qbittorrentUrl: 'http://127.0.0.1:8080',
