@@ -138,6 +138,7 @@
     "loadError": "Serien-Details konnten nicht geladen werden.",
     "season_one": "Staffel",
     "season_many": "Staffeln",
+    "moreResults": "Weitere Ergebnisse",
     "otherReleases": "Weitere Veröffentlichungen",
     "otherReleasesHint": "Veröffentlichungen dieser Staffel, die noch keiner bekannten Folge zugeordnet werden konnten, zum Beispiel eine neu ausgestrahlte Folge."
   },

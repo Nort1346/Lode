@@ -138,6 +138,7 @@
     "loadError": "Failed to load TV show details.",
     "season_one": "season",
     "season_many": "seasons",
+    "moreResults": "More results",
     "otherReleases": "Other releases",
     "otherReleasesHint": "Releases from this season that could not be matched to a known episode yet, for example a newly aired episode."
   },

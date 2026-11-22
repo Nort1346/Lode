@@ -128,4 +128,68 @@ test.describe('browse', () => {
     await expect(page.getByText('Other releases')).toBeVisible()
     await expect(page.getByText('E2E.New.Episode.2026.1080p.WEB-DL')).toBeVisible()
   })
+
+  test('collapses episode results below the match threshold', async ({ page }) => {
+    const torrent = (title: string, percentage: number) => ({
+      title,
+      size: 1000,
+      sizeFormatted: '1000 B',
+      seeders: 5,
+      leechers: 0,
+      indexer: 'TestIndexer',
+      magnetLink: 'magnet:?xt=urn:btih:e2e',
+      downloadUrl: null,
+      guid: null,
+      score: percentage,
+      percentage,
+      recommended: false,
+      resolution: '1080p',
+      source: 'WEB-DL',
+      language: null,
+      tags: [],
+      isPrivate: false
+    })
+    const payload = {
+      show: { id: 703, name: TV_TITLE },
+      season: { seasonNumber: 1, name: 'Season 1', overview: '', posterUrl: null, airDate: null },
+      episodes: [
+        {
+          id: 1,
+          episodeNumber: 1,
+          name: 'Pilot',
+          overview: '',
+          stillUrl: null,
+          airDate: '2026-01-01',
+          rating: 0,
+          runtime: null,
+          torrents: [
+            torrent('E2E.Show.S01E01.1080p', 80),
+            torrent('E2E.Show.S01E01.720p', 25),
+            torrent('E2E.Other.Show.S01E01.720p', 20)
+          ]
+        }
+      ],
+      seasonPacks: [],
+      otherTorrents: []
+    }
+    await page.route('**/api/browse/tv/**/torrents-stream*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' },
+        body:
+          `data: ${JSON.stringify({ type: 'start', queries: 1 })}\n\n` +
+          `data: ${JSON.stringify({ type: 'done', found: 3, data: payload })}\n\n`
+      })
+    })
+
+    await gotoPage(page, `/browse/tv/703`)
+
+    await expect(page.getByText('E2E.Show.S01E01.1080p')).toBeVisible()
+    await expect(page.getByText('E2E.Show.S01E01.720p')).toBeVisible()
+    const more = page.locator('details', { hasText: 'More results' })
+    await expect(more).toBeVisible()
+    await expect(more.getByText('E2E.Other.Show.S01E01.720p')).toBeHidden()
+    await more.locator('summary').click()
+    await expect(more.getByText('E2E.Other.Show.S01E01.720p')).toBeVisible()
+  })
 })

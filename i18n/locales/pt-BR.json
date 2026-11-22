@@ -138,6 +138,7 @@
     "loadError": "Falha ao carregar os detalhes da série.",
     "season_one": "temporada",
     "season_many": "temporadas",
+    "moreResults": "Mais resultados",
     "otherReleases": "Outros lançamentos",
     "otherReleasesHint": "Lançamentos desta temporada que ainda não puderam ser associados a um episódio conhecido, por exemplo um episódio recém-exibido."
   },

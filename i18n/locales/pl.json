@@ -138,6 +138,7 @@
     "loadError": "Nie udało się załadować szczegółów serialu.",
     "season_one": "sezon",
     "season_many": "sezonów",
+    "moreResults": "Więcej wyników",
     "otherReleases": "Pozostałe wydania",
     "otherReleasesHint": "Wydania z tego sezonu, których nie udało się jeszcze przypisać do znanego odcinka, np. świeżo wyemitowany odcinek."
   },
