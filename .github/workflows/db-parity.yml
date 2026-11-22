@@ -40,6 +40,13 @@ jobs:
         run: pnpm install
 
       - name: Run DB parity tests (SQLite + PostgreSQL)
+        # The URL is assembled from parts at runtime: a literal user:*** URL
+        # in this file gets mangled by credential redaction (and the SCRAM
+        # proof then fails with "password authentication failed").
         env:
-          LODE_PG_TEST_URL: postgres://lode:***@127.0.0.1:54335/postgres
-        run: pnpm exec vitest run -c vitest.db-parity.config.ts
+          LODE_PG_TEST_USER: lode
+          LODE_PG_TEST_PASSWORD: lode
+          LODE_PG_TEST_HOST: 127.0.0.1:54335
+        run: |
+          export LODE_PG_TEST_URL="postgres://${LODE_PG_TEST_USER}:${LODE_PG_TEST_PASSWORD}@${LODE_PG_TEST_HOST}/postgres"
+          pnpm exec vitest run -c vitest.db-parity.config.ts

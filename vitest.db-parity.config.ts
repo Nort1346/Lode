@@ -15,11 +15,11 @@ const serverAlias = {
 //
 // Run with:
 //   pnpm exec vitest run -c vitest.db-parity.config.ts
-// or with a PostgreSQL server:
-//   LODE_PG_TEST_URL=postgres://lode:***@127.0.0.1:54335/postgres pnpm exec vitest run -c vitest.db-parity.config.ts
+// or with a PostgreSQL server (any password works - just match it in the URL):
+//   LODE_PG_TEST_URL=postgres://lode:<password>@127.0.0.1:54335/postgres pnpm exec vitest run -c vitest.db-parity.config.ts
 //
 // Local quickstart:
-//   docker run -d -e POSTGRES_DB=lode -e POSTGRES_USER=lode -e POSTGRES_PASSWORD=*** -p 54335:5432 postgres:16-alpine
+//   docker run -d --name lode-pg-parity -e POSTGRES_DB=lode -e POSTGRES_USER=lode -e POSTGRES_PASSWORD=<password> -p 54335:5432 postgres:16-alpine
 export default defineConfig({
   test: {
     environment: 'node',
