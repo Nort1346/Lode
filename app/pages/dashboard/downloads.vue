@@ -74,6 +74,16 @@ async function fetchDownloads() {
 
 watch(page, () => fetchDownloads())
 
+const { lastNotification } = useNotifications()
+
+// The ready notification and the row must flip together: the server sets
+// notifiedAt in the same pass that pushes this SSE event, so waiting for the
+// next poll would keep the prep bar on screen for up to three seconds after
+// the user already got the "ready" toast/push.
+watch(lastNotification, (n) => {
+  if (n !== null) markDownloadReady(downloads.value, n)
+})
+
 onMounted(() => {
   void fetchPrepConfig()
   void fetchDownloads()
