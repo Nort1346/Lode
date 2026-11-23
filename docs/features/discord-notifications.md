@@ -13,7 +13,7 @@ NUXT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ## Notification Types
 
 ### Download Complete
-Sent when a torrent finishes downloading (from the torrent-sync plugin). Includes:
+Sent once the download is ready: after the optional prep countdown has elapsed and any library import has settled. Jellyfin, Discord and push are dispatched together by the single-flight ready pass (`notifyJellyfinIfNeeded` in `server/utils/torrents/torrent-sync.ts`); the completion branch in the sync no longer sends them. Includes:
 - Media title (TMDB, falling back to the download label) and TMDB overview
 - Poster image (TMDB, or a bundled fallback poster)
 - Genres, runtime, rating, and release/air date

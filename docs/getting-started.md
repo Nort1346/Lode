@@ -14,6 +14,8 @@ cd Lode
 pnpm install
 ```
 
+The setup CLI (`setup.sh` / `setup.ps1` -> `lode-setup`) now includes a download-staging step; accepting it pre-creates `media/downloads/{movies,series}` and sets the staging env vars needed for Admin -> Settings -> Media organization.
+
 ## Configure
 
 ```bash

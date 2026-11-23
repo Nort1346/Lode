@@ -93,6 +93,20 @@ Torrent titles on the movie/TV detail pages are parsed into release tags (source
 
 A filter popover on the movie/TV detail pages narrows the loaded list by indexer, release tags, and resolution: OR within a group, AND across groups, plus a toggle to hide capture-source releases (`CAM`, `HDCAM`, `TS`, `HDTS`, `TC`). Filtering is client-side (see `shared/torrent-filters.ts`).
 
+## Release Matching & Loose Results
+
+- Movie and TV titles are matched against up to 8 TMDB title candidates (primary, original, alternative titles) using whole-token matching; release metadata tokens, articles and transliteration are tolerated. Movie years disambiguate remakes; TV accepts both the pilot year and the selected season's air year. (`server/utils/torrents/release-match.ts`)
+- Movie searches also run a parallel Prowlarr IMDb search (when TMDB supplies an IMDb ID) and merge/deduplicate the results.
+- The query ladder fires every tier for every title (up to 12 text queries) with a 50 s wall-clock budget; a slow query is skipped and reported over SSE rather than starving the rest.
+- Releases that do not name the requested work are never dropped. They are shown in a separate "Other results" section on movie pages and "Other releases" section on TV season pages (filtered to the selected season), and are never marked recommended. A non-match has its total score scaled by `0.35`.
+- On TV episodes, results below 25% match score are collapsed behind a "More results" disclosure.
+- Absolute (anime) episode numbers are mapped via earlier seasons' TMDB episode counts.
+
+## Mobile Search & Type Filter
+
+- On coarse-pointer devices the <768 px suggestion list is shown only while the search input is focused and the virtual keyboard is open (`useKeyboardVisibility()`); blur closes it after a 150 ms grace period. Narrow desktop windows are not gated.
+- The All/Movies/TV Shows segmented control has a sliding thumb measured from the active button, re-measured on locale/selection/breakpoint changes.
+
 ## Torrent Search Progress
 
-Torrent search on the movie/TV detail pages streams live Prowlarr progress over SSE (`/api/browse/movie/[id]/torrents-stream`, `/api/browse/tv/[id]/season/[season]/torrents-stream`): the UI shows each query as it runs, including queries that were skipped after the per-request timeout. The search keeps running after a disconnect so results land in the Prowlarr cache for the next request.
+Torrent search on the movie/TV detail pages streams live Prowlarr progress over SSE (`/api/browse/movie/[id]/torrents-stream`, `/api/browse/tv/[id]/season/[season]/torrents-stream`): the UI shows each query as it runs, including queries that were skipped after the per-request timeout or because the 50 s query-ladder budget ran out. The search keeps running after a disconnect so results land in the Prowlarr cache for the next request.

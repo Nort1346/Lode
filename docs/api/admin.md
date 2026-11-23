@@ -446,6 +446,49 @@ Both fields are optional - only provided fields are updated.
 
 ---
 
+## Media Organization
+
+### Get Media Config
+```
+GET /api/admin/media-config
+```
+
+### Response
+```json
+{
+  "enabled": false,
+  "importMode": "hardlink",
+  "importExtraFiles": false,
+  "extraFileExtensions": "srt, sub, ass, ssa, vtt, nfo",
+  "cleanupStaging": false,
+  "staging": { "movies": true, "series": true }
+}
+```
+
+`staging` reports whether NUXT_DOWNLOAD_PATH_MOVIES / NUXT_DOWNLOAD_PATH_SERIES are configured.
+
+### Update Media Config
+```
+PUT /api/admin/media-config
+```
+
+### Body
+All fields are optional.
+
+```json
+{
+  "enabled": true,
+  "importMode": "copy",
+  "importExtraFiles": true,
+  "extraFileExtensions": "srt,eng,ass",
+  "cleanupStaging": false
+}
+```
+
+Errors: 400 when `enabled` is not a boolean, `cleanupStaging` is not a boolean, the import mode is invalid, no allowed extensions were parsed, or `enabled: true` without any staging path. Logs an activity entry `media_config_update`.
+
+---
+
 ## Logs
 
 ### Activity Logs

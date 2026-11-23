@@ -10,7 +10,7 @@
 | Auth | `nuxt-auth-utils` (cookie sessions) |
 | Icons | Lucide + Simple Icons (via `@iconify-json/*`) |
 | i18n | `@nuxtjs/i18n` v10 - English (default) + pl, de, fr, es, pt-BR (6 locales) |
-| PWA | `@vite-pwa/nuxt` - auto-update, service worker |
+| PWA | `@vite-pwa/nuxt` v2 - auto-update, service worker |
 | Logging | Pino with ring buffer for SSE live logs |
 
 ## Project Structure
@@ -58,9 +58,9 @@
 │   │   ├── entities.ts         # App-level entity types (User, Download, etc.)
 │   │   ├── database.ts         # SqliteDb, PgDb, AppDb types
 │   │   └── settings.ts         # SETTINGS constant system
-│   └── utils/                  # Server utilities (30+ files)
+│   └── utils/                  # Server utilities (30+ files, incl. library/ for media organization)
 ├── i18n/locales/               # pl, en, de, fr, es, pt-BR (6 locales)
-├── shared/                     # Shared code (auth.d.ts type augmentations, ranking.ts default config)
+├── shared/                     # Shared code (auth.d.ts type augmentations, ranking.ts default config, eta-tracker.ts, torrent-filters.ts)
 ├── docs/                       # This documentation
 ├── scripts/                    # Migration scripts
 └── public/                     # Static assets, PWA icons
@@ -87,6 +87,8 @@ The default layout (`app/layouts/default.vue`) provides:
 - **Notifications**: SSE connection managed via `useNotifications()` composable
 - **PWA**: Install prompts for desktop (standard) and iOS (custom banner)
 
+Each page sets its own document title via reactive `useSeoMeta({ title: () => ... })`, using the `seo.title` suffix.
+
 ## Composables
 
 | Composable | Purpose |
@@ -98,6 +100,8 @@ The default layout (`app/layouts/default.vue`) provides:
 | `useNotifications()` | SSE connection, push notifications, read/unread state |
 | `useTorrentUtils()` | Format ETA/speed/size, quality badge config |
 | `useQualityConfig()` | Torrent health badge colors (dead/poor/slow/ok) |
+| `useThemeToggle()` | Hydration-safe dark/light mode toggle (theme resolves after mount) |
+| `useKeyboardVisibility()` | Virtual keyboard detection for mobile suggestions |
 
 ## Server Plugins
 
@@ -130,6 +134,8 @@ The default layout (`app/layouts/default.vue`) provides:
 6. **Database** → Persists state (Drizzle ORM via `dbGet`/`dbAll`/`dbRun` helpers)
 7. **SSE** → Pushes real-time notifications to connected clients
 8. **Background plugins** → Sync torrent status, expire users, clean logs
+
+Server-side ETA samples are fed into a shared in-memory registry (`shared/eta-tracker.ts` + `server/utils/torrents/eta-tracker.ts`) by the sync plugin and API reads; clients only format the estimate. Completed downloads are imported from staging into the library on completion (`server/utils/library/`).
 
 ## Repository Layer
 

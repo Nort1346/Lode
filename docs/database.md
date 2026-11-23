@@ -74,8 +74,13 @@ Torrent download records.
 | `indexer_name` | text | Indexer the release came from |
 | `resolution` | text | Detected release resolution |
 | `qbit_tag` | text | qBittorrent tag applied to the torrent |
+| `organized_path` | text | Library path the finished release was imported to |
+| `organize_status` | text enum | `pending`, `done`, `failed`, `skipped` (default `pending`) |
+| `organize_error` | text | First import error / skip reason |
 
 Indexed on `(user_id, status)`, `(status)`, and `(user_id, created_at)`.
+
+Migration `0008_tiny_mandroid.sql` (SQLite) / `0007_lush_lucky_pierre.sql` (PostgreSQL) backfills existing rows to `skipped` so old downloads are not re-imported.
 
 ### `requests`
 Media requests from users.
@@ -231,8 +236,10 @@ All entity types are in `server/types/entities.ts` - the single source of truth 
 | `LoginAttempt` | Brute force tracking |
 | `PushSubscription` | Web Push subscription |
 | `WishlistItem` | Wishlist entry |
-| `SyncProvider` | Jellyfin user mapping |
-| `SyncUserSettings` | Per-user Jellyfin permissions |
+| `SyncProviderRecord` | Jellyfin user mapping (renamed from `SyncProvider` to avoid the auto-imported client interface) |
+| `SyncUserSettingsRecord` | Per-user Jellyfin permissions (renamed from `SyncUserSettings`) |
+
+`ParsedTitle` and `RankedTorrent` now live in `server/types/torrent.ts` (they were in `server/types/ranking.ts`), and `ServiceStatus` was renamed to `ServiceRuntimeStatus`.
 
 ### Driver Selection
 
