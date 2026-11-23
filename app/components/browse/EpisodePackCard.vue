@@ -4,7 +4,7 @@
   >
     <div class="min-w-0 flex-1">
       <span class="flex items-center gap-2 text-xs font-bold text-indigo-500">
-        <UIcon name="i-lucide-list" class="size-3" />
+        <UIcon name="i-lucide-list-video" class="size-3" />
         {{ t('tv.episodePack') }}
         <span
           class="font-bold"
