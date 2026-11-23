@@ -131,6 +131,10 @@
     "seasons": "Seasons",
     "seasonPacks": "Season Packs",
     "seasonPack": "Season Pack",
+    "episodePacks": "Episode Packs",
+    "episodePack": "Episode Pack",
+    "episodePackRange": "Seasons {seasons} · Episodes {episodes}",
+    "downloadEpisodePack": "Add pack",
     "multiseasonPack": "Seasons {seasons}",
     "downloadSeasonsRange": "Add seasons {seasons}",
     "downloadSeason": "Add full season",
@@ -677,6 +681,7 @@
     "seasonFull": "Season {season} (full season)",
     "fullSeason": "full season",
     "seasonsPack": "Seasons {from}-{to} (pack)",
+    "episodesPack": "Seasons {from}-{to}, episodes {episodeFrom}-{episodeTo} (pack)",
     "completeSeries": "(complete series)",
     "airedOn": "aired {date}",
     "episodeN": "Episode {n}"

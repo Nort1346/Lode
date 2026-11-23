@@ -243,4 +243,58 @@ test.describe('browse', () => {
     await page.getByRole('option', { name: /Season 2/ }).click()
     await expect(page.getByText('Seasons 1-2', { exact: true })).toBeVisible()
   })
+
+  test('shows an episode range pack with its per-season episodes', async ({ page }) => {
+    const payload = {
+      show: { id: 703, name: TV_TITLE },
+      season: { seasonNumber: 1, name: 'Season 1', overview: '', posterUrl: null, airDate: null },
+      episodes: [],
+      seasonPacks: [],
+      episodePacks: [
+        {
+          title: 'E2E.Show.Seasons.1-2.Episodes.1-24.1080p.WEB-DL',
+          size: 1000,
+          sizeFormatted: '1000 B',
+          seeders: 20,
+          leechers: 0,
+          indexer: 'TestIndexer',
+          magnetLink: 'magnet:?xt=urn:btih:e2e',
+          downloadUrl: null,
+          guid: null,
+          score: 90,
+          percentage: 90,
+          recommended: true,
+          resolution: '1080p',
+          source: 'WEB-DL',
+          language: null,
+          tags: [],
+          isPrivate: false,
+          seasons: [1, 2],
+          episodes: Array.from({ length: 24 }, (_, i) => i + 1),
+          seasonEpisodes: Array.from({ length: 12 }, (_, i) => i + 1)
+        }
+      ],
+      otherTorrents: []
+    }
+    await page.route('**/api/browse/tv/**/torrents-stream*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' },
+        body:
+          `data: ${JSON.stringify({ type: 'start', queries: 1 })}\n\n` +
+          `data: ${JSON.stringify({ type: 'done', found: 1, data: payload })}\n\n`
+      })
+    })
+
+    await gotoPage(page, `/browse/tv/703`)
+
+    await expect(page.getByRole('heading', { name: 'Episode Packs' })).toBeVisible()
+    await expect(page.getByText('Seasons 1-2 · Episodes 1-12')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add pack' })).toBeVisible()
+
+    // The pack is still available after switching to the other covered season.
+    await page.getByText('Season 1 (2 ep.)').first().click()
+    await page.getByRole('option', { name: /Season 2/ }).click()
+    await expect(page.getByText('Seasons 1-2 · Episodes 1-12')).toBeVisible()
+  })
 })

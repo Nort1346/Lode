@@ -1,10 +1,10 @@
 import type { MatchMediaKind, TitleMatchDetail } from '#server/types/release-match'
 
-// Prowlarr text search is a fuzzy, AND-based query. Searching "The Doll" also
-// returns "The Doll Squad", "Gabby's Dollhouse" and "The Dollmaker" - the
-// indexer matched the words somewhere in the title, not the whole title. Those
-// releases are demoted below the real ones, never hidden: the user asked to
-// see every result Prowlarr returned.
+// Prowlarr text search is a fuzzy, AND-based query. A short title also returns
+// unrelated films whose names merely share one of its words - the indexer
+// matched words somewhere in the title, not the whole title. Those releases are
+// demoted below the real ones, never hidden: the user asked to see every result
+// Prowlarr returned.
 
 // Tokens that are release metadata rather than part of the work's title. They
 // are allowed around the title candidate (and between the candidate and the
@@ -185,7 +185,7 @@ function isMetadataToken(token: string, kind: MatchMediaKind): boolean {
   if (/^s\d{1,2}(?:e\d{1,3})?$/.test(token)) return true
   if (/^e\d{1,3}$/.test(token)) return true
   // A bare number after a TV title is an absolute episode number ("Show - 05");
-  // for a movie it would be a sequel number ("The Doll 2"), so it is not a
+  // for a movie it could be a sequel number, so it is not a
   // boundary there.
   return kind === 'tv' && /^\d{1,4}$/.test(token)
 }
@@ -207,7 +207,7 @@ function sequenceMatches(segment: string[], start: number, candidate: string[]):
  * The title candidate must start a slash-separated part of the release name.
  * Anything before it has to be release metadata (a language tag, a bracketed
  * group, ...) and anything after it has to be release metadata too - otherwise
- * "The Doll" would also match "The Doll Squad" or "Step Up".
+ * a short title would also match a longer one that merely contains it.
  */
 function matchesSegment(segment: string[], candidate: string[], kind: MatchMediaKind): number {
   const variants = [{ tokens: candidate, strength: 2 }]

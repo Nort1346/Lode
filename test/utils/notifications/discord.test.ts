@@ -424,6 +424,7 @@ describe('notifications/discord', () => {
       'discord.seasonFull': 'Season {season} (full season)',
       'discord.fullSeason': 'full season',
       'discord.seasonsPack': 'Seasons {from}-{to} (pack)',
+      'discord.episodesPack': 'Seasons {from}-{to}, episodes {episodeFrom}-{episodeTo} (pack)',
       'discord.completeSeries': '(complete series)',
       'discord.airedOn': 'aired {date}',
       'discord.episodeN': 'Episode {n}'
@@ -451,6 +452,7 @@ describe('notifications/discord', () => {
       expect(formatEpisodeSuffix(parseEpisodeInfo('Show.S01E01E02.1080p'), t)).toBe('S01E01-E02')
       expect(formatEpisodeSuffix(parseEpisodeInfo('Show.S02.1080p'), t)).toBe('Season 2 (full season)')
       expect(formatEpisodeSuffix(parseEpisodeInfo('Show.S01-S03.1080p'), t)).toBe('Seasons 1-3 (pack)')
+      expect(formatEpisodeSuffix(parseEpisodeInfo('Show.S1-8E1-96.1080p'), t)).toBe('Seasons 1-8, episodes 1-96 (pack)')
       expect(formatEpisodeSuffix(parseEpisodeInfo('Show.Complete.Series.720p'), t)).toBe('(complete series)')
       expect(formatEpisodeSuffix(parseEpisodeInfo('Show.2024.05.12.1080p'), t)).toBe('aired 2024-05-12')
       expect(formatEpisodeSuffix(parseEpisodeInfo('Show.EP.1090.1080p'), t)).toBe('Episode 1090')

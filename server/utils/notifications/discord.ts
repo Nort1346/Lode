@@ -110,6 +110,21 @@ export function formatEpisodeSuffix(info: EpisodeInfo, t: TextTranslator): strin
       if (from === undefined || to === undefined) return null
       return fillTemplate(t('discord.seasonsPack'), { from, to })
     }
+    case 'episode-pack': {
+      const seasonFrom = info.seasons[0]
+      const seasonTo = info.seasons[info.seasons.length - 1]
+      const episodeFrom = info.episodes[0]
+      const episodeTo = info.episodes[info.episodes.length - 1]
+      if (seasonFrom === undefined || seasonTo === undefined || episodeFrom === undefined || episodeTo === undefined) {
+        return null
+      }
+      return fillTemplate(t('discord.episodesPack'), {
+        from: seasonFrom,
+        to: seasonTo,
+        episodeFrom,
+        episodeTo
+      })
+    }
     case 'complete-series':
       return t('discord.completeSeries')
     case 'daily': {

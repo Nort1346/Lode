@@ -103,6 +103,18 @@ export interface SeasonPackPayload extends EpisodeTorrentPayload {
   seasons: number[]
 }
 
+// A single release covering an episode range across several seasons, e.g.
+// `S1-8E1-96`. It is not a full-season pack and not a single episode.
+export interface EpisodePackPayload extends EpisodeTorrentPayload {
+  // Seasons covered by the release and the episode range as written in its
+  // title (absolute for running numbering, repeated for per-season ranges).
+  seasons: number[]
+  episodes: number[]
+  // The part of that range belonging to the season currently being viewed,
+  // split using TMDB's per-season episode counts.
+  seasonEpisodes: number[]
+}
+
 export interface EpisodePayload {
   id: number
   episodeNumber: number
@@ -126,6 +138,7 @@ export interface SeasonSearchPayload {
   }
   episodes: EpisodePayload[]
   seasonPacks: SeasonPackPayload[]
+  episodePacks: EpisodePackPayload[]
   // Releases of this show whose naming does not map to a known TMDB episode
   // or pack (new episodes TMDB has not listed yet, date/exotic numbering).
   // Kept so no Prowlarr result is ever silently hidden.

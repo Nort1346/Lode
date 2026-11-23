@@ -3,13 +3,19 @@ import { useProwlarr, PROWLARR_CATEGORIES } from '#server/utils/prowlarr'
 import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
 import { pickAlternativeTitles, titleCandidates } from '#server/utils/browse-utils'
-import { releaseBelongsToSeason, seasonPackInfo, titleMatchesEpisode } from '#server/utils/torrents/release-episode'
+import {
+  parseEpisodeInfo,
+  releaseBelongsToSeason,
+  seasonPackFromInfo,
+  titleMatchesEpisode
+} from '#server/utils/torrents/release-episode'
 import type { EpisodeInfo } from '#server/types/release-episode'
 import { titleMatchStrength } from '#server/utils/torrents/release-match'
 import { createLogger } from '#server/utils/logger'
 import type { ProwlarrResult, ProwlarrProgressCallback, ProwlarrProgressEvent } from '#server/types/prowlarr'
 import type { RankedTorrent } from '#server/types/torrent'
 import type {
+  EpisodePackPayload,
   EpisodePayload,
   EpisodeTorrentPayload,
   MovieSearchPayload,
@@ -88,6 +94,53 @@ function toSeasonPackPayload(t: RankedTorrent, info: EpisodeInfo): SeasonPackPay
   }
 }
 
+function toEpisodePackPayload(t: RankedTorrent, info: EpisodeInfo, seasonEpisodes: number[]): EpisodePackPayload {
+  const seasons = info.kind === 'episode-pack' ? info.seasons : []
+  const episodes = info.kind === 'episode-pack' ? info.episodes : []
+  return {
+    ...toEpisodePayload(t),
+    seasons,
+    episodes,
+    seasonEpisodes
+  }
+}
+
+/**
+ * A release such as `S1-8E1-96` numbers episodes continuously across seasons.
+ * TMDB knows how many episodes each season has, so the absolute range can be
+ * cut into the part that actually belongs to the season being viewed.
+ */
+function episodeNumbersForSeason(
+  info: EpisodeInfo,
+  seasonNumber: number,
+  showSeasons: Array<{ season_number: number; episode_count: number }>
+): number[] {
+  const from = info.episodes[0] ?? 1
+  const to = info.episodes[info.episodes.length - 1] ?? from
+  let cursor = 1
+  const seasons = [...showSeasons]
+    .filter((season) => season.season_number > 0)
+    .sort((a, b) => a.season_number - b.season_number)
+
+  for (const season of seasons) {
+    const count = Math.max(0, season.episode_count)
+    const start = cursor
+    const end = cursor + count - 1
+    if (season.season_number === seasonNumber) {
+      if (count === 0) break
+      const localFrom = Math.max(from, start) - start + 1
+      const localTo = Math.min(to, end) - start + 1
+      if (localFrom > localTo || localFrom > count || localTo > count) return []
+      return Array.from({ length: localTo - localFrom + 1 }, (_, i) => localFrom + i)
+    }
+    cursor = end + 1
+  }
+
+  // TMDB has no episode count for this season: keep the absolute range so the
+  // release is still visible rather than silently dropped.
+  return info.episodes
+}
+
 // Maps the internal ladder progress events onto the wire event schema. The
 // shapes are 1:1 apart from the kind/type discriminator rename.
 export function toStreamEvent(e: ProwlarrProgressEvent): TorrentStreamEvent {
@@ -141,10 +194,10 @@ export async function searchMovieTorrents(
       onProgress,
       movie.imdb_id
     )
-    // Prowlarr's text search matches any word in the title, so "The Doll" also
-    // brings back "The Doll Squad" and "Gabby's Dollhouse". Releases that do
-    // not name this film go into a separate bucket: nothing is lost, but they
-    // can never be mistaken for the requested movie or get a recommendation.
+    // Prowlarr's text search matches any word in the title, so a short title
+    // also brings back unrelated films that share one of its words. Releases
+    // that do not name this film go into a separate bucket: nothing is lost,
+    // but they cannot be mistaken for the requested movie or recommended.
     const titles = titleCandidates(
       movie.title,
       movie.original_title,
@@ -282,13 +335,17 @@ export async function searchSeasonTorrents(
   // multi-episode ranges alike) lands here; per-episode buckets only get true
   // single episodes. The ranker is told the bucket kind explicitly and never
   // re-guesses it from the title.
-  // Parse once per release and reuse the result for the payload, instead of
-  // running the tokenizer again for every ranked pack.
-  // Key by title: rankTorrents() spreads results into new objects, so object
-  // identity would be lost between classification and payload mapping.
+  // Parse once per release and reuse the result for classification and
+  // payloads. Key by title: rankTorrents() spreads results into new objects,
+  // so object identity would be lost between the two steps.
+  const parsedInfos = new Map<string, EpisodeInfo>()
+  for (const torrent of rawTorrents) {
+    parsedInfos.set(torrent.title, parseEpisodeInfo(torrent.title))
+  }
+
   const packInfos = new Map<string, EpisodeInfo>()
   const seasonPackTorrents = rawTorrents.filter((t) => {
-    const info = seasonPackInfo(t.title, seasonNumber)
+    const info = seasonPackFromInfo(parsedInfos.get(t.title) ?? parseEpisodeInfo(t.title), seasonNumber)
     if (info === null) return false
     packInfos.set(t.title, info)
     return true
@@ -312,6 +369,49 @@ export async function searchSeasonTorrents(
       packInfos.get(t.title) ?? { kind: 'complete-series', seasons: [], episodes: [], airDate: null }
     )
   )
+
+  // A range such as `S1-8E1-96` is a pack of many episodes, not one episode and
+  // not a whole-season pack. Some releases number episodes continuously across
+  // all seasons, others repeat the same range in every listed season. TMDB's
+  // season sizes tell us which one we are looking at.
+  const seasonList = show.seasons ?? []
+  const episodePackInfos = new Map<string, EpisodeInfo>()
+  const episodePackTorrents = rawTorrents.filter((t) => {
+    const info = parsedInfos.get(t.title)
+    if (info?.kind !== 'episode-pack' || !info.seasons.includes(seasonNumber)) return false
+    episodePackInfos.set(t.title, info)
+    return true
+  })
+  for (const torrent of episodePackTorrents) matched.add(torrent)
+  if (episodePackTorrents.length > 0) {
+    log.info(`Episode packs: ${episodePackTorrents.length} found`)
+  }
+
+  const episodePacks = rankTorrents(
+    episodePackTorrents,
+    'seasonPack',
+    show.name,
+    year,
+    rankingConfig,
+    showTitles,
+    matchYears
+  )
+    .map((t) => {
+      const info = episodePackInfos.get(t.title) ?? parseEpisodeInfo(t.title)
+      const covered = seasonList.filter(
+        (season) => season.season_number > 0 && info.seasons.includes(season.season_number)
+      )
+      const longestSeason = Math.max(0, ...covered.map((season) => season.episode_count))
+      const lastEpisode = info.episodes[info.episodes.length - 1] ?? 0
+      // `E01-E10` over several seasons repeats in each of them; `E01-E96`
+      // is a running number and must be cut by season lengths.
+      const perSeason = covered.length > 1 && lastEpisode > 0 && lastEpisode <= longestSeason
+      const seasonEpisodes = perSeason ? info.episodes : episodeNumbersForSeason(info, seasonNumber, seasonList)
+      return toEpisodePackPayload(t, info, seasonEpisodes)
+    })
+    // A range may not reach every season named in the title (`S1-8E1-15`).
+    // Do not show an empty "Episodes" label in that case.
+    .filter((pack) => pack.seasonEpisodes.length > 0)
 
   // Nothing relevant is discarded: releases that do not map onto a TMDB
   // episode or pack (a just-aired episode TMDB has not added yet, unusual
@@ -345,6 +445,7 @@ export async function searchSeasonTorrents(
     },
     episodes,
     seasonPacks,
+    episodePacks,
     otherTorrents
   }
   return { kind: 'ok', payload, found: rawTorrents.length }
