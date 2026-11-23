@@ -14,6 +14,7 @@ const mockWhere = vi.hoisted(() => vi.fn(() => ({ all: () => mockRows() })))
 const mockGetAllTorrents = vi.hoisted(() => vi.fn())
 const mockDeleteTorrent = vi.hoisted(() => vi.fn())
 const mockLog = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }))
+const mockGetMediaImportMode = vi.hoisted(() => vi.fn(async () => 'move'))
 
 // test/setup.ts maps useDbAsync onto the global useDb, so a global stub is
 // enough to feed rows through the real dbAll helper.
@@ -37,8 +38,11 @@ vi.mock('#server/database/schema', () => ({
 
 vi.mock('drizzle-orm', () => ({
   eq: vi.fn((_col: unknown, value: unknown) => ({ key: value })),
+  inArray: vi.fn((_col: unknown, values: unknown) => ({ in: values })),
   and: vi.fn((...conditions: unknown[]) => ({ and: conditions }))
 }))
+
+vi.mock('#server/utils/library/media-settings', () => ({ getMediaImportMode: mockGetMediaImportMode }))
 
 vi.stubGlobal(
   'useQBittorrent',
@@ -73,14 +77,20 @@ function torrent(hash: string, state: string) {
   }
 }
 
-function row(id: string, torrentHash: string | null, completedAt: string | null = COMPLETED_AT): Row {
-  return { id, torrentHash, organizeStatus: 'done', completedAt }
+function row(
+  id: string,
+  torrentHash: string | null,
+  completedAt: string | null = COMPLETED_AT,
+  organizeStatus = 'done'
+): Row {
+  return { id, torrentHash, organizeStatus, completedAt }
 }
 
 describe('removeOrganizedMissingFileTorrents', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRows.mockReturnValue([])
+    mockGetMediaImportMode.mockResolvedValue('move')
     mockGetAllTorrents.mockReset()
     mockGetAllTorrents.mockResolvedValue([])
     mockDeleteTorrent.mockReset()
@@ -91,7 +101,7 @@ describe('removeOrganizedMissingFileTorrents', () => {
     await expect(removeOrganizedMissingFileTorrents()).resolves.toBe(0)
 
     expect(mockWhere).toHaveBeenCalledWith({
-      and: [{ key: 'completed' }, { key: 'done' }]
+      and: [{ key: 'completed' }, { in: ['done', 'failed'] }]
     })
     expect(mockGetAllTorrents).not.toHaveBeenCalled()
   })
@@ -110,6 +120,25 @@ describe('removeOrganizedMissingFileTorrents', () => {
 
     expect(mockDeleteTorrent).toHaveBeenCalledTimes(1)
     expect(mockDeleteTorrent).toHaveBeenCalledWith('h1', false)
+  })
+
+  it('also removes a partially imported torrent while the import mode is move', async () => {
+    mockRows.mockReturnValue([row('dl-1', 'h1', COMPLETED_AT, 'failed')])
+    mockGetAllTorrents.mockResolvedValue([torrent('h1', 'missingFiles')])
+
+    await expect(removeOrganizedMissingFileTorrents()).resolves.toBe(1)
+
+    expect(mockDeleteTorrent).toHaveBeenCalledWith('h1', false)
+  })
+
+  it('leaves failed rows alone when the import mode is not move', async () => {
+    mockRows.mockReturnValue([row('dl-1', 'h1', COMPLETED_AT, 'failed')])
+    mockGetMediaImportMode.mockResolvedValue('hardlink')
+    mockGetAllTorrents.mockResolvedValue([torrent('h1', 'missingFiles')])
+
+    await expect(removeOrganizedMissingFileTorrents()).resolves.toBe(0)
+
+    expect(mockDeleteTorrent).not.toHaveBeenCalled()
   })
 
   it('skips rows without a torrent hash', async () => {

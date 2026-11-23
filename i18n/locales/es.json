@@ -476,7 +476,7 @@
     "qbitAutoRemove": "Eliminar automáticamente los torrents completados",
     "qbitAutoRemoveHint": "Activa esto si qBittorrent elimina los torrents de la lista en cuanto terminan (sin seeding). Una descarga cuyo torrent ha desaparecido pero estaba al menos al 90 % se marcará como completada en lugar de fallida.",
     "qbitSeedingEnabled": "Seeding",
-    "qbitSeedingEnabledHint": "Si se desactiva, los torrents añadidos por Lode dejan de compartirse justo al completarse. Solo afecta a los torrents añadidos por Lode, no cambia los ajustes globales de qBittorrent.",
+    "qbitSeedingEnabledHint": "Si se desactiva, los torrents dejan de compartirse justo al completarse, incluidos los torrents ya seguidos por Lode al desactivarlo. Solo afecta a los torrents seguidos por Lode, no cambia los ajustes globales de qBittorrent.",
     "mediaTitle": "Organización de medios",
     "mediaDesc": "Renombra las descargas terminadas y las importa a las carpetas de la biblioteca, al estilo Radarr.",
     "mediaEnabled": "Organizar archivos tras la descarga",

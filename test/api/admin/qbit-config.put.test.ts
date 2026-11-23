@@ -5,6 +5,11 @@ const mockGetUserSession = vi.fn()
 const mockPutSetting = vi.hoisted(() => vi.fn())
 const mockLogActivity = vi.fn()
 const mockReadBody = vi.fn()
+const mockDisableSeedingForTrackedTorrents = vi.hoisted(() => vi.fn())
+
+vi.mock('#server/utils/torrents/seeding', () => ({
+  disableSeedingForTrackedTorrents: mockDisableSeedingForTrackedTorrents
+}))
 
 vi.mock('#server/utils/settings', () => ({
   putSetting: mockPutSetting
@@ -28,6 +33,7 @@ describe('admin/qbit-config.put', () => {
     mockPutSetting.mockReset()
     mockLogActivity.mockReset()
     mockReadBody.mockReset()
+    mockDisableSeedingForTrackedTorrents.mockReset()
   })
 
   const mockEvent = {} as never
@@ -76,6 +82,24 @@ describe('admin/qbit-config.put', () => {
     await handler(mockEvent)
 
     expect(mockPutSetting).toHaveBeenCalledWith('qbit_seeding_enabled', 'true')
+  })
+
+  it('applies the policy to existing torrents when seeding is turned off', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ seedingEnabled: false })
+
+    await handler(mockEvent)
+
+    expect(mockDisableSeedingForTrackedTorrents).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not re-apply the policy when seeding is turned on', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ seedingEnabled: true })
+
+    await handler(mockEvent)
+
+    expect(mockDisableSeedingForTrackedTorrents).not.toHaveBeenCalled()
   })
 
   it('logs the activity', async () => {

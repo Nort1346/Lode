@@ -1,6 +1,7 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { downloads } from '#server/database/schema'
 import { useDbAsync, dbAll } from '#server/utils/db'
+import { getMediaImportMode } from '#server/utils/library/media-settings'
 import { createLogger } from '#server/utils/logger'
 
 const log = createLogger('MissingFiles')
@@ -11,18 +12,28 @@ const MISSING_FILES_STATE = 'missingFiles'
 // Removes torrents that Lode already imported into the library but that are
 // stuck in qBittorrent's "Missing Files" state (e.g. a `move` import from an
 // older run, before the torrent was dropped right after the import). Only rows
-// with organizeStatus='done' are considered: their files are safely in the
-// library, so dropping the torrent (without its files) cannot lose media.
+// whose files are known to be in the library are considered, so dropping the
+// torrent (without its files) cannot lose media. A partial `move` import is
+// marked 'failed' but still has files in the library, so those rows are
+// included while the current import mode is `move`.
 // Returns the number of torrents removed. Never throws - the sync loop calls
 // this in the background.
 export async function removeOrganizedMissingFileTorrents(): Promise<number> {
   try {
     const db = await useDbAsync()
     const rows = await dbAll(
-      db.select().from(downloads).where(and(eq(downloads.status, 'completed'), eq(downloads.organizeStatus, 'done')))
+      db
+        .select()
+        .from(downloads)
+        .where(and(eq(downloads.status, 'completed'), inArray(downloads.organizeStatus, ['done', 'failed'])))
     )
+    if (rows.length === 0) return 0
+    const includeFailed = (await getMediaImportMode()) === 'move'
     const candidates = rows.filter(
-      (row) => row.organizeStatus === 'done' && row.torrentHash !== null && row.torrentHash !== ''
+      (row) =>
+        (row.organizeStatus === 'done' || (includeFailed && row.organizeStatus === 'failed')) &&
+        row.torrentHash !== null &&
+        row.torrentHash !== ''
     )
     if (candidates.length === 0) return 0
 

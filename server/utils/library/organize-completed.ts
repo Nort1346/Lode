@@ -488,11 +488,13 @@ export async function organizeCompletedDownload(
   }
 
   // A `move` import leaves qBittorrent pointing at files that are now in the
-  // library, so the torrent ends up in "Missing Files" and cannot seed. Once
-  // the import is complete, drop the torrent from the client but keep its files
-  // (deleteFiles=false) - the library copy is the only one left. A failure is
-  // best-effort: the missing-files sweep removes it on a later sync.
-  if (deps.importMode === 'move' && failedFiles === 0 && skippedFiles === 0 && importedFiles > 0) {
+  // library, so the torrent ends up in "Missing Files" and cannot seed. As soon
+  // as at least one file moved, drop the torrent from the client but keep its
+  // files (deleteFiles=false) - the library copy is the only one left. This
+  // also covers partial imports: failed/skipped leftovers stay on disk for the
+  // admin, but a torrent with missing data must not linger in qBittorrent.
+  // A failure is best-effort: the missing-files sweep retries on a later sync.
+  if (deps.importMode === 'move' && importedFiles > 0) {
     let removed = true
     await deps.qbit.deleteTorrent(hash, false).catch((err: unknown) => {
       removed = false

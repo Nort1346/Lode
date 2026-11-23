@@ -430,7 +430,7 @@ GET /api/admin/qbit-config
 ```
 
 - `autoRemoveCompleted` - treat a torrent as completed when it disappears from qBittorrent at ≥90% progress
-- `seedingEnabled` - when `false`, Lode-added torrents get per-torrent share limits (ratio 0, seeding time 0)
+- `seedingEnabled` - when `false`, tracked torrents get per-torrent share limits (ratio 0, seeding time 0). Setting it to `false` via PUT also applies the limits to torrents already tracked by Lode; global qBittorrent preferences are never changed
 
 ### Update qBittorrent Config
 ```

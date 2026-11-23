@@ -124,7 +124,8 @@ const mockGetMediaConfig = vi.hoisted(() =>
 const mockOrganizeCompletedDownload = vi.hoisted(() => vi.fn())
 
 vi.mock('#server/utils/library/media-settings', () => ({
-  getMediaConfig: mockGetMediaConfig
+  getMediaConfig: mockGetMediaConfig,
+  getMediaImportMode: vi.fn(async () => 'hardlink')
 }))
 
 vi.mock('#server/utils/library/organize-completed', () => ({

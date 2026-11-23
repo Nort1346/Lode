@@ -1,5 +1,6 @@
 import { putSetting } from '#server/utils/settings'
 import { SETTINGS } from '#server/types/settings'
+import { disableSeedingForTrackedTorrents } from '#server/utils/torrents/seeding'
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
@@ -11,6 +12,9 @@ export default defineEventHandler(async (event) => {
 
   if (body.seedingEnabled !== undefined) {
     await putSetting(SETTINGS.QBIT_SEEDING_ENABLED, body.seedingEnabled ? 'true' : 'false')
+    // The toggle must also stop torrents that were added before it was turned
+    // off. The helper is best-effort and never fails the settings update.
+    if (!body.seedingEnabled) await disableSeedingForTrackedTorrents()
   }
 
   await logActivity(event, {
