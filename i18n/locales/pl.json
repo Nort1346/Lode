@@ -476,7 +476,7 @@
     "qbitAutoRemove": "Automatyczne usuwanie ukończonych torrentów",
     "qbitAutoRemoveHint": "Włącz to, jeśli qBittorrent usuwa torrenty z listy tuż po zakończeniu pobierania (bez seedowania). Pobranie, którego torrent zniknął, ale było ukończone w co najmniej 90%, zostanie oznaczone jako ukończone zamiast nieudane.",
     "qbitSeedingEnabled": "Seedowanie",
-    "qbitSeedingEnabledHint": "Po wyłączeniu torrenty dodane przez Lode przestają udostępniać natychmiast po ukończeniu. Dotyczy tylko torrentów dodanych przez Lode, globalne ustawienia qBittorrent nie są zmieniane.",
+    "qbitSeedingEnabledHint": "Po wyłączeniu torrenty przestają udostępniać natychmiast po ukończeniu, w tym torrenty już śledzone przez Lode w momencie wyłączenia. Dotyczy tylko torrentów śledzonych przez Lode, globalne ustawienia qBittorrent nie są zmieniane.",
     "mediaTitle": "Organizacja plików",
     "mediaDesc": "Zmieniaj nazwy ukończonych pobrań i importuj je do folderów biblioteki, w stylu Radarra.",
     "mediaEnabled": "Organizuj pliki po pobraniu",

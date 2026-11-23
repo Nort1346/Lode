@@ -66,7 +66,8 @@ function makeQbit(files: TorrentFile[], savePath: string) {
       added_on: 0,
       completion_on: 1
     })),
-    getTorrentFiles: vi.fn(async () => files)
+    getTorrentFiles: vi.fn(async () => files),
+    deleteTorrent: vi.fn(async () => undefined)
   }
 }
 
@@ -452,5 +453,59 @@ describe('organizeCompletedDownload', () => {
 
     expect(result.status).toBe('failed')
     expect(await readFile(join(stagingDir, 'poster.jpg'), 'utf8')).toBe('jpeg')
+  })
+
+  it('removes the torrent after a partial move import as soon as a file was moved', async () => {
+    const names = ['Show.S01E01.1080p.WEB-DL.mkv', 'Show.S01E02.1080p.WEB-DL.mkv']
+    await seedStaging(names[0]!)
+    const files = names.map((name) => makeFile(name, 50))
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob({ savePath: 'series', torrentName: 'Show.S01', label: 'Show', mediaType: 'tv' }),
+      makeDeps(qbit, { importMode: 'move' })
+    )
+
+    expect(result.status).toBe('failed')
+    expect(result.importedFiles).toBe(1)
+    expect(qbit.deleteTorrent).toHaveBeenCalledWith('h', false)
+  })
+
+  it('removes the torrent from qBittorrent without its files after a successful move import', async () => {
+    const folder = 'Dune.2021.1080p.WEB-DL'
+    await seedStaging(`${folder}/Dune.2021.1080p.WEB-DL.mkv`)
+    const files = [makeFile(`${folder}/Dune.2021.1080p.WEB-DL.mkv`, 11)]
+    const qbit = makeQbit(files, stagingDir)
+
+    const result = await organizeCompletedDownload('h', makeJob(), makeDeps(qbit, { importMode: 'move' }))
+
+    expect(result.status).toBe('done')
+    expect(qbit.deleteTorrent).toHaveBeenCalledWith('h', false)
+    expect(await readFile(join(libraryDir, 'Dune (2021)/Dune (2021) 1080p web-dl.mkv'), 'utf8')).toBe('video-bytes')
+  })
+
+  it('keeps the torrent when the import did not move the files', async () => {
+    const folder = 'Dune.2021.1080p.WEB-DL'
+    await seedStaging(`${folder}/Dune.2021.1080p.WEB-DL.mkv`)
+    const files = [makeFile(`${folder}/Dune.2021.1080p.WEB-DL.mkv`, 11)]
+    const qbit = makeQbit(files, stagingDir)
+
+    const result = await organizeCompletedDownload('h', makeJob(), makeDeps(qbit, { importMode: 'copy' }))
+
+    expect(result.status).toBe('done')
+    expect(qbit.deleteTorrent).not.toHaveBeenCalled()
+  })
+
+  it('does not fail the import when qBittorrent refuses to remove the torrent', async () => {
+    const folder = 'Dune.2021.1080p.WEB-DL'
+    await seedStaging(`${folder}/Dune.2021.1080p.WEB-DL.mkv`)
+    const files = [makeFile(`${folder}/Dune.2021.1080p.WEB-DL.mkv`, 11)]
+    const qbit = makeQbit(files, stagingDir)
+    qbit.deleteTorrent.mockRejectedValueOnce(new Error('qBittorrent API error 500: boom'))
+
+    const result = await organizeCompletedDownload('h', makeJob(), makeDeps(qbit, { importMode: 'move' }))
+
+    expect(result.status).toBe('done')
+    expect(qbit.deleteTorrent).toHaveBeenCalledWith('h', false)
   })
 })

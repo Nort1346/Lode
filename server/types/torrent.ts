@@ -107,6 +107,10 @@ export const COMPLETED_STATES = new Set(['uploading', 'stalledUP', 'pausedUP', '
 // names, not numeric codes. Older instances ignore the unknown parameter.
 export type ShareLimitAction = 'Stop' | 'Remove' | 'RemoveWithContent' | 'EnableSuperSeeding'
 
+// How ratio/time limits combine on torrents/setShareLimits. Web API 2.15.3+
+// (qBittorrent 5.3+) requires shareLimitsMode; older instances ignore it.
+export type ShareLimitsMode = 'Default' | 'MatchAny' | 'MatchAll'
+
 export interface RankedTorrent extends ProwlarrResult {
   score: number
   percentage: number

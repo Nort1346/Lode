@@ -39,7 +39,7 @@ import type { QBittorrentClient } from '#server/utils/clients/qbittorrent'
 
 const log = createLogger('Organize')
 
-type QbitDeps = Pick<QBittorrentClient, 'findTorrentByHash' | 'getTorrentFiles'>
+type QbitDeps = Pick<QBittorrentClient, 'findTorrentByHash' | 'getTorrentFiles' | 'deleteTorrent'>
 
 export interface OrganizeDeps {
   qbit: QbitDeps
@@ -485,6 +485,23 @@ export async function organizeCompletedDownload(
       const msg = err instanceof Error ? err.message : String(err)
       log.warn(`staging cleanup failed for ${hash}: ${msg}`)
     })
+  }
+
+  // A `move` import leaves qBittorrent pointing at files that are now in the
+  // library, so the torrent ends up in "Missing Files" and cannot seed. As soon
+  // as at least one file moved, drop the torrent from the client but keep its
+  // files (deleteFiles=false) - the library copy is the only one left. This
+  // also covers partial imports: failed/skipped leftovers stay on disk for the
+  // admin, but a torrent with missing data must not linger in qBittorrent.
+  // A failure is best-effort: the missing-files sweep retries on a later sync.
+  if (deps.importMode === 'move' && importedFiles > 0) {
+    let removed = true
+    await deps.qbit.deleteTorrent(hash, false).catch((err: unknown) => {
+      removed = false
+      const msg = err instanceof Error ? err.message : String(err)
+      log.warn(`failed to remove moved torrent from qBittorrent for ${hash}: ${msg}`)
+    })
+    if (removed) log.info(`removed moved torrent from qBittorrent: ${hash}`)
   }
 
   const counts = { importedFiles, skippedFiles, extrasImported }

@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { join } from 'node:path'
 
 const mockGetAllTorrents = vi.fn()
+const mockDeleteTorrent = vi.fn()
 vi.stubGlobal(
   'useQBittorrent',
-  vi.fn(() => ({ getAllTorrents: mockGetAllTorrents }))
+  vi.fn(() => ({ getAllTorrents: mockGetAllTorrents, deleteTorrent: mockDeleteTorrent }))
 )
 
 const mockSettingGet = vi.fn((_cond?: { key?: string }) => undefined as { value: string } | undefined)
@@ -41,11 +42,12 @@ const mockSchema = vi.hoisted(() => ({
 }))
 
 // The pending sweep queries completed rows with organizeStatus='pending'; the
-// where() mock recognises that composite condition so it can serve a different
-// fixture than the active-download query.
+// missing-files sweep queries the same status with organizeStatus='done'. The
+// where() mock distinguishes them by the organizeStatus value so each gets its
+// own fixture (and the pending sweep keeps its single-sweep call count).
 function isPendingSweepQuery(cond: unknown): boolean {
   const parts = (cond as { and?: Array<{ key?: string }> } | undefined)?.and
-  return Array.isArray(parts) && parts.some((part) => part.key === 'completed')
+  return Array.isArray(parts) && parts.some((part) => part.key === 'pending')
 }
 
 const mockDb = {
@@ -122,7 +124,8 @@ const mockGetMediaConfig = vi.hoisted(() =>
 const mockOrganizeCompletedDownload = vi.hoisted(() => vi.fn())
 
 vi.mock('#server/utils/library/media-settings', () => ({
-  getMediaConfig: mockGetMediaConfig
+  getMediaConfig: mockGetMediaConfig,
+  getMediaImportMode: vi.fn(async () => 'hardlink')
 }))
 
 vi.mock('#server/utils/library/organize-completed', () => ({
@@ -694,6 +697,19 @@ describe('syncTorrentStatus', () => {
 
     expect(result).toEqual({ synced: 0, completed: 0, failed: 0, removed: 0 })
     expect(mockGetAllTorrents).not.toHaveBeenCalled()
+  })
+
+  it('drops a torrent stuck in missingFiles for an already organized download', async () => {
+    mockActiveAll.mockReturnValue([
+      makeDl({ status: 'completed', organizeStatus: 'done', completedAt: '2026-01-01T00:10:00.000Z' })
+    ])
+    mockGetAllTorrents.mockReturnValue([
+      makeQbit({ hash: 'h1', state: 'missingFiles', progress: 1, completion_on: 1, added_on: 1 })
+    ])
+
+    await syncTorrentStatus()
+
+    await vi.waitFor(() => expect(mockDeleteTorrent).toHaveBeenCalledWith('h1', false))
   })
 
   it('retries a completed download left pending by an interrupted organize run', async () => {

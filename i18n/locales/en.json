@@ -476,7 +476,7 @@
     "qbitAutoRemove": "Auto-remove completed torrents",
     "qbitAutoRemoveHint": "Enable this if qBittorrent removes torrents from the list right after they finish (no seeding). A download whose torrent has disappeared but was at least 90% complete is marked as completed instead of failed.",
     "qbitSeedingEnabled": "Seeding",
-    "qbitSeedingEnabledHint": "When disabled, torrents added by Lode stop sharing immediately after completion. Only affects torrents added by Lode, global qBittorrent settings are not changed.",
+    "qbitSeedingEnabledHint": "When disabled, torrents stop sharing immediately after completion, including ones already tracked by Lode when you turn this off. Only affects torrents tracked by Lode, global qBittorrent settings are not changed.",
     "mediaTitle": "Media organization",
     "mediaDesc": "Rename finished downloads and import them into the library folders, Radarr-style.",
     "mediaEnabled": "Organize files after download",

@@ -11,6 +11,7 @@ import { notifyDownloadComplete } from '#server/utils/notifications/notification
 import { createLogger } from '#server/utils/logger'
 import { normalizeEta } from '#server/utils/torrents/eta'
 import { trackServerEta } from '#server/utils/torrents/eta-tracker'
+import { removeOrganizedMissingFileTorrents } from '#server/utils/torrents/missing-files'
 import { swarmSeedCount } from '#server/utils/torrents/swarm'
 import type { EtaTrackerInput } from '#shared/eta-tracker'
 import { extractMagnetHash } from '#server/utils/clients/qbittorrent'
@@ -56,6 +57,11 @@ const organizeInflight = new Set<string>()
 // would overwrite the settled 'done' status with 'skipped'.
 let pendingSweepRunning = false
 
+// The missing-files sweep is triggered by the same timer and API reads; a
+// second run would query qBittorrent again and could try to delete the same
+// torrent twice while the first delete is still in flight.
+let missingFilesSweepRunning = false
+
 // The ready-notification pass is triggered by the timer and by API reads, so
 // two overlapping runs could both see notifiedAt as null and send twice.
 let notifySweepRunning = false
@@ -66,6 +72,7 @@ export function resetSyncDiagnostics(): void {
   discordInflight.clear()
   organizeInflight.clear()
   pendingSweepRunning = false
+  missingFilesSweepRunning = false
   notifySweepRunning = false
 }
 
@@ -345,6 +352,21 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
     const msg = err instanceof Error ? err.message : String(err)
     log.warn(`pending organize sweep failed: ${msg}`)
   })
+
+  // Import after a `move` leaves qBittorrent pointing at files that are now in
+  // the library. Drop those stuck "Missing Files" torrents (files are kept)
+  // instead of letting them accumulate in the client.
+  if (!missingFilesSweepRunning) {
+    missingFilesSweepRunning = true
+    void removeOrganizedMissingFileTorrents()
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        log.warn(`missing-files cleanup failed: ${msg}`)
+      })
+      .finally(() => {
+        missingFilesSweepRunning = false
+      })
+  }
 
   // Paused and checking rows are synced too so external pause/resume and file verification are picked up
   const activeDownloads = await dbAll(
