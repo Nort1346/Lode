@@ -168,6 +168,25 @@ jobs:
             cli/dist/lode-setup-windows-arm64.exe
           if-no-files-found: error
 
+      - name: Diagnose SignPath entities
+        shell: pwsh
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          ORG_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          PROJECT_SLUG: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
+        run: |
+          $headers = @{ Authorization = "Bearer $env:SIGNPATH_API_TOKEN"; Accept = 'application/json' }
+          Write-Output '--- projects ---'
+          try {
+            $projects = Invoke-RestMethod -Uri "https://app.signpath.io/API/v1/$env:ORG_ID/Projects" -Headers $headers
+            $projects | ForEach-Object { Write-Output ("project slug: " + $_.slug) }
+          } catch { Write-Output ("projects error: " + $_.Exception.Message) }
+          Write-Output '--- policy test-signing ---'
+          try {
+            $policy = Invoke-RestMethod -Uri "https://app.signpath.io/API/v1/$env:ORG_ID/Projects/$env:PROJECT_SLUG/SigningPolicies/test-signing" -Headers $headers
+            Write-Output ($policy | ConvertTo-Json -Depth 3 -Compress)
+          } catch { Write-Output ("policy error: " + $_.Exception.Message) }
+
       - name: Submit SignPath signing request
         uses: signpath/github-action-submit-signing-request@v3
         with:
