@@ -16,6 +16,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 export function useKeyboardVisibility(threshold = 100) {
   const visible = ref(false)
   let baseline = 0
+  let orientation: number | null = null
 
   function update() {
     const vv = window.visualViewport
@@ -23,21 +24,31 @@ export function useKeyboardVisibility(threshold = 100) {
       visible.value = false
       return
     }
+    const angle = window.screen?.orientation?.angle ?? null
+    const rotated = angle !== null && orientation !== null && angle !== orientation
+    orientation = angle
+    // A rotation changes the viewport height without opening the keyboard.
+    // Keep the old baseline and the keyboard looks permanently open.
+    if (rotated) baseline = vv.height
+
     const reference = Math.max(window.innerHeight, baseline)
     visible.value = reference - vv.height > threshold
-    if (!visible.value) baseline = vv.height
+    if (!visible.value && !rotated) baseline = vv.height
   }
 
   onMounted(() => {
     baseline = window.visualViewport ? window.visualViewport.height : window.innerHeight
+    orientation = window.screen?.orientation?.angle ?? null
     update()
     window.visualViewport?.addEventListener('resize', update)
     window.addEventListener('resize', update)
+    window.addEventListener('orientationchange', update)
   })
 
   onUnmounted(() => {
     window.visualViewport?.removeEventListener('resize', update)
     window.removeEventListener('resize', update)
+    window.removeEventListener('orientationchange', update)
   })
 
   return { visible }

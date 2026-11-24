@@ -10,6 +10,7 @@ import {
   buildMovieRelativePath,
   getExtensionLower,
   planExtraFileImports,
+  sanitizeFileSegment,
   selectVideoFiles
 } from '#server/utils/library/organize'
 import {
@@ -159,6 +160,22 @@ async function buildMovieTargets(job: OrganizeJobInput, files: TorrentFile[]): P
   }
 }
 
+// Absolute-numbered anime and complete-series packs carry no season/episode
+// pair, so they land in the series root instead of being mislabeled S01E01.
+function buildSeriesRootRelativePath(input: {
+  seriesTitle: string
+  suffix: string
+  resolution: string | null
+  source: string | null
+  extension: string
+}): string {
+  const series = sanitizeFileSegment(input.seriesTitle)
+  const quality = [input.resolution, input.source].filter((part) => part !== null && part !== '').join(' ')
+  const qualityPart = quality === '' ? '' : ` ${quality}`
+  const extension = sanitizeFileSegment(input.extension).toLowerCase()
+  return `${series}/${series} - ${input.suffix}${qualityPart}.${extension}`
+}
+
 // Series import every video file, so season packs and multi-episode releases
 // land in the library episode by episode instead of only the largest file.
 async function buildSeriesTargets(job: OrganizeJobInput, files: TorrentFile[]): Promise<BuildTargets> {
@@ -221,7 +238,47 @@ async function buildSeriesTargets(job: OrganizeJobInput, files: TorrentFile[]): 
       continue
     }
 
-    errors.push(`unrecognized episode naming: ${video.name}`)
+    // A release that holds a whole season (or several) in one file has no
+    // episode number to map. File it under the first covered season so the
+    // library keeps the pack findable instead of failing the whole import.
+    if (info.kind === 'season-pack' || info.kind === 'multiseason-pack' || info.kind === 'episode-pack') {
+      const firstEpisode = info.episodes[0] ?? 1
+      const lastEpisode = info.episodes[info.episodes.length - 1] ?? null
+      targets.push({
+        sourceName: video.name,
+        relativePath: buildEpisodeRelativePath({
+          ...base,
+          season: info.seasons[0] ?? 1,
+          episode: firstEpisode,
+          episodeEnd:
+            info.kind === 'episode-pack' && lastEpisode !== null && lastEpisode !== firstEpisode ? lastEpisode : null,
+          airDate: null
+        })
+      })
+      continue
+    }
+
+    if (info.kind === 'absolute' && info.episodes.length > 0) {
+      targets.push({
+        sourceName: video.name,
+        relativePath: buildSeriesRootRelativePath({
+          ...base,
+          suffix: `Episode ${info.episodes[0] ?? 1}`
+        })
+      })
+      continue
+    }
+
+    if (info.kind === 'complete-series') {
+      targets.push({
+        sourceName: video.name,
+        relativePath: buildSeriesRootRelativePath({ ...base, suffix: 'Complete' })
+      })
+      continue
+    }
+
+    // Videos without any usable naming (featurettes, samples with odd names,
+    // ...) are left in staging but must not turn a good import into a failure.
   }
 
   return { targets, errors }
@@ -262,10 +319,12 @@ async function importExtras(input: {
   sourceRoot: string
   importMode: MediaImportMode
   usedPaths: Set<string>
-}): Promise<number> {
-  if (input.extras.length === 0) return 0
+  errors: string[]
+}): Promise<{ imported: number; failed: number }> {
+  if (input.extras.length === 0) return { imported: 0, failed: 0 }
 
   let imported = 0
+  let failed = 0
   for (const extra of input.extras) {
     let relativePath = buildExtraFileRelativePath({
       videoSourceName: input.videoSourceName,
@@ -286,13 +345,18 @@ async function importExtras(input: {
       )
       imported++
     } catch (err) {
+      // An already existing extra is a duplicate, not a lost file: another
+      // download placed it there. Anything else leaves media in staging with
+      // no library copy, so it must fail the import and prevent cleanup.
       if (!isEexist(err)) {
         const msg = err instanceof Error ? err.message : String(err)
+        input.errors.push(`extra file import failed (${extra.name}): ${msg}`)
         log.warn(`extra file import failed (${extra.name}): ${msg}`)
+        failed++
       }
     }
   }
-  return imported
+  return { imported, failed }
 }
 
 function uniqueExtraPath(relativePath: string, used: Set<string>): string {
@@ -347,7 +411,10 @@ export async function organizeCompletedDownload(
 
   const built = job.savePath === 'movies' ? await buildMovieTargets(job, files) : await buildSeriesTargets(job, files)
   if (built.targets.length === 0) {
-    return buildResult({ status: 'failed', error: built.errors[0] ?? 'no importable file found' })
+    return buildResult({
+      status: built.errors.length > 0 ? 'failed' : 'skipped',
+      error: built.errors[0] ?? 'no recognized media file to import'
+    })
   }
 
   const extrasPlan: ExtraFilePlan | null = deps.importExtraFiles
@@ -391,6 +458,7 @@ export async function organizeCompletedDownload(
   let firstError: string | null = built.errors[0] ?? null
   let firstImportedSource: { target: ImportTarget; root: string } | null = null
   const usedExtraPaths = new Set<string>()
+  const extraErrors: string[] = []
 
   const fileSizes = new Map(files.map((file) => [file.name, file.size]))
   const totalBytes = built.targets.reduce((sum, target) => sum + (fileSizes.get(target.sourceName) ?? 0), 0)
@@ -413,8 +481,9 @@ export async function organizeCompletedDownload(
       }
 
       const absoluteTarget = buildAbsoluteTarget(libraryDir, target.relativePath)
-      // Copy and move overwrite an existing file, while a hardlink answers
-      // EEXIST. Check first so a duplicate release is skipped in every mode.
+      // Fast path for duplicates; importSingleFile reserves the target
+      // exclusively at commit time, which is what actually stops two
+      // overlapping imports of the same release from overwriting each other.
       if (await targetExists(absoluteTarget)) {
         skippedFiles++
         firstTarget ??= target.relativePath
@@ -433,15 +502,19 @@ export async function organizeCompletedDownload(
 
         const videoExtras = extrasPlan?.byVideo.get(target.sourceName)
         if (videoExtras !== undefined && videoExtras.length > 0) {
-          extrasImported += await importExtras({
+          const result = await importExtras({
             extras: videoExtras,
             videoSourceName: target.sourceName,
             videoTargetRelativePath: target.relativePath,
             libraryDir,
             sourceRoot: source.root,
             importMode: deps.importMode,
-            usedPaths: usedExtraPaths
+            usedPaths: usedExtraPaths,
+            errors: extraErrors
           })
+          extrasImported += result.imported
+          failedFiles += result.failed
+          if (result.failed > 0) firstError ??= extraErrors[0] ?? `${result.failed} extra file(s) failed`
         }
       } catch (err) {
         // A second download of the same release targets the same file name; the
@@ -466,15 +539,19 @@ export async function organizeCompletedDownload(
   // must not get one copy per episode.
   const releaseLevelExtras = extrasPlan?.releaseLevel ?? []
   if (releaseLevelExtras.length > 0 && firstImportedSource !== null) {
-    extrasImported += await importExtras({
+    const result = await importExtras({
       extras: releaseLevelExtras,
       videoSourceName: firstImportedSource.target.sourceName,
       videoTargetRelativePath: firstImportedSource.target.relativePath,
       libraryDir,
       sourceRoot: firstImportedSource.root,
       importMode: deps.importMode,
-      usedPaths: usedExtraPaths
+      usedPaths: usedExtraPaths,
+      errors: extraErrors
     })
+    extrasImported += result.imported
+    failedFiles += result.failed
+    if (result.failed > 0) firstError ??= extraErrors[0] ?? `${result.failed} extra file(s) failed`
   }
 
   // `move` already takes the video out of the torrent; with the opt-in cleanup

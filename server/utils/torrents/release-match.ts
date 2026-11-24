@@ -145,6 +145,44 @@ const METADATA_TOKENS = new Set([
   'iso'
 ])
 
+// Common uploader/scene group names. They appear before or after the title in
+// release names (`RARBG.Show.Name.S01E01`) and are not part of the work's name.
+const SCENE_GROUP_TOKENS = new Set([
+  'rarbg',
+  'eztv',
+  'eztvre',
+  'yify',
+  'yts',
+  'ettv',
+  'ruc',
+  'galaxytv',
+  'lmao',
+  'ntb',
+  'ion10',
+  'sva',
+  'subscene',
+  'sparks',
+  'fgt',
+  'psychd',
+  'asap',
+  'misfits',
+  'harrys',
+  'scarlet',
+  'vxtv',
+  'rxc',
+  'judas',
+  'pahein',
+  'tigole',
+  'deef',
+  'flxxx',
+  'kvj',
+  'fletch',
+  'p2p',
+  'grp',
+  'group',
+  'scene'
+])
+
 const TRANSLITERATION: Record<string, string> = {
   ł: 'l',
   ø: 'o',
@@ -178,7 +216,7 @@ function isYearToken(token: string): boolean {
 }
 
 function isMetadataToken(token: string, kind: MatchMediaKind): boolean {
-  if (METADATA_TOKENS.has(token)) return true
+  if (METADATA_TOKENS.has(token) || SCENE_GROUP_TOKENS.has(token)) return true
   if (isYearToken(token)) return true
   if (/^\d{3,4}[pi]$/.test(token)) return true
   if (/^\d+bit$/.test(token)) return true

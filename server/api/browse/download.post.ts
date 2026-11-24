@@ -35,6 +35,23 @@ import {
 
 const log = createLogger('Download')
 
+// A raw startsWith check treats `http://prowlarr:9696@127.0.0.1:8080/x` as a
+// trusted Prowlarr URL: the userinfo hides the real host from the comparison.
+// Compare the parsed origin (which includes the port) and the path prefix so
+// only URLs actually served by Prowlarr skip external-URL validation.
+function isTrustedProwlarrUrl(url: string, prowlarrUrl: string): boolean {
+  if (prowlarrUrl.length === 0) return false
+  try {
+    const target = new URL(url)
+    const base = new URL(prowlarrUrl)
+    if (target.origin !== base.origin) return false
+    const basePath = base.pathname.replace(/\/+$/, '')
+    return basePath.length === 0 || target.pathname === basePath || target.pathname.startsWith(`${basePath}/`)
+  } catch {
+    return false
+  }
+}
+
 export default defineEventHandler(async (event) => {
   const t0 = Date.now()
 
@@ -127,13 +144,13 @@ export default defineEventHandler(async (event) => {
     const prowlarrUrl = ((config.prowlarrUrl as string) || '').replace(/\/+$/, '')
 
     if (torrentUrl.startsWith('http://') || torrentUrl.startsWith('https://')) {
-      if (!prowlarrUrl || !torrentUrl.startsWith(prowlarrUrl)) {
+      if (!isTrustedProwlarrUrl(torrentUrl, prowlarrUrl)) {
         assertExternalUrl(torrentUrl)
       }
     }
 
     if (guidUrl && (guidUrl.startsWith('http://') || guidUrl.startsWith('https://'))) {
-      if (!prowlarrUrl || !guidUrl.startsWith(prowlarrUrl)) {
+      if (!isTrustedProwlarrUrl(guidUrl, prowlarrUrl)) {
         assertExternalUrl(guidUrl)
       }
     }
@@ -235,6 +252,7 @@ export default defineEventHandler(async (event) => {
       // already-present torrent instead of re-adding it.
       let infoHash: string | null = null
       let fileHashes: MagnetInfoHashes = { v1: null, v2: null }
+      let effectiveV1Hash: string | null = null
 
       const magnetHashes = hasMagnet ? extractMagnetInfoHashes(magnetLink) : null
       const magnetHash = magnetHashes !== null ? primaryTorrentHash(magnetHashes) : null
@@ -568,6 +586,7 @@ export default defineEventHandler(async (event) => {
           }
         }
         const effectiveHashes = hasUsableHash(magnetHashes) ? magnetHashes : (fetched?.hashes ?? magnetHashes)
+        effectiveV1Hash = effectiveHashes?.v1 ?? null
         if (!hasUsableHash(effectiveHashes)) {
           // Still unknown: nominate old rows by stored link, but let live
           // qBittorrent state decide. Read-only, never touches old rows.
@@ -760,7 +779,7 @@ export default defineEventHandler(async (event) => {
 
       const id = randomUUID()
       const isPrivateDownload = (await getTrackerType(indexer)) !== null
-      const storedHash = torrent?.hash ?? infoHash ?? magnetHash
+      const storedHash = torrent?.hash ?? infoHash ?? magnetHash ?? effectiveV1Hash
       log.info(
         `[Download:10:DB] inserting: id=${id} status=downloading hash=${storedHash ?? 'null'} isPrivate=${isPrivateDownload} indexer="${indexer}" resolution=${resolution ?? 'null'}`
       )

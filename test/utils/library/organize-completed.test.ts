@@ -8,6 +8,26 @@ vi.mock('#server/utils/tmdb', () => ({
   getTvShowDetails: vi.fn()
 }))
 
+const mockFailRenameFor = vi.hoisted(() => ({ value: '' }))
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    rename: (from: Parameters<typeof actual.rename>[0], to: Parameters<typeof actual.rename>[1]) => {
+      if (mockFailRenameFor.value !== '' && String(from).endsWith(mockFailRenameFor.value)) {
+        return Promise.reject(Object.assign(new Error('simulated I/O error'), { code: 'EIO' }))
+      }
+      return actual.rename(from, to)
+    },
+    link: (from: Parameters<typeof actual.link>[0], to: Parameters<typeof actual.link>[1]) => {
+      if (mockFailRenameFor.value !== '' && String(from).endsWith(mockFailRenameFor.value)) {
+        return Promise.reject(Object.assign(new Error('simulated I/O error'), { code: 'EIO' }))
+      }
+      return actual.link(from, to)
+    }
+  }
+})
+
 import { organizeCompletedDownload, type OrganizeDeps } from '#server/utils/library/organize-completed'
 import type { OrganizeJobInput } from '#server/types/media-organize'
 import type { TorrentFile } from '#server/types/torrent'
@@ -23,6 +43,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  mockFailRenameFor.value = ''
   await rm(workdir, { recursive: true, force: true })
 })
 
@@ -347,7 +368,7 @@ describe('organizeCompletedDownload', () => {
     await expect(stat(join(libraryDir, 'Dune (2021)/Dune (2021) 1080p web-dl.en.srt'))).rejects.toThrow()
   })
 
-  it('fails on unrecognized episode naming', async () => {
+  it('skips an unrecognized video instead of failing the download', async () => {
     await seedStaging('random-movie.mkv')
     const qbit = makeQbit([makeFile('random-movie.mkv', 11)], stagingDir)
     const result = await organizeCompletedDownload(
@@ -356,11 +377,11 @@ describe('organizeCompletedDownload', () => {
       makeDeps(qbit)
     )
 
-    expect(result.status).toBe('failed')
-    expect(result.error).toContain('unrecognized episode')
+    expect(result.status).toBe('skipped')
+    expect(result.error).toContain('no recognized media file')
   })
 
-  it('reports a partially imported pack as failed', async () => {
+  it('imports the recognized episodes of a pack that ships an unrecognized video', async () => {
     const names = ['Show.S01E01.1080p.WEB-DL.mkv', 'Show.S01E02.1080p.WEB-DL.mkv', 'extras-featurette.mkv']
     for (const name of names) await seedStaging(name)
     const qbit = makeQbit(
@@ -374,8 +395,63 @@ describe('organizeCompletedDownload', () => {
     )
 
     expect(result.importedFiles).toBe(2)
-    expect(result.status).toBe('failed')
-    expect(result.error).toContain('unrecognized episode')
+    expect(result.status).toBe('done')
+  })
+
+  it('imports a single-file season pack into the first covered season', async () => {
+    await seedStaging('Show.S01.1080p.WEB-DL.mkv')
+    const qbit = makeQbit([makeFile('Show.S01.1080p.WEB-DL.mkv', 50)], stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob({ savePath: 'series', torrentName: 'Show.S01.1080p.WEB-DL', label: 'Show', mediaType: 'tv' }),
+      makeDeps(qbit)
+    )
+
+    expect(result.status).toBe('done')
+    expect(result.importedFiles).toBe(1)
+    expect(result.targetRelativePath).toContain('Show/Season 01/')
+  })
+
+  it('imports a single-file multi-season pack into the first covered season', async () => {
+    await seedStaging('Show.S01-S03.1080p.WEB-DL.mkv')
+    const qbit = makeQbit([makeFile('Show.S01-S03.1080p.WEB-DL.mkv', 50)], stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob({ savePath: 'series', torrentName: 'Show.S01-S03.1080p.WEB-DL', label: 'Show', mediaType: 'tv' }),
+      makeDeps(qbit)
+    )
+
+    expect(result.status).toBe('done')
+    expect(result.importedFiles).toBe(1)
+    expect(result.targetRelativePath).toContain('Show/Season 01/')
+  })
+
+  it('imports an anime absolute-numbered release into the series root', async () => {
+    await seedStaging('Show - 1090 (1080p).mkv')
+    const qbit = makeQbit([makeFile('Show - 1090 (1080p).mkv', 50)], stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob({ savePath: 'series', torrentName: 'Show - 1090 (1080p)', label: 'Show', mediaType: 'tv' }),
+      makeDeps(qbit)
+    )
+
+    expect(result.status).toBe('done')
+    expect(result.importedFiles).toBe(1)
+    expect(result.targetRelativePath).toBe('Show/Show - Episode 1090 1080p.mkv')
+  })
+
+  it('imports a complete-series pack into the series root', async () => {
+    await seedStaging('Show Complete Series.mkv')
+    const qbit = makeQbit([makeFile('Show Complete Series.mkv', 50)], stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob({ savePath: 'series', torrentName: 'Show Complete Series', label: 'Show', mediaType: 'tv' }),
+      makeDeps(qbit)
+    )
+
+    expect(result.status).toBe('done')
+    expect(result.importedFiles).toBe(1)
+    expect(result.targetRelativePath).toBe('Show/Show - Complete.mkv')
   })
 
   it('cleans up the torrent leftovers in move mode when enabled', async () => {
@@ -507,5 +583,62 @@ describe('organizeCompletedDownload', () => {
 
     expect(result.status).toBe('done')
     expect(qbit.deleteTorrent).toHaveBeenCalledWith('h', false)
+  })
+
+  it('fails the import when a subtitle cannot be placed in the library', async () => {
+    await seedStaging('Dune.2021.1080p.WEB-DL.mkv')
+    await seedStaging('Dune.2021.1080p.WEB-DL.en.srt', 'subs')
+    await seedStaging('poster.jpg', 'jpeg')
+    // A non-EEXIST failure while committing the subtitle would previously be
+    // swallowed, leaving the file in staging with no library copy.
+    mockFailRenameFor.value = 'Dune.2021.1080p.WEB-DL.en.srt'
+    const files = [
+      makeFile('Dune.2021.1080p.WEB-DL.mkv', 11),
+      makeFile('Dune.2021.1080p.WEB-DL.en.srt', 4),
+      makeFile('poster.jpg', 4)
+    ]
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload(
+      'h',
+      makeJob(),
+      makeDeps(qbit, { importExtraFiles: true, importMode: 'move', cleanupStaging: true })
+    )
+
+    expect(result.status).toBe('failed')
+    expect(result.error).toContain('extra file import failed')
+    expect(result.extrasImported).toBe(0)
+    // Cleanup must not delete the rest of the release after a partial import.
+    expect(await readFile(join(stagingDir, 'poster.jpg'), 'utf8')).toBe('jpeg')
+  })
+
+  it('does not fail when the extra target already exists', async () => {
+    await seedStaging('Dune.2021.1080p.WEB-DL.mkv')
+    await seedStaging('Dune.2021.1080p.WEB-DL.en.srt', 'subs')
+    await mkdir(join(libraryDir, 'Dune (2021)'), { recursive: true })
+    await writeFile(join(libraryDir, 'Dune (2021)/Dune (2021) 1080p web-dl.en.srt'), 'existing')
+    const files = [makeFile('Dune.2021.1080p.WEB-DL.mkv', 11), makeFile('Dune.2021.1080p.WEB-DL.en.srt', 4)]
+    const qbit = makeQbit(files, stagingDir)
+    const result = await organizeCompletedDownload('h', makeJob(), makeDeps(qbit, { importExtraFiles: true }))
+
+    expect(result.status).toBe('done')
+    expect(result.extrasImported).toBe(0)
+  })
+
+  it('imports two downloads of the same release only once', async () => {
+    await seedStaging('Dune.2021.1080p.WEB-DL.mkv', 'first')
+    const files = [makeFile('Dune.2021.1080p.WEB-DL.mkv', 11)]
+    const first = makeQbit(files, stagingDir)
+    const second = makeQbit(files, stagingDir)
+    await writeFile(join(stagingDir, 'Dune.2021.1080p.WEB-DL.mkv'), 'second')
+
+    const results = await Promise.all([
+      organizeCompletedDownload('h1', makeJob({ downloadId: 'dl-1' }), makeDeps(first)),
+      organizeCompletedDownload('h2', makeJob({ downloadId: 'dl-2' }), makeDeps(second))
+    ])
+
+    expect(results.map((result) => result.status).sort()).toEqual(['done', 'skipped'])
+    expect(await readFile(join(libraryDir, 'Dune (2021)/Dune (2021) 1080p web-dl.mkv'), 'utf8')).toMatch(
+      /^(first|second)$/
+    )
   })
 })

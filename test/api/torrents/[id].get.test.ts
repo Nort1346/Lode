@@ -3,6 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const mockGetUserSession = vi.fn()
 const mockGet = vi.fn()
 const mockRun = vi.fn(() => ({ changes: 1 }))
+const mockSet = vi.fn((_value?: Record<string, unknown>) => ({
+  where: vi.fn(() => ({ get: vi.fn(), run: mockRun }))
+}))
 const mockFindTorrentByHash = vi.fn()
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
@@ -19,9 +22,7 @@ vi.stubGlobal(
       }))
     })),
     update: vi.fn(() => ({
-      set: vi.fn(() => ({
-        where: vi.fn(() => ({ get: vi.fn(), run: mockRun }))
-      }))
+      set: mockSet
     }))
   }))
 )
@@ -350,5 +351,91 @@ describe('torrents/[id].get', () => {
 
     const result = await handler(mockEvent)
     expect(result).toEqual(expect.objectContaining({ status: 'downloading', downloadSpeed: 1024 }))
+  })
+
+  it('does not mark a metadata-fetching torrent complete when qBittorrent reports size 0', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', status: 'downloading' })
+    mockFindTorrentByHash.mockResolvedValue({
+      progress: 0,
+      completion_on: 0,
+      downloaded: 0,
+      size: 0,
+      eta: 0,
+      dlspeed: 0,
+      upspeed: 0,
+      state: 'metaDL'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual(expect.objectContaining({ progress: 0, status: 'downloading' }))
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ progress: 0, status: 'downloading' }))
+  })
+
+  it('sets completedAt only on the transition to completed', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    mockGet.mockReturnValue({
+      id: 'dl-1',
+      userId: 'u1',
+      torrentHash: 'abc123',
+      status: 'downloading',
+      completedAt: null
+    })
+    mockFindTorrentByHash.mockResolvedValue({
+      progress: 1,
+      completion_on: 1700000000,
+      downloaded: 1000,
+      size: 1000,
+      eta: 0,
+      dlspeed: 0,
+      upspeed: 1024,
+      state: 'uploading'
+    })
+
+    await handler(mockEvent)
+
+    const written = mockSet.mock.calls[0]?.[0]
+    expect(written?.completedAt).toEqual(expect.any(String))
+  })
+
+  it('keeps the original completedAt when a completed row is polled again', async () => {
+    const completedAt = '2024-01-02T03:04:05.000Z'
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', status: 'completed', completedAt })
+    mockFindTorrentByHash.mockResolvedValue({
+      progress: 1,
+      completion_on: 1700000000,
+      downloaded: 1000,
+      size: 1000,
+      eta: 0,
+      dlspeed: 0,
+      upspeed: 1024,
+      state: 'uploading'
+    })
+
+    await handler(mockEvent)
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed', completedAt }))
+  })
+
+  it('does not clear completedAt when an incomplete read follows a completed row', async () => {
+    const completedAt = '2024-01-02T03:04:05.000Z'
+    mockGetUserSession.mockResolvedValue({ user: { id: 'u1', role: 'user' } })
+    mockGet.mockReturnValue({ id: 'dl-1', userId: 'u1', torrentHash: 'abc123', status: 'completed', completedAt })
+    mockFindTorrentByHash.mockResolvedValue({
+      progress: 0.5,
+      completion_on: 0,
+      downloaded: 500,
+      size: 1000,
+      eta: 120,
+      dlspeed: 1024,
+      upspeed: 0,
+      state: 'downloading'
+    })
+
+    await handler(mockEvent)
+
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'downloading', completedAt }))
   })
 })

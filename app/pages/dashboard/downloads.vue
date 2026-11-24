@@ -395,38 +395,46 @@ const savePathLabels = computed<Record<string, string>>(() => ({
 
           <div v-else-if="dl.status === 'completed'" class="space-y-2">
             <template v-if="dl.notifiedAt === null">
-              <div class="flex items-center justify-between text-xs">
-                <span class="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
-                  <UIcon
-                    name="i-lucide-package-open"
-                    class="size-3.5"
-                    :class="dl.organizeProgress ? 'animate-pulse' : ''"
-                  />
-                  {{ dl.organizeProgress ? t('downloads.prepCopying') : t('downloads.prepTitle') }}
-                </span>
-                <span class="font-medium text-amber-600 dark:text-amber-400"> {{ prepPercent(dl).toFixed(1) }}% </span>
+              <div v-if="dl.organizeError" class="flex items-start gap-2 text-xs text-red-600 dark:text-red-400">
+                <UIcon name="i-lucide-circle-alert" class="size-3.5 mt-0.5 shrink-0" />
+                <span :title="dl.organizeError">{{ t('download.organizeFailed') }}: {{ dl.organizeError }}</span>
               </div>
-              <!-- Same shape as the download bar above: a plain solid fill, so the
-                   dashboard reads as one system. Amber marks the preparation phase. -->
-              <div
-                role="progressbar"
-                :aria-valuenow="prepPercent(dl)"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                :aria-label="t('downloads.prepTitle')"
-                class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10"
-              >
+              <template v-else>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+                    <UIcon
+                      name="i-lucide-package-open"
+                      class="size-3.5"
+                      :class="dl.organizeProgress ? 'animate-pulse' : ''"
+                    />
+                    {{ dl.organizeProgress ? t('downloads.prepCopying') : t('downloads.prepTitle') }}
+                  </span>
+                  <span class="font-medium text-amber-600 dark:text-amber-400">
+                    {{ prepPercent(dl).toFixed(1) }}%
+                  </span>
+                </div>
+                <!-- Same shape as the download bar above: a plain solid fill, so the
+                     dashboard reads as one system. Amber marks the preparation phase. -->
                 <div
-                  class="h-full min-w-0.5 rounded-full bg-amber-500 transition-[width] duration-1000 ease-linear"
-                  :style="{ width: `${Math.max(prepPercent(dl), 0.5)}%` }"
-                />
-              </div>
-              <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
-                <span>{{ prepDetail(dl) }}</span>
-                <span v-if="dl.organizeProgress">
-                  {{ dl.organizeProgress.filesDone }}/{{ dl.organizeProgress.filesTotal }}
-                </span>
-              </div>
+                  role="progressbar"
+                  :aria-valuenow="prepPercent(dl)"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  :aria-label="t('downloads.prepTitle')"
+                  class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10"
+                >
+                  <div
+                    class="h-full min-w-0.5 rounded-full bg-amber-500 transition-[width] duration-1000 ease-linear"
+                    :style="{ width: `${Math.max(prepPercent(dl), 0.5)}%` }"
+                  />
+                </div>
+                <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+                  <span>{{ prepDetail(dl) }}</span>
+                  <span v-if="dl.organizeProgress">
+                    {{ dl.organizeProgress.filesDone }}/{{ dl.organizeProgress.filesTotal }}
+                  </span>
+                </div>
+              </template>
             </template>
             <div v-else class="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
               <UIcon name="i-lucide-check-circle" class="w-4 h-4" />

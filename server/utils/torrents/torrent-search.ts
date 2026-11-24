@@ -105,6 +105,22 @@ function toEpisodePackPayload(t: RankedTorrent, info: EpisodeInfo, seasonEpisode
   }
 }
 
+// A TV bucket can hold releases of a different show sharing a title word. They
+// stay visible, but a loose title match must never be presented as recommended.
+function tvPayload<T extends EpisodeTorrentPayload>(
+  t: RankedTorrent,
+  map: (torrent: RankedTorrent) => T,
+  titles: string[],
+  year: string,
+  altYears: string[]
+): T {
+  const payload = map(t)
+  if (titleMatchStrength(t.title, titles, year, 'tv', altYears) === 0) {
+    return { ...payload, recommended: false }
+  }
+  return payload
+}
+
 /**
  * A release such as `S1-8E1-96` numbers episodes continuously across seasons.
  * TMDB knows how many episodes each season has, so the absolute range can be
@@ -327,7 +343,7 @@ export async function searchSeasonTorrents(
       airDate: ep.air_date,
       rating: ep.vote_average,
       runtime: ep.runtime,
-      torrents: ranked.map(toEpisodePayload)
+      torrents: ranked.map((t) => tvPayload(t, toEpisodePayload, showTitles, year, matchYears))
     }
   })
 
@@ -364,9 +380,16 @@ export async function searchSeasonTorrents(
     showTitles,
     matchYears
   ).map((t) =>
-    toSeasonPackPayload(
+    tvPayload(
       t,
-      packInfos.get(t.title) ?? { kind: 'complete-series', seasons: [], episodes: [], airDate: null }
+      (torrent) =>
+        toSeasonPackPayload(
+          torrent,
+          packInfos.get(t.title) ?? { kind: 'complete-series', seasons: [], episodes: [], airDate: null }
+        ),
+      showTitles,
+      year,
+      matchYears
     )
   )
 
@@ -401,13 +424,25 @@ export async function searchSeasonTorrents(
       const covered = seasonList.filter(
         (season) => season.season_number > 0 && info.seasons.includes(season.season_number)
       )
-      const longestSeason = Math.max(0, ...covered.map((season) => season.episode_count))
+      const firstEpisode = info.episodes[0] ?? 0
       const lastEpisode = info.episodes[info.episodes.length - 1] ?? 0
-      // `E01-E10` over several seasons repeats in each of them; `E01-E96`
-      // is a running number and must be cut by season lengths.
-      const perSeason = covered.length > 1 && lastEpisode > 0 && lastEpisode <= longestSeason
+      // `E01-E10` over several seasons repeats in each of them; a range that
+      // exceeds any one of them is a running number and must be cut by the
+      // per-season TMDB counts. One unusually long season is not enough to
+      // make the whole range per-season.
+      const perSeason =
+        covered.length > 1 &&
+        firstEpisode >= 1 &&
+        lastEpisode > 0 &&
+        covered.every((season) => lastEpisode <= Math.max(0, season.episode_count))
       const seasonEpisodes = perSeason ? info.episodes : episodeNumbersForSeason(info, seasonNumber, seasonList)
-      return toEpisodePackPayload(t, info, seasonEpisodes)
+      return tvPayload(
+        t,
+        (torrent) => toEpisodePackPayload(torrent, info, seasonEpisodes),
+        showTitles,
+        year,
+        matchYears
+      )
     })
     // A range may not reach every season named in the title (`S1-8E1-15`).
     // Do not show an empty "Episodes" label in that case.
@@ -426,7 +461,7 @@ export async function searchSeasonTorrents(
     rankingConfig,
     showTitles,
     matchYears
-  ).map(toEpisodePayload)
+  ).map((t) => tvPayload(t, toEpisodePayload, showTitles, year, matchYears))
   if (otherTorrents.length > 0) {
     log.info(`Other (unmapped) releases: ${otherTorrents.length}`)
   }

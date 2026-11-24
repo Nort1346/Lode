@@ -27,7 +27,9 @@ pwa: {
       { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
     ]
   },
-  generateSW: {
+  strategies: 'injectManifest',
+  injectManifest: {
+    swSrc: 'public/sw.js',
     globPatterns: ['**/*.{js,css,ico,png,svg,woff2}']
   },
   devOptions: {
@@ -72,15 +74,17 @@ pwa: {
 
 See [Notifications](./notifications.md) for push notification setup.
 
-### Service Worker (`/sw-push.js`)
+### Service Worker (`/sw.js` and `/sw-push.js`)
 
-The file still exists under `public/`, but v2 removed the `importScripts` option, so it is no longer
-injected into the generated service worker. This is a behavioral change to verify - push delivery may
-be broken. When wired in, the script:
+`@vite-pwa/nuxt` v2 no longer accepts `importScripts` in the plugin options. The registered worker is
+now a custom `public/sw.js` generated with the `injectManifest` strategy: it precaches the injected
+manifest and removes stale caches. It applies updates immediately via `skipWaiting` (on install and
+on a `SKIP_WAITING` message) and `clients.claim` on activate. It loads the push handlers with
+`importScripts('./sw-push.js')`, so the same `public/sw-push.js` file:
 
-- Handles push events
-- Displays notifications with icon and badge
+- Handles push events and displays notifications with an icon
 - Opens the relevant page on click
+- Re-subscribes with the current VAPID key on `pushsubscriptionchange`
 
 ## Connectivity
 

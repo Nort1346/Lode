@@ -157,6 +157,35 @@ describe('rankTorrents', () => {
     expect(recommendedCount).toBeLessThanOrEqual(mockResults.length)
   })
 
+  it('never recommends a wrong-show TV release even when it is the top result', () => {
+    const ranked = rankTorrents(
+      [seriesRelease('Other.Show.S01E01.1080p', 3, 1000)],
+      'series',
+      'Show',
+      '2024',
+      undefined,
+      ['Show']
+    )
+    expect(ranked[0]!.recommended).toBe(false)
+
+    const matching = rankTorrents([seriesRelease('Show.S01E01.1080p', 3, 1000)], 'series', 'Show', '2024', undefined, [
+      'Show'
+    ])
+    expect(matching[0]!.recommended).toBe(true)
+  })
+
+  it('accepts a scene group prefix before the show title', () => {
+    const ranked = rankTorrents(
+      [seriesRelease('RARBG.Show.Name.S01E01.1080p', 3, 1000)],
+      'series',
+      'Show Name',
+      '2024',
+      undefined,
+      ['Show Name']
+    )
+    expect(ranked[0]!.recommended).toBe(true)
+  })
+
   it('includes parsed title info', () => {
     const ranked = rankTorrents(mockResults, 'movie', 'Movie', '2024')
     ranked.forEach((r) => {

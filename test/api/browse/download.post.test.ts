@@ -26,6 +26,7 @@ const mockPerformTrackerLogin = vi.hoisted(() => vi.fn())
 const mockDecryptAES = vi.hoisted(() => vi.fn())
 const mockApplySeedingPolicy = vi.hoisted(() => vi.fn())
 const mockIsMediaManageEnabled = vi.hoisted(() => vi.fn())
+const mockAssertExternalUrl = vi.hoisted(() => vi.fn())
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
 vi.stubGlobal('readBody', mockReadBody)
@@ -72,7 +73,7 @@ vi.mock('#server/utils/tracker-auth', () => ({
   performTrackerLogin: mockPerformTrackerLogin
 }))
 vi.mock('#server/utils/url-validate', () => ({
-  assertExternalUrl: vi.fn()
+  assertExternalUrl: mockAssertExternalUrl
 }))
 vi.mock('#server/utils/crypto', () => ({
   decryptAES: mockDecryptAES
@@ -228,6 +229,44 @@ describe('browse/download.post', () => {
   it('throws 400 for invalid URL prefix', async () => {
     mockReadBody.mockResolvedValue({ downloadUrl: 'ftp://example.com', savePath: 'movies', label: 'test' })
     await expect(handler(mockEvent)).rejects.toThrow('400')
+  })
+
+  it('rejects a Prowlarr userinfo URL that actually points at a private host', async () => {
+    stubConfig({ prowlarrUrl: 'http://prowlarr:9696' })
+    const attackUrl = 'http://prowlarr:9696@127.0.0.1:8080/x.torrent'
+    mockReadBody.mockResolvedValue({ downloadUrl: attackUrl, savePath: 'movies', label: 'test' })
+
+    await handler(mockEvent)
+
+    expect(mockAssertExternalUrl).toHaveBeenCalledWith(attackUrl)
+  })
+
+  it('validates a userinfo URL supplied as guid even with a trusted downloadUrl', async () => {
+    stubConfig({ prowlarrUrl: 'http://prowlarr:9696' })
+    const attackUrl = 'http://prowlarr:9696@127.0.0.1:8080/x.torrent'
+    mockReadBody.mockResolvedValue({
+      guid: attackUrl,
+      downloadUrl: 'http://prowlarr:9696/api/v1/download/1',
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await handler(mockEvent)
+
+    expect(mockAssertExternalUrl).toHaveBeenCalledWith(attackUrl)
+  })
+
+  it('skips external validation for a genuine Prowlarr download URL', async () => {
+    stubConfig({ prowlarrUrl: 'http://prowlarr:9696' })
+    mockReadBody.mockResolvedValue({
+      downloadUrl: 'http://prowlarr:9696/api/v1/download/1',
+      savePath: 'movies',
+      label: 'test'
+    })
+
+    await handler(mockEvent)
+
+    expect(mockAssertExternalUrl).not.toHaveBeenCalled()
   })
 
   it('throws 400 for invalid savePath', async () => {
@@ -1278,6 +1317,28 @@ describe('browse/download.post', () => {
 
     const result = await handler(mockEvent)
     expect(result).toHaveProperty('success', true)
+  })
+
+  it('stores the fetched info hash when the add verification times out', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(Buffer.from(TORRENT_FIXTURE_HEX, 'hex'), {
+        status: 200,
+        headers: { 'content-type': 'application/x-bittorrent' }
+      })
+    )
+    mockQbit.addTorrentFile.mockResolvedValue({ status: 'added', torrent: null })
+    mockReadBody.mockResolvedValue({
+      downloadUrl: 'https://prowlarr.example/5/download?apikey=xyz',
+      savePath: 'series',
+      label: 'test'
+    })
+
+    await handler(mockEvent)
+
+    const inserted = mockDb.insert.mock.results[0]?.value.values.mock.calls[0]?.[0] as
+      { torrentHash: string | null } | undefined
+    expect(inserted?.torrentHash).toMatch(/^[0-9a-f]{40}$/)
+    vi.mocked(global.fetch).mockReset()
   })
 
   it('skips dangerous file check when torrent is null', async () => {

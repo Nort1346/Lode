@@ -2,7 +2,7 @@ import type { ProwlarrResult } from '#server/types/prowlarr'
 import type { ParsedTitle, RankedTorrent } from '#server/types/torrent'
 import type { RankingConfig, ReleaseKind } from '#server/types/ranking'
 import { DEFAULT_RANKING_CONFIG } from '#server/types/ranking'
-import { titleMatchDetails } from '#server/utils/torrents/release-match'
+import { titleMatchDetails, titleMatchStrength } from '#server/utils/torrents/release-match'
 
 // Seeder counts and language bonuses routinely outweigh a 45-point title
 // penalty, so a release of the wrong work is scaled down as well. Every result
@@ -475,12 +475,21 @@ export function rankTorrents(
 
   ranked.sort((a, b) => b.score - a.score)
 
+  // A high seeder count can lift a release of a completely different work into
+  // the top N. Keep every result visible, but never mark a loose match as
+  // recommended. With no media title this is a plain score calculator, so the
+  // recommendation slots stay unconditional there.
+  const titles = candidateTitles.length > 0 ? candidateTitles : [mediaTitle]
+  const matchKind = kind === 'movie' ? 'movie' : 'tv'
   const topCount = Math.min(cfg.recommendedCount, ranked.length)
-  for (let i = 0; i < topCount; i++) {
-    const item = ranked[i]
-    if (item !== undefined) {
-      item.recommended = true
+  let recommended = 0
+  for (const item of ranked) {
+    if (recommended >= topCount) break
+    if (mediaTitle.length > 0 && titleMatchStrength(item.title, titles, year, matchKind, altYears) === 0) {
+      continue
     }
+    item.recommended = true
+    recommended++
   }
 
   return ranked
