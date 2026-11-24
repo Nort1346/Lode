@@ -87,6 +87,17 @@ describe('importSingleFile', () => {
     expect(await readFile(target, 'utf8')).toBe('video-bytes')
   })
 
+  it('falls back to reserve+rename when hardlinking returns EIO', async () => {
+    mockLink.mockRejectedValueOnce(Object.assign(new Error('i/o error'), { code: 'EIO' }))
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+
+    const result = await importSingleFile(source, target, 'copy')
+
+    expect(result.method).toBe('copy')
+    expect(await readFile(target, 'utf8')).toBe('video-bytes')
+  })
+
   it('keeps EEXIST so a duplicate target is skipped instead of overwritten', async () => {
     mockLink.mockRejectedValueOnce(Object.assign(new Error('file exists'), { code: 'EEXIST' }))
     const source = await seedSource()

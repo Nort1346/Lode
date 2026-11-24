@@ -15,14 +15,6 @@ export function isEexist(err: unknown): boolean {
   return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EEXIST'
 }
 
-// Only these mean "this filesystem cannot hardlink here". A real I/O error
-// (EIO, ENOSPC, ...) must surface instead of being retried as a copy.
-function isLinkUnsupported(err: unknown): boolean {
-  if (!(err instanceof Error) || !('code' in err)) return false
-  const code = (err as NodeJS.ErrnoException).code
-  return code === 'EXDEV' || code === 'EPERM' || code === 'ENOTSUP' || code === 'EOPNOTSUPP'
-}
-
 async function targetSize(target: string): Promise<number> {
   return (await stat(target)).size
 }
@@ -33,15 +25,14 @@ export async function ensureDir(dir: string): Promise<void> {
 
 // Hardlinking the fully written partial into place is exclusive and atomic:
 // EEXIST if another import claimed the target, and no empty file is visible
-// while the copy is still running.
+// while the copy is still running. SMB/NFS/FUSE mounts reject hardlinks with
+// a variety of codes (EXDEV, EPERM, ENOTSUP, even EIO), so any failure except
+// EEXIST falls back to an exclusive reserve + rename.
 async function commitCompleteFile(partial: string, target: string): Promise<void> {
   try {
     await link(partial, target)
   } catch (err) {
-    if (isEexist(err) || !isLinkUnsupported(err)) throw err
-    // A few network filesystems refuse hardlinks even inside one directory.
-    // Fall back to reserve + rename there; the normal path never leaves an
-    // empty target behind.
+    if (isEexist(err)) throw err
     const msg = err instanceof Error ? err.message : String(err)
     log.warn(`exclusive hardlink unavailable (${msg}), using reserve+rename: ${target}`)
     const handle = await open(target, 'wx')
@@ -169,7 +160,7 @@ export async function importSingleFile(
       })
       return { method: 'move', bytes: await targetSize(target) }
     } catch (err) {
-      if (isEexist(err) || !isLinkUnsupported(err)) throw err
+      if (isEexist(err)) throw err
       const msg = err instanceof Error ? err.message : String(err)
       log.info(`move via hardlink unavailable (${msg}), falling back to copy+delete: ${target}`)
       await copyIntoTarget(source, target, { onProgress, removeSource: true })
