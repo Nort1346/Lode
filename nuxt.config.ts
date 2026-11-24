@@ -65,7 +65,7 @@ export default defineNuxtConfig({
     // Session signing secret, overridden at runtime via NUXT_APP_SECRET (32+ chars).
     appSecret: '',
     public: {
-      appVersion: '1.0.6',
+      appVersion: '1.0.7',
       vapidPublicKey: ''
     },
     session: {
