@@ -55,7 +55,7 @@ Media organization with download staging, live import progress and a ready notif
 - Media organization: torrents vanishing before sync, failed imports, and downloads stranded in staging no longer emit a false "ready" notification; failures are surfaced on the row, with bounded retries for transient import errors
 - Media organization: failed extra-file copies now count as failures, so `move` plus staging cleanup cannot delete a subtitle or NFO that never reached the library
 - Media organization: single-file season, episode, and complete-series packs are imported instead of failing organization, and unknown videos are skipped rather than failing the pack
-- Library: imports reserve the target with exclusive create, so two concurrent downloads of the same release cannot overwrite each other
+- Library: imports reserve the target with exclusive create, so two concurrent downloads of the same release cannot overwrite each other; hardlink commits now fall back to reserve+rename on mounts that reject hardlinks (EXDEV, EIO, EPERM), so imports on SMB/NFS/FUSE storage are not left failed
 - Browse: separated episode ranges (`S01.E01-E24`) parse as ranges, `Season 1-3 and 5` expands correctly, and wrong-show releases are no longer marked recommended on TV pages
 - Browse: absolute episode ranges split by TMDB season counts, group prefixes such as `RARBG` no longer produce a false loose match, and the legacy TV torrents endpoint returns `otherTorrents`
 - UI: mobile suggestions re-baseline on rotation, budget-skipped Prowlarr queries are visible in search progress, and episode packs use an episode-pack label instead of "Season Pack"

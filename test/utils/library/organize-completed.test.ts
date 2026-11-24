@@ -14,13 +14,19 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   return {
     ...actual,
     rename: (from: Parameters<typeof actual.rename>[0], to: Parameters<typeof actual.rename>[1]) => {
-      if (mockFailRenameFor.value !== '' && String(from).endsWith(mockFailRenameFor.value)) {
+      if (
+        mockFailRenameFor.value !== '' &&
+        (String(from).endsWith(mockFailRenameFor.value) || String(to).endsWith(mockFailRenameFor.value))
+      ) {
         return Promise.reject(Object.assign(new Error('simulated I/O error'), { code: 'EIO' }))
       }
       return actual.rename(from, to)
     },
     link: (from: Parameters<typeof actual.link>[0], to: Parameters<typeof actual.link>[1]) => {
-      if (mockFailRenameFor.value !== '' && String(from).endsWith(mockFailRenameFor.value)) {
+      if (
+        mockFailRenameFor.value !== '' &&
+        (String(from).endsWith(mockFailRenameFor.value) || String(to).endsWith(mockFailRenameFor.value))
+      ) {
         return Promise.reject(Object.assign(new Error('simulated I/O error'), { code: 'EIO' }))
       }
       return actual.link(from, to)
@@ -591,7 +597,7 @@ describe('organizeCompletedDownload', () => {
     await seedStaging('poster.jpg', 'jpeg')
     // A non-EEXIST failure while committing the subtitle would previously be
     // swallowed, leaving the file in staging with no library copy.
-    mockFailRenameFor.value = 'Dune.2021.1080p.WEB-DL.en.srt'
+    mockFailRenameFor.value = 'en.srt'
     const files = [
       makeFile('Dune.2021.1080p.WEB-DL.mkv', 11),
       makeFile('Dune.2021.1080p.WEB-DL.en.srt', 4),
