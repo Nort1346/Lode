@@ -43,6 +43,15 @@
 | `NUXT_VAPID_PRIVATE_KEY` | - | VAPID private key |
 | `NUXT_VAPID_SUBJECT` | - | Contact email/URL for push service |
 
+### Optional - Testing
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NUXT_TMDB_BASE_URL` | `https://api.themoviedb.org/3` | TMDB-compatible API base URL; used by the Playwright suite to point at its local mock |
+| `DB_DATA_DIR` | `.data` | SQLite data directory override; used by E2E to isolate its database |
+
+The DB parity suite uses `LODE_PG_TEST_URL` (or `LODE_PG_TEST_USER` / `LODE_PG_TEST_PASSWORD` / `LODE_PG_TEST_HOST` in CI) to reach a throwaway PostgreSQL instance; it is not needed for normal runs.
+
 ### Optional - Disk Space
 
 | Variable | Default | Description |
@@ -90,7 +99,12 @@ export const SETTINGS = {
   USER_DEFAULT_MAX_TORRENT_SIZE_GB: 'user_default_max_torrent_size_gb',
   USER_DEFAULT_PRIVATE_TRACKER_LIMIT: 'user_default_private_tracker_limit',
   USER_DEFAULT_MAX_SESSIONS: 'user_default_max_sessions',
-  USER_DEFAULT_CAN_SUBMIT: 'user_default_can_submit'
+  USER_DEFAULT_CAN_SUBMIT: 'user_default_can_submit',
+  MEDIA_MANAGE_ENABLED: 'media_manage_enabled',
+  MEDIA_IMPORT_MODE: 'media_import_mode',
+  MEDIA_IMPORT_EXTRA_FILES: 'media_import_extra_files',
+  MEDIA_EXTRA_FILE_EXTENSIONS: 'media_extra_file_extensions',
+  MEDIA_CLEANUP_STAGING: 'media_cleanup_staging'
 } as const
 
 export type SettingKey = (typeof SETTINGS)[keyof typeof SETTINGS]
@@ -119,10 +133,17 @@ Some settings are stored in the `settings` DB table and can be changed at runtim
 | `user_default_private_tracker_limit` | `5` | Default daily private tracker limit for new users |
 | `user_default_max_sessions` | `0` | Default max concurrent sessions for new users (0 = unlimited) |
 | `user_default_can_submit` | `false` | Default torrent submission permission for new users |
+| `media_manage_enabled` | `false` | Enables *arr-style staging import. Cannot be turned on unless `NUXT_DOWNLOAD_PATH_MOVIES` or `NUXT_DOWNLOAD_PATH_SERIES` is set |
+| `media_import_mode` | `hardlink` | `hardlink`, `copy`, or `move`; hardlink falls back to copy on `EXDEV` |
+| `media_import_extra_files` | `false` | Import subtitle/sidecar files from anywhere in the release |
+| `media_extra_file_extensions` | `srt, sub, ass, ssa, vtt, nfo` | Comma-separated allow-list (max 20) |
+| `media_cleanup_staging` | `false` | With `move`, remove staging leftovers after a fully successful import |
 
 ## Zod Validation
 
 Config is validated at startup using Zod schemas (`server/utils/config-schema.ts`). Invalid config causes the server to exit with a descriptive error message.
+
+`PUT /api/admin/media-config` additionally validates body types at runtime (`enabled` / `cleanupStaging` must be booleans; JSON strings are rejected with 400) and refuses to enable organization when no staging path is configured.
 
 ## Docker Environment
 

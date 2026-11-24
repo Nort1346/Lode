@@ -6,7 +6,7 @@ Lode is a Progressive Web App (PWA) with install prompts, auto-updates, and a na
 
 ## Configuration
 
-Via `@vite-pwa/nuxt` in `nuxt.config.ts`:
+Via `@vite-pwa/nuxt` (now `^2.0.2`, was 1.1.1) in `nuxt.config.ts`:
 
 ```ts
 pwa: {
@@ -19,6 +19,7 @@ pwa: {
     background_color: '#09090b',
     display: 'standalone',
     start_url: '/dashboard',
+    scope: '/',
     icons: [
       { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
       { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
@@ -26,9 +27,14 @@ pwa: {
       { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
     ]
   },
-  workbox: {
-    globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
-    importScripts: ['/sw-push.js']
+  generateSW: {
+    globPatterns: ['**/*.{js,css,ico,png,svg,woff2}']
+  },
+  devOptions: {
+    enabled: import.meta.dev
+  },
+  pwaAssets: {
+    config: true
   },
   client: {
     installPrompt: true,
@@ -54,7 +60,6 @@ pwa: {
 
 ### Service Worker
 - Caches static assets (JS, CSS, images, fonts)
-- Import push notification script (`/sw-push.js`)
 - Periodic sync every 3600 seconds
 
 ### Install Prompts
@@ -68,9 +73,14 @@ pwa: {
 See [Notifications](./notifications.md) for push notification setup.
 
 ### Service Worker (`/sw-push.js`)
+
+The file still exists under `public/`, but v2 removed the `importScripts` option, so it is no longer
+injected into the generated service worker. This is a behavioral change to verify - push delivery may
+be broken. When wired in, the script:
+
 - Handles push events
 - Displays notifications with icon and badge
-- Click handler opens relevant page
+- Opens the relevant page on click
 
 ## Connectivity
 

@@ -68,11 +68,12 @@ The [auto-setup script](../README.md#quick-start) selects these overlays for you
 
 ### 1. `base`
 - Node.js 24 trixie-slim (`NODE_VERSION=24` arg)
-- pnpm 11.22.0 via corepack
+- pnpm 12.4.1 via corepack (matches `packageManager`)
 
 ### 2. `deps`
 - Installs **production dependencies only** (with native addon build tools)
 - Uses pnpm store cache mount
+- Bare install stages run `postinstall` via `scripts/nuxt-prepare.mjs`, which skips `nuxt prepare` when `nuxt.config.ts` is absent (avoids the simple-git 4 ESM error)
 
 ### 3. `build`
 - Installs all dependencies (including devDependencies)
@@ -86,6 +87,7 @@ The [auto-setup script](../README.md#quick-start) selects these overlays for you
 - Copies: `.output`, `node_modules` (prebuilt native binaries), migrations, scripts
 - `NODE_ENV=production`, exposes 5757
 - Entrypoint runs migrations → Jellyfin library setup → drops privileges → starts app
+- The container `CMD` is `node scripts/start.mjs`, which loads `.env`, maps deprecated `NUXT_SESSION_PASSWORD` to `NUXT_APP_SECRET` with a warning, and then imports the built server
 
 ### Entrypoint
 

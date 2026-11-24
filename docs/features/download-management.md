@@ -51,17 +51,19 @@ release most likely has no active seeders.
 The ETA is calculated once on the server and shared by every user, so opening the page mid-download
 (or on a second device) shows the already warmed-up value instead of restarting sample collection.
 
-- **`shared/eta-tracker.ts`** holds the pure sampling pipeline: a sliding window of the last 5 speed
-  samples, the median of that window, a start-up warm-up window, a minimum amount of observed progress,
-  and hysteresis so the countdown ticks down smoothly instead of flickering.
+- **`shared/eta-tracker.ts`** holds the pure sampling pipeline: a 20 s start-up warm-up, 5 valid speed
+  samples, 5 MB of observed progress, a 5-sample median, and hysteresis so the countdown ticks down
+  smoothly instead of flickering. Hysteresis only moves the displayed ETA when the change is at least
+  15% relative or 60 s absolute, and that absolute step is capped at 25% of the displayed ETA (this
+  fixes short ETAs that used to freeze).
 - **`server/utils/torrents/eta-tracker.ts`** keeps one in-memory registry per server process, fed by the
   background sync plus `/api/torrents/*` reads. Samples closer than 2s together are ignored so several
   users or a background tick cannot push fake zero-speed samples into the window.
 - The registry lives in process memory, not in a shared store: with several replicas each process estimates
   on its own and the values can differ between instances. The shipped compose runs a single Lode container.
   Nothing is persisted, so a server restart starts collecting again.
-- Keep `NUXT_TORRENT_SYNC_INTERVAL_MS` below 5 minutes (`ETA_MAX_POLL_GAP_MS`); a slower sync re-anchors on
-  every tick and the ETA never warms up.
+- Keep `NUXT_TORRENT_SYNC_INTERVAL_MS` below 5 minutes (`ETA_MAX_POLL_GAP_MS`, the max poll gap); a slower
+  sync re-anchors on every tick and the ETA never warms up. Idle registrations are dropped after 10 minutes.
 - API responses replace the raw qBittorrent `eta_seconds` with the stabilised estimate and add `etaState`
   (`collecting`, `waiting-seeders`, `calculating`, `ready`). Only `ready` carries a number.
 - The client (`useEtaTracker`) just formats `etaState` / `etaSeconds`; it no longer samples speed itself.
@@ -69,22 +71,28 @@ The ETA is calculated once on the server and shared by every user, so opening th
 ## Preparation Phase (countdown + real import progress)
 
 When a download completes, the row switches from the download bar to a
-dedicated **preparation bar** (violet/fuchsia with a moving highlight, so it is
-never mistaken for the download bar):
+**preparation bar** styled like the download bar (amber), with the `Preparing`/`Copying` label and
+progress percentage:
 
 - **Configurable speed**: Default 15 MB/s (admin setting)
 - **Two sources merged into one bar**: the simulated countdown (`sizeBytes /
   speed`) and the real byte progress of the library import reported by the
-  server. The bar shows `max(countdown %, import %)`, so it never goes
-  backwards and never claims "ready" while files are still being copied.
+  server. The bar follows the slower of the two gates: `min(countdown %, import %)` (a disabled
+  countdown counts as 100%, a settled/skipped/failed import counts as 100%, a pending import without
+  live bytes counts as 0%), so it reaches 100 exactly when the ready notification fires and never
+  jumps ahead of a running copy.
 - **Live import detail**: while an import is copying, the bar shows
-  `copied / total · speed` plus the `files done / total` counter; the dashboard
-  polls every second during preparation and every 3 s when idle.
+  `copied / total · speed` plus the `files done / total` counter; the downloads page polls every
+  second while a byte copy is in flight and every 3 s otherwise; the dashboard now does the same and
+  also shows preparing (`completed` + `notifiedAt === null`) rows alongside active downloads,
+  removing them on the ready SSE event.
 - **Jellyfin waits for the import**: with media organization enabled, the
   ready notification (and the Discord/push message) is held until
   `organize_status` leaves `pending`, so Jellyfin never scans a folder that is
   still being written.
 - **Disableable**: Can be turned off in admin settings.
+- There is no new DB status `preparing` - it is only a UI phase for `completed` rows whose ready
+  notification has not fired yet.
 
 ## Media Organization (optional, *arr-style import)
 
@@ -110,7 +118,7 @@ staging configured.
 | Movie naming | on when enabled | `Title (Year)/Title (Year) Resolution Source.ext`, title/year from TMDB when `tmdbId` is known, otherwise the request label |
 | Series naming | on when enabled | `Series/Season 02/Series - S02E02 Resolution Source.ext`; multi-episode files keep the range (`S02E02-E03`); daily releases use the air year (`Season 2026` + air date) |
 | Main-file pick | always | Movies import the largest non-sample video, `sample` files are skipped. Series import **every** video file, so season packs are fully imported instead of only the biggest episode; videos inside bonus-material folders (`Extras/`, `Featurettes/`, `Trailers/`, `Bonus Features/`, ...) are ignored so they cannot fail the pack. Games/books/music are left untouched (`skipped`) |
-| Status tracking | always | Each download row carries `organized_path`, `organize_status` (`pending`/`done`/`failed`/`skipped`) and `organize_error`; failures never break the sync loop; a second download of the same release is `skipped` with "target already exists"; a partially imported pack is `failed` with the first error so it shows up for the admin. A completed row left `pending` by an interrupted run is retried on the next sync (in-flight guard, idempotent import); rows without a torrent hash are marked `skipped` with the reason |
+| Status tracking | always | Each download row carries `organized_path`, `organize_status` (`pending`/`done`/`failed`/`skipped`) and `organize_error`; failures never break the sync loop; a second download of the same release is `skipped` with "target already exists"; a partially imported pack is `failed` with the first error so it shows up for the admin. A completed row left `pending` by an interrupted run is retried on the next sync (in-flight guard, idempotent import); rows without a torrent hash are marked `skipped` with the reason. A pending-import sweep runs at most once at a time, and a row already settled by the completion path is never re-imported; `PUT /api/admin/media-config` validates body types and refuses to enable organization without staging |
 | Missing-files cleanup | always | Every sync checks completed rows whose import is `done` (any import mode) and drops the torrent from qBittorrent when its state is `missingFiles`. **Only the torrent is removed - its files are always kept.** This cleans up torrents left behind by older `move` imports; a torrent re-added after the row completed is skipped. Rows without a confirmed library import are never touched |
 | Safe delete | always | Deleting a download never touches the library: in `hardlink`/`copy` modes (an unknown mode normalizes to `hardlink`) the staging copy goes with the torrent. In `move` mode the staging files are removed while the download is still incomplete (partial garbage) and after the import moved the files out (only release leftovers remain), but a completed download whose import has not settled yet keeps its files - in move mode they are the only complete copy. An unreadable import-mode setting keeps the files too. When the delete removes the files, the now-empty release folders are pruned as well (qBittorrent deletes the files, not the folders) |
 | Jellyfin targeting | always | Each successful import notifies Jellyfin about the exact folder it wrote to, so the scan starts right away; the countdown notification targets the organized folder when known, otherwise the library root |

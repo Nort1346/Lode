@@ -29,7 +29,7 @@ Lode provides real-time notifications through two channels: SSE (Server-Sent Eve
 ### Notification Types
 | Type | Trigger |
 |------|---------|
-| `download_complete` | Torrent finished downloading |
+| `download_complete` | Download ready (prep countdown elapsed and library import settled) |
 | `request_accepted` | Admin accepted a request |
 | `request_rejected` | Admin rejected a request |
 
