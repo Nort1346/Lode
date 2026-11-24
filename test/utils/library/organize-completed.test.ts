@@ -18,6 +18,12 @@ vi.mock('node:fs/promises', async (importOriginal) => {
         return Promise.reject(Object.assign(new Error('simulated I/O error'), { code: 'EIO' }))
       }
       return actual.rename(from, to)
+    },
+    link: (from: Parameters<typeof actual.link>[0], to: Parameters<typeof actual.link>[1]) => {
+      if (mockFailRenameFor.value !== '' && String(from).endsWith(mockFailRenameFor.value)) {
+        return Promise.reject(Object.assign(new Error('simulated I/O error'), { code: 'EIO' }))
+      }
+      return actual.link(from, to)
     }
   }
 })

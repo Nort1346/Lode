@@ -13,9 +13,11 @@ import {
 // Hardlink support depends on the filesystem (EXDEV, EPERM on SMB/NFS, ...),
 // so the link call is mocked while every other fs helper stays real.
 const mockLink = vi.hoisted(() => vi.fn())
+const realLink = vi.hoisted(() => ({ fn: undefined as unknown as typeof import('node:fs/promises').link }))
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
+  realLink.fn = actual.link
   mockLink.mockImplementation(actual.link)
   return { ...actual, link: mockLink }
 })
@@ -112,6 +114,21 @@ describe('importSingleFile', () => {
     await importSingleFile(source, target, 'copy')
 
     await expect(stat(`${target}.partial`)).rejects.toThrow()
+  })
+
+  it('publishes the complete file in one step, with no empty target window', async () => {
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+    const published: string[] = []
+    mockLink.mockImplementationOnce(async (from: string, to: string) => {
+      published.push(await readFile(from, 'utf8'))
+      return realLink.fn(from, to)
+    })
+
+    await importSingleFile(source, target, 'copy')
+
+    expect(published).toEqual(['video-bytes'])
+    expect(await readFile(target, 'utf8')).toBe('video-bytes')
   })
 
   it('reports the copied byte count through the progress callback', async () => {

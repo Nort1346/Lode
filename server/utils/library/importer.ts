@@ -11,12 +11,16 @@ const log = createLogger('MediaImport')
 // copyFile on local disks and no faster on FUSE mounts.
 const PROGRESS_POLL_MS = 400
 
-function isCrossDevice(err: unknown): boolean {
-  return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EXDEV'
-}
-
 export function isEexist(err: unknown): boolean {
   return err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EEXIST'
+}
+
+// Only these mean "this filesystem cannot hardlink here". A real I/O error
+// (EIO, ENOSPC, ...) must surface instead of being retried as a copy.
+function isLinkUnsupported(err: unknown): boolean {
+  if (!(err instanceof Error) || !('code' in err)) return false
+  const code = (err as NodeJS.ErrnoException).code
+  return code === 'EXDEV' || code === 'EPERM' || code === 'ENOTSUP' || code === 'EOPNOTSUPP'
 }
 
 async function targetSize(target: string): Promise<number> {
@@ -27,20 +31,27 @@ export async function ensureDir(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true })
 }
 
-// Reserving the target with 'wx' makes the commit mutually exclusive: copy and
-// move rename over an existing file, so a second download finishing at the
-// same time would otherwise silently overwrite the first one's import.
-async function reserveTarget(target: string): Promise<void> {
-  const handle = await open(target, 'wx')
-  await handle.close()
-}
-
-async function commitReserved(partial: string, target: string): Promise<void> {
+// Hardlinking the fully written partial into place is exclusive and atomic:
+// EEXIST if another import claimed the target, and no empty file is visible
+// while the copy is still running.
+async function commitCompleteFile(partial: string, target: string): Promise<void> {
   try {
-    await rename(partial, target)
+    await link(partial, target)
   } catch (err) {
-    await unlink(target).catch(() => {})
-    throw err
+    if (isEexist(err) || !isLinkUnsupported(err)) throw err
+    // A few network filesystems refuse hardlinks even inside one directory.
+    // Fall back to reserve + rename there; the normal path never leaves an
+    // empty target behind.
+    const msg = err instanceof Error ? err.message : String(err)
+    log.warn(`exclusive hardlink unavailable (${msg}), using reserve+rename: ${target}`)
+    const handle = await open(target, 'wx')
+    await handle.close()
+    try {
+      await rename(partial, target)
+    } catch (renameErr) {
+      await unlink(target).catch(() => {})
+      throw renameErr
+    }
   }
 }
 
@@ -64,7 +75,6 @@ async function copyPartial(source: string, partial: string, onProgress?: (bytes:
 interface CopyIntoTargetOptions {
   onProgress?: (bytes: number) => void
   removeSource?: boolean
-  targetReserved?: boolean
 }
 
 async function copyIntoTarget(source: string, target: string, options: CopyIntoTargetOptions = {}): Promise<void> {
@@ -73,8 +83,7 @@ async function copyIntoTarget(source: string, target: string, options: CopyIntoT
   const partial = `${target}.partial-${randomUUID()}`
   try {
     await copyPartial(source, partial, options.onProgress)
-    if (options.targetReserved !== true) await reserveTarget(target)
-    await commitReserved(partial, target)
+    await commitCompleteFile(partial, target)
     if (options.onProgress !== undefined) {
       try {
         options.onProgress((await stat(target)).size)
@@ -149,23 +158,22 @@ export async function importSingleFile(
   }
 
   if (mode === 'move') {
-    let reserved = false
     try {
-      await reserveTarget(target)
-      reserved = true
-      try {
-        await rename(source, target)
-        return { method: 'move', bytes: await targetSize(target) }
-      } catch (err) {
-        if (!isCrossDevice(err)) throw err
+      // Same filesystem: link publishes the complete file atomically, then the
+      // staging copy is dropped. Cross-device and hardlink-hostile mounts fall
+      // back to copy+delete.
+      await link(source, target)
+      await unlink(source).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err)
-        log.info(`move unavailable across devices (${msg}), falling back to copy+delete: ${target}`)
-        await copyIntoTarget(source, target, { onProgress, removeSource: true, targetReserved: true })
-        return { method: 'copy', bytes: await targetSize(target) }
-      }
+        log.warn(`cleanup of move source failed: ${source}: ${msg}`)
+      })
+      return { method: 'move', bytes: await targetSize(target) }
     } catch (err) {
-      if (reserved) await unlink(target).catch(() => {})
-      throw err
+      if (isEexist(err) || !isLinkUnsupported(err)) throw err
+      const msg = err instanceof Error ? err.message : String(err)
+      log.info(`move via hardlink unavailable (${msg}), falling back to copy+delete: ${target}`)
+      await copyIntoTarget(source, target, { onProgress, removeSource: true })
+      return { method: 'copy', bytes: await targetSize(target) }
     }
   }
 
