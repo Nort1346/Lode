@@ -11,6 +11,12 @@ on:
     paths:
       - 'cli/**'
       - '.github/workflows/cli.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to stamp (debug only)'
+        required: true
+        default: '1.0.7'
 
 # Builds the standalone setup CLI (cli/) as native binaries for 6 targets and
 # publishes them to the same GitHub release that the docker workflow creates.
@@ -100,7 +106,7 @@ jobs:
 
   sign-windows:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     timeout-minutes: 30
 
@@ -124,6 +130,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
 
           $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') { $version = '${{ inputs.version }}' }
           $parts = $version -split '\.'
           if ($parts.Count -lt 3) { throw "Expected a vX.Y.Z tag, got $env:GITHUB_REF_NAME" }
           $fileVersion = "$($parts[0]).$($parts[1]).$($parts[2])"
