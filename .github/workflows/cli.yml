@@ -181,11 +181,16 @@ jobs:
             $projects = Invoke-RestMethod -Uri "https://app.signpath.io/API/v1/$env:ORG_ID/Projects" -Headers $headers
             $projects | ForEach-Object { Write-Output ("project slug: " + $_.slug) }
           } catch { Write-Output ("projects error: " + $_.Exception.Message) }
-          Write-Output '--- policy test-signing ---'
+          Write-Output '--- signing policies ---'
           try {
-            $policy = Invoke-RestMethod -Uri "https://app.signpath.io/API/v1/$env:ORG_ID/Projects/$env:PROJECT_SLUG/SigningPolicies/test-signing" -Headers $headers
-            Write-Output ($policy | ConvertTo-Json -Depth 3 -Compress)
-          } catch { Write-Output ("policy error: " + $_.Exception.Message) }
+            $policies = Invoke-RestMethod -Uri "https://app.signpath.io/API/v1/$env:ORG_ID/Projects/$env:PROJECT_SLUG/SigningPolicies" -Headers $headers
+            $policies | ForEach-Object { Write-Output ("policy slug: " + $_.slug) }
+          } catch { Write-Output ("policies error: " + $_.Exception.Message) }
+          Write-Output '--- artifact configurations ---'
+          try {
+            $configs = Invoke-RestMethod -Uri "https://app.signpath.io/API/v1/$env:ORG_ID/Projects/$env:PROJECT_SLUG/ArtifactConfigurations" -Headers $headers
+            $configs | ForEach-Object { Write-Output ("artifact config slug: " + $_.slug) }
+          } catch { Write-Output ("artifact configs error: " + $_.Exception.Message) }
 
       - name: Submit SignPath signing request
         uses: signpath/github-action-submit-signing-request@v3
