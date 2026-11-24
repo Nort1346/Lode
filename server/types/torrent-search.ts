@@ -98,6 +98,21 @@ export interface EpisodeTorrentPayload {
 
 export interface SeasonPackPayload extends EpisodeTorrentPayload {
   isSeasonPack: boolean
+  // Every season included in the pack, so a 1-2 release can be labelled on
+  // both season pages. Empty when the naming does not name explicit seasons.
+  seasons: number[]
+}
+
+// A single release covering an episode range across several seasons, e.g.
+// `S1-8E1-96`. It is not a full-season pack and not a single episode.
+export interface EpisodePackPayload extends EpisodeTorrentPayload {
+  // Seasons covered by the release and the episode range as written in its
+  // title (absolute for running numbering, repeated for per-season ranges).
+  seasons: number[]
+  episodes: number[]
+  // The part of that range belonging to the season currently being viewed,
+  // split using TMDB's per-season episode counts.
+  seasonEpisodes: number[]
 }
 
 export interface EpisodePayload {
@@ -123,10 +138,19 @@ export interface SeasonSearchPayload {
   }
   episodes: EpisodePayload[]
   seasonPacks: SeasonPackPayload[]
+  episodePacks: EpisodePackPayload[]
+  // Releases of this show whose naming does not map to a known TMDB episode
+  // or pack (new episodes TMDB has not listed yet, date/exotic numbering).
+  // Kept so no Prowlarr result is ever silently hidden.
+  otherTorrents: EpisodeTorrentPayload[]
 }
 
 export interface MovieSearchPayload {
   torrents: TorrentSearchTorrent[]
+  // Prowlarr's fuzzy text search also returns films that merely share a word
+  // with the title. Kept in a separate, clearly labelled group so no result
+  // is lost but the wrong film is never presented as the requested one.
+  otherTorrents: TorrentSearchTorrent[]
 }
 
 // Outcomes of the shared search orchestration (server/utils/torrents/torrent-search.ts)

@@ -30,14 +30,19 @@
               size="xl"
               :ui="{ base: 'h-11' }"
               class="w-full"
-              @focus="suggestions.length > 0 && (isOpen = true)"
+              @focus="onSearchFocus"
+              @blur="onSearchBlur"
               @keydown.escape="isOpen = false"
               @keydown.enter="close"
             />
-            <!-- Mobile-only (<768px) suggestion dropdown: never rendered on desktop -->
+            <!-- <768px suggestion dropdown. On coarse-pointer devices
+                 (phones) it additionally requires the virtual keyboard to be
+                 open - swiping it away (input stays focused) or blurring the
+                 input hides the hints again. Narrow desktop windows are not
+                 gated on it: they have no virtual keyboard -->
             <Transition name="suggestions-fade">
               <div
-                v-if="isOpen && suggestions.length > 0 && isSuggestionMobile"
+                v-if="isOpen && suggestions.length > 0 && isSuggestionMobile && (!isCoarsePointer || keyboardVisible)"
                 class="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
               >
                 <button
@@ -96,8 +101,28 @@
         <div
           role="radiogroup"
           :aria-label="t('browse.mediaType')"
-          class="hidden h-11 shrink-0 items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1 sm:flex dark:border-white/10 dark:bg-zinc-800/60"
+          class="relative hidden h-11 shrink-0 items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1 sm:flex dark:border-white/10 dark:bg-zinc-800/60"
         >
+          <!-- Sliding thumb: sits under the active segment and glides to the
+               next one on selection. Its rect is measured from the button's
+               own metrics, so it tracks locale label-width changes and the
+               hidden -> visible flip when crossing the sm breakpoint -->
+          <span
+            v-if="thumbRect"
+            aria-hidden="true"
+            class="pointer-events-none absolute rounded-md bg-zinc-900 dark:bg-white"
+            :class="
+              thumbAnimated
+                ? 'transition-[left,top,width,height] duration-200 ease-out motion-reduce:transition-none'
+                : ''
+            "
+            :style="{
+              left: `${thumbRect.left}px`,
+              top: `${thumbRect.top}px`,
+              width: `${thumbRect.width}px`,
+              height: `${thumbRect.height}px`
+            }"
+          />
           <button
             v-for="opt in typeOptions"
             :key="opt.value"
@@ -106,10 +131,10 @@
             role="radio"
             :aria-checked="searchParams.type === opt.value"
             :tabindex="searchParams.type === opt.value ? 0 : -1"
-            class="flex h-8 items-center justify-center rounded-md px-3 text-sm transition-colors duration-150 motion-reduce:transition-none"
+            class="relative flex h-8 items-center justify-center rounded-md px-3 text-sm transition-colors duration-150 motion-reduce:transition-none"
             :class="
               searchParams.type === opt.value
-                ? 'bg-zinc-900 font-semibold text-white dark:bg-white dark:text-zinc-900'
+                ? 'font-semibold text-white dark:text-zinc-900'
                 : 'font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
             "
             @click="searchParams.type = opt.value"
@@ -307,7 +332,7 @@
 <script setup lang="ts">
 import type { MediaCarouselItem } from '~/types/media'
 import type { AutocompleteSuggestion } from '~/types/autocomplete'
-import type { SearchResultItem } from '~/types/browse'
+import type { SearchResultItem, TypeThumbRect } from '~/types/browse'
 import { useGoToItem } from '~/composables/useNavigate'
 
 const { t, locale } = useI18n()
@@ -315,6 +340,10 @@ const { goToItem } = useGoToItem()
 const route = useRoute()
 const router = useRouter()
 const { tmdbBlocked } = useServiceHealth()
+
+useSeoMeta({
+  title: () => `${t('nav.browse')} | ${t('seo.title')}`
+})
 
 const searchParams = reactive({
   q: '',
@@ -342,12 +371,42 @@ function handleClickOutside(e: MouseEvent) {
   }
 }
 
+// Phones: the hint list only makes sense while the user can type AND the
+// virtual keyboard is up. `keyboardVisible` goes false when the user swipes
+// the keyboard away (the input keeps focus) and the dropdown hides with it;
+// blurring the input closes the list after a short grace period so the click
+// on a tapped suggestion still lands before the list unmounts.
+// The keyboard gate applies only to coarse-pointer devices (phones/tablets):
+// a narrow DESKTOP window is also <768px but never has a virtual keyboard,
+// so `keyboardVisible` would stay false and the hints would never appear.
+const { visible: keyboardVisible } = useKeyboardVisibility()
+const isCoarsePointer = ref(false)
+let blurCloseTimer: ReturnType<typeof setTimeout> | null = null
+
+function onSearchFocus() {
+  if (blurCloseTimer !== null) {
+    clearTimeout(blurCloseTimer)
+    blurCloseTimer = null
+  }
+  if (suggestions.value.length > 0) isOpen.value = true
+}
+
+function onSearchBlur() {
+  if (blurCloseTimer !== null) clearTimeout(blurCloseTimer)
+  blurCloseTimer = setTimeout(() => {
+    blurCloseTimer = null
+    close()
+  }, 150)
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  isCoarsePointer.value = window.matchMedia('(pointer: coarse)').matches
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (blurCloseTimer !== null) clearTimeout(blurCloseTimer)
 })
 
 // Sticky control bar: flush at the viewport top on desktop (top-0) with
@@ -384,8 +443,12 @@ const panelAnimated = ref(false)
 
 onMounted(() => {
   void nextTick(() => {
+    // Place the thumb before its transition class is enabled so the first
+    // paint sits under the active segment instead of gliding in from 0,0
+    updateThumb()
     requestAnimationFrame(() => {
       panelAnimated.value = true
+      thumbAnimated.value = true
     })
   })
 })
@@ -460,6 +523,35 @@ function handleTypeKeydown(e: KeyboardEvent, value: string) {
     typeButtonRefs.get(target)?.focus()
   })
 }
+
+// Sliding thumb behind the active type segment (tablet/desktop only). The
+// rect is read from the active button's own metrics so it follows label
+// widths across locales and stays correct when the control flips from
+// display:none to visible at the sm breakpoint; a zero-size measurement
+// unmounts the thumb so it reappears in place without a glide.
+const thumbRect = ref<TypeThumbRect | null>(null)
+const thumbAnimated = ref(false)
+
+function updateThumb() {
+  const btn = typeButtonRefs.get(searchParams.type)
+  if (!btn || btn.offsetWidth === 0 || btn.offsetHeight === 0) {
+    thumbRect.value = null
+    return
+  }
+  thumbRect.value = {
+    left: btn.offsetLeft,
+    top: btn.offsetTop,
+    width: btn.offsetWidth,
+    height: btn.offsetHeight
+  }
+}
+
+// Re-measure when the selection moves (the glide itself is a CSS transition
+// on the thumb), the labels change width on a locale switch, or the control
+// appears/disappears at the sm breakpoint (hidden buttons report 0x0 metrics)
+watch([() => searchParams.type, typeOptions, isPhoneBar], () => {
+  void nextTick(updateThumb)
+})
 
 const allGenres = [
   { id: 1, label: 'browse.action', movieId: 28, tvId: 10759 },
@@ -701,21 +793,52 @@ const genreMoviePending = reactive<Record<number, boolean>>({})
 const genreTvItems = reactive<Record<number, MediaCarouselItem[]>>({})
 const genreTvPending = reactive<Record<number, boolean>>({})
 
+// Genre carousels load from IntersectionObserver callbacks after mount, where
+// `useFetch` is not allowed (NUXT_E3003), so use `$fetch` instead. The request
+// token per genre prevents a locale switch mid-flight from applying stale data.
+function makeGenreLoader(
+  items: Record<number, MediaCarouselItem[]>,
+  pending: Record<number, boolean>,
+  mediaType: 'movie' | 'tv'
+) {
+  const loaded = new Set<number>()
+  const requests = new Map<number, number>()
+
+  async function load(id: number) {
+    const req = (requests.get(id) ?? 0) + 1
+    requests.set(id, req)
+    pending[id] = true
+    try {
+      const res = await $fetch<{ items: MediaCarouselItem[] }>('/api/browse/genre', {
+        query: { genreId: id, mediaType, locale: locale.value }
+      })
+      if (requests.get(id) === req) items[id] = res.items ?? []
+    } catch {
+      // TMDB failure: keep the carousel empty (matches the old null-data behavior)
+    } finally {
+      if (requests.get(id) === req) pending[id] = false
+    }
+  }
+
+  return {
+    markVisible(id: number) {
+      loaded.add(id)
+      void load(id)
+    },
+    reloadAll() {
+      for (const id of loaded) void load(id)
+    }
+  }
+}
+
+const movieGenreLoader = makeGenreLoader(genreMovieItems, genreMoviePending, 'movie')
+const tvGenreLoader = makeGenreLoader(genreTvItems, genreTvPending, 'tv')
+
 for (const g of movieGenres) {
   watch(
     () => genreVisible[`movie-${g.id}`],
     (visible) => {
-      if (visible !== true) return
-      const { data: d, pending: p } = useFetch('/api/browse/genre', {
-        query: computed(() => ({ genreId: g.id, mediaType: 'movie', locale: locale.value })),
-        watch: [locale]
-      })
-      watchEffect(() => {
-        genreMoviePending[g.id] = p.value
-        if (d.value?.items) {
-          genreMovieItems[g.id] = d.value.items as MediaCarouselItem[]
-        }
-      })
+      if (visible === true) movieGenreLoader.markVisible(g.id)
     },
     { once: true }
   )
@@ -725,21 +848,16 @@ for (const g of tvGenres) {
   watch(
     () => genreVisible[`tv-${g.id}`],
     (visible) => {
-      if (visible !== true) return
-      const { data: d, pending: p } = useFetch('/api/browse/genre', {
-        query: computed(() => ({ genreId: g.id, mediaType: 'tv', locale: locale.value })),
-        watch: [locale]
-      })
-      watchEffect(() => {
-        genreTvPending[g.id] = p.value
-        if (d.value?.items) {
-          genreTvItems[g.id] = d.value.items as MediaCarouselItem[]
-        }
-      })
+      if (visible === true) tvGenreLoader.markVisible(g.id)
     },
     { once: true }
   )
 }
+
+watch(locale, () => {
+  movieGenreLoader.reloadAll()
+  tvGenreLoader.reloadAll()
+})
 </script>
 
 <style scoped>

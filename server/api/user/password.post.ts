@@ -13,18 +13,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Not authenticated' })
   }
 
-  const body = await readBody<{ currentPassword: string; newPassword: string }>(event)
+  const body = await readBody<{ currentPassword?: string; newPassword: string }>(event)
 
-  if (!body?.currentPassword || !body?.newPassword) {
-    throw createError({ statusCode: 400, statusMessage: 'Current and new password are required' })
+  if (!body?.newPassword) {
+    throw createError({ statusCode: 400, statusMessage: 'New password is required' })
   }
 
   if (body.newPassword.length < 8) {
     throw createError({ statusCode: 400, statusMessage: 'New password must be at least 8 characters' })
-  }
-
-  if (body.currentPassword === body.newPassword) {
-    throw createError({ statusCode: 400, statusMessage: 'New password must differ from current' })
   }
 
   const db = await useDbAsync()
@@ -34,9 +30,22 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
 
-  const valid = await compare(body.currentPassword, user.password)
-  if (!valid) {
-    throw createError({ statusCode: 400, statusMessage: 'Invalid current password' })
+  // The forced change is shown right after login, when the user has just
+  // authenticated with the current password, so re-entering it is skipped
+  // for users still flagged with mustChangePassword.
+  if (!user.mustChangePassword) {
+    if (body.currentPassword === undefined || body.currentPassword === '') {
+      throw createError({ statusCode: 400, statusMessage: 'Current password is required' })
+    }
+
+    if (body.currentPassword === body.newPassword) {
+      throw createError({ statusCode: 400, statusMessage: 'New password must differ from current' })
+    }
+
+    const valid = await compare(body.currentPassword, user.password)
+    if (!valid) {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid current password' })
+    }
   }
 
   const hashedPassword = await hash(body.newPassword, { cost: 12 })

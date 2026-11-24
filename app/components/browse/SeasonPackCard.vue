@@ -7,6 +7,12 @@
         <UIcon name="i-lucide-layers" class="size-3" />
         {{ t('tv.seasonPack') }}
         <span
+          v-if="packSeasons.length > 1"
+          class="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap text-purple-600 dark:text-purple-300"
+        >
+          {{ t('tv.multiseasonPack', { seasons: seasonLabel }) }}
+        </span>
+        <span
           class="font-bold"
           :class="
             pack.percentage >= 80 ? 'text-emerald-500' : pack.percentage >= 60 ? 'text-amber-500' : 'text-zinc-500'
@@ -36,7 +42,13 @@
       class="font-bold"
       @click="$emit('download')"
     >
-      {{ limitExceeded ? t('tv.limitReached') : t('tv.downloadSeason') }}
+      {{
+        limitExceeded
+          ? t('tv.limitReached')
+          : packSeasons.length > 1
+            ? t('tv.downloadSeasonsRange', { seasons: seasonLabel })
+            : t('tv.downloadSeason')
+      }}
     </UButton>
     <UButton v-if="isDev" size="xs" color="neutral" variant="ghost" icon="i-lucide-bug" @click="$emit('toggleDebug')" />
     <div
@@ -110,8 +122,9 @@
 
 <script setup lang="ts">
 import type { SeasonPack } from '~/types/media'
+import { seasonRangeLabel } from '~/utils/season-label'
 
-defineProps<{
+const props = defineProps<{
   pack: SeasonPack
   loading: boolean
   disabled: boolean
@@ -119,6 +132,10 @@ defineProps<{
   isDev: boolean
   debugOpen: boolean
 }>()
+
+// Older cached payloads may not have the `seasons` field yet.
+const packSeasons = computed(() => props.pack.seasons ?? [])
+const seasonLabel = computed(() => seasonRangeLabel(packSeasons.value))
 
 defineEmits<{
   download: []

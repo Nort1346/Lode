@@ -575,7 +575,7 @@ GET /api/admin/qbit-config
 ```
 
 - `autoRemoveCompleted` - treat a torrent as completed when it disappears from qBittorrent at ≥90% progress
-- `seedingEnabled` - when `false`, Lode-added torrents get per-torrent share limits (ratio 0, seeding time 0)
+- `seedingEnabled` - when `false`, tracked torrents get per-torrent share limits (ratio 0, seeding time 0). Setting it to `false` via PUT also applies the limits to torrents already tracked by Lode; global qBittorrent preferences are never changed
 
 ### Update qBittorrent Config
 ```
@@ -588,6 +588,49 @@ Both fields are optional - only provided fields are updated.
 ```json
 { "autoRemoveCompleted": true, "seedingEnabled": false }
 ```
+
+---
+
+## Media Organization
+
+### Get Media Config
+```
+GET /api/admin/media-config
+```
+
+### Response
+```json
+{
+  "enabled": false,
+  "importMode": "hardlink",
+  "importExtraFiles": false,
+  "extraFileExtensions": "srt, sub, ass, ssa, vtt, nfo",
+  "cleanupStaging": false,
+  "staging": { "movies": true, "series": true }
+}
+```
+
+`staging` reports whether NUXT_DOWNLOAD_PATH_MOVIES / NUXT_DOWNLOAD_PATH_SERIES are configured.
+
+### Update Media Config
+```
+PUT /api/admin/media-config
+```
+
+### Body
+All fields are optional.
+
+```json
+{
+  "enabled": true,
+  "importMode": "copy",
+  "importExtraFiles": true,
+  "extraFileExtensions": "srt,eng,ass",
+  "cleanupStaging": false
+}
+```
+
+Errors: 400 when `enabled` is not a boolean, `cleanupStaging` is not a boolean, the import mode is invalid, no allowed extensions were parsed, or `enabled: true` without any staging path. Logs an activity entry `media_config_update`.
 
 ---
 

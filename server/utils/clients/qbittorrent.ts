@@ -3,7 +3,8 @@ import type {
   QBitTorrent,
   MagnetInfoHashes,
   TorrentAddOutcome,
-  ShareLimitAction
+  ShareLimitAction,
+  ShareLimitsMode
 } from '#server/types/torrent'
 import { COMPLETED_STATES } from '#server/types/torrent'
 import { createLogger } from '#server/utils/logger'
@@ -399,7 +400,8 @@ export class QBittorrentClient {
     ratioLimit: number,
     seedingTimeLimit: number,
     inactiveSeedingTimeLimit = 0,
-    shareLimitAction: ShareLimitAction = 'Stop'
+    shareLimitAction: ShareLimitAction = 'Stop',
+    shareLimitsMode: ShareLimitsMode = 'Default'
   ) {
     const body = new URLSearchParams()
     body.append('hashes', hash)
@@ -407,6 +409,9 @@ export class QBittorrentClient {
     body.append('seedingTimeLimit', String(seedingTimeLimit))
     body.append('inactiveSeedingTimeLimit', String(inactiveSeedingTimeLimit))
     body.append('shareLimitAction', shareLimitAction)
+    // Web API 2.15.3+ (qBittorrent 5.3) rejects setShareLimits with 400 when
+    // this is missing; older instances ignore the unknown parameter.
+    body.append('shareLimitsMode', shareLimitsMode)
     await this.request('/api/v2/torrents/setShareLimits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

@@ -171,7 +171,10 @@ describe('browse/movie/[id]/torrents-stream.get', () => {
       {
         type: 'done',
         found: 1,
-        data: { torrents: [expect.objectContaining({ title: 'Ranked', sizeFormatted: '1000 B' })] }
+        data: {
+          torrents: [expect.objectContaining({ title: 'Ranked', sizeFormatted: '1000 B' })],
+          otherTorrents: [expect.objectContaining({ title: 'Ranked', sizeFormatted: '1000 B' })]
+        }
       }
     ])
     expect(res.end).toHaveBeenCalledTimes(1)

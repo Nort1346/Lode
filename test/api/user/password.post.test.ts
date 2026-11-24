@@ -82,11 +82,11 @@ describe('user/password.post', () => {
     await expect(handler(mockEvent)).rejects.toThrow('401: Not authenticated')
   })
 
-  it('throws 400 when the body is missing passwords', async () => {
+  it('throws 400 when the new password is missing', async () => {
     mockGetUserSession.mockResolvedValue({ user: makeUser() })
     stubBody({})
 
-    await expect(handler(mockEvent)).rejects.toThrow('400: Current and new password are required')
+    await expect(handler(mockEvent)).rejects.toThrow('400: New password is required')
   })
 
   it('throws 400 when the new password is too short', async () => {
@@ -99,8 +99,17 @@ describe('user/password.post', () => {
   it('throws 400 when the new password equals the current one', async () => {
     mockGetUserSession.mockResolvedValue({ user: makeUser() })
     stubBody({ currentPassword: 'samepass1', newPassword: 'samepass1' })
+    vi.stubGlobal('useDb', () => createMockDb({ selectResult: makeUser() }))
 
     await expect(handler(mockEvent)).rejects.toThrow('400: New password must differ from current')
+  })
+
+  it('throws 400 when the current password is missing for a regular user', async () => {
+    mockGetUserSession.mockResolvedValue({ user: makeUser() })
+    stubBody({ newPassword: 'newpass123' })
+    vi.stubGlobal('useDb', () => createMockDb({ selectResult: makeUser() }))
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: Current password is required')
   })
 
   it('throws 404 when the session user does not exist in the DB', async () => {
@@ -169,6 +178,20 @@ describe('user/password.post', () => {
     const result = await handler(mockEvent)
 
     expect(result).toEqual({ success: true })
+    expect(mockDb._mocks.setMock).toHaveBeenCalledWith({ password: 'hashed', mustChangePassword: false })
+  })
+
+  it('skips the current password check for a user flagged with mustChangePassword', async () => {
+    mockGetUserSession.mockResolvedValue({ user: makeUser({ mustChangePassword: true }) })
+    stubBody({ newPassword: 'newpass123' })
+    const mockDb = createMockDb({ selectResult: makeUser({ mustChangePassword: true }) })
+    vi.stubGlobal('useDb', () => mockDb)
+
+    const result = await handler(mockEvent)
+
+    expect(result).toEqual({ success: true })
+    expect(mockCompare).not.toHaveBeenCalled()
+    expect(mockHash).toHaveBeenCalledWith('newpass123', { cost: 12 })
     expect(mockDb._mocks.setMock).toHaveBeenCalledWith({ password: 'hashed', mustChangePassword: false })
   })
 

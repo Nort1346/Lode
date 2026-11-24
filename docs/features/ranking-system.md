@@ -12,6 +12,8 @@ The torrent ranking system scores and ranks search results from Prowlarr based o
 4. Top N results are marked as "recommended"
 5. Results sorted by score (descending)
 
+Titles are matched against several TMDB title candidates (primary, original, and alternative titles) using whole-token matching, not just the primary title; movies can also be found via Prowlarr's IMDb search. Loose matches remain in the result set but are placed in a separate, clearly labelled group and are never recommended.
+
 ## Scoring Components
 
 ### Resolution (weight: 40)
@@ -95,10 +97,11 @@ Capture sources score negative: a high-seeder CAM must not outrank a low-seeder 
 Known release groups get bonus points. 24 known groups configured.
 
 ### Title Relevance
-- **Word match**: +15 per matching word
-- **Year match**: +10
-- **Full title match**: +10
-- **Penalty**: -20 for mismatches
+
+- **Match strength 2** (title starts the release name): `wordWeight` (15) + `fullTitleWeight` (10) + `yearWeight` (10) when the year matches one of the accepted years
+- **Match strength 1** (title matches without leading article): `wordWeight` (15)
+- **Match strength 0** (not this work): `titleRelevance.penalty` (-20); additionally the whole score is multiplied by `0.35` so seeders/language cannot push a wrong work to the top
+- Candidate titles are capped at 8; an unmatched release is not hidden, only demoted and moved to the "Other results" bucket
 
 ## Configuration
 
@@ -119,10 +122,8 @@ Older configs stored a flat `languages` array (e.g. `pl-dub`, `pl-lektor`). On f
 
 Scores and patterns are preserved. The migration is transparent to the admin UI.
 
-## Season Packs
+## Season Packs & Episode Packs
 
-Season packs are detected and ranked separately:
-- Matched by `S01`, `Sezon 01`, `Season 1` patterns
-- Excluded from per-episode results
-- Shown in a dedicated "Season Packs" section
-- Size thresholds differ from per-episode
+- Season packs are detected and ranked separately, matched by `S01`, `Sezon 01`, `Season 1`, plus plural/conjunction forms (`Seasons 1 and 2`, `Sezon 1 i 3`, `Season 1-3`); a plain dash range expands, a listed set does not. Payloads carry a `seasons` array and a multi-season pack is shown on every season page it covers.
+- Episode range packs (`S1-8E1-96`, `S01-S03.E01-E12`) are a separate "Episode Packs" group. Absolute episode ranges are split using TMDB per-season episode counts into `seasonEpisodes`; per-season repeated ranges are shown as-is.
+- Season/episode packs are excluded from per-episode results; unmatched-but-season-relevant releases go to "Other releases".

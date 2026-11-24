@@ -4,8 +4,11 @@ definePageMeta({
 })
 
 const { loggedIn, fetch: fetchSession } = useUserSession()
-const colorMode = useColorMode()
 const { t } = useI18n()
+
+useSeoMeta({
+  title: () => `${t('login.signIn')} | ${t('seo.title')}`
+})
 
 if (loggedIn.value) {
   void navigateTo('/dashboard')
@@ -18,11 +21,7 @@ const form = reactive({
 const loading = ref(false)
 const error = ref('')
 
-function toggleTheme() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
-
-const isDark = computed(() => colorMode.value === 'dark')
+const { isDark, toggleTheme } = useThemeToggle()
 
 async function handleLogin() {
   if (loading.value) return

@@ -13,6 +13,10 @@ const { confirm } = useConfirmDialog()
 const toast = useToast()
 const route = useRoute()
 
+useSeoMeta({
+  title: () => `${t('trackers.title')} | ${t('seo.title')}`
+})
+
 const trackers = ref<CustomTracker[]>([])
 const linkedIndexers = ref<string[]>([])
 const indexersLoaded = ref(false)

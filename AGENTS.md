@@ -17,12 +17,17 @@ pnpm db:studio        # Open Drizzle Studio (visual DB inspector)
 pnpm test             # Run Vitest test suite (API routes, middleware, server utils)
 pnpm test:watch       # Run Vitest in watch mode
 pnpm test:coverage    # Run tests with V8 coverage reporting
+pnpm test:e2e         # Playwright E2E suite (isolated SQLite, mock TMDB, port 5758)
 pnpm typecheck:test   # Type-check the test suite (test/tsconfig.json)
+pnpm typecheck:e2e    # Type-check e2e/tsconfig.json
+pnpm exec vitest run -c vitest.db-parity.config.ts  # SQLite/PostgreSQL parity PoC
 ```
 
 ## The `cli/` project (standalone)
 
-`cli/` is the setup CLI (the `lode-setup` binary): a TypeScript + @clack/prompts app that holds all installer logic. The root `setup.sh` / `setup.ps1` are thin bootstraps that download the prebuilt binary for the platform from the latest GitHub release and exec it.
+`cli/` is the setup CLI (the `lode-setup` binary): a TypeScript + @clack/prompts app that holds all installer logic. The root `setup.sh` / `setup.ps1` are thin bootstraps that try `releases/latest/download/<asset>` first and exec the prebuilt binary. When that download fails (newest release without binaries yet, CDN race, broken transfer), they walk the releases API newest-first and try every non-prerelease release whose assets include the binary. Cached binaries are reused, and `GH_TOKEN` / `GITHUB_TOKEN` lifts the API rate limit.
+
+The installer is a 17-step pipeline (`TOTAL_STEPS = 17`). Step 8 is `configureStaging()`, which offers download staging, creates `media/downloads/movies` and `media/downloads/series`, and writes `NUXT_DOWNLOAD_PATH_MOVIES` / `NUXT_DOWNLOAD_PATH_SERIES` to `.env` (skipping the step removes them).
 
 - **Standalone project**: its own `package.json`, `bun.lock`, `tsconfig.json`, `eslint.config.mjs`, `vitest.config.ts`, and a `pnpm-workspace.yaml` (`packages: []`) that keeps it out of the root workspace. Root `pnpm` commands don't touch it, and root ESLint ignores `cli/**`.
 - **Runtime tooling is Bun**: `bun install`, `bun run typecheck|lint|test`; release binaries are built with `bun build --compile --target=bun-<os>-<arch>` (see `.github/workflows/cli.yml`).
@@ -55,8 +60,9 @@ chore: disable nuxt devtools and add migrations to preview script
 The project uses **Vitest** (`vitest` 5.x) with `@nuxt/test-utils` and `@vitest/coverage-v8`:
 
 - Config: `vitest.config.ts` (node environment, `test/**/*.test.ts`, setup via `test/setup.ts`). Path aliases `#server`, `#db`, `#utils`, `#server/types` are mapped to `server/`; `#shared` maps to `shared/`.
-- Tests cover API route handlers (`test/api/`), middleware (`test/middleware/`), server utils (`test/utils/`), app composables (`test/app/`), shared modules (`test/shared/`), and i18n key parity (`test/i18n/`). External services (TMDB, Prowlarr, qBittorrent, Jellyfin, Discord) are mocked; API handlers are invoked directly with a mocked `event`.
-- `pnpm typecheck` runs `nuxt typecheck` plus `vue-tsc --noEmit -p test/tsconfig.json`.
+- Tests cover API route handlers (`test/api/`), middleware (`test/middleware/`), server utils (`test/utils/`), app composables (`test/app/`), shared modules (`test/shared/`), i18n key parity (`test/i18n/`), `e2e/tests/` (Playwright specs: auth, admin users, browse, requests, smoke, document titles), and `test/db-parity/` (cross/schema parity + driver CRUD probes). External services (TMDB, Prowlarr, qBittorrent, Jellyfin, Discord) are mocked; API handlers are invoked directly with a mocked `event`.
+- The E2E suite wipes `.data-e2e`, seeds `e2e-admin`/`e2e-user`, starts a mock TMDB server and the app on port 5758 with no Prowlarr/qBittorrent/Jellyfin/Redis/Discord; see CI workflows `.github/workflows/e2e.yml` and `.github/workflows/db-parity.yml`.
+- `pnpm typecheck` runs `nuxt typecheck` plus `vue-tsc --noEmit -p test/tsconfig.json` and `vue-tsc --noEmit -p e2e/tsconfig.json`.
 
 See [docs/development.md](./docs/development.md#testing) for the full testing guide.
 
@@ -84,7 +90,9 @@ The repo uses **husky** + **gitleaks**: `pnpm install` runs `husky` (via the `pr
 
 Lode is configured entirely through env vars (see `.env.example`). Nuxt maps `NUXT_*` vars into `runtimeConfig` by lowercasing and stripping the prefix: `NUXT_TMDB_API_KEY` → `useRuntimeConfig().tmdbApiKey`, `NUXT_QBITTORRENT_URL` → `runtimeConfig.qbittorrentUrl`. Public vars need the `NUXT_PUBLIC_` prefix (e.g. `NUXT_PUBLIC_VAPID_PUBLIC_KEY`). `DB_DRIVER` (sqlite/postgres) selects the DB driver and is NOT a `NUXT_` var.
 
-Required for a working instance: `NUXT_SESSION_PASSWORD`, `NUXT_PROWLARR_URL` + `NUXT_PROWLARR_API_KEY`, `NUXT_QBITTORRENT_URL` + `NUXT_QBITTORRENT_API_KEY`, `NUXT_TRACKER_ENCRYPTION_KEY`. Optional: `NUXT_TMDB_API_KEY` (Lode falls back to its built-in public shared key - `BUILTIN_TMDB_API_KEY` in `server/utils/tmdb.ts`, intentionally shipped and allowlisted in `.gitleaks.toml`/`trivy-secret.yaml`), Jellyfin, Redis, Discord webhook, FlareSolverr, VAPID keys, disk monitoring.
+Required for a working instance: `NUXT_APP_SECRET`, `NUXT_PROWLARR_URL` + `NUXT_PROWLARR_API_KEY`, `NUXT_QBITTORRENT_URL` + `NUXT_QBITTORRENT_API_KEY`, `NUXT_TRACKER_ENCRYPTION_KEY`. Optional: `NUXT_TMDB_API_KEY` (Lode falls back to its built-in public shared key - `BUILTIN_TMDB_API_KEY` in `server/utils/tmdb.ts`, intentionally shipped and allowlisted in `.gitleaks.toml`/`trivy-secret.yaml`), Jellyfin, Redis, Discord webhook, FlareSolverr, VAPID keys, disk monitoring.
+
+`NUXT_SESSION_PASSWORD` is a deprecated fallback for `NUXT_APP_SECRET`: `scripts/start.mjs` maps it at runtime and logs a warning (if both are set, the old value is ignored); `nuxt dev` aliases it only in dev. Users are logged out once after upgrading to nuxt-auth-utils 0.6 because the cookie name/format changed. Two more optional vars exist for testing: `NUXT_TMDB_BASE_URL` (a TMDB-compatible base URL, used by the E2E mock) and `DB_DATA_DIR` (relocates the SQLite data dir, used by E2E).
 
 ## Docker Requirements
 
@@ -100,6 +108,12 @@ Required for a working instance: `NUXT_SESSION_PASSWORD`, `NUXT_PROWLARR_URL` + 
 - 120 char print width
 - 2-space indent
 - Use `-` (hyphen) for list items, NOT `—` (em dash) — em dashes look AI-generated
+
+### Comments
+- Prefer self-explanatory code over comments - do not narrate what the next line already says
+- Add a comment only when the *why* is non-obvious: workarounds, subtle invariants, external-service quirks, or intentional trade-offs
+- Do not add JSDoc or doc blocks to every function or obvious helper; keep them for public APIs where they add real information
+- Do not add placeholder `TODO`s or step-by-step annotations unless they capture a genuine, actionable constraint
 
 ### ESLint Rules
 - **Strict TypeScript** via `projectService: true` (full type-aware linting)
@@ -155,6 +169,7 @@ import { helper } from '#utils'       // → ./server/utils
 server/utils/
 ├── *.ts              # Small utilities (auth, db, cache, format, logger, etc.)
 ├── clients/          # External service clients (jellyfin, qbittorrent, flaresolverr)
+├── library/          # Media organization (importer.ts, media-settings.ts, organize.ts, organize-completed.ts)
 ├── torrents/         # Torrent handling (ranking, sync, safe-download)
 ├── notifications/    # Notifications (notifications, discord, push, sse-hubs)
 └── sync/             # User sync subsystem (with providers/)
@@ -205,3 +220,5 @@ server/utils/
 - `v-reveal` directive for scroll-triggered animations (registered in `plugins/directives.ts`)
 - Use Nuxt UI 4 components (`UButton`, `UModal`, `USelect`, etc.)
 - Overlay system: `useOverlay()` + `ConfirmDialog.vue`
+- Each page sets its document title via reactive `useSeoMeta({ title: () => ... })` using the `seo.title` suffix; detail pages use the loaded item name; `error.vue` follows the same pattern.
+- Use `useThemeToggle()` instead of raw `useColorMode()` in components to avoid hydration mismatch (theme resolves after mount).

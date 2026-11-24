@@ -100,6 +100,10 @@ export function useTorrentSearch<T>() {
             foundSoFar.value += e.results
           } else if (e.state === 'failed') {
             skippedQueries.value.push({ text: e.text, reason: e.reason })
+          } else if (e.state === 'skipped') {
+            // The ladder budget cut this query before it ran. Surface it with
+            // the other skipped queries instead of losing it silently.
+            skippedQueries.value.push({ text: e.text, reason: 'timeout' })
           }
           queriesCompleted.value += 1
           if (queriesTotal.value > 0 && queriesCompleted.value >= queriesTotal.value) {

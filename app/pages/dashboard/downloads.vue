@@ -21,6 +21,10 @@ const { data: me } = useFetch('/api/user/me')
 const { confirm } = useConfirmDialog()
 const toast = useToast()
 
+useSeoMeta({
+  title: () => `${t('dashboard.myDownloads')} | ${t('seo.title')}`
+})
+
 const canSubmit = computed(() => me.value?.canSubmit === true || user.value?.role === 'admin')
 
 const downloads = ref<Download[]>([])
@@ -29,14 +33,17 @@ const cancelling = ref<string | null>(null)
 const page = ref(1)
 const total = ref(0)
 const PAGE_SIZE = 10
+// Server defaults (server/api/prep-config.get.ts): countdown off, 15 MB/s.
 const prepSpeedMb = ref(15)
+const prepCountdownEnabled = ref(false)
 
 async function fetchPrepConfig() {
   try {
     const data = await $fetch<{ enabled: boolean; speedMb: number }>('/api/prep-config')
     prepSpeedMb.value = data.speedMb
+    prepCountdownEnabled.value = data.enabled
   } catch {
-    // keep default
+    // keep defaults
   }
 }
 
@@ -53,8 +60,6 @@ async function fetchDownloads() {
     })
     downloads.value = res.downloads
     total.value = res.total
-    // Feed the ETA tracker before the next render so labels/borders are fresh
-    trackPoll(res.downloads)
     // Clamp after deletes shrink the list, otherwise the page can point past the last page
     const totalPages = Math.max(1, Math.ceil(res.total / PAGE_SIZE))
     if (page.value > totalPages) page.value = totalPages
@@ -73,19 +78,19 @@ async function fetchDownloads() {
 
 watch(page, () => fetchDownloads())
 
+const { lastNotification } = useNotifications()
+
+// The ready notification and the row must flip together: the server sets
+// notifiedAt in the same pass that pushes this SSE event, so waiting for the
+// next poll would keep the prep bar on screen for up to three seconds after
+// the user already got the "ready" toast/push.
+watch(lastNotification, (n) => {
+  if (n !== null) markDownloadReady(downloads.value, n)
+})
+
 onMounted(() => {
   void fetchPrepConfig()
   void fetchDownloads()
-})
-
-const intervalId = ref<ReturnType<typeof setInterval>>()
-onMounted(() => {
-  intervalId.value = setInterval(() => {
-    void fetchDownloads()
-  }, 3000)
-})
-onUnmounted(() => {
-  if (intervalId.value) clearInterval(intervalId.value)
 })
 
 async function cancelTorrent(dl: Download) {
@@ -113,7 +118,7 @@ function getDisplayName(dl: Download): string {
 }
 
 const { qualityConfig } = useQualityConfig()
-const { trackPoll, etaState, etaLabel } = useEtaTracker()
+const { etaState, etaLabel } = useEtaTracker()
 
 function cardBorderClass(dl: Download): string {
   if (dl.status === 'downloading' && getTorrentQuality(dl) !== 'ok') {
@@ -133,6 +138,52 @@ function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
   if (remaining < 60) return t('downloads.prepRemainingSec', { s: Math.ceil(remaining) })
   return t('downloads.prepRemainingMin', { m: Math.ceil(remaining / 60) })
 }
+
+// Only a live byte copy needs the fast cadence: the countdown alone updates
+// in minute steps, so a plain countdown stays on the idle poll.
+const hasActivePrep = computed(() =>
+  downloads.value.some((dl) => dl.status === 'completed' && dl.notifiedAt === null && Boolean(dl.organizeProgress))
+)
+
+// One bar for the whole preparation phase: the simulated countdown (when
+// enabled) and the real bytes copied into the library. computePrepPercent
+// follows the slower of the two, so the bar hits 100 exactly when the row
+// turns green and never moves backwards.
+function prepPercent(dl: Download): number {
+  return computePrepPercent(dl, prepSpeedMb.value * 1024 * 1024, prepCountdownEnabled.value)
+}
+
+function prepDetail(dl: Download): string {
+  const progress = dl.organizeProgress
+  if (progress) {
+    return `${formatSize(progress.copiedBytes)} / ${formatSize(progress.totalBytes)} · ${formatSpeed(
+      progress.speedBytesPerSecond
+    )}`
+  }
+  return formatPrepTime(dl.completedAt, dl.sizeBytes)
+}
+
+// Preparation is the only phase that updates in byte steps, so poll faster
+// while something is still being imported and idle at the download cadence.
+const IDLE_POLL_MS = 3000
+const PREP_POLL_MS = 1000
+
+let intervalId: ReturnType<typeof setInterval> | undefined
+function startPolling() {
+  if (intervalId) clearInterval(intervalId)
+  intervalId = setInterval(
+    () => {
+      void fetchDownloads()
+    },
+    hasActivePrep.value ? PREP_POLL_MS : IDLE_POLL_MS
+  )
+}
+
+onMounted(startPolling)
+watch(hasActivePrep, startPolling)
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId)
+})
 
 const statusColors: Record<string, string> = {
   checking: 'bg-teal-500/15 text-teal-700 dark:text-teal-400',
@@ -342,17 +393,54 @@ const savePathLabels = computed<Record<string, string>>(() => ({
             </div>
           </div>
 
-          <div
-            v-else-if="dl.status === 'completed'"
-            class="flex items-center gap-2 text-sm"
-            :class="
-              dl.notifiedAt === null ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
-            "
-          >
-            <UIcon :name="dl.notifiedAt === null ? 'i-lucide-clock' : 'i-lucide-check-circle'" class="w-4 h-4" />
-            <span v-if="dl.notifiedAt === null">{{ formatPrepTime(dl.completedAt, dl.sizeBytes) }}</span>
-            <span v-else>{{ t('dashboard.completed') }}</span>
-            <span class="text-zinc-400 dark:text-zinc-500">· {{ formatSize(dl.sizeBytes) }}</span>
+          <div v-else-if="dl.status === 'completed'" class="space-y-2">
+            <template v-if="dl.notifiedAt === null">
+              <div v-if="dl.organizeError" class="flex items-start gap-2 text-xs text-red-600 dark:text-red-400">
+                <UIcon name="i-lucide-circle-alert" class="size-3.5 mt-0.5 shrink-0" />
+                <span :title="dl.organizeError">{{ t('download.organizeFailed') }}: {{ dl.organizeError }}</span>
+              </div>
+              <template v-else>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+                    <UIcon
+                      name="i-lucide-package-open"
+                      class="size-3.5"
+                      :class="dl.organizeProgress ? 'animate-pulse' : ''"
+                    />
+                    {{ dl.organizeProgress ? t('downloads.prepCopying') : t('downloads.prepTitle') }}
+                  </span>
+                  <span class="font-medium text-amber-600 dark:text-amber-400">
+                    {{ prepPercent(dl).toFixed(1) }}%
+                  </span>
+                </div>
+                <!-- Same shape as the download bar above: a plain solid fill, so the
+                     dashboard reads as one system. Amber marks the preparation phase. -->
+                <div
+                  role="progressbar"
+                  :aria-valuenow="prepPercent(dl)"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  :aria-label="t('downloads.prepTitle')"
+                  class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10"
+                >
+                  <div
+                    class="h-full min-w-0.5 rounded-full bg-amber-500 transition-[width] duration-1000 ease-linear"
+                    :style="{ width: `${Math.max(prepPercent(dl), 0.5)}%` }"
+                  />
+                </div>
+                <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+                  <span>{{ prepDetail(dl) }}</span>
+                  <span v-if="dl.organizeProgress">
+                    {{ dl.organizeProgress.filesDone }}/{{ dl.organizeProgress.filesTotal }}
+                  </span>
+                </div>
+              </template>
+            </template>
+            <div v-else class="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4" />
+              <span>{{ t('dashboard.completed') }}</span>
+              <span class="text-zinc-400 dark:text-zinc-500">· {{ formatSize(dl.sizeBytes) }}</span>
+            </div>
           </div>
         </div>
       </div>

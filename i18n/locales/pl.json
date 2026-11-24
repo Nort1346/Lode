@@ -124,19 +124,30 @@
     "download": "Dodaj",
     "limitReached": "Limit",
     "noTorrents": "Nie znaleziono pobrań.",
+    "otherResults": "Pozostałe wyniki",
+    "otherResultsHint": "Wyniki o podobnym tytule, które mogą dotyczyć innego filmu. Pokazywane osobno, aby uniknąć pomyłek.",
     "loadError": "Nie udało się załadować szczegółów filmu."
   },
   "tv": {
     "seasons": "Sezony",
     "seasonPacks": "Pakiety sezonowe",
     "seasonPack": "Pakiet sezonowy",
+    "episodePacks": "Pakiety odcinków",
+    "episodePack": "Pakiet odcinków",
+    "episodePackRange": "Sezony {seasons} · Odcinki {episodes}",
+    "downloadEpisodePack": "Dodaj pakiet",
+    "multiseasonPack": "Sezony {seasons}",
+    "downloadSeasonsRange": "Dodaj sezony {seasons}",
     "downloadSeason": "Dodaj cały sezon",
     "limitReached": "Limit",
     "episodes": "odc.",
     "noTorrents": "Brak dostępnych pobrań",
     "loadError": "Nie udało się załadować szczegółów serialu.",
     "season_one": "sezon",
-    "season_many": "sezonów"
+    "season_many": "sezonów",
+    "moreResults": "Więcej wyników",
+    "otherReleases": "Pozostałe wydania",
+    "otherReleasesHint": "Wydania z tego sezonu, których nie udało się jeszcze przypisać do znanego odcinka, np. świeżo wyemitowany odcinek."
   },
   "submit": {
     "title": "Dodaj torrent",
@@ -276,7 +287,9 @@
   "downloads": {
     "prepReady": "Gotowe",
     "prepRemainingSec": "~{s}s pozostało",
-    "prepRemainingMin": "~{m}m pozostało"
+    "prepRemainingMin": "~{m}m pozostało",
+    "prepTitle": "Przygotowanie",
+    "prepCopying": "Import do biblioteki"
   },
   "admin": {
     "userTitle": "Zarządzanie użytkownikami",
@@ -468,7 +481,7 @@
     "qbitAutoRemove": "Automatyczne usuwanie ukończonych torrentów",
     "qbitAutoRemoveHint": "Włącz to, jeśli qBittorrent usuwa torrenty z listy tuż po zakończeniu pobierania (bez seedowania). Pobranie, którego torrent zniknął, ale było ukończone w co najmniej 90%, zostanie oznaczone jako ukończone zamiast nieudane.",
     "qbitSeedingEnabled": "Seedowanie",
-    "qbitSeedingEnabledHint": "Po wyłączeniu torrenty dodane przez Lode przestają udostępniać natychmiast po ukończeniu. Dotyczy tylko torrentów dodanych przez Lode, globalne ustawienia qBittorrent nie są zmieniane.",
+    "qbitSeedingEnabledHint": "Po wyłączeniu torrenty przestają udostępniać natychmiast po ukończeniu, w tym torrenty już śledzone przez Lode w momencie wyłączenia. Dotyczy tylko torrentów śledzonych przez Lode, globalne ustawienia qBittorrent nie są zmieniane.",
     "mediaTitle": "Organizacja plików",
     "mediaDesc": "Zmieniaj nazwy ukończonych pobrań i importuj je do folderów biblioteki, w stylu Radarra.",
     "mediaEnabled": "Organizuj pliki po pobraniu",
@@ -485,9 +498,12 @@
     "mediaStagingMissingMovies": "Brak NUXT_DOWNLOAD_PATH_MOVIES: pobrania filmów trafiają prosto do biblioteki i nie mogą być organizowane.",
     "mediaStagingMissingSeries": "Brak NUXT_DOWNLOAD_PATH_SERIES: pobrania seriali trafiają prosto do biblioteki i nie mogą być organizowane.",
     "mediaExtraFiles": "Importuj dodatkowe pliki",
-    "mediaExtraFilesHint": "Kopiuje napisy i pliki towarzyszące (nfo itp.) obok zaimportowanego wideo, jak opcja Import Extra Files w Radarrze.",
+    "mediaExtraFilesHint": "Importuje napisy i pliki towarzyszące (nfo itp.) obok wideo z każdego folderu w wydaniu (root, subs/, ...), zgodnie z wybranym trybem importu.",
     "mediaExtraExtensions": "Rozszerzenia dodatkowych plików",
-    "mediaExtraExtensionsHint": "Lista rozdzielona przecinkami, np. srt, sub, ass, nfo. Importowane są tylko pliki z tego samego folderu co wideo.",
+    "mediaExtraExtensionsHint": "Lista rozdzielona przecinkami, np. srt, sub, ass, nfo. Importowane są wszystkie pliki z tymi rozszerzeniami - pliki towarzyszące o nazwie wideo podążają za nim, a reszta trafia obok pliku głównego.",
+    "mediaCleanupStaging": "Sprzątaj staging po imporcie",
+    "mediaCleanupStagingHint": "Po udanym imporcie usuwa wszystko, co torrent zostawił w stagingu - okładki, .screens, .url, .txt, a także niezaimportowane pliki wideo i napisy. Usuwa też puste foldery release'u. Działa tylko w trybie Przenoszenie (nic nie zostaje do seedowania). Biblioteka nigdy nie jest ruszana.",
+    "mediaCleanupStagingMoveOnly": "Dostępne tylko w trybie Przenoszenie.",
     "qbittorrentSaved": "Zapisano ustawienia qBittorrent",
     "qbittorrentError": "Nie udało się zapisać ustawień qBittorrent",
     "liveLogs": "Logi na żywo",
@@ -771,6 +787,7 @@
     "seasonFull": "Sezon {season} (cały sezon)",
     "fullSeason": "cały sezon",
     "seasonsPack": "Sezony {from}-{to} (pakiet)",
+    "episodesPack": "Sezony {from}-{to}, odcinki {episodeFrom}-{episodeTo} (pakiet)",
     "completeSeries": "(cały serial)",
     "airedOn": "emisja {date}",
     "episodeN": "Odcinek {n}"

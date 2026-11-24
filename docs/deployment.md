@@ -68,11 +68,12 @@ The [auto-setup script](../README.md#quick-start) selects these overlays for you
 
 ### 1. `base`
 - Node.js 24 trixie-slim (`NODE_VERSION=24` arg)
-- pnpm 11.22.0 via corepack
+- pnpm 12.4.1 via corepack (matches `packageManager`)
 
 ### 2. `deps`
 - Installs **production dependencies only** (with native addon build tools)
 - Uses pnpm store cache mount
+- Bare install stages run `postinstall` via `scripts/nuxt-prepare.mjs`, which skips `nuxt prepare` when `nuxt.config.ts` is absent (avoids the simple-git 4 ESM error)
 
 ### 3. `build`
 - Installs all dependencies (including devDependencies)
@@ -86,6 +87,7 @@ The [auto-setup script](../README.md#quick-start) selects these overlays for you
 - Copies: `.output`, `node_modules` (prebuilt native binaries), migrations, scripts
 - `NODE_ENV=production`, exposes 5757
 - Entrypoint runs migrations → Jellyfin library setup → drops privileges → starts app
+- The container `CMD` is `node scripts/start.mjs`, which loads `.env`, maps deprecated `NUXT_SESSION_PASSWORD` to `NUXT_APP_SECRET` with a warning, and then imports the built server
 
 ### Entrypoint
 
@@ -104,12 +106,36 @@ exec gosu appuser "$@"
 ## Production Tips
 
 1. **Change admin password** immediately after first deploy
-2. **Set `NUXT_SESSION_PASSWORD`** to a random 32+ character string
+2. **Set `NUXT_APP_SECRET`** to a random 32+ character string (`NUXT_SESSION_PASSWORD` still works as a deprecated fallback)
 3. **Use PostgreSQL** for multi-user production
 4. **Enable Redis** for caching (`NUXT_REDIS_URL`)
 5. **Configure disk monitoring** with `NUXT_DISKS=/mnt/storage`
 6. **Set up Discord webhook** for download notifications
 7. **Configure Jellyfin** for media server sync
+
+## Troubleshooting
+
+### A torrent sits at 0% and never finds a source
+
+qBittorrent never got the `.torrent` metadata. It usually means the URL Lode passed along
+(or that was typed into qBittorrent) points at an address qBittorrent cannot reach:
+
+- `localhost` / `127.0.0.1` inside a container is that container, not the host. Prowlarr
+  builds the download links from the address Lode used, so `NUXT_PROWLARR_URL=http://localhost:9900`
+  produces links that only the host can fetch.
+- With the whole stack in compose, keep `NUXT_PROWLARR_URL=http://prowlarr:9696` and
+  `NUXT_QBITTORRENT_URL=http://qbittorrent:8080` (the `.env.example` defaults).
+- With a hybrid setup (Lode via `pnpm dev` on the host, Prowlarr/qBittorrent in Docker), use the
+  host's LAN IP (`http://192.168.1.50:9900`) so both sides can reach it.
+
+Lode fetches the `.torrent` itself for browse downloads and only passes the URL as a fallback,
+so the metadata usually arrives even when qBittorrent cannot resolve the indexer host. Remove the
+stuck torrent and add it again after fixing the URL - it will not recover on its own.
+
+### qBittorrent reports "connection refused" in the Lode logs
+
+`NUXT_QBITTORRENT_URL` is not reachable from the Lode process. Inside compose use
+`http://qbittorrent:8080`; for Lode on the host use `http://localhost:8080`.
 
 ## Environment Variables
 

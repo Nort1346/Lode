@@ -9,7 +9,7 @@ import type {
   TmdbImagesResponse
 } from '#server/types/tmdb'
 
-const TMDB_BASE = 'https://api.themoviedb.org/3'
+const DEFAULT_TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
 
 // Intentionally public, shared TMDB API v3 key - the built-in fallback used
@@ -22,6 +22,15 @@ export function resolveTmdbApiKey(): string {
   const config = useRuntimeConfig()
   const key = ((config.tmdbApiKey as string) ?? '').trim()
   return key || BUILTIN_TMDB_API_KEY
+}
+
+// NUXT_TMDB_BASE_URL (runtime config) points Lode at a TMDB-compatible
+// endpoint; the official API is the default. E2E tests use this to run
+// against a local deterministic mock.
+export function resolveTmdbBase(): string {
+  const config = useRuntimeConfig()
+  const base = ((config.tmdbBaseUrl as string) ?? '').trim()
+  return base || DEFAULT_TMDB_BASE
 }
 
 const TMDB_BCP47_MAP: Record<string, string> = {
@@ -78,7 +87,7 @@ export async function searchMovies(query: string, page = 1, locale = 'en'): Prom
   const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/search/movie`)
+  const url = new URL(`${resolveTmdbBase()}/search/movie`)
   url.searchParams.set('api_key', getApiKey())
   url.searchParams.set('language', lang)
   url.searchParams.set('query', query)
@@ -125,7 +134,7 @@ export async function getLogosForItems(
         const type = item.media_type === 'tv' ? 'tv' : 'movie'
         const cacheKey = `tmdb:logo:${type}:${item.id}:${lang}`
 
-        const url = new URL(`${TMDB_BASE}/${type}/${item.id}/images`)
+        const url = new URL(`${resolveTmdbBase()}/${type}/${item.id}/images`)
         url.searchParams.set('api_key', getApiKey())
         url.searchParams.set('include_image_language', `${logoLang},null`)
 
@@ -171,7 +180,7 @@ export async function searchTvShows(query: string, page = 1, locale = 'en'): Pro
   const cached = await cacheGet<TmdbSearchResult<TmdbTvShow>>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/search/tv`)
+  const url = new URL(`${resolveTmdbBase()}/search/tv`)
   url.searchParams.set('api_key', getApiKey())
   url.searchParams.set('language', lang)
   url.searchParams.set('query', query)
@@ -191,7 +200,7 @@ export async function getMovieDetails(id: number, locale = 'en'): Promise<TmdbMo
   const cached = await cacheGet<TmdbMovie>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/movie/${id}`)
+  const url = new URL(`${resolveTmdbBase()}/movie/${id}`)
   url.searchParams.set('api_key', getApiKey())
   if (lang) url.searchParams.set('language', lang)
   url.searchParams.set('append_to_response', 'external_ids')
@@ -215,7 +224,7 @@ export async function getTvShowDetails(id: number, locale = 'en'): Promise<TmdbT
   const cached = await cacheGet<TmdbTvShow>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/tv/${id}`)
+  const url = new URL(`${resolveTmdbBase()}/tv/${id}`)
   url.searchParams.set('api_key', getApiKey())
   if (lang) url.searchParams.set('language', lang)
   url.searchParams.set('append_to_response', 'external_ids')
@@ -234,7 +243,7 @@ export async function getSeasonDetails(showId: number, seasonNumber: number, loc
   const cached = await cacheGet<TmdbSeason>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/tv/${showId}/season/${seasonNumber}`)
+  const url = new URL(`${resolveTmdbBase()}/tv/${showId}/season/${seasonNumber}`)
   url.searchParams.set('api_key', getApiKey())
   if (lang) url.searchParams.set('language', lang)
 
@@ -252,7 +261,7 @@ export async function getPopularMovies(locale = 'en', page = 1): Promise<TmdbSea
   const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/movie/popular`)
+  const url = new URL(`${resolveTmdbBase()}/movie/popular`)
   url.searchParams.set('api_key', getApiKey())
   url.searchParams.set('language', lang)
   url.searchParams.set('page', String(page))
@@ -271,7 +280,7 @@ export async function getPopularTvShows(locale = 'en', page = 1): Promise<TmdbSe
   const cached = await cacheGet<TmdbSearchResult<TmdbTvShow>>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/tv/popular`)
+  const url = new URL(`${resolveTmdbBase()}/tv/popular`)
   url.searchParams.set('api_key', getApiKey())
   url.searchParams.set('language', lang)
   url.searchParams.set('page', String(page))
@@ -290,7 +299,7 @@ export async function getTrending(locale = 'en'): Promise<TmdbTrendingItem[]> {
   const cached = await cacheGet<TmdbTrendingItem[]>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/trending/all/week`)
+  const url = new URL(`${resolveTmdbBase()}/trending/all/week`)
   url.searchParams.set('api_key', getApiKey())
   url.searchParams.set('language', lang)
 
@@ -308,7 +317,7 @@ export async function getTopRatedMovies(locale = 'en', page = 1): Promise<TmdbSe
   const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/movie/top_rated`)
+  const url = new URL(`${resolveTmdbBase()}/movie/top_rated`)
   url.searchParams.set('api_key', getApiKey())
   url.searchParams.set('language', lang)
   url.searchParams.set('page', String(page))
@@ -327,7 +336,7 @@ export async function getMoviesByGenre(genreId: number, locale = 'en', page = 1)
   const cached = await cacheGet<TmdbSearchResult<TmdbMovie>>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/discover/movie`)
+  const url = new URL(`${resolveTmdbBase()}/discover/movie`)
   url.searchParams.set('api_key', getApiKey())
   url.searchParams.set('language', lang)
   url.searchParams.set('with_genres', String(genreId))
@@ -349,7 +358,7 @@ export async function getTvByGenre(genreId: number, locale = 'en', page = 1): Pr
   const cached = await cacheGet<TmdbSearchResult<TmdbTvShow>>(cacheKey)
   if (cached !== null) return cached
 
-  const url = new URL(`${TMDB_BASE}/discover/tv`)
+  const url = new URL(`${resolveTmdbBase()}/discover/tv`)
   url.searchParams.set('api_key', getApiKey())
   url.searchParams.set('language', lang)
   url.searchParams.set('with_genres', String(genreId))

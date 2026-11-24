@@ -186,7 +186,8 @@ describe('browse/tv/[id]/season/[season].get', () => {
     expect(result).toEqual(
       expect.objectContaining({
         episodes: [],
-        seasonPacks: []
+        seasonPacks: [],
+        otherTorrents: []
       })
     )
   })

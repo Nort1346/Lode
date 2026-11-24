@@ -30,7 +30,7 @@ The Users page (`/admin/users`) lets admins create, edit, and delete user accoun
 - Paginated audit trail
 - Filterable by action type and user
 - Automatic cleanup after 90 days
-- Actions tracked: login, login_failed, logout, register, user CRUD, user_password_change, user_force_sync, settings changes, tracker CRUD, brute force config, Discord mentions, disk config, ranking config, prep config
+- Actions tracked: login, login_failed, logout, register, user CRUD, user_password_change, user_force_sync, settings changes, tracker CRUD, brute force config, Discord mentions, disk config, ranking config, prep config, media_config_update
 
 ### Live Log Stream (`/admin/logs`)
 - Real-time SSE stream of Pino log output
@@ -107,9 +107,15 @@ Configure defaults for new users:
 
 ## Prep Countdown
 
-Configure the simulated file preparation countdown:
+Configure the simulated file preparation phase:
 - Enable/disable
 - Set simulated copy speed (1-100 MB/s)
+- The dashboard merges the countdown with the real import byte progress into a single preparation bar, and holds the ready notification (Jellyfin, Discord, push) until a running library import finishes
+- Both the dashboard and the downloads page keep a completed row visible while it is preparing and remove it when the ready SSE event arrives
+
+## Media Organization
+
+Admin → Settings → Media organization exposes the `media-config` settings; enabling requires a staging dir configured via setup or `.env`.
 
 ## Discord Settings
 

@@ -8,6 +8,10 @@ definePageMeta({
 
 const { t } = useI18n()
 
+useSeoMeta({
+  title: () => `${t('bruteForce.title')} | ${t('seo.title')}`
+})
+
 const blockedIps = ref<BlockedIp[]>([])
 const config = ref<BruteForceConfig>({
   maxAttemptsPerIp: 5,

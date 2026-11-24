@@ -1,8 +1,13 @@
 import type { ProwlarrResult } from '#server/types/prowlarr'
+import type { ImportProgressSnapshot } from '#server/types/media-organize'
 import type { InferSelectModel } from 'drizzle-orm'
 import type { downloads } from '#server/database/schema'
 
-export type DownloadRow = InferSelectModel<typeof downloads> & { username?: string }
+export type DownloadRow = InferSelectModel<typeof downloads> & {
+  username?: string
+  // Filled by the list endpoint while an import is copying bytes.
+  organizeProgress?: ImportProgressSnapshot | null
+}
 
 export const DOWNLOAD_STATUS_VALUES = [
   'pending',
@@ -62,6 +67,23 @@ export interface MagnetInfoHashes {
   v2: string | null
 }
 
+// Torrent descriptor bytes plus the info hashes computed from them.
+export interface TorrentPayload {
+  buffer: Buffer
+  hashes: MagnetInfoHashes
+}
+
+// A torrent resolved server-side from an indexer URL, so qBittorrent does not
+// have to reach that URL itself (its container/host may not be able to resolve
+// the address Lode used, e.g. `localhost` or a Prowlarr service name).
+export type FetchedTorrent =
+  | ({ kind: 'file' } & TorrentPayload)
+  | {
+      kind: 'magnet'
+      magnet: string
+      hashes: MagnetInfoHashes
+    }
+
 // Result of adding a torrent to qBittorrent.
 // 'existing' = the torrent was already in qBittorrent (nothing was added);
 // complete = it finished downloading (seeding/stopped-complete/etc.).
@@ -84,6 +106,10 @@ export const COMPLETED_STATES = new Set(['uploading', 'stalledUP', 'pausedUP', '
 // (qBittorrent 5.2+) requires shareLimitAction and expects Qt meta-object enum
 // names, not numeric codes. Older instances ignore the unknown parameter.
 export type ShareLimitAction = 'Stop' | 'Remove' | 'RemoveWithContent' | 'EnableSuperSeeding'
+
+// How ratio/time limits combine on torrents/setShareLimits. Web API 2.15.3+
+// (qBittorrent 5.3+) requires shareLimitsMode; older instances ignore it.
+export type ShareLimitsMode = 'Default' | 'MatchAny' | 'MatchAll'
 
 export interface RankedTorrent extends ProwlarrResult {
   score: number

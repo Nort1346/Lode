@@ -48,6 +48,8 @@ export interface StepContext {
   qbitTempPass: string
   /** Admin password extracted from lode logs after first start. */
   adminPass: string
+  /** True when download staging (media organization) is configured in .env. */
+  staging: boolean
 }
 
 export interface PromptOption<T extends string = string> {

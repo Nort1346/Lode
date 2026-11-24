@@ -16,10 +16,14 @@
 | `pnpm test` | Run the Vitest test suite (API routes, middleware, server utils) |
 | `pnpm test:watch` | Run Vitest in watch mode |
 | `pnpm test:coverage` | Run tests with V8 coverage reporting |
+| `pnpm test:e2e` | Playwright E2E tests (isolated `.data-e2e` DB + mock TMDB, app on port 5758) |
 | `pnpm typecheck:test` | Type-check the test suite (`test/tsconfig.json`) |
+| `pnpm typecheck:e2e` | Type-check `e2e/tsconfig.json` |
 | `pnpm db:generate` | Generate Drizzle migrations |
 | `pnpm db:migrate` | Run migrations |
 | `pnpm db:studio` | Open Drizzle Studio |
+
+`pnpm typecheck` now also type-checks the e2e project (`e2e/tsconfig.json`).
 
 ## ESLint Configuration
 
@@ -126,14 +130,26 @@ Defined in `vitest.config.ts`:
 - **Path aliases**: `#server`, `#db`, `#utils`, `#server/types` are mapped to the `server/` tree; `#shared` maps to `shared/`.
 - **Coverage**: V8 provider, `text` + `lcov` reporters, scoped to `server/utils`, `server/api`, and `server/middleware`.
 
+E2E is configured in `playwright.config.ts` (`testDir: ./e2e/tests`, `globalSetup`/`globalTeardown`, single worker, Chromium, `baseURL: http://127.0.0.1:5758`, service workers blocked). DB parity is configured in `vitest.db-parity.config.ts` with projects `db-parity-sqlite` and `db-parity-postgres`; PG tests skip when `LODE_PG_TEST_URL` is absent.
+
 ### Structure
 
 ```
+e2e/                    # Playwright suite
+├── tests/              # auth, admin-users, browse, requests, smoke, titles specs
+├── global-setup.ts / global-teardown.ts
+├── mock-tmdb.ts / seed.ts / credentials.ts / helpers.ts
+└── tsconfig.json
+
 test/
 ├── setup.ts              # Global h3 stubs
 ├── tsconfig.json         # Dedicated typecheck config for tests
 ├── api/                  # Route handlers (auth, browse, torrents, requests, wishlist, notifications, admin/*)
 ├── app/                  # Composables and client-side logic (useApiError, useTorrentSearch, etc.)
+├── db-parity/            # SQLite/PostgreSQL parity
+│   ├── cross/            # Schema parity across both migration chains
+│   ├── drivers/          # Same CRUD probes on SQLite and PostgreSQL
+│   └── fixtures.ts
 ├── i18n/                 # Locale key parity and server i18n tests
 ├── middleware/           # Session validation + brute force middleware
 ├── repositories/         # Data access layer (settings, login-attempts, sync-user-settings)
@@ -142,6 +158,8 @@ test/
 └── types/                # Shared test type helpers
 ```
 
+Root-level files for these suites: `playwright.config.ts`, `vitest.db-parity.config.ts`, plus CI workflows `.github/workflows/e2e.yml` and `.github/workflows/db-parity.yml`.
+
 ### Commands
 
 ```bash
@@ -149,6 +167,10 @@ pnpm test            # run all tests once
 pnpm test:watch      # watch mode
 pnpm test:coverage   # with coverage report
 pnpm typecheck:test  # type-check tests only
+pnpm test:e2e
+pnpm typecheck:e2e
+pnpm exec vitest run -c vitest.db-parity.config.ts
+# with PG: LODE_PG_TEST_URL=postgres://lode:<pw>@127.0.0.1:54335/postgres pnpm exec vitest run -c vitest.db-parity.config.ts
 ```
 
 ### Conventions
@@ -157,4 +179,6 @@ pnpm typecheck:test  # type-check tests only
 - API route tests invoke handlers directly with a mocked `event` object.
 - Add a `.test.ts` file next to the code it covers, following the same directory layout as `server/`.
 - Mock the repository layer (`#server/repositories`) instead of direct drizzle queries - simpler, faster, and tests the handler logic not the query builder.
+- DOM-based app composable tests type-check via `test/tsconfig.json` (which now includes the DOM lib).
+- E2E uses seeded users from `e2e/credentials.ts` and a deterministic mock TMDB, so no external services are contacted.
 

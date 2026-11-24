@@ -87,7 +87,7 @@ function portWaitPhase(label: string, port: number, timeoutMs: number): WaitPhas
 }
 
 export async function startServices(ctx: StepContext): Promise<void> {
-  stepHeader(10, 'Starting selected services')
+  stepHeader(11, 'Starting selected services')
   const files = ctx.composeFiles
   const { selection } = ctx
 
@@ -162,10 +162,10 @@ export async function startServices(ctx: StepContext): Promise<void> {
 
   // Non-fatal services: warn once now and skip their wait phase.
   if (selection.prowlarr === 'local' && failed.includes('prowlarr')) {
-    log.warn('Prowlarr not running - you can configure it later (step 12)')
+    log.warn('Prowlarr not running - you can configure it later (step 14)')
   }
   if (selection.mediaMode === 'local' && failed.includes('jellyfin')) {
-    log.warn('Jellyfin not running - you can configure it later (step 10)')
+    log.warn('Jellyfin not running - you can configure it later (step 12)')
   }
 
   // One spinner carries the whole readiness wait and stops on the single

@@ -5,8 +5,8 @@ import {
   buildMovieFileName,
   buildMovieRelativePath,
   getExtensionLower,
+  planExtraFileImports,
   sanitizeFileSegment,
-  selectExtraFiles,
   selectVideoFiles
 } from '#server/utils/library/organize'
 import type { TorrentFile } from '#server/types/torrent'
@@ -67,10 +67,10 @@ describe('selectVideoFiles', () => {
   })
 })
 
-describe('selectExtraFiles', () => {
+describe('planExtraFileImports', () => {
   const extensions = ['srt', 'sub', 'nfo']
 
-  it('picks sidecars of the same video in the same folder', () => {
+  it('attaches same-folder sidecars to their video', () => {
     const files = [
       makeFile('Movie.2021.mkv', 100, 0),
       makeFile('Movie.2021.en.srt', 4, 1),
@@ -78,25 +78,58 @@ describe('selectExtraFiles', () => {
       makeFile('poster.jpg', 8, 3),
       makeFile('Other.mkv', 10, 4)
     ]
-    expect(selectExtraFiles(files, 'Movie.2021.mkv', extensions).map((pick) => pick.name)).toEqual([
+    const plan = planExtraFileImports(files, ['Movie.2021.mkv'], extensions)
+    expect(plan.byVideo.get('Movie.2021.mkv')?.map((pick) => pick.name)).toEqual([
       'Movie.2021.en.srt',
       'Movie.2021.nfo'
     ])
+    expect(plan.releaseLevel).toEqual([])
   })
 
-  it('ignores files from other folders', () => {
-    const files = [makeFile('Movie/Movie.srt', 4, 0), makeFile('Extras/Movie.srt', 4, 1)]
-    expect(selectExtraFiles(files, 'Movie.mkv', extensions)).toEqual([])
+  it('attaches a full-stem sidecar from another folder to its video', () => {
+    const files = [makeFile('Movie.2021.mkv', 100, 0), makeFile('subs/Movie.2021.en.srt', 4, 1)]
+    const plan = planExtraFileImports(files, ['Movie.2021.mkv'], extensions)
+    expect(plan.byVideo.get('Movie.2021.mkv')?.map((pick) => pick.name)).toEqual(['subs/Movie.2021.en.srt'])
+    expect(plan.releaseLevel).toEqual([])
+  })
+
+  it('files root and subfolder extras without a stem match at release level', () => {
+    const files = [
+      makeFile('Movie.2021.mkv', 100, 0),
+      makeFile('ang.srt', 4, 1),
+      makeFile('subs/pol.srt', 4, 2),
+      makeFile('Movie2.srt', 4, 3),
+      makeFile('poster.jpg', 8, 4)
+    ]
+    const plan = planExtraFileImports(files, ['Movie.2021.mkv'], extensions)
+    expect(plan.byVideo.size).toBe(0)
+    expect(plan.releaseLevel.map((pick) => pick.name)).toEqual(['ang.srt', 'subs/pol.srt', 'Movie2.srt'])
+  })
+
+  it('attributes sidecars per episode in a multi-video release', () => {
+    const files = [
+      makeFile('Show.S01E01.mkv', 100, 0),
+      makeFile('Show.S01E02.mkv', 100, 1),
+      makeFile('Show.S01E01.en.srt', 4, 2),
+      makeFile('subs/Show.S01E02.pl.srt', 4, 3),
+      makeFile('subs/ang.srt', 4, 4)
+    ]
+    const plan = planExtraFileImports(files, ['Show.S01E01.mkv', 'Show.S01E02.mkv'], extensions)
+    expect(plan.byVideo.get('Show.S01E01.mkv')?.map((pick) => pick.name)).toEqual(['Show.S01E01.en.srt'])
+    expect(plan.byVideo.get('Show.S01E02.mkv')?.map((pick) => pick.name)).toEqual(['subs/Show.S01E02.pl.srt'])
+    expect(plan.releaseLevel.map((pick) => pick.name)).toEqual(['subs/ang.srt'])
   })
 
   it('ignores extensions that are not allowed', () => {
-    const files = [makeFile('Movie.2021.exe', 4, 0)]
-    expect(selectExtraFiles(files, 'Movie.2021.mkv', extensions)).toEqual([])
+    const plan = planExtraFileImports([makeFile('Movie.2021.exe', 4, 0)], ['Movie.2021.mkv'], extensions)
+    expect(plan.byVideo.size).toBe(0)
+    expect(plan.releaseLevel).toEqual([])
   })
 
-  it('requires a separator after the video stem', () => {
-    const files = [makeFile('Movie2.srt', 4, 0), makeFile('MovieExtras.nfo', 4, 1)]
-    expect(selectExtraFiles(files, 'Movie.mkv', extensions)).toEqual([])
+  it('returns an empty plan without allowed extensions', () => {
+    const plan = planExtraFileImports([makeFile('ang.srt', 4, 0)], ['Movie.mkv'], [])
+    expect(plan.byVideo.size).toBe(0)
+    expect(plan.releaseLevel).toEqual([])
   })
 })
 
@@ -111,12 +144,22 @@ describe('buildExtraFileRelativePath', () => {
     ).toBe('Dune (2021)/Dune (2021) 1080p WEB-DL.en.srt')
   })
 
-  it('drops unrelated stems', () => {
+  it('keeps an unrelated stem as a language-like suffix so extras never collide', () => {
     expect(
       buildExtraFileRelativePath({
         videoSourceName: 'Dune.2021.mkv',
         videoTargetRelativePath: 'Dune (2021)/Dune (2021).mkv',
-        extraName: 'notes.nfo'
+        extraName: 'subs/ang.srt'
+      })
+    ).toBe('Dune (2021)/Dune (2021).ang.srt')
+  })
+
+  it('keeps an exact-stem sidecar without a suffix', () => {
+    expect(
+      buildExtraFileRelativePath({
+        videoSourceName: 'Dune.2021.mkv',
+        videoTargetRelativePath: 'Dune (2021)/Dune (2021).mkv',
+        extraName: 'Dune.2021.nfo'
       })
     ).toBe('Dune (2021)/Dune (2021).nfo')
   })

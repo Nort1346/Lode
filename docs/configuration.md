@@ -8,10 +8,12 @@
 |----------|-------------|
 | `NUXT_QBITTORRENT_URL` | qBittorrent WebUI URL (e.g. `http://localhost:8080`) |
 | `NUXT_QBITTORRENT_API_KEY` | qBittorrent WebUI API key (Settings > Web UI > API Key) |
-| `NUXT_SESSION_PASSWORD` | Session encryption key (32+ chars) |
+| `NUXT_APP_SECRET` | Session signing secret (32+ chars) |
 | `NUXT_PROWLARR_URL` | Prowlarr base URL |
 | `NUXT_PROWLARR_API_KEY` | Prowlarr API key |
 | `NUXT_TRACKER_ENCRYPTION_KEY` | AES-256-GCM key for tracker passwords (64 hex chars) |
+
+> `NUXT_SESSION_PASSWORD` was renamed to `NUXT_APP_SECRET` in `nuxt-auth-utils` 0.6. Existing deployments can keep the old variable as a deprecated fallback (the server entrypoint copies it to `NUXT_APP_SECRET` and logs a warning), but rename it to avoid the warning. Everyone is logged out once after the upgrade because the session cookie name and format changed.
 
 ### Optional - Paths
 
@@ -41,6 +43,15 @@
 | `NUXT_VAPID_PRIVATE_KEY` | - | VAPID private key |
 | `NUXT_VAPID_SUBJECT` | - | Contact email/URL for push service |
 
+### Optional - Testing
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NUXT_TMDB_BASE_URL` | `https://api.themoviedb.org/3` | TMDB-compatible API base URL; used by the Playwright suite to point at its local mock |
+| `DB_DATA_DIR` | `.data` | SQLite data directory override; used by E2E to isolate its database |
+
+The DB parity suite uses `LODE_PG_TEST_URL` (or `LODE_PG_TEST_USER` / `LODE_PG_TEST_PASSWORD` / `LODE_PG_TEST_HOST` in CI) to reach a throwaway PostgreSQL instance; it is not needed for normal runs.
+
 ### Optional - Disk Space
 
 | Variable | Default | Description |
@@ -53,7 +64,7 @@
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NUXT_TORRENT_SYNC_INTERVAL_MS` | `10000` | Background torrent sync interval (ms; not listed in `.env.example`) |
+| `NUXT_TORRENT_SYNC_INTERVAL_MS` | `10000` | Background torrent sync interval (ms; not listed in `.env.example`). Keep it below 5 minutes - the server-side ETA re-anchors when polls are further apart and never warms up above that |
 | `DB_DRIVER` | `sqlite` | Database driver: `sqlite` or `postgres` |
 | `DATABASE_URL` | - | PostgreSQL connection URL (required when `DB_DRIVER=postgres`) |
 | `POSTGRES_PASSWORD` | - | Postgres password (passed to the `postgres` service via compose `env_file`; required for the postgres setup) |
@@ -88,7 +99,12 @@ export const SETTINGS = {
   USER_DEFAULT_MAX_TORRENT_SIZE_GB: 'user_default_max_torrent_size_gb',
   USER_DEFAULT_PRIVATE_TRACKER_LIMIT: 'user_default_private_tracker_limit',
   USER_DEFAULT_MAX_SESSIONS: 'user_default_max_sessions',
-  USER_DEFAULT_CAN_SUBMIT: 'user_default_can_submit'
+  USER_DEFAULT_CAN_SUBMIT: 'user_default_can_submit',
+  MEDIA_MANAGE_ENABLED: 'media_manage_enabled',
+  MEDIA_IMPORT_MODE: 'media_import_mode',
+  MEDIA_IMPORT_EXTRA_FILES: 'media_import_extra_files',
+  MEDIA_EXTRA_FILE_EXTENSIONS: 'media_extra_file_extensions',
+  MEDIA_CLEANUP_STAGING: 'media_cleanup_staging'
 } as const
 
 export type SettingKey = (typeof SETTINGS)[keyof typeof SETTINGS]
@@ -107,7 +123,7 @@ Some settings are stored in the `settings` DB table and can be changed at runtim
 | `prep_countdown_enabled` | `true` | Show prep countdown for completed downloads |
 | `prep_speed_mb` | `15` | Simulated file copy speed (MB/s) |
 | `qbit_auto_remove_completed` | `false` | Mark a download as completed when its torrent disappears from qBittorrent at ≥90% progress (for setups that auto-remove finished torrents) |
-| `qbit_seeding_enabled` | `true` | When disabled, torrents added by Lode get per-torrent share limits (ratio 0, seeding time 0) so they stop sharing immediately after completion. Only affects Lode-added torrents, never global qBittorrent preferences |
+| `qbit_seeding_enabled` | `true` | When disabled, torrents get per-torrent share limits (ratio 0, seeding time 0) so they stop sharing immediately after completion. Turning it off also applies the limits to torrents already tracked by Lode. Only affects torrents tracked by Lode, never global qBittorrent preferences |
 | `discord_locale` | `en` | Discord webhook language (`pl`, `en`, `de`, `fr`, `es`, `pt-BR`) |
 | `discord_mentions_enabled` | `true` | Enable user mentions in Discord notifications |
 | `jellyfin_sync_enabled` | `false` | Enable Jellyfin user sync |
@@ -117,10 +133,17 @@ Some settings are stored in the `settings` DB table and can be changed at runtim
 | `user_default_private_tracker_limit` | `5` | Default daily private tracker limit for new users |
 | `user_default_max_sessions` | `0` | Default max concurrent sessions for new users (0 = unlimited) |
 | `user_default_can_submit` | `false` | Default torrent submission permission for new users |
+| `media_manage_enabled` | `false` | Enables *arr-style staging import. Cannot be turned on unless `NUXT_DOWNLOAD_PATH_MOVIES` or `NUXT_DOWNLOAD_PATH_SERIES` is set |
+| `media_import_mode` | `hardlink` | `hardlink`, `copy`, or `move`; hardlink falls back to copy on `EXDEV` |
+| `media_import_extra_files` | `false` | Import subtitle/sidecar files from anywhere in the release |
+| `media_extra_file_extensions` | `srt, sub, ass, ssa, vtt, nfo` | Comma-separated allow-list (max 20) |
+| `media_cleanup_staging` | `false` | With `move`, remove staging leftovers after a fully successful import |
 
 ## Zod Validation
 
 Config is validated at startup using Zod schemas (`server/utils/config-schema.ts`). Invalid config causes the server to exit with a descriptive error message.
+
+`PUT /api/admin/media-config` additionally validates body types at runtime (`enabled` / `cleanupStaging` must be booleans; JSON strings are rejected with 400) and refuses to enable organization when no staging path is configured.
 
 ## Docker Environment
 

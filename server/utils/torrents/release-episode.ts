@@ -22,7 +22,7 @@ function pad2(n: number): string {
 function tokenize(name: string): string[] {
   return name
     .toLowerCase()
-    .split(/[\s._\-+[\](){}]+/)
+    .split(/[\s._\-+&[\](){}]+/)
     .filter((t) => t.length > 0)
 }
 
@@ -70,6 +70,72 @@ function multiEpisodeToken(token: string): { season: number; episodes: number[] 
   return null
 }
 
+const SEASON_CONJUNCTIONS = new Set(['and', 'i', 'oraz', 'or', '&'])
+
+/**
+ * Dash-joined numbers in the raw name (tokenization splits `-`). Only pairs
+ * whose two ends are both listed in the season group are used, so episode
+ * ranges and year spans cannot expand it.
+ */
+function seasonDashRanges(lower: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = []
+  for (const match of lower.matchAll(/(?<![0-9a-z])(\d{1,2})\s*-\s*(\d{1,2})(?!\d)/g)) {
+    const index = match.index ?? 0
+    // The tail of a date such as `2024-05-12` is not a season range.
+    if (/[0-9]-\s*$/.test(lower.slice(Math.max(0, index - 3), index))) continue
+    const from = Number.parseInt(match[1] ?? '', 10)
+    const to = Number.parseInt(match[2] ?? '', 10)
+    if (from >= 1 && to >= from && to <= MAX_SEASON) ranges.push([from, to])
+  }
+  return ranges
+}
+
+/**
+ * Reads a group of season numbers after a `season`/`sezon` keyword:
+ * `Season 1`, `Seasons 1 and 2`, `Sezon 1 i 3`, `Season 1-3 and 5`.
+ * An explicit dash range expands even when a conjunction follows it; numbers
+ * joined only by conjunctions stay an explicit set.
+ */
+function parseSeasonGroup(
+  tokens: string[],
+  start: number,
+  ranges: Array<[number, number]>
+): { seasons: number[]; end: number } {
+  const seasons: number[] = []
+  let index = start
+  let expectNumber = true
+
+  while (index < tokens.length) {
+    const token = tokens[index] ?? ''
+    const value = toInt(token)
+    if (expectNumber) {
+      if (value === null || value < 1 || value > MAX_SEASON) break
+      seasons.push(value)
+      expectNumber = false
+      index++
+      continue
+    }
+    if (SEASON_CONJUNCTIONS.has(token)) {
+      expectNumber = true
+      index++
+      continue
+    }
+    if (value !== null && value >= 1 && value <= MAX_SEASON) {
+      seasons.push(value)
+      index++
+      continue
+    }
+    break
+  }
+
+  const listed = uniqSorted(seasons)
+  const expanded = [...listed]
+  for (const [from, to] of ranges) {
+    if (listed.includes(from) && listed.includes(to)) expanded.push(...rangeList(from, to))
+  }
+  return { seasons: uniqSorted(expanded), end: index - 1 }
+}
+
 function seasonToken(token: string): number | null {
   const sMatch = /^s(\d{1,2})$/.exec(token)
   if (sMatch !== null) {
@@ -87,12 +153,61 @@ function tailEpisodeToken(token: string): number | null {
   return episode >= 1 && episode <= MAX_EPISODE ? episode : null
 }
 
+function adjacentEpisodeTokens(tokens: string[], start: number): number[] {
+  const episodes: number[] = []
+  for (let i = start; i < tokens.length; i++) {
+    const episode = tailEpisodeToken(tokens[i] ?? '')
+    if (episode === null) break
+    episodes.push(episode)
+  }
+  return episodes
+}
+
 function keywordEpisodeToken(token: string): number | null {
   // ep12 / episode12 / odc12 / odcinek5 (anime + Polish daily-press styles)
   const m = /^(?:ep|episode|odc|odcinek)0*(\d{1,4})$/.exec(token)
   if (m === null) return null
   const episode = Number.parseInt(m[1] ?? '', 10)
   return episode >= 1 && episode <= MAX_ABSOLUTE && !isYear(episode) ? episode : null
+}
+
+/**
+ * A single release that spans both a season range and an episode range,
+ * e.g. `S1-8E1-96` or `S01-S03.E01-E12`. Treat it as one pack instead of
+ * letting the season token and a trailing bare number turn it into a bogus
+ * single episode. Only multi-season forms land here; single-season ranges
+ * are already handled by the multi-episode rules below.
+ */
+function parseEpisodePack(lower: string): EpisodeInfo | null {
+  const match =
+    /(?:^|[^a-z0-9])s(\d{1,2})\s*-\s*s?(\d{1,2})[\s._]*e(\d{1,3})\s*-\s*e?(\d{1,3})(?![0-9])/.exec(lower) ??
+    /(?:^|[^a-z0-9])season[\s._]+(\d{1,2})\s*-\s*(\d{1,2})[^\d]*episode[\s._]+(\d{1,3})\s*-\s*(\d{1,3})(?![0-9])/.exec(
+      lower
+    )
+  if (match === null) return null
+
+  const seasonFrom = Number.parseInt(match[1] ?? '', 10)
+  const seasonTo = Number.parseInt(match[2] ?? '', 10)
+  const episodeFrom = Number.parseInt(match[3] ?? '', 10)
+  const episodeTo = Number.parseInt(match[4] ?? '', 10)
+  if (
+    seasonFrom < 1 ||
+    seasonTo < seasonFrom ||
+    seasonTo > MAX_SEASON ||
+    episodeFrom < 1 ||
+    episodeTo < episodeFrom ||
+    episodeTo > MAX_EPISODE ||
+    episodeTo - episodeFrom > MAX_ABSOLUTE
+  ) {
+    return null
+  }
+
+  return {
+    kind: 'episode-pack',
+    seasons: rangeList(seasonFrom, seasonTo),
+    episodes: rangeList(episodeFrom, episodeTo),
+    airDate: null
+  }
 }
 
 /**
@@ -106,6 +221,10 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
   const lower = releaseName.toLowerCase()
   const tokens = tokenize(releaseName)
 
+  const pack = parseEpisodePack(lower)
+  if (pack !== null) return pack
+  const seasonRanges = seasonDashRanges(lower)
+
   const epTokens: Array<{ season: number; episode: number }> = []
   const multiRanges: Array<{ season: number; episodes: number[] }> = []
   const seasonTokens: number[] = []
@@ -116,24 +235,21 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i] ?? ''
 
-    // Two-token keyword forms: `season 1`, `sezon 1-2`, `episode 5`, `odc 12`.
-    if (token === 'season' || token === 'sezon') {
-      const a = toInt(tokens[i + 1] ?? '')
-      const b = toInt(tokens[i + 2] ?? '')
-      if (a !== null && a <= MAX_SEASON && b !== null && b <= MAX_SEASON && (tokens[i + 2] ?? '').length <= 2) {
-        const from = Math.min(a, b)
-        const to = Math.max(a, b)
+    // Keyword forms: `season 1`, `seasons 1 and 2`, `sezon 1 i 2`, `season 1-3`.
+    if (token === 'season' || token === 'seasons' || token === 'sezon' || token === 'sezony') {
+      const group = parseSeasonGroup(tokens, i + 1, seasonRanges)
+      if (group.seasons.length >= 2) {
         return {
           kind: 'multiseason-pack',
-          seasons: rangeList(from, to),
+          seasons: group.seasons,
           episodes: [],
           airDate: null
         }
       }
-      if (a !== null && a <= MAX_SEASON) {
-        seasonTokens.push(a)
-        i++
-        continue
+      const only = group.seasons[0]
+      if (only !== undefined) {
+        seasonTokens.push(only)
+        i = group.end
       }
       continue
     }
@@ -152,16 +268,16 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
 
     const single = singleEpisodeToken(token)
     if (single !== null) {
-      epTokens.push(single)
-      // `S01E01-E03` splits into `s01e01`, `e03`: a trailing e-token within
-      // two positions extends the range.
-      const tail = tailEpisodeToken(tokens[i + 1] ?? '')
-      if (tail !== null) {
-        const from = Math.min(single.episode, tail)
-        const to = Math.max(single.episode, tail)
+      // `S01E01-E03` splits into `s01e01`, `e03`: adjacent trailing e-tokens
+      // extend the range instead of being ignored.
+      const tailEpisodes = adjacentEpisodeTokens(tokens, i + 1)
+      if (tailEpisodes.length > 0) {
+        const from = Math.min(single.episode, ...tailEpisodes)
+        const to = Math.max(single.episode, ...tailEpisodes)
         multiRanges.push({ season: single.season, episodes: rangeList(from, to) })
-        epTokens.pop()
-        i++
+        i += tailEpisodes.length
+      } else {
+        epTokens.push(single)
       }
       continue
     }
@@ -174,10 +290,20 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
       continue
     }
 
-    // A lone `s01` followed by `e02` (`Show.S01.E02`) is one episode.
+    // A lone `s01` followed by `e02` (`Show.S01.E02`) is one episode. Dashes
+    // are token separators too, so `S01.E01-E24` arrives as `s01`, `e01`,
+    // `e24` and must become a range rather than a single episode.
     const tail = tailEpisodeToken(token)
     if (tail !== null && pendingSeason !== null && i - pendingSeasonIdx <= 1) {
-      epTokens.push({ season: pendingSeason, episode: tail })
+      const tailEpisodes = adjacentEpisodeTokens(tokens, i + 1)
+      if (tailEpisodes.length > 0) {
+        const from = Math.min(tail, ...tailEpisodes)
+        const to = Math.max(tail, ...tailEpisodes)
+        multiRanges.push({ season: pendingSeason, episodes: rangeList(from, to) })
+        i += tailEpisodes.length
+      } else {
+        epTokens.push({ season: pendingSeason, episode: tail })
+      }
       seasonTokens.pop()
       pendingSeason = null
       continue
@@ -211,6 +337,40 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
       return { kind: 'multi-episode', seasons, episodes, airDate: null }
     }
     return { kind: 'multiseason-pack', seasons, episodes: [], airDate: null }
+  }
+
+  // A season token plus an episode keyword is a plain S/E release in Polish
+  // ("Sezon 3 Odcinek 5") and daily-press naming, not a season pack. Without
+  // this, those releases were filed under season packs and the episode stayed
+  // empty in the UI - a frequent "new episode is hiding" report.
+  if (seasonTokens.length === 1 && keywordEpisodes.length > 0) {
+    const season = seasonTokens[0] ?? 0
+    const episodes = uniqSorted(keywordEpisodes)
+    return episodes.length === 1
+      ? { kind: 'episode', seasons: [season], episodes, airDate: null }
+      : { kind: 'multi-episode', seasons: [season], episodes, airDate: null }
+  }
+
+  // A bare number right after a season token is an episode ("Show S03 - 05"),
+  // not a pack. Token-based on purpose: a raw regex would also see the "1" in
+  // a hyphenated number in the show's title as an episode.
+  if (seasonTokens.length === 1) {
+    const season = seasonTokens[0] ?? 0
+    let bareEpisode: number | null = null
+    for (let i = 0; i < tokens.length - 1 && bareEpisode === null; i++) {
+      if (seasonToken(tokens[i] ?? '') === season) {
+        for (const next of [tokens[i + 1], tokens[i + 2]]) {
+          const n = toInt(next ?? '')
+          if (n !== null && n >= 1 && n <= MAX_EPISODE && !isYear(n)) {
+            bareEpisode = n
+            break
+          }
+        }
+      }
+    }
+    if (bareEpisode !== null) {
+      return { kind: 'episode', seasons: [season], episodes: [bareEpisode], airDate: null }
+    }
   }
 
   if (seasonTokens.length > 0) {
@@ -254,11 +414,9 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
     return { kind: 'absolute', seasons: [], episodes: uniqSorted(keywordEpisodes), airDate: null }
   }
   const marked = /(?:^|[-([])\s*0*(\d{1,4})(?![0-9a-z])(?:$|[\s\-)\].])/.exec(lower)
-  if (marked !== null) {
-    const n = Number.parseInt(marked[1] ?? '', 10)
-    if (n >= 1 && n <= MAX_ABSOLUTE && !isYear(n)) {
-      return { kind: 'absolute', seasons: [], episodes: [n], airDate: null }
-    }
+  const absolute = marked !== null ? Number.parseInt(marked[1] ?? '', 10) : NaN
+  if (Number.isInteger(absolute) && absolute >= 1 && absolute <= MAX_ABSOLUTE && !isYear(absolute)) {
+    return { kind: 'absolute', seasons: [], episodes: [absolute], airDate: null }
   }
 
   // Complete-series packs without any season token.
@@ -280,33 +438,84 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
 /**
  * Episode-bucket matcher used by the torrent search: only true single episodes
  * land under an episode. Multi-episode ranges are packs (see titleIsSeasonPack),
- * so picking E02 never silently matches a torrent holding E01-E03. Daily
- * releases carry air dates, not episode numbers, so they never match here.
+ * so picking E02 never silently matches a torrent holding E01-E03.
+ *
+ * Two extra hints make recently aired releases visible:
+ * - daily shows are named after their air date, not SxxExx, so they are matched
+ *   against the TMDB episode's air date;
+ * - anime often uses absolute numbering, so the number is checked against both
+ *   the per-season TMDB number and the running number across previous seasons.
  */
-export function titleMatchesEpisode(title: string, seasonNumber: number, episodeNumber: number): boolean {
+export function titleMatchesEpisode(
+  title: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  airDate: string | null = null,
+  absoluteNumber: number | null = null
+): boolean {
   const info = parseEpisodeInfo(title)
   if (info.kind === 'episode') {
     return info.seasons.includes(seasonNumber) && info.episodes.includes(episodeNumber)
   }
+  if (info.kind === 'daily') {
+    return airDate !== null && info.airDate === airDate
+  }
   if (info.kind === 'absolute') {
-    return info.episodes.includes(episodeNumber)
+    if (absoluteNumber !== null && info.episodes.includes(absoluteNumber)) return true
+    // Without an absolute offset (or for the first season) the per-season
+    // number is the only information available.
+    if (seasonNumber === 1 || absoluteNumber === null) return info.episodes.includes(episodeNumber)
   }
   return false
+}
+
+/**
+ * Season guard for the "unmapped releases" bucket. A release that explicitly
+ * names a different season must not be offered while the user is looking at
+ * season 1 (or 2, ...). Releases without season information - daily shows,
+ * absolute numbering, plain titles - are kept: they may be a brand new
+ * episode TMDB has not listed yet.
+ */
+export function releaseBelongsToSeason(title: string, seasonNumber: number): boolean {
+  const info = parseEpisodeInfo(title)
+  switch (info.kind) {
+    case 'episode':
+    case 'multi-episode':
+    case 'episode-pack':
+    case 'season-pack':
+    case 'multiseason-pack':
+      return info.seasons.length === 0 || info.seasons.includes(seasonNumber)
+    case 'complete-series':
+    case 'daily':
+    case 'absolute':
+    case 'unknown':
+      return true
+  }
 }
 
 /**
  * Pack matcher used by the torrent search: anything spanning more than one
  * episode (season packs, multi-season packs, multi-episode ranges, complete
  * series) is a pack. A range matches each season it spans.
+ *
+ * Returns the parsed info so callers can build a payload without parsing the
+ * same release title a second time.
  */
-export function titleIsSeasonPack(title: string, seasonNumber: number): boolean {
-  const info = parseEpisodeInfo(title)
+export function seasonPackFromInfo(info: EpisodeInfo, seasonNumber: number): EpisodeInfo | null {
   if (info.kind === 'season-pack' || info.kind === 'multiseason-pack') {
-    return info.seasons.length === 0 || info.seasons.includes(seasonNumber)
+    return info.seasons.length === 0 || info.seasons.includes(seasonNumber) ? info : null
   }
   if (info.kind === 'multi-episode') {
-    return info.seasons.includes(seasonNumber)
+    return info.seasons.includes(seasonNumber) ? info : null
   }
-  if (info.kind === 'complete-series') return true
-  return false
+  if (info.kind === 'complete-series') return info
+  return null
+}
+
+export function seasonPackInfo(title: string, seasonNumber: number): EpisodeInfo | null {
+  return seasonPackFromInfo(parseEpisodeInfo(title), seasonNumber)
+}
+
+export function titleIsSeasonPack(title: string, seasonNumber: number): boolean {
+  return seasonPackInfo(title, seasonNumber) !== null
 }

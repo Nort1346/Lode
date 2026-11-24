@@ -54,6 +54,20 @@ describe('admin/media-config.put', () => {
     expect(mockPutSetting).toHaveBeenCalledWith('media_import_mode', 'copy')
   })
 
+  it('allows enabling with only one staging path configured', async () => {
+    vi.stubGlobal(
+      'useRuntimeConfig',
+      vi.fn(() => ({ downloadPathMovies: '/downloads/movies' }))
+    )
+    vi.stubGlobal(
+      'readBody',
+      vi.fn(async () => ({ enabled: true }))
+    )
+
+    await expect(handler(mockEvent)).resolves.toEqual({ success: true })
+    expect(mockPutSetting).toHaveBeenCalledWith('media_manage_enabled', 'true')
+  })
+
   it('refuses to enable without a staging dir', async () => {
     vi.stubGlobal(
       'useRuntimeConfig',
@@ -118,5 +132,26 @@ describe('admin/media-config.put', () => {
 
     expect(mockPutSetting).toHaveBeenCalledWith('media_import_extra_files', 'true')
     expect(mockPutSetting).toHaveBeenCalledWith('media_extra_file_extensions', 'srt,nfo')
+  })
+
+  it('persists the staging cleanup toggle', async () => {
+    vi.stubGlobal(
+      'readBody',
+      vi.fn(async () => ({ cleanupStaging: true }))
+    )
+
+    await handler(mockEvent)
+
+    expect(mockPutSetting).toHaveBeenCalledWith('media_cleanup_staging', 'true')
+  })
+
+  it('rejects a non-boolean cleanupStaging', async () => {
+    vi.stubGlobal(
+      'readBody',
+      vi.fn(async () => ({ cleanupStaging: 'true' }))
+    )
+
+    await expect(handler(mockEvent)).rejects.toThrow('400: cleanupStaging must be a boolean')
+    expect(mockPutSetting).not.toHaveBeenCalled()
   })
 })

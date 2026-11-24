@@ -198,9 +198,13 @@ GET /api/browse/tv/1399/season/1?locale=pl
       "torrents": [{ "title": "...", "score": 85, "recommended": true, ... }]
     }
   ],
-  "seasonPacks": [{ ... }]
+  "seasonPacks": [{ "seasons": [1, 2], "...": "..." }],
+  "episodePacks": [{ "seasons": [1, 8], "episodes": [1, 96], "seasonEpisodes": [1, 24], "...": "..." }],
+  "otherTorrents": [{ "...": "..." }]
 }
 ```
+
+`otherTorrents` contains releases that do not map to a known TMDB episode or pack but do belong to the selected season.
 
 ---
 
@@ -230,9 +234,12 @@ GET /api/browse/movie/550/torrents?locale=pl
       "tags": ["BluRay", "x264"],
       "isPrivate": false
     }
-  ]
+  ],
+  "otherTorrents": [{ "...": "..." }]
 }
 ```
+
+`otherTorrents` are loose Prowlarr matches for the movie, never recommended.
 
 ---
 
@@ -259,9 +266,11 @@ Events:
 
 | Event | Description |
 |-------|-------------|
-| `query` | A Prowlarr query started (`state: start`), finished (`state: done`, with `results` count), was skipped after the per-request timeout (`state: skipped`), or failed (`state: failed`) |
+| `query` | A Prowlarr query started (`state: start`), finished (`state: done`, with `results` count), skipped after the per-request timeout or once the 50 s ladder budget is exhausted (`state: skipped`), or failed (`state: failed`) |
 | `done` | Search finished; `data` is the torrent payload (`found: false` when nothing matched) |
 | `error` | `code: limit` (429, download limit reached) or `code: details` (502, TMDB details failed) |
+
+Every title tier is fired (up to 12 queries).
 
 Keepalives are sent as `:keepalive` comments. The search keeps running after a client disconnect so finished queries land in the Prowlarr cache.
 
@@ -291,6 +300,13 @@ POST /api/browse/download
 
 ### Save Paths
 `movies`, `series`, `games`, `books`, `music`
+
+### Torrent source
+Lode resolves the torrent server-side before calling qBittorrent:
+
+- If `magnetLink` is a real, parseable `magnet:` URI, it is passed to qBittorrent as-is - no HTTP request is needed on the qBittorrent side.
+- Otherwise the HTTP source is fetched once by Lode (5 MB cap, 10 s timeout) and the bytes are uploaded to qBittorrent as a `.torrent` file. The source is `downloadUrl`, or `magnetLink` itself when Prowlarr puts its own proxy URL there (`magnetUrl` in the Prowlarr response). A redirect to a valid `magnet:` is followed the same way. This means qBittorrent does not need to reach the indexer or the Prowlarr proxy at all, which matters when it runs in a container or on another host.
+- If that fetch fails (HTML login page, timeout, oversized body), Lode falls back to handing the URL to qBittorrent, so the previous behaviour is preserved.
 
 ### Errors
 | Code | Description |

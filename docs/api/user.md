@@ -68,6 +68,8 @@ POST /api/user/password
 }
 ```
 
+`currentPassword` is required, except for users still flagged with `mustChangePassword`: the forced change is shown right after login, when the user has just authenticated, so re-entering the current password is skipped for them.
+
 ### Errors
 | Code | Description |
 |------|------------|

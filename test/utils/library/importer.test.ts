@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -13,9 +13,11 @@ import {
 // Hardlink support depends on the filesystem (EXDEV, EPERM on SMB/NFS, ...),
 // so the link call is mocked while every other fs helper stays real.
 const mockLink = vi.hoisted(() => vi.fn())
+const realLink = vi.hoisted(() => ({ fn: undefined as unknown as typeof import('node:fs/promises').link }))
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
+  realLink.fn = actual.link
   mockLink.mockImplementation(actual.link)
   return { ...actual, link: mockLink }
 })
@@ -112,6 +114,69 @@ describe('importSingleFile', () => {
     await importSingleFile(source, target, 'copy')
 
     await expect(stat(`${target}.partial`)).rejects.toThrow()
+  })
+
+  it('publishes the complete file in one step, with no empty target window', async () => {
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+    const published: string[] = []
+    mockLink.mockImplementationOnce(async (from: string, to: string) => {
+      published.push(await readFile(from, 'utf8'))
+      return realLink.fn(from, to)
+    })
+
+    await importSingleFile(source, target, 'copy')
+
+    expect(published).toEqual(['video-bytes'])
+    expect(await readFile(target, 'utf8')).toBe('video-bytes')
+  })
+
+  it('reports the copied byte count through the progress callback', async () => {
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+    const reports: number[] = []
+
+    await importSingleFile(source, target, 'copy', (bytes) => reports.push(bytes))
+
+    expect(reports.length).toBeGreaterThan(0)
+    expect(reports).toContain('video-bytes'.length)
+  })
+
+  it('refuses to overwrite an existing target in copy mode', async () => {
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+    await ensureDir(join(workdir, 'library'))
+    await writeFile(target, 'original')
+
+    await expect(importSingleFile(source, target, 'copy')).rejects.toMatchObject({ code: 'EEXIST' })
+    expect(await readFile(target, 'utf8')).toBe('original')
+  })
+
+  it('refuses to overwrite an existing target in move mode', async () => {
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+    await ensureDir(join(workdir, 'library'))
+    await writeFile(target, 'original')
+
+    await expect(importSingleFile(source, target, 'move')).rejects.toMatchObject({ code: 'EEXIST' })
+    expect(await readFile(target, 'utf8')).toBe('original')
+    expect(await readFile(source, 'utf8')).toBe('video-bytes')
+  })
+
+  it('imports only one of two overlapping copies of the same release', async () => {
+    const first = await seedSource('first.mkv', 'first-bytes')
+    const second = await seedSource('second.mkv', 'second-bytes')
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+
+    const outcomes = await Promise.allSettled([
+      importSingleFile(first, target, 'copy'),
+      importSingleFile(second, target, 'copy')
+    ])
+
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1)
+    expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1)
+    expect(await readFile(target, 'utf8')).toMatch(/^(first-bytes|second-bytes)$/)
+    expect((await readdir(join(workdir, 'library'))).some((name) => name.includes('.partial'))).toBe(false)
   })
 })
 

@@ -10,6 +10,10 @@ const { t } = useI18n()
 const toast = useToast()
 const { confirm } = useConfirmDialog()
 
+useSeoMeta({
+  title: () => `${t('admin.sessionsTitle')} | ${t('seo.title')}`
+})
+
 const { user, clear } = useUserSession()
 
 const sessions = ref<Session[]>([])

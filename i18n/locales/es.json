@@ -124,19 +124,30 @@
     "download": "Añadir",
     "limitReached": "Límite",
     "noTorrents": "No se encontraron descargas.",
+    "otherResults": "Otros resultados",
+    "otherResultsHint": "Resultados con un título similar que podrían corresponder a otra película. Se muestran por separado para evitar confusiones.",
     "loadError": "No se pudieron cargar los detalles de la película."
   },
   "tv": {
     "seasons": "Temporadas",
     "seasonPacks": "Paquetes de temporada",
     "seasonPack": "Paquete de temporada",
+    "episodePacks": "Paquetes de episodios",
+    "episodePack": "Paquete de episodios",
+    "episodePackRange": "Temporadas {seasons} · Episodios {episodes}",
+    "downloadEpisodePack": "Añadir paquete",
+    "multiseasonPack": "Temporadas {seasons}",
+    "downloadSeasonsRange": "Añadir temporadas {seasons}",
     "downloadSeason": "Añadir temporada completa",
     "limitReached": "Límite",
     "episodes": "ep.",
     "noTorrents": "No hay descargas disponibles",
     "loadError": "No se pudieron cargar los detalles de la serie.",
     "season_one": "temporada",
-    "season_many": "temporadas"
+    "season_many": "temporadas",
+    "moreResults": "Más resultados",
+    "otherReleases": "Otros lanzamientos",
+    "otherReleasesHint": "Lanzamientos de esta temporada que aún no se han podido asociar a un episodio conocido, por ejemplo un episodio recién emitido."
   },
   "submit": {
     "title": "Añadir torrent",
@@ -276,7 +287,9 @@
   "downloads": {
     "prepReady": "Listo",
     "prepRemainingSec": "~{s}s restantes",
-    "prepRemainingMin": "~{m}m restantes"
+    "prepRemainingMin": "~{m}m restantes",
+    "prepTitle": "Preparación",
+    "prepCopying": "Importando a la biblioteca"
   },
   "admin": {
     "userTitle": "Gestión de usuarios",
@@ -468,7 +481,7 @@
     "qbitAutoRemove": "Eliminar automáticamente los torrents completados",
     "qbitAutoRemoveHint": "Activa esto si qBittorrent elimina los torrents de la lista en cuanto terminan (sin seeding). Una descarga cuyo torrent ha desaparecido pero estaba al menos al 90 % se marcará como completada en lugar de fallida.",
     "qbitSeedingEnabled": "Seeding",
-    "qbitSeedingEnabledHint": "Si se desactiva, los torrents añadidos por Lode dejan de compartirse justo al completarse. Solo afecta a los torrents añadidos por Lode, no cambia los ajustes globales de qBittorrent.",
+    "qbitSeedingEnabledHint": "Si se desactiva, los torrents dejan de compartirse justo al completarse, incluidos los torrents ya seguidos por Lode al desactivarlo. Solo afecta a los torrents seguidos por Lode, no cambia los ajustes globales de qBittorrent.",
     "mediaTitle": "Organización de medios",
     "mediaDesc": "Renombra las descargas terminadas y las importa a las carpetas de la biblioteca, al estilo Radarr.",
     "mediaEnabled": "Organizar archivos tras la descarga",
@@ -485,9 +498,12 @@
     "mediaStagingMissingMovies": "Falta NUXT_DOWNLOAD_PATH_MOVIES: las descargas de películas van directas a la biblioteca y no se pueden organizar.",
     "mediaStagingMissingSeries": "Falta NUXT_DOWNLOAD_PATH_SERIES: las descargas de series van directas a la biblioteca y no se pueden organizar.",
     "mediaExtraFiles": "Importar archivos adicionales",
-    "mediaExtraFilesHint": "Copia subtítulos y archivos auxiliares (nfo, etc.) junto al vídeo importado, como la opción Import Extra Files de Radarr.",
+    "mediaExtraFilesHint": "Importa subtítulos y archivos auxiliares (nfo, etc.) junto al vídeo, desde cada carpeta de la publicación (raíz, subs/, ...), usando el modo de importación seleccionado.",
     "mediaExtraExtensions": "Extensiones de archivos adicionales",
-    "mediaExtraExtensionsHint": "Lista separada por comas, p. ej. srt, sub, ass, nfo. Solo se importan archivos de la misma carpeta que el vídeo.",
+    "mediaExtraExtensionsHint": "Lista separada por comas, p. ej. srt, sub, ass, nfo. Se importan todos los archivos con una de estas extensiones: los auxiliares con el nombre del vídeo lo siguen y el resto queda junto al archivo principal.",
+    "mediaCleanupStaging": "Limpiar el staging tras la importación",
+    "mediaCleanupStagingHint": "Tras una importación correcta, elimina todo lo que el torrent dejó en el staging: carátulas, .screens, .url, .txt y también los archivos de vídeo y subtítulos no importados. También elimina las carpetas de release vacías. Solo en el modo Mover (no queda nada para sembrar). La biblioteca nunca se toca.",
+    "mediaCleanupStagingMoveOnly": "Solo disponible en el modo Mover.",
     "qbittorrentSaved": "Ajustes de qBittorrent guardados",
     "qbittorrentError": "No se pudieron guardar los ajustes de qBittorrent",
     "liveLogs": "Registros en vivo",
@@ -771,6 +787,7 @@
     "seasonFull": "Temporada {season} (completa)",
     "fullSeason": "temporada completa",
     "seasonsPack": "Temporadas {from}-{to} (pack)",
+    "episodesPack": "Temporadas {from}-{to}, episodios {episodeFrom}-{episodeTo} (pack)",
     "completeSeries": "(serie completa)",
     "airedOn": "emitido el {date}",
     "episodeN": "Episodio {n}"

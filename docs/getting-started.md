@@ -14,6 +14,8 @@ cd Lode
 pnpm install
 ```
 
+The setup CLI (`setup.sh` / `setup.ps1` -> `lode-setup`) now includes a download-staging step; accepting it pre-creates `media/downloads/{movies,series}` and sets the staging env vars needed for Admin -> Settings -> Media organization.
+
 ## Configure
 
 ```bash
@@ -25,11 +27,13 @@ Edit `.env` with your settings. At minimum, set:
 ```env
 NUXT_QBITTORRENT_URL=http://localhost:8080
 NUXT_QBITTORRENT_API_KEY=your-qbittorrent-api-key
-NUXT_SESSION_PASSWORD=your-random-32-char-string
+NUXT_APP_SECRET=your-random-32-char-string
 NUXT_PROWLARR_URL=http://127.0.0.1:9900
 NUXT_PROWLARR_API_KEY=your-prowlarr-api-key
 NUXT_TRACKER_ENCRYPTION_KEY=replace_me_with_64_hex_chars
 ```
+
+`NUXT_SESSION_PASSWORD` from older installs is still accepted as a deprecated fallback for `NUXT_APP_SECRET`, but rename it to avoid a warning at startup.
 
 TMDB is optional: leave `NUXT_TMDB_API_KEY` empty and Lode uses its built-in shared key. Set your own key from [themoviedb.org](https://www.themoviedb.org/settings/api) for higher rate limits.
 
