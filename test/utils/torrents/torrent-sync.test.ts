@@ -3,9 +3,14 @@ import { join } from 'node:path'
 
 const mockGetAllTorrents = vi.fn()
 const mockDeleteTorrent = vi.fn()
+const mockFindTorrentByHash = vi.fn(async () => undefined as { save_path: string } | undefined)
 vi.stubGlobal(
   'useQBittorrent',
-  vi.fn(() => ({ getAllTorrents: mockGetAllTorrents, deleteTorrent: mockDeleteTorrent }))
+  vi.fn(() => ({
+    getAllTorrents: mockGetAllTorrents,
+    deleteTorrent: mockDeleteTorrent,
+    findTorrentByHash: mockFindTorrentByHash
+  }))
 )
 
 const mockSettingGet = vi.fn((_cond?: { key?: string }) => undefined as { value: string } | undefined)
@@ -41,13 +46,13 @@ const mockSchema = vi.hoisted(() => ({
   settings: { key: 'key', value: 'value' }
 }))
 
-// The pending sweep queries completed rows with organizeStatus='pending'; the
-// missing-files sweep queries the same status with organizeStatus='done'. The
-// where() mock distinguishes them by the organizeStatus value so each gets its
-// own fixture (and the pending sweep keeps its single-sweep call count).
-function isPendingSweepQuery(cond: unknown): boolean {
-  const parts = (cond as { and?: Array<{ key?: string }> } | undefined)?.and
-  return Array.isArray(parts) && parts.some((part) => part.key === 'pending')
+// The retry sweep queries completed rows with organizeStatus in
+// ['pending', 'failed']; ordinary sync/notify queries use a single status.
+// The where() mock distinguishes them so each gets its own fixture (and the
+// retry sweep keeps its single-sweep call count).
+function isRetrySweepQuery(cond: unknown): boolean {
+  const parts = (cond as { and?: Array<{ in?: string[] }> } | undefined)?.and
+  return Array.isArray(parts) && parts.some((part) => part.in?.includes('pending') === true)
 }
 
 const mockDb = {
@@ -70,7 +75,7 @@ const mockDb = {
     return {
       from: vi.fn((table: unknown) =>
         table === mockSchema.downloads
-          ? { where: vi.fn((cond: unknown) => ({ all: isPendingSweepQuery(cond) ? mockPendingAll : mockActiveAll })) }
+          ? { where: vi.fn((cond: unknown) => ({ all: isRetrySweepQuery(cond) ? mockPendingAll : mockActiveAll })) }
           : { all: mockUsersAll }
       )
     }
@@ -85,7 +90,9 @@ vi.stubGlobal('useRuntimeConfig', () => ({
   savePathSeries: '/data/series',
   savePathGames: '/data/games',
   savePathBooks: '/data/books',
-  savePathMusic: '/data/music'
+  savePathMusic: '/data/music',
+  downloadPathMovies: '/downloads/movies',
+  downloadPathSeries: '/downloads/series'
 }))
 
 vi.mock('#server/database/schema', () => mockSchema)
@@ -206,6 +213,8 @@ describe('syncTorrentStatus', () => {
       cleanupStaging: false
     })
     mockOrganizeCompletedDownload.mockReset()
+    mockFindTorrentByHash.mockReset()
+    mockFindTorrentByHash.mockResolvedValue(undefined)
     mockUseJellyfin.mockReturnValue(null)
     mockJellyfin.notifyMediaUpdated.mockReset()
     mockJellyfin.notifyMediaUpdated.mockResolvedValue(undefined)
@@ -943,6 +952,92 @@ describe('syncTorrentStatus', () => {
     )
   })
 
+  it('records an import error when a completed torrent vanished instead of a clean skip', async () => {
+    mockActiveAll.mockReturnValue([makeDl({ downloadedBytes: 999_500_000 })])
+    mockGetAllTorrents.mockReturnValue([])
+
+    const result = await syncTorrentStatus()
+
+    expect(result).toEqual({ synced: 0, completed: 1, failed: 0, removed: 0 })
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'completed',
+        organizeStatus: 'skipped',
+        organizeError: expect.stringContaining('vanished from qBittorrent')
+      })
+    )
+  })
+
+  it('marks a completed download stranded in staging as failed when organization is disabled', async () => {
+    mockActiveAll.mockReturnValue([])
+    mockPendingAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        organizeStatus: 'pending',
+        torrentHash: 'h1',
+        completedAt: new Date().toISOString()
+      })
+    ])
+    mockFindTorrentByHash.mockResolvedValue({ save_path: '/downloads/movies' })
+
+    await syncTorrentStatus()
+
+    await vi.waitFor(() =>
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizeStatus: 'failed',
+          organizeError: expect.stringContaining('media organization is disabled')
+        })
+      )
+    )
+  })
+
+  it('retries a failed import inside the retry window and stops after it', async () => {
+    mockActiveAll.mockReturnValue([])
+    mockPendingAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        organizeStatus: 'failed',
+        torrentHash: 'h1',
+        completedAt: new Date().toISOString()
+      })
+    ])
+    mockGetMediaConfig.mockResolvedValue({
+      enabled: true,
+      importMode: 'hardlink',
+      importExtraFiles: false,
+      extraFileExtensions: [],
+      cleanupStaging: false
+    })
+    mockOrganizeCompletedDownload.mockResolvedValue({
+      status: 'done',
+      targetRelativePath: 'Movie/Movie.mkv',
+      error: null,
+      importedFiles: 1,
+      skippedFiles: 0,
+      extrasImported: 0
+    })
+
+    await syncTorrentStatus()
+
+    await vi.waitFor(() => expect(mockLog.info).toHaveBeenCalledWith('retrying failed organize: id=dl-1 hash=h1'))
+    await vi.waitFor(() => expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ organizeStatus: 'done' })))
+
+    vi.clearAllMocks()
+    mockPendingAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        organizeStatus: 'failed',
+        torrentHash: 'h1',
+        completedAt: '2020-01-01T00:00:00.000Z'
+      })
+    ])
+
+    await syncTorrentStatus()
+
+    expect(mockOrganizeCompletedDownload).not.toHaveBeenCalled()
+  })
+
   it('skips a young download not yet found in qBittorrent instead of failing it', async () => {
     mockActiveAll.mockReturnValue([
       makeDl({
@@ -1160,6 +1255,67 @@ describe('notifyJellyfinIfNeeded', () => {
 
     expect(mockJellyfin.notifyMediaUpdated).toHaveBeenCalledWith(['/data/movies'])
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
+  })
+
+  it('settles notifiedAt without sending ready notifications for a failed import', async () => {
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        completedAt: completedAtPast(),
+        savePath: 'movies',
+        organizeStatus: 'failed',
+        organizeError: 'staging dir not configured'
+      })
+    ])
+    mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
+    expect(mockJellyfin.invalidateLibraryCache).not.toHaveBeenCalled()
+    expect(mockSendWebhook).not.toHaveBeenCalled()
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+    expect(mockSet).toHaveBeenCalledWith({ notifiedAt: expect.any(String) })
+  })
+
+  it('settles notifiedAt without sending ready notifications for a vanished-torrent skip', async () => {
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        completedAt: completedAtPast(),
+        savePath: 'series',
+        organizeStatus: 'skipped',
+        organizeError: 'torrent vanished from qBittorrent; files could not be located for organization'
+      })
+    ])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
+    expect(mockSendWebhook).not.toHaveBeenCalled()
+    expect(mockNotifyDownloadComplete).not.toHaveBeenCalled()
+    expect(mockSet).toHaveBeenCalledWith({ notifiedAt: expect.any(String) })
+  })
+
+  it('still sends ready notifications for a clean skip when organization is disabled', async () => {
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        completedAt: completedAtPast(),
+        savePath: 'movies',
+        organizeStatus: 'skipped',
+        organizeError: null
+      })
+    ])
+    mockUsersAll.mockReturnValue([{ id: 'u1', username: 'user1', discordId: null }])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockSendWebhook).toHaveBeenCalledTimes(1)
+    expect(mockNotifyDownloadComplete).toHaveBeenCalledTimes(1)
+    expect(mockSet).toHaveBeenCalledWith({ notifiedAt: expect.any(String) })
   })
 
   it('does not wait for an import on a category without media organization', async () => {

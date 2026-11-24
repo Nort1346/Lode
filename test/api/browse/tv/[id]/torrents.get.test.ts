@@ -106,7 +106,7 @@ describe('browse/tv/[id]/torrents.get', () => {
 
     const result = await handler(mockEvent)
 
-    expect(result).toEqual({ torrents: [] })
+    expect(result).toEqual({ torrents: [], otherTorrents: [] })
     expect(mockClient.searchTv).not.toHaveBeenCalled()
   })
 
@@ -133,6 +133,26 @@ describe('browse/tv/[id]/torrents.get', () => {
     })
     expect(mockClient.searchTv).toHaveBeenCalledWith('Show', 'Show', '2020', 'tt9', null, [5000], [])
     expect(mockRankTorrents).toHaveBeenCalledWith([{ title: 'raw' }], 'series', 'Show', '2020', {}, ['Show'], ['2020'])
+  })
+
+  it('keeps loose Prowlarr matches in otherTorrents and never recommends them', async () => {
+    mockUseProwlarr.mockReturnValue(mockClient)
+    mockClient.searchTv.mockResolvedValue([{ title: 'Show.S01E01.1080p' }, { title: 'Other.Show.S01E01.1080p' }])
+    mockRankTorrents.mockImplementation((results: unknown[]) =>
+      (results as Array<{ title: string }>).map((r) => ({ ...ranked(), title: r.title, recommended: true }))
+    )
+    mockGetTvShowDetails.mockResolvedValue({
+      id: 456,
+      name: 'Show',
+      original_name: 'Show',
+      first_air_date: '2020-02-02'
+    })
+
+    const result = await handler(mockEvent)
+
+    expect(result.torrents.map((t) => t.title)).toEqual(['Show.S01E01.1080p'])
+    expect(result.otherTorrents.map((t) => t.title)).toEqual(['Other.Show.S01E01.1080p'])
+    expect(result.otherTorrents[0]?.recommended).toBe(false)
   })
 
   it('retries with the original name when the first search is empty', async () => {

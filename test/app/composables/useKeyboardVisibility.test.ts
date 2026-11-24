@@ -29,6 +29,12 @@ let visible: Ref<boolean>
 let viewport: FakeVisualViewport | undefined
 let app: App
 let root: HTMLElement
+let orientationAngle = 0
+
+Object.defineProperty(window.screen, 'orientation', {
+  configurable: true,
+  get: () => ({ angle: orientationAngle })
+})
 
 /** Pass `null` as initialHeight to simulate a browser without visualViewport */
 function mount(initialHeight: number | null, innerHeight: number, threshold = 100) {
@@ -63,6 +69,7 @@ describe('useKeyboardVisibility', () => {
   afterEach(() => {
     app.unmount()
     root.remove()
+    orientationAngle = 0
   })
 
   it('starts hidden and detects the keyboard when the visual viewport shrinks (iOS behaviour)', () => {
@@ -109,6 +116,19 @@ describe('useKeyboardVisibility', () => {
     expect(visible.value).toBe(false)
 
     setViewport(550)
+    expect(visible.value).toBe(true)
+  })
+
+  it('re-baselines on rotation so landscape is not mistaken for an open keyboard', () => {
+    mount(800, 800)
+    expect(visible.value).toBe(false)
+
+    orientationAngle = 90
+    setViewport(400, 400)
+    expect(visible.value).toBe(false)
+
+    // The keyboard can still be detected in the new orientation
+    setViewport(220, 220)
     expect(visible.value).toBe(true)
   })
 

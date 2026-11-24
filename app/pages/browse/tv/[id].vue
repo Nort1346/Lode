@@ -275,7 +275,7 @@
               @download="
                 downloadTorrent(
                   pack.magnetLink,
-                  seasonPackLabel(pack),
+                  episodePackLabel(pack),
                   `episode-pack-${idx}`,
                   'pack',
                   pack.guid,
@@ -394,7 +394,7 @@ import type { EpisodeTorrent } from '~/types/media'
 import type { RequestStatus } from '~/types/requests'
 import type { AddTorrentResponse } from '~/types/downloads'
 import { emptyFilters, hasActiveFilters, matchesFilters, torrentKey } from '#shared/torrent-filters'
-import { seasonPackDownloadLabel } from '~/utils/season-label'
+import { episodePackLabelParts, seasonPackDownloadLabel } from '~/utils/season-label'
 import type { TorrentFilterItem, TorrentFiltersState } from '#shared/torrent-filters'
 
 const route = useRoute()
@@ -562,6 +562,11 @@ const hiddenCount = computed(() => seasonItems.value.length - visibleCount.value
 
 function seasonPackLabel(pack: { seasons: number[] }): string {
   return seasonPackDownloadLabel(show.value?.name ?? '', pack.seasons ?? [], selectedSeason.value)
+}
+
+function episodePackLabel(pack: { seasons: number[]; episodes: number[] }): string {
+  const parts = episodePackLabelParts(pack.seasons ?? [], pack.episodes ?? [], selectedSeason.value)
+  return `${show.value?.name ?? ''} ${t('discord.episodesPack', parts)}`
 }
 
 function isPrivateLimitExceeded(isPrivate: boolean): boolean {

@@ -29,7 +29,7 @@ Media organization with download staging, live import progress and a ready notif
 - Preparation: the bar is now amber and follows the slower of the two gates (`min(countdown %, import %)`), so it reaches 100% exactly when the ready event fires; the dashboard keeps preparing rows (`completed` with `notifiedAt: null`) visible next to active downloads and removes them on the ready SSE event. "Preparing" is a UI phase, not a new DB status (b7798acd, ebc462a2)
 - Browse: the phone suggestion list is only shown while the search input is focused and the virtual keyboard is open on coarse-pointer devices; the All / Movies / TV Shows control gets a sliding type indicator (9590ce35)
 - Auth UI: the forced password change dialog asks only for the new password and its confirmation, with show/hide toggles for both fields (91df4d8d, ccc2785a)
-- PWA: `@vite-pwa/nuxt` 2.x migrates `workbox` to `generateSW` and drops `importScripts`; `/sw-push.js` is no longer injected into the generated service worker, so push delivery needs verification (3b611780)
+- PWA: `@vite-pwa/nuxt` 2.x replaces the deprecated `workbox` options with an `injectManifest` custom worker, keeping precaching and auto-update intact (3b611780)
 - Setup/Docker: the bootstraps try older non-prerelease releases when `latest` has no CLI binaries; pnpm is pinned to 12.4.1 in the Docker `base` stage; bare install stages skip `nuxt prepare` when `nuxt.config.ts` is absent; the production server starts through `scripts/start.mjs` (a22ae14f, ba44c521, 25a430e8, ae0b1e6d)
 - Types: duplicate auto-imported type names removed (`SyncProviderRecord`, `SyncUserSettingsRecord`, `ServiceRuntimeStatus`); `ParsedTitle` and `RankedTorrent` moved to `server/types/torrent.ts` (6bab50c6)
 - i18n: dropped the Radarr reference from the extra-files hint (3d262170)
@@ -48,6 +48,20 @@ Media organization with download staging, live import progress and a ready notif
 - API: `@node-rs/bcrypt` v2 receives the cost as an options object; named `$fetch` response types avoid Nuxt 4.6 typed-route depth errors (515891c4, 06baeb8b, 5a194b4c)
 - Setup: fall back to older releases when the latest binary download fails; override `simple-git` to 4.0.2 (a22ae14f, 1472eef2)
 - UI: Lode wordmark SVG replaced with WebP for consistent rendering (f8725fce)
+- PWA: push notifications work again under `@vite-pwa/nuxt` 2.x - the registered worker is a custom `public/sw.js` built with `injectManifest` that loads `/sw-push.js`, so push, notification click, and VAPID re-subscribe handlers are active
+- Prowlarr: the TV cache key now includes the season and the title candidates, so switching season or language no longer serves results cached for another season
+- Prowlarr: a 429 `Retry-After` backoff is abortable and capped to the request deadline, so a huge retry header cannot stall the query ladder
+- Downloads: a magnet still fetching metadata (`size = 0`) is no longer marked completed, and the detail endpoint no longer resets `completedAt` on every read, so the prep countdown and ready notification fire correctly
+- Media organization: torrents vanishing before sync, failed imports, and downloads stranded in staging no longer emit a false "ready" notification; failures are surfaced on the row, with bounded retries for transient import errors
+- Media organization: failed extra-file copies now count as failures, so `move` plus staging cleanup cannot delete a subtitle or NFO that never reached the library
+- Media organization: single-file season, episode, and complete-series packs are imported instead of failing organization, and unknown videos are skipped rather than failing the pack
+- Library: imports reserve the target with exclusive create, so two concurrent downloads of the same release cannot overwrite each other
+- Browse: separated episode ranges (`S01.E01-E24`) parse as ranges, `Season 1-3 and 5` expands correctly, and wrong-show releases are no longer marked recommended on TV pages
+- Browse: absolute episode ranges split by TMDB season counts, group prefixes such as `RARBG` no longer produce a false loose match, and the legacy TV torrents endpoint returns `otherTorrents`
+- UI: mobile suggestions re-baseline on rotation, budget-skipped Prowlarr queries are visible in search progress, and episode packs use an episode-pack label instead of "Season Pack"
+- Security: the Prowlarr URL trust check parses URLs instead of comparing string prefixes, closing a userinfo-based SSRF bypass in server-side torrent fetching
+- Setup: the deprecated `NUXT_SESSION_PASSWORD` fallback also applies to `pnpm preview`, and stale commented secrets are removed from `.env` during migration
+- Seeding: a fetched hash is stored when add-verification times out, so the retroactive seeding toggle can still apply to that torrent
 
 ### Removed
 

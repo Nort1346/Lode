@@ -1,4 +1,4 @@
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { downloads, users, settings } from '#server/database/schema'
 import { and, eq, inArray } from 'drizzle-orm'
 import { useDbAsync, dbGet, dbAll, dbRun } from '#server/utils/db'
@@ -36,6 +36,10 @@ const AUTO_REMOVE_COMPLETE_MIN_PROGRESS = 90
 // progress, e.g. guid fetch + file upload). Within this grace window it is
 // skipped instead of being marked failed.
 const NEW_DOWNLOAD_GRACE_MS = 2 * 60 * 1000
+
+// A failed import is retried for a bounded window after completion, long enough
+// to heal a transient staging/config problem without retrying forever.
+const FAILED_ORGANIZE_RETRY_WINDOW_MS = 10 * NEW_DOWNLOAD_GRACE_MS
 
 let firstSyncReported = false
 const zeroSeedDownloads = new Set<string>()
@@ -122,6 +126,30 @@ async function notifyOrganizedFolder(input: {
   }
 }
 
+// A download added while organization was enabled can be sitting in staging
+// when the admin disables it before completion. With no import to run, its
+// files are stranded; report that instead of a clean skip that would announce
+// the download as ready.
+async function isStrandedInStaging(hash: string): Promise<boolean> {
+  const config = useRuntimeConfig()
+  const staging = [config.downloadPathMovies, config.downloadPathSeries]
+    .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+    .map((value) => resolve(value))
+  if (staging.length === 0) return false
+
+  let savePath: string
+  try {
+    const torrent = await useQBittorrent().findTorrentByHash(hash)
+    savePath = torrent?.save_path ?? ''
+  } catch {
+    return false
+  }
+  if (savePath === '') return false
+
+  const resolved = resolve(savePath)
+  return staging.some((dir) => dir === resolved)
+}
+
 // Best-effort library import for a freshly completed download. Never throws:
 // any failure is persisted on the row as organizeStatus='failed' so the sync
 // loop keeps working and the admin can see the reason.
@@ -140,16 +168,45 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
       // path finished first). Re-read it and leave settled rows alone instead of
       // overwriting 'done' with the result of a duplicate import.
       const current = await dbGet(
-        db.select({ status: downloads.organizeStatus }).from(downloads).where(eq(downloads.id, source.id))
+        db
+          .select({ status: downloads.organizeStatus, error: downloads.organizeError })
+          .from(downloads)
+          .where(eq(downloads.id, source.id))
       )
-      if (current !== undefined && current.status !== 'pending') {
-        log.info(`organize skipped, row already settled: id=${source.id} status=${current.status}`)
+      const previousStatus = current?.status
+      if (previousStatus !== undefined && previousStatus !== 'pending' && previousStatus !== 'failed') {
+        log.info(`organize skipped, row already settled: id=${source.id} status=${previousStatus}`)
         return
       }
 
       const media = await getMediaConfig()
       if (!media.enabled) {
-        await dbRun(db.update(downloads).set({ organizeStatus: 'skipped' }).where(eq(downloads.id, source.id)))
+        if (await isStrandedInStaging(hash)) {
+          await dbRun(
+            db
+              .update(downloads)
+              .set({
+                organizeStatus: 'failed',
+                organizeError:
+                  'download is in the staging dir but media organization is disabled; files were not imported'
+              })
+              .where(eq(downloads.id, source.id))
+          )
+        } else if (previousStatus === 'failed') {
+          await dbRun(
+            db
+              .update(downloads)
+              .set({ organizeStatus: 'failed', organizeError: 'media organization disabled; import not retried' })
+              .where(eq(downloads.id, source.id))
+          )
+        } else {
+          await dbRun(
+            db
+              .update(downloads)
+              .set({ organizeStatus: 'skipped', organizeError: null })
+              .where(eq(downloads.id, source.id))
+          )
+        }
         return
       }
       const config = useRuntimeConfig()
@@ -218,21 +275,27 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
 // A crash between marking a download completed and persisting the import
 // result leaves organizeStatus='pending' on a completed row. Retrying those on
 // every sync heals a missed import without a manual re-download, even when
-// nothing is actively downloading. Only one sweep runs at a time: a second one
-// would work from the same snapshot and could re-import a row that the first
-// sweep already settled.
+// nothing is actively downloading. Failed imports are retried for a bounded
+// window after completion so a transient staging/config problem can recover.
+// Only one sweep runs at a time: a second one would work from the same snapshot
+// and could re-import a row that the first sweep already settled.
 async function retryPendingOrganizes(): Promise<void> {
   if (pendingSweepRunning) return
   pendingSweepRunning = true
 
   try {
     const db = await useDbAsync()
-    const pending = await dbAll(
+    const candidates = await dbAll(
       db
         .select()
         .from(downloads)
-        .where(and(eq(downloads.status, 'completed'), eq(downloads.organizeStatus, 'pending')))
+        .where(and(eq(downloads.status, 'completed'), inArray(downloads.organizeStatus, ['pending', 'failed'])))
     )
+    const retryCutoff = Date.now() - FAILED_ORGANIZE_RETRY_WINDOW_MS
+    const pending = candidates.filter((dl) => {
+      if (dl.organizeStatus === 'pending') return true
+      return dl.completedAt !== null && new Date(dl.completedAt).getTime() >= retryCutoff
+    })
 
     for (const dl of pending) {
       if (organizeInflight.has(dl.id)) continue
@@ -253,7 +316,9 @@ async function retryPendingOrganizes(): Promise<void> {
         continue
       }
 
-      log.info(`retrying pending organize: id=${dl.id} hash=${hash}`)
+      log.info(
+        `${dl.organizeStatus === 'failed' ? 'retrying failed' : 'retrying pending'} organize: id=${dl.id} hash=${hash}`
+      )
       await organizeAfterComplete(
         {
           id: dl.id,
@@ -316,11 +381,30 @@ function notifyDiscord(
     })
 }
 
-// A completed media row whose library import has not settled yet. The ready
-// notification must wait for it: pointing Jellyfin (or a push) at a folder the
-// import is still writing would announce media that is not there yet.
-function waitsForImport(dl: Pick<DownloadRow, 'savePath' | 'organizeStatus'>): boolean {
-  return (dl.savePath === 'movies' || dl.savePath === 'series') && dl.organizeStatus === 'pending'
+type ImportNotificationState = 'wait' | 'ready' | 'suppress'
+
+// 'wait' holds the notification while an import is still running, 'ready'
+// sends it, 'suppress' only settles notifiedAt so the row stops showing as
+// "preparing" without announcing media that was never imported.
+function importNotificationState(
+  dl: Pick<DownloadRow, 'savePath' | 'organizeStatus' | 'organizeError'>
+): ImportNotificationState {
+  if (dl.savePath !== 'movies' && dl.savePath !== 'series') return 'ready'
+
+  switch (dl.organizeStatus) {
+    case 'pending':
+      return 'wait'
+    case 'done':
+      return 'ready'
+    case 'skipped':
+      // An organization-disabled row has a clean skip; any error means the
+      // files were not imported (vanished torrent, stranded staging, ...).
+      return dl.organizeError === null || dl.organizeError === '' ? 'ready' : 'suppress'
+    case 'failed':
+      return 'suppress'
+    default:
+      return 'ready'
+  }
 }
 
 // Tracker sample for one row; the fields that come from qBittorrent or from the
@@ -485,8 +569,11 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
               status: 'completed',
               completedAt: new Date().toISOString(),
               // The torrent is gone from qBittorrent, so its files cannot be
-              // located reliably - nothing to organize.
-              organizeStatus: 'skipped'
+              // located reliably. Keep the reason on the row: a skipped import
+              // must never produce a "ready" signal for media that was never
+              // placed in the library.
+              organizeStatus: 'skipped',
+              organizeError: 'torrent vanished from qBittorrent; files could not be located for organization'
             })
             .where(eq(downloads.id, dl.id))
         )
@@ -718,42 +805,44 @@ async function notifyJellyfinIfNeededOnce(): Promise<void> {
     const prepDelay = countdownEnabled ? dl.sizeBytes / prepSpeedBytes : 0
 
     // A waiting import is part of "preparation": notifying now would point
-    // Jellyfin at a folder that does not exist yet. A pending organize on a
-    // completed movie/series row settles on this or the next sync tick (a
-    // disabled organization is marked skipped immediately), so gating on the
-    // row alone is fail-closed - no config read that could fail open.
-    // Categories without an import (games/books/music) are unaffected.
-    const importPending = waitsForImport(dl)
+    // Jellyfin at a folder that does not exist yet. Gating on the row alone is
+    // fail-closed - no config read that could fail open. Categories without an
+    // import (games/books/music) are unaffected.
+    const importState = importNotificationState(dl)
 
-    if (elapsed >= prepDelay && !importPending) {
-      if (jellyfin !== null) {
-        const targetPath = savePathMap[dl.savePath]
-        if (targetPath !== undefined) {
-          // Point Jellyfin at the organized file folder when the import ran,
-          // otherwise fall back to the library root.
-          const notifyPath =
-            typeof dl.organizedPath === 'string' && dl.organizedPath !== ''
-              ? join(targetPath, dirname(dl.organizedPath))
-              : targetPath
-          await jellyfin.notifyMediaUpdated([notifyPath]).catch(() => {})
-          needsCacheInvalidation = true
+    if (elapsed >= prepDelay && importState !== 'wait') {
+      if (importState === 'ready') {
+        if (jellyfin !== null) {
+          const targetPath = savePathMap[dl.savePath]
+          if (targetPath !== undefined) {
+            // Point Jellyfin at the organized file folder when the import ran,
+            // otherwise fall back to the library root.
+            const notifyPath =
+              typeof dl.organizedPath === 'string' && dl.organizedPath !== ''
+                ? join(targetPath, dirname(dl.organizedPath))
+                : targetPath
+            await jellyfin.notifyMediaUpdated([notifyPath]).catch(() => {})
+            needsCacheInvalidation = true
+          }
         }
+        // Sent here even with the countdown disabled: the import gate is the
+        // reason the notification waited, so the countdown flag only controls
+        // the delay, never who sends.
+        void notifyDiscord(dl, userMap, discordIdMap)
+        void notifyDownloadComplete(
+          dl.userId,
+          dl.id,
+          dl.mediaType,
+          dl.label || dl.torrentName || 'Download',
+          dl.posterUrl,
+          dl.sizeBytes,
+          dl.savePath,
+          dl.tmdbId,
+          dl.torrentName
+        )
+      } else {
+        log.info(`skipping ready notification for failed import: id=${dl.id} status=${dl.organizeStatus}`)
       }
-      // Sent here even with the countdown disabled: the import gate is the
-      // reason the notification waited, so the countdown flag only controls
-      // the delay, never who sends.
-      void notifyDiscord(dl, userMap, discordIdMap)
-      void notifyDownloadComplete(
-        dl.userId,
-        dl.id,
-        dl.mediaType,
-        dl.label || dl.torrentName || 'Download',
-        dl.posterUrl,
-        dl.sizeBytes,
-        dl.savePath,
-        dl.tmdbId,
-        dl.torrentName
-      )
       await dbRun(db.update(downloads).set({ notifiedAt: new Date().toISOString() }).where(eq(downloads.id, dl.id)))
     }
   }

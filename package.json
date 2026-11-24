@@ -36,7 +36,7 @@
     "build": "nuxt build",
     "dev": "node scripts/migrate.mjs && nuxt dev",
     "build:preview": "pnpm run build && pnpm run preview --host",
-    "preview": "node scripts/migrate.mjs && nuxt preview",
+    "preview": "node scripts/migrate.mjs && node scripts/preview.mjs",
     "start": "node scripts/start.mjs",
     "postinstall": "node scripts/nuxt-prepare.mjs",
     "prepare": "node scripts/prepare.mjs",

@@ -73,20 +73,37 @@ function multiEpisodeToken(token: string): { season: number; episodes: number[] 
 const SEASON_CONJUNCTIONS = new Set(['and', 'i', 'oraz', 'or', '&'])
 
 /**
+ * Dash-joined numbers in the raw name (tokenization splits `-`). Only pairs
+ * whose two ends are both listed in the season group are used, so episode
+ * ranges and year spans cannot expand it.
+ */
+function seasonDashRanges(lower: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = []
+  for (const match of lower.matchAll(/(?<![0-9a-z])(\d{1,2})\s*-\s*(\d{1,2})(?!\d)/g)) {
+    const index = match.index ?? 0
+    // The tail of a date such as `2024-05-12` is not a season range.
+    if (/[0-9]-\s*$/.test(lower.slice(Math.max(0, index - 3), index))) continue
+    const from = Number.parseInt(match[1] ?? '', 10)
+    const to = Number.parseInt(match[2] ?? '', 10)
+    if (from >= 1 && to >= from && to <= MAX_SEASON) ranges.push([from, to])
+  }
+  return ranges
+}
+
+/**
  * Reads a group of season numbers after a `season`/`sezon` keyword:
- * `Season 1`, `Seasons 1 and 2`, `Sezon 1 i 3`, `Season 1-2`.
- * Only an explicit dash range (`Season 1-3`) is expanded into every season in
- * between; numbers joined by a conjunction or listed side by side are a set.
+ * `Season 1`, `Seasons 1 and 2`, `Sezon 1 i 3`, `Season 1-3 and 5`.
+ * An explicit dash range expands even when a conjunction follows it; numbers
+ * joined only by conjunctions stay an explicit set.
  */
 function parseSeasonGroup(
   tokens: string[],
   start: number,
-  expandRange: boolean
-): { seasons: number[]; end: number; expand: boolean } {
+  ranges: Array<[number, number]>
+): { seasons: number[]; end: number } {
   const seasons: number[] = []
   let index = start
   let expectNumber = true
-  let hasConjunction = false
 
   while (index < tokens.length) {
     const token = tokens[index] ?? ''
@@ -99,7 +116,6 @@ function parseSeasonGroup(
       continue
     }
     if (SEASON_CONJUNCTIONS.has(token)) {
-      hasConjunction = true
       expectNumber = true
       index++
       continue
@@ -112,7 +128,12 @@ function parseSeasonGroup(
     break
   }
 
-  return { seasons: uniqSorted(seasons), end: index - 1, expand: expandRange && !hasConjunction }
+  const listed = uniqSorted(seasons)
+  const expanded = [...listed]
+  for (const [from, to] of ranges) {
+    if (listed.includes(from) && listed.includes(to)) expanded.push(...rangeList(from, to))
+  }
+  return { seasons: uniqSorted(expanded), end: index - 1 }
 }
 
 function seasonToken(token: string): number | null {
@@ -130,6 +151,16 @@ function tailEpisodeToken(token: string): number | null {
   if (m === null) return null
   const episode = Number.parseInt(m[1] ?? '', 10)
   return episode >= 1 && episode <= MAX_EPISODE ? episode : null
+}
+
+function adjacentEpisodeTokens(tokens: string[], start: number): number[] {
+  const episodes: number[] = []
+  for (let i = start; i < tokens.length; i++) {
+    const episode = tailEpisodeToken(tokens[i] ?? '')
+    if (episode === null) break
+    episodes.push(episode)
+  }
+  return episodes
 }
 
 function keywordEpisodeToken(token: string): number | null {
@@ -192,8 +223,7 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
 
   const pack = parseEpisodePack(lower)
   if (pack !== null) return pack
-  // Only a real dash range expands; "Seasons 1 3" stays the explicit set {1,3}.
-  const hasSeasonRange = /(?:^|[^a-z])(?:season|sezon)s?[\s._]*\d{1,2}\s*-\s*\d{1,2}(?![0-9])/.test(lower)
+  const seasonRanges = seasonDashRanges(lower)
 
   const epTokens: Array<{ season: number; episode: number }> = []
   const multiRanges: Array<{ season: number; episodes: number[] }> = []
@@ -207,13 +237,11 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
 
     // Keyword forms: `season 1`, `seasons 1 and 2`, `sezon 1 i 2`, `season 1-3`.
     if (token === 'season' || token === 'seasons' || token === 'sezon' || token === 'sezony') {
-      const group = parseSeasonGroup(tokens, i + 1, hasSeasonRange)
+      const group = parseSeasonGroup(tokens, i + 1, seasonRanges)
       if (group.seasons.length >= 2) {
-        const from = group.seasons[0] ?? 0
-        const to = group.seasons[group.seasons.length - 1] ?? 0
         return {
           kind: 'multiseason-pack',
-          seasons: group.expand ? rangeList(from, to) : group.seasons,
+          seasons: group.seasons,
           episodes: [],
           airDate: null
         }
@@ -240,16 +268,16 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
 
     const single = singleEpisodeToken(token)
     if (single !== null) {
-      epTokens.push(single)
-      // `S01E01-E03` splits into `s01e01`, `e03`: a trailing e-token within
-      // two positions extends the range.
-      const tail = tailEpisodeToken(tokens[i + 1] ?? '')
-      if (tail !== null) {
-        const from = Math.min(single.episode, tail)
-        const to = Math.max(single.episode, tail)
+      // `S01E01-E03` splits into `s01e01`, `e03`: adjacent trailing e-tokens
+      // extend the range instead of being ignored.
+      const tailEpisodes = adjacentEpisodeTokens(tokens, i + 1)
+      if (tailEpisodes.length > 0) {
+        const from = Math.min(single.episode, ...tailEpisodes)
+        const to = Math.max(single.episode, ...tailEpisodes)
         multiRanges.push({ season: single.season, episodes: rangeList(from, to) })
-        epTokens.pop()
-        i++
+        i += tailEpisodes.length
+      } else {
+        epTokens.push(single)
       }
       continue
     }
@@ -262,10 +290,20 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
       continue
     }
 
-    // A lone `s01` followed by `e02` (`Show.S01.E02`) is one episode.
+    // A lone `s01` followed by `e02` (`Show.S01.E02`) is one episode. Dashes
+    // are token separators too, so `S01.E01-E24` arrives as `s01`, `e01`,
+    // `e24` and must become a range rather than a single episode.
     const tail = tailEpisodeToken(token)
     if (tail !== null && pendingSeason !== null && i - pendingSeasonIdx <= 1) {
-      epTokens.push({ season: pendingSeason, episode: tail })
+      const tailEpisodes = adjacentEpisodeTokens(tokens, i + 1)
+      if (tailEpisodes.length > 0) {
+        const from = Math.min(tail, ...tailEpisodes)
+        const to = Math.max(tail, ...tailEpisodes)
+        multiRanges.push({ season: pendingSeason, episodes: rangeList(from, to) })
+        i += tailEpisodes.length
+      } else {
+        epTokens.push({ season: pendingSeason, episode: tail })
+      }
       seasonTokens.pop()
       pendingSeason = null
       continue

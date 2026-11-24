@@ -138,6 +138,24 @@ describe('useTorrentSearch', () => {
     expect(s.phase.value).toBe('finishing')
   })
 
+  it('surfaces budget-skipped ladder queries with the other skipped queries', () => {
+    const s = use()
+    s.start('/api/stream')
+    const es = MockEventSource.instances[0]!
+
+    es.emit({ type: 'start', queries: 3 })
+    es.emit({ type: 'query', state: 'skipped', index: 1, total: 3, text: 'Alt A' })
+    es.emit({ type: 'query', state: 'skipped', index: 2, total: 3, text: 'Alt B' })
+    es.emit({ type: 'query', state: 'done', index: 3, total: 3, text: 'Main', results: 5 })
+
+    expect(s.skippedQueries.value).toEqual([
+      { text: 'Alt A', reason: 'timeout' },
+      { text: 'Alt B', reason: 'timeout' }
+    ])
+    expect(s.queriesCompleted.value).toBe(3)
+    expect(s.phase.value).toBe('finishing')
+  })
+
   it('resets skippedQueries on a second start event', () => {
     const s = use()
     s.start('/api/stream')

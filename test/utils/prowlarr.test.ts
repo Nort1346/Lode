@@ -46,6 +46,7 @@ vi.mock('#server/utils/db', () => ({
 
 import {
   ProwlarrClient,
+  ProwlarrTimeoutError,
   getTrackerType,
   getTrackerCookieConfig,
   isPrivateTracker,
@@ -371,7 +372,14 @@ describe('ProwlarrClient', () => {
     const results = await client.searchMovie('Movie', 'Original Movie', ['Alt Movie'], '2020', [2000])
 
     const queries = mockFetch.mock.calls.map((call) => new URL(String(call[0])).searchParams.get('query') ?? '')
-    expect(queries).toEqual(['Movie 2020', 'Movie', 'Original Movie 2020', 'Original Movie', 'Alt Movie 2020', 'Alt Movie'])
+    expect(queries).toEqual([
+      'Movie 2020',
+      'Movie',
+      'Original Movie 2020',
+      'Original Movie',
+      'Alt Movie 2020',
+      'Alt Movie'
+    ])
     expect(results.map((r) => r.title)).toEqual(
       expect.arrayContaining([
         'Hit:Movie 2020',
@@ -590,6 +598,18 @@ describe('ProwlarrClient', () => {
 
     await expect(client.searchByQuery('X')).rejects.toThrow('Prowlarr API error 429')
     expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('aborts a huge Retry-After wait at the request deadline without retrying', async () => {
+    mockCacheGet.mockResolvedValue(null)
+    mockFetch.mockResolvedValueOnce(rateLimited('3600'))
+    const client = new ProwlarrClient('http://p', 'k', 100)
+
+    const started = Date.now()
+    await expect(client.searchByQuery('X')).rejects.toBeInstanceOf(ProwlarrTimeoutError)
+
+    expect(Date.now() - started).toBeLessThan(2000)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
   it('emits start and per-query progress events through the movie ladder', async () => {

@@ -209,6 +209,29 @@ function isAbortError(err: unknown): boolean {
   return err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')
 }
 
+// Resolves (rather than rejects) on abort so callers can turn it into the same
+// ProwlarrTimeoutError a timed-out fetch produces, and never reach the retry.
+function waitForAbortOrTimeout(delayMs: number, signal: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (signal.aborted) {
+      resolve()
+      return
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, delayMs)
+    const onAbort = () => {
+      clearTimeout(timer)
+      resolve()
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+    if (signal.aborted) {
+      onAbort()
+    }
+  })
+}
+
 function uniqueNames(names: string[]): string[] {
   const seen = new Set<string>()
   const result: string[] = []
@@ -235,10 +258,7 @@ function uniqueNames(names: string[]): string[] {
 function buildNameTiers(names: string[], seasonPad: string | null, year: string): string[][] {
   const tiers: string[][] = []
   for (const name of names) {
-    const tier =
-      seasonPad !== null
-        ? [`${name} S${seasonPad}`.trim(), name]
-        : [`${name} ${year}`.trim(), name]
+    const tier = seasonPad !== null ? [`${name} S${seasonPad}`.trim(), name] : [`${name} ${year}`.trim(), name]
     tiers.push(uniqueNames(tier))
   }
   return tiers
@@ -320,17 +340,22 @@ export class ProwlarrClient {
     }
 
     // One deadline per request, covering the 429 backoff and retry as well
+    const startedAt = Date.now()
     const signal = AbortSignal.timeout(timeoutMs)
     let response = await this.fetchWithTimeout(url.toString(), signal, timeoutMs)
     if (response.status === 429) {
       // Back off before one retry - indexers behind Prowlarr rate-limit hard,
       // and hammering a 429 only lengthens the cooldown. Honor Retry-After
-      // (seconds) when present, otherwise use a fixed delay.
+      // (seconds) when present, otherwise use a fixed delay. A large header
+      // must not hold the slot past the request deadline or ignore an abort.
       const retryAfterHeader = response.headers.get('retry-after')
       const retryAfter = retryAfterHeader !== null ? Number(retryAfterHeader) : NaN
-      const delayMs = Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter * 1000 : RATE_LIMIT_BACKOFF_MS
+      const requestedDelayMs =
+        Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter * 1000 : RATE_LIMIT_BACKOFF_MS
+      const remainingMs = Math.max(0, startedAt + timeoutMs - Date.now())
+      const delayMs = Math.min(requestedDelayMs, remainingMs)
       log.warn(`Prowlarr returned 429, backing off ${delayMs}ms before one retry`)
-      await new Promise<void>((resolve) => setTimeout(resolve, delayMs))
+      await waitForAbortOrTimeout(delayMs, signal)
       if (signal.aborted) {
         throw new ProwlarrTimeoutError(`Prowlarr request timed out after ${timeoutMs}ms`)
       }

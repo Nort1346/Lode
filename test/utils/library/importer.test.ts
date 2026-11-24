@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -123,6 +123,43 @@ describe('importSingleFile', () => {
 
     expect(reports.length).toBeGreaterThan(0)
     expect(reports).toContain('video-bytes'.length)
+  })
+
+  it('refuses to overwrite an existing target in copy mode', async () => {
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+    await ensureDir(join(workdir, 'library'))
+    await writeFile(target, 'original')
+
+    await expect(importSingleFile(source, target, 'copy')).rejects.toMatchObject({ code: 'EEXIST' })
+    expect(await readFile(target, 'utf8')).toBe('original')
+  })
+
+  it('refuses to overwrite an existing target in move mode', async () => {
+    const source = await seedSource()
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+    await ensureDir(join(workdir, 'library'))
+    await writeFile(target, 'original')
+
+    await expect(importSingleFile(source, target, 'move')).rejects.toMatchObject({ code: 'EEXIST' })
+    expect(await readFile(target, 'utf8')).toBe('original')
+    expect(await readFile(source, 'utf8')).toBe('video-bytes')
+  })
+
+  it('imports only one of two overlapping copies of the same release', async () => {
+    const first = await seedSource('first.mkv', 'first-bytes')
+    const second = await seedSource('second.mkv', 'second-bytes')
+    const target = join(workdir, 'library', 'Dune (2021).mkv')
+
+    const outcomes = await Promise.allSettled([
+      importSingleFile(first, target, 'copy'),
+      importSingleFile(second, target, 'copy')
+    ])
+
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1)
+    expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1)
+    expect(await readFile(target, 'utf8')).toMatch(/^(first-bytes|second-bytes)$/)
+    expect((await readdir(join(workdir, 'library'))).some((name) => name.includes('.partial'))).toBe(false)
   })
 })
 

@@ -40,6 +40,7 @@ export default defineEventHandler(async (event) => {
         const isChecking = CHECKING_STATES.has(torrent.state)
         const isComplete =
           !isChecking &&
+          torrent.size > 0 &&
           (torrent.completion_on > 0 ||
             torrent.downloaded >= torrent.size ||
             progressPct >= 99.9 ||
@@ -47,6 +48,8 @@ export default defineEventHandler(async (event) => {
         const isPaused = !isComplete && !isChecking && PAUSED_DOWNLOAD_STATES.has(torrent.state)
         const inactive = isComplete || isPaused || isChecking
         const status = isComplete ? 'completed' : isChecking ? 'checking' : isPaused ? 'paused' : 'downloading'
+        const completedAt =
+          isComplete && download.status !== 'completed' ? new Date().toISOString() : (download.completedAt ?? null)
 
         await dbRun(
           db
@@ -58,7 +61,7 @@ export default defineEventHandler(async (event) => {
               uploadSpeed: inactive ? 0 : torrent.upspeed,
               downloadedBytes: torrent.downloaded,
               status,
-              completedAt: isComplete ? new Date().toISOString() : null
+              completedAt
             })
             .where(eq(downloads.id, id))
         )

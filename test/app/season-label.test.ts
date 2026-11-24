@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { seasonPackDownloadLabel, seasonRangeLabel } from '~/utils/season-label'
+import { episodePackLabelParts, seasonPackDownloadLabel, seasonRangeLabel } from '~/utils/season-label'
 
 describe('season-label', () => {
   it('formats contiguous, single and non-contiguous season sets', () => {
@@ -16,5 +16,15 @@ describe('season-label', () => {
     expect(seasonPackDownloadLabel('Severance', [1, 2], 1)).toBe('Severance S01-S02 Season Pack')
     expect(seasonPackDownloadLabel('Severance', [], 1)).toBe('Severance S01 Season Pack')
     expect(seasonPackDownloadLabel('Severance', [2], 1)).toBe('Severance S02 Season Pack')
+  })
+
+  it('builds localized episode-pack placeholders from the pack season range', () => {
+    expect(episodePackLabelParts([3, 1, 2], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 7)).toEqual({
+      from: 1,
+      to: 3,
+      episodeFrom: 1,
+      episodeTo: 12
+    })
+    expect(episodePackLabelParts([], [], 4)).toEqual({ from: 4, to: 4, episodeFrom: 1, episodeTo: 1 })
   })
 })

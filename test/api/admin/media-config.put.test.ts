@@ -54,6 +54,20 @@ describe('admin/media-config.put', () => {
     expect(mockPutSetting).toHaveBeenCalledWith('media_import_mode', 'copy')
   })
 
+  it('allows enabling with only one staging path configured', async () => {
+    vi.stubGlobal(
+      'useRuntimeConfig',
+      vi.fn(() => ({ downloadPathMovies: '/downloads/movies' }))
+    )
+    vi.stubGlobal(
+      'readBody',
+      vi.fn(async () => ({ enabled: true }))
+    )
+
+    await expect(handler(mockEvent)).resolves.toEqual({ success: true })
+    expect(mockPutSetting).toHaveBeenCalledWith('media_manage_enabled', 'true')
+  })
+
   it('refuses to enable without a staging dir', async () => {
     vi.stubGlobal(
       'useRuntimeConfig',

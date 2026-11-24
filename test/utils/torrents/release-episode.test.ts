@@ -20,6 +20,22 @@ describe('release-episode/parseEpisodeInfo', () => {
     { name: 'Show.S01E01-E03.1080p.WEB-DL', kind: 'multi-episode', seasons: [1], episodes: [1, 2, 3], airDate: null },
     { name: 'Show.S01E01E02.1080p', kind: 'multi-episode', seasons: [1], episodes: [1, 2], airDate: null },
     { name: 'Show.S02E10-E12.Bluray', kind: 'multi-episode', seasons: [2], episodes: [10, 11, 12], airDate: null },
+    // Dashes are token separators, so `S01.E01-E24` must not collapse to E01.
+    {
+      name: 'Show.S01.E01-E24.1080p',
+      kind: 'multi-episode',
+      seasons: [1],
+      episodes: Array.from({ length: 24 }, (_, i) => i + 1),
+      airDate: null
+    },
+    { name: 'Show.S01.E01.E02.1080p', kind: 'multi-episode', seasons: [1], episodes: [1, 2], airDate: null },
+    {
+      name: 'Show.S01E01-E24.1080p',
+      kind: 'multi-episode',
+      seasons: [1],
+      episodes: Array.from({ length: 24 }, (_, i) => i + 1),
+      airDate: null
+    },
     // Season packs
     { name: 'Show.S01.1080p.WEB-DL-GROUP', kind: 'season-pack', seasons: [1], episodes: [], airDate: null },
     { name: 'Show.Season.2.COMPLETE.1080p', kind: 'season-pack', seasons: [2], episodes: [], airDate: null },
@@ -42,6 +58,20 @@ describe('release-episode/parseEpisodeInfo', () => {
     { name: 'Show.Seasons.1&2.1080p', kind: 'multiseason-pack', seasons: [1, 2], episodes: [], airDate: null },
     { name: 'Show.Seasons.1.3.1080p', kind: 'multiseason-pack', seasons: [1, 3], episodes: [], airDate: null },
     { name: 'Show.Season.1-3.1080p', kind: 'multiseason-pack', seasons: [1, 2, 3], episodes: [], airDate: null },
+    {
+      name: 'Show.Season.1-3.and.5.1080p',
+      kind: 'multiseason-pack',
+      seasons: [1, 2, 3, 5],
+      episodes: [],
+      airDate: null
+    },
+    {
+      name: 'Show.Season.5.and.1-3.1080p',
+      kind: 'multiseason-pack',
+      seasons: [1, 2, 3, 5],
+      episodes: [],
+      airDate: null
+    },
     // Episode ranges spanning several seasons
     {
       name: 'Show.S1-8E1-96.of.96.2006-2013.WEB-DL.1080p',
@@ -124,6 +154,7 @@ describe('release-episode/titleMatchesEpisode', () => {
     { title: 'Show.S04E01-E03.1080p', season: 4, episode: 2, expected: false },
     { title: 'Show.S04E01-E03.1080p', season: 4, episode: 4, expected: false },
     { title: 'Show.S01E01E02.1080p', season: 1, episode: 2, expected: false },
+    { title: 'Show.S01.E01-E24.1080p', season: 1, episode: 2, expected: false },
     { title: 'Show.4x01.HDTV', season: 4, episode: 1, expected: true },
     { title: 'Show.Odc.12.1080p', season: 3, episode: 12, expected: true },
     { title: 'Show.Episode.5.720p', season: 1, episode: 5, expected: true },
@@ -210,6 +241,8 @@ describe('release-episode/titleIsSeasonPack', () => {
     { title: 'Show.S01E02.1080p', season: 1, expected: false },
     { title: 'Show.S01E01-E03.1080p', season: 1, expected: true },
     { title: 'Show.S01E01-E03.1080p', season: 2, expected: false },
+    { title: 'Show.S01.E01-E24.1080p', season: 1, expected: true },
+    { title: 'Show.S01.E01.E02.1080p', season: 1, expected: true },
     { title: 'Show.S01E01E02.1080p', season: 1, expected: true },
     { title: 'Dune.Part.Two.2024.1080p', season: 1, expected: false }
   ]

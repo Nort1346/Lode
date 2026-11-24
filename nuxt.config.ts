@@ -149,7 +149,9 @@ export default defineNuxtConfig({
         }
       ]
     },
-    generateSW: {
+    strategies: 'injectManifest',
+    injectManifest: {
+      swSrc: 'public/sw.js',
       globPatterns: ['**/*.{js,css,ico,png,svg,woff2}']
     },
     client: {

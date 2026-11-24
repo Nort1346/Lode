@@ -1,4 +1,5 @@
-import { copyFile, link, mkdir, rename, stat, unlink } from 'node:fs/promises'
+import { copyFile, link, mkdir, open, rename, stat, unlink } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { createLogger } from '#server/utils/logger'
 import type { MediaImportMethod, MediaImportMode, ImportSingleFileResult } from '#server/types/media-organize'
@@ -26,29 +27,69 @@ export async function ensureDir(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true })
 }
 
-async function copyAtomic(source: string, target: string, onProgress?: (bytes: number) => void): Promise<void> {
-  const tmpTarget = `${target}.partial`
+// Reserving the target with 'wx' makes the commit mutually exclusive: copy and
+// move rename over an existing file, so a second download finishing at the
+// same time would otherwise silently overwrite the first one's import.
+async function reserveTarget(target: string): Promise<void> {
+  const handle = await open(target, 'wx')
+  await handle.close()
+}
 
+async function commitReserved(partial: string, target: string): Promise<void> {
+  try {
+    await rename(partial, target)
+  } catch (err) {
+    await unlink(target).catch(() => {})
+    throw err
+  }
+}
+
+async function copyPartial(source: string, partial: string, onProgress?: (bytes: number) => void): Promise<void> {
   if (onProgress === undefined) {
-    await copyFile(source, tmpTarget)
-    await rename(tmpTarget, target)
+    await copyFile(source, partial)
     return
   }
 
   // copyFile has no progress hooks, so the .partial file is sampled while the
   // kernel copies. The final size is reported once more in case the copy beat
   // the sampler.
-  const stop = watchPartialSize(tmpTarget, onProgress)
+  const stop = watchPartialSize(partial, onProgress)
   try {
-    await copyFile(source, tmpTarget)
+    await copyFile(source, partial)
   } finally {
     stop()
   }
-  await rename(tmpTarget, target)
+}
+
+interface CopyIntoTargetOptions {
+  onProgress?: (bytes: number) => void
+  removeSource?: boolean
+  targetReserved?: boolean
+}
+
+async function copyIntoTarget(source: string, target: string, options: CopyIntoTargetOptions = {}): Promise<void> {
+  // A unique partial keeps overlapping imports of the same release from
+  // stomping on each other's temp file before the exclusive commit.
+  const partial = `${target}.partial-${randomUUID()}`
   try {
-    onProgress((await stat(target)).size)
-  } catch {
-    // The target disappeared (deleted by the user mid-import) - nothing to report.
+    await copyPartial(source, partial, options.onProgress)
+    if (options.targetReserved !== true) await reserveTarget(target)
+    await commitReserved(partial, target)
+    if (options.onProgress !== undefined) {
+      try {
+        options.onProgress((await stat(target)).size)
+      } catch {
+        // The target disappeared (deleted by the user mid-import) - nothing to report.
+      }
+    }
+    if (options.removeSource === true) {
+      await unlink(source).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        log.warn(`cleanup of move source failed: ${source}: ${msg}`)
+      })
+    }
+  } finally {
+    await unlink(partial).catch(() => {})
   }
 }
 
@@ -75,26 +116,12 @@ function watchPartialSize(path: string, onProgress: (bytes: number) => void): ()
   }
 }
 
-async function copyThenRemove(
-  source: string,
-  target: string,
-  removeSource: boolean,
-  onProgress?: (bytes: number) => void
-): Promise<void> {
-  await copyAtomic(source, target, onProgress)
-  if (removeSource) {
-    await unlink(source).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : String(err)
-      log.warn(`cleanup of move source failed: ${source}: ${msg}`)
-    })
-  }
-}
-
 // Imports one finished file into the library. Hardlinks are zero-copy and keep
 // the torrent seeding, so they are tried first in 'hardlink' mode; a
 // cross-device staging/library split (or SFTP mounts) answers EXDEV and falls
-// back to a plain copy. Copy/move go through a .partial temp file plus rename
-// so Jellyfin never observes a half-written file.
+// back to a plain copy. Copy/move go through a unique .partial temp file and an
+// exclusive commit so Jellyfin never observes a half-written file and two
+// imports of the same release cannot overwrite each other.
 export async function importSingleFile(
   source: string,
   target: string,
@@ -116,25 +143,33 @@ export async function importSingleFile(
       if (isEexist(err)) throw err
       const msg = err instanceof Error ? err.message : String(err)
       log.info(`hardlink unavailable (${msg}), falling back to copy: ${target}`)
-      await copyAtomic(source, target, onProgress)
+      await copyIntoTarget(source, target, { onProgress })
       return { method: 'copy', bytes: await targetSize(target) }
     }
   }
 
   if (mode === 'move') {
+    let reserved = false
     try {
-      await rename(source, target)
-      return { method: 'move', bytes: await targetSize(target) }
+      await reserveTarget(target)
+      reserved = true
+      try {
+        await rename(source, target)
+        return { method: 'move', bytes: await targetSize(target) }
+      } catch (err) {
+        if (!isCrossDevice(err)) throw err
+        const msg = err instanceof Error ? err.message : String(err)
+        log.info(`move unavailable across devices (${msg}), falling back to copy+delete: ${target}`)
+        await copyIntoTarget(source, target, { onProgress, removeSource: true, targetReserved: true })
+        return { method: 'copy', bytes: await targetSize(target) }
+      }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (!isCrossDevice(err)) throw err
-      log.info(`move unavailable across devices (${msg}), falling back to copy+delete: ${target}`)
-      await copyThenRemove(source, target, true, onProgress)
-      return { method: 'copy', bytes: await targetSize(target) }
+      if (reserved) await unlink(target).catch(() => {})
+      throw err
     }
   }
 
-  await copyAtomic(source, target, onProgress)
+  await copyIntoTarget(source, target, { onProgress })
   const method: MediaImportMethod = 'copy'
   return { method, bytes: await targetSize(target) }
 }
