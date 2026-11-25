@@ -11,7 +11,7 @@ vi.mock('#server/utils/settings', () => ({
 }))
 
 vi.mock('#server/types/settings', () => ({
-  SETTINGS: { PREP_COUNTDOWN_ENABLED: 'prep_countdown_enabled', PREP_SPEED_MB: 'prep_speed_mb' }
+  SETTINGS: { PREP_COUNTDOWN_ENABLED: 'prep_countdown_enabled', PREP_DELAY_SECONDS: 'prep_delay_seconds' }
 }))
 
 import handler from '#server/api/admin/prep-config.put'
@@ -38,28 +38,36 @@ describe('admin/prep-config.put', () => {
     expect(mockPutSetting).toHaveBeenCalledWith('prep_countdown_enabled', 'true')
   })
 
-  it('updates speedMb with clamping', async () => {
+  it('clamps delaySeconds to the maximum', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
-    mockReadBody.mockResolvedValue({ speedMb: 200 })
+    mockReadBody.mockResolvedValue({ delaySeconds: 600 })
 
     await handler(mockEvent)
-    expect(mockPutSetting).toHaveBeenCalledWith('prep_speed_mb', '100')
+    expect(mockPutSetting).toHaveBeenCalledWith('prep_delay_seconds', '300')
   })
 
-  it('clamps speedMb to minimum 1', async () => {
+  it('clamps delaySeconds to zero', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
-    mockReadBody.mockResolvedValue({ speedMb: -5 })
+    mockReadBody.mockResolvedValue({ delaySeconds: -5 })
 
     await handler(mockEvent)
-    expect(mockPutSetting).toHaveBeenCalledWith('prep_speed_mb', '1')
+    expect(mockPutSetting).toHaveBeenCalledWith('prep_delay_seconds', '0')
   })
 
-  it('rounds speedMb', async () => {
+  it('rounds delaySeconds', async () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
-    mockReadBody.mockResolvedValue({ speedMb: 15.7 })
+    mockReadBody.mockResolvedValue({ delaySeconds: 15.7 })
 
     await handler(mockEvent)
-    expect(mockPutSetting).toHaveBeenCalledWith('prep_speed_mb', '16')
+    expect(mockPutSetting).toHaveBeenCalledWith('prep_delay_seconds', '16')
+  })
+
+  it('ignores a non-finite delay', async () => {
+    mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin', username: 'admin' } })
+    mockReadBody.mockResolvedValue({ delaySeconds: Number.NaN })
+
+    await handler(mockEvent)
+    expect(mockPutSetting).not.toHaveBeenCalledWith('prep_delay_seconds', expect.anything())
   })
 
   it('throws 403 for non-admin', async () => {

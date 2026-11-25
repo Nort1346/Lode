@@ -288,7 +288,10 @@
     "prepRemainingSec": "~{s}s verbleibend",
     "prepRemainingMin": "~{m}m verbleibend",
     "prepTitle": "Vorbereitung",
-    "prepCopying": "Import in die Bibliothek"
+    "prepCopying": "Import in die Bibliothek",
+    "prepPhaseDownload": "Download",
+    "prepPhaseOrganize": "Import in die Bibliothek",
+    "prepPhaseWait": "Warten"
   },
   "admin": {
     "userTitle": "Benutzerverwaltung",
@@ -471,8 +474,8 @@
     "prepCountdownTitle": "Countdown vor der Bereitstellung",
     "prepCountdownDesc": "Zeigt Benutzern die geschätzte verbleibende Zeit bis zur Bereitstellung der Datei in der Bibliothek. Wenn deaktiviert, ist die Datei nach Abschluss des Downloads sofort verfügbar.",
     "prepCountdownEnabled": "Countdown aktiviert",
-    "prepCountdownSpeed": "Kopiergeschwindigkeit",
-    "prepCountdownSpeedHint": "Simulierte Kopiergeschwindigkeit der Datei vom Arbeits- zum Ziellaufwerk. Beeinflusst die Countdown-Zeit.",
+    "prepCountdownDelay": "Wartezeit",
+    "prepCountdownDelayHint": "Feste Verzögerung nach Abschluss des Imports, bevor der Download als bereit gemeldet wird. 0 s bedeutet kein Warten.",
     "prepCountdownSaved": "Countdown-Einstellungen gespeichert",
     "prepCountdownError": "Fehler beim Speichern der Countdown-Einstellungen",
     "qbittorrentTitle": "qBittorrent",

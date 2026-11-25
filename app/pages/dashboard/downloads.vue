@@ -33,14 +33,14 @@ const cancelling = ref<string | null>(null)
 const page = ref(1)
 const total = ref(0)
 const PAGE_SIZE = 10
-// Server defaults (server/api/prep-config.get.ts): countdown off, 15 MB/s.
-const prepSpeedMb = ref(15)
+// Server defaults (server/api/prep-config.get.ts): countdown off, 30 s delay.
+const prepDelaySeconds = ref(30)
 const prepCountdownEnabled = ref(false)
 
 async function fetchPrepConfig() {
   try {
-    const data = await $fetch<{ enabled: boolean; speedMb: number }>('/api/prep-config')
-    prepSpeedMb.value = data.speedMb
+    const data = await $fetch<{ enabled: boolean; delaySeconds: number }>('/api/prep-config')
+    prepDelaySeconds.value = data.delaySeconds
     prepCountdownEnabled.value = data.enabled
   } catch {
     // keep defaults
@@ -128,30 +128,21 @@ function cardBorderClass(dl: Download): string {
   return 'border-zinc-200 dark:border-white/5'
 }
 
-function formatPrepTime(completedAt: string | null, sizeBytes: number): string {
-  if (completedAt === null || completedAt === '') return ''
-  const prepSpeedBytes = prepSpeedMb.value * 1024 * 1024
-  const elapsed = (Date.now() - new Date(completedAt).getTime()) / 1000
-  const delay = sizeBytes / prepSpeedBytes
-  const remaining = Math.max(0, delay - elapsed)
+function formatPrepTime(dl: Download): string {
+  const startedAt = dl.prepStartedAt ?? dl.completedAt
+  if (startedAt === null || startedAt === '') return ''
+  const elapsed = (Date.now() - new Date(startedAt).getTime()) / 1000
+  const remaining = Math.max(0, prepDelaySeconds.value - elapsed)
   if (remaining <= 0) return t('downloads.prepReady')
   if (remaining < 60) return t('downloads.prepRemainingSec', { s: Math.ceil(remaining) })
   return t('downloads.prepRemainingMin', { m: Math.ceil(remaining / 60) })
 }
 
-// Only a live byte copy needs the fast cadence: the countdown alone updates
-// in minute steps, so a plain countdown stays on the idle poll.
+// Only a live byte copy needs the fast cadence: the fixed wait advances on the
+// regular 3 s poll, so a plain wait stays there too.
 const hasActivePrep = computed(() =>
   downloads.value.some((dl) => dl.status === 'completed' && dl.notifiedAt === null && Boolean(dl.organizeProgress))
 )
-
-// One bar for the whole preparation phase: the simulated countdown (when
-// enabled) and the real bytes copied into the library. computePrepPercent
-// follows the slower of the two, so the bar hits 100 exactly when the row
-// turns green and never moves backwards.
-function prepPercent(dl: Download): number {
-  return computePrepPercent(dl, prepSpeedMb.value * 1024 * 1024, prepCountdownEnabled.value)
-}
 
 function prepDetail(dl: Download): string {
   const progress = dl.organizeProgress
@@ -160,7 +151,7 @@ function prepDetail(dl: Download): string {
       progress.speedBytesPerSecond
     )}`
   }
-  return formatPrepTime(dl.completedAt, dl.sizeBytes)
+  return formatPrepTime(dl)
 }
 
 // Preparation is the only phase that updates in byte steps, so poll faster
@@ -400,34 +391,13 @@ const savePathLabels = computed<Record<string, string>>(() => ({
                 <span :title="dl.organizeError">{{ t('download.organizeFailed') }}: {{ dl.organizeError }}</span>
               </div>
               <template v-else>
-                <div class="flex items-center justify-between text-xs">
-                  <span class="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
-                    <UIcon
-                      name="i-lucide-package-open"
-                      class="size-3.5"
-                      :class="dl.organizeProgress ? 'animate-pulse' : ''"
-                    />
-                    {{ dl.organizeProgress ? t('downloads.prepCopying') : t('downloads.prepTitle') }}
-                  </span>
-                  <span class="font-medium text-amber-600 dark:text-amber-400">
-                    {{ prepPercent(dl).toFixed(1) }}%
-                  </span>
-                </div>
-                <!-- Same shape as the download bar above: a plain solid fill, so the
-                     dashboard reads as one system. Amber marks the preparation phase. -->
-                <div
-                  role="progressbar"
-                  :aria-valuenow="prepPercent(dl)"
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                  :aria-label="t('downloads.prepTitle')"
-                  class="w-full h-2 rounded-full bg-zinc-200 dark:bg-white/10"
-                >
-                  <div
-                    class="h-full min-w-0.5 rounded-full bg-amber-500 transition-[width] duration-1000 ease-linear"
-                    :style="{ width: `${Math.max(prepPercent(dl), 0.5)}%` }"
-                  />
-                </div>
+                <!-- Download, import and wait are separate sequential bars: the
+                     wait bar only starts once the import has settled. -->
+                <PrepPhases
+                  :download="dl"
+                  :delay-seconds="prepDelaySeconds"
+                  :countdown-enabled="prepCountdownEnabled"
+                />
                 <div class="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
                   <span>{{ prepDetail(dl) }}</span>
                   <span v-if="dl.organizeProgress">

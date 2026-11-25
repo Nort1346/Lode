@@ -3,16 +3,16 @@ const { t } = useI18n()
 const toast = useToast()
 
 const enabled = ref(false)
-const speedMb = ref(15)
+const delaySeconds = ref(30)
 const loading = ref(true)
 const saving = ref(false)
 
 async function fetchConfig() {
   loading.value = true
   try {
-    const data = await $fetch<{ enabled: boolean; speedMb: number }>('/api/admin/prep-config')
+    const data = await $fetch<{ enabled: boolean; delaySeconds: number }>('/api/admin/prep-config')
     enabled.value = data.enabled
-    speedMb.value = data.speedMb
+    delaySeconds.value = data.delaySeconds
   } catch {
     // keep defaults
   } finally {
@@ -37,13 +37,13 @@ async function saveEnabled(val: boolean) {
   }
 }
 
-async function saveSpeed(val: number | undefined) {
+async function saveDelay(val: number | undefined) {
   if (val === undefined) return
-  const clamped = Math.max(1, Math.min(100, Math.round(val)))
+  const clamped = Math.max(0, Math.min(300, Math.round(val)))
   saving.value = true
   try {
-    await $fetch('/api/admin/prep-config', { method: 'PUT', body: { speedMb: clamped } })
-    speedMb.value = clamped
+    await $fetch('/api/admin/prep-config', { method: 'PUT', body: { delaySeconds: clamped } })
+    delaySeconds.value = clamped
     toast.add({ title: t('settings.prepCountdownSaved'), color: 'success' })
   } catch (e: unknown) {
     toast.add({
@@ -56,14 +56,14 @@ async function saveSpeed(val: number | undefined) {
   }
 }
 
-let speedTimer: ReturnType<typeof setTimeout> | null = null
+let delayTimer: ReturnType<typeof setTimeout> | null = null
 
-function onSpeedInput(val: number | undefined) {
+function onDelayInput(val: number | undefined) {
   if (val === undefined) return
-  speedMb.value = Math.max(1, Math.min(100, Math.round(val)))
-  if (speedTimer !== null) clearTimeout(speedTimer)
-  speedTimer = setTimeout(() => {
-    void saveSpeed(speedMb.value)
+  delaySeconds.value = Math.max(0, Math.min(300, Math.round(val)))
+  if (delayTimer !== null) clearTimeout(delayTimer)
+  delayTimer = setTimeout(() => {
+    void saveDelay(delaySeconds.value)
   }, 500)
 }
 
@@ -71,7 +71,7 @@ onMounted(fetchConfig)
 
 onUnmounted(() => {
   // A pending debounced save must not fire after the component is gone
-  if (speedTimer !== null) clearTimeout(speedTimer)
+  if (delayTimer !== null) clearTimeout(delayTimer)
 })
 </script>
 
@@ -101,11 +101,11 @@ onUnmounted(() => {
 
       <div v-if="enabled" class="space-y-4 pt-1">
         <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          {{ t('settings.prepCountdownSpeed') }}:
-          <span class="text-amber-600 dark:text-amber-400">{{ speedMb }} MB/s</span>
+          {{ t('settings.prepCountdownDelay') }}:
+          <span class="text-amber-600 dark:text-amber-400">{{ delaySeconds }} s</span>
         </label>
-        <USlider v-model="speedMb" class="mt-3" :min="1" :max="100" :step="1" @update:model-value="onSpeedInput" />
-        <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{{ t('settings.prepCountdownSpeedHint') }}</p>
+        <USlider v-model="delaySeconds" class="mt-3" :min="0" :max="300" :step="1" @update:model-value="onDelayInput" />
+        <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{{ t('settings.prepCountdownDelayHint') }}</p>
       </div>
     </div>
   </div>

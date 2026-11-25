@@ -10,7 +10,7 @@ export const SETTINGS = {
   RANKING_CONFIG: 'ranking_config',
   BRUTE_FORCE_CONFIG: 'brute_force_config',
   PREP_COUNTDOWN_ENABLED: 'prep_countdown_enabled',
-  PREP_SPEED_MB: 'prep_speed_mb',
+  PREP_DELAY_SECONDS: 'prep_delay_seconds',
   QBIT_AUTO_REMOVE_COMPLETED: 'qbit_auto_remove_completed',
   QBIT_SEEDING_ENABLED: 'qbit_seeding_enabled',
   DISK_CHECK_ENABLED: 'disk_check_enabled',

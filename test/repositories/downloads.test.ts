@@ -30,6 +30,7 @@ function createDb(): SqliteDb {
       created_at TEXT NOT NULL DEFAULT '',
       completed_at TEXT,
       notified_at TEXT,
+      prep_started_at TEXT,
       tmdb_id INTEGER,
       media_type TEXT,
        poster_url TEXT,

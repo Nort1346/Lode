@@ -87,7 +87,7 @@ export const SETTINGS = {
   RANKING_CONFIG: 'ranking_config',
   BRUTE_FORCE_CONFIG: 'brute_force_config',
   PREP_COUNTDOWN_ENABLED: 'prep_countdown_enabled',
-  PREP_SPEED_MB: 'prep_speed_mb',
+  PREP_DELAY_SECONDS: 'prep_delay_seconds',
   QBIT_AUTO_REMOVE_COMPLETED: 'qbit_auto_remove_completed',
   QBIT_SEEDING_ENABLED: 'qbit_seeding_enabled',
   DISK_CHECK_ENABLED: 'disk_check_enabled',
@@ -120,8 +120,8 @@ Some settings are stored in the `settings` DB table and can be changed at runtim
 |---------|---------|-------------|
 | `disk_check_enabled` | `true` | Enable/disable disk space checks |
 | `disk_min_free_gb` | `7` | Minimum free GB per disk |
-| `prep_countdown_enabled` | `true` | Show prep countdown for completed downloads |
-| `prep_speed_mb` | `15` | Simulated file copy speed (MB/s) |
+| `prep_countdown_enabled` | `false` | Show a wait bar for completed downloads |
+| `prep_delay_seconds` | `30` | Fixed wait after the import settles, before the ready notification (0-300 s) |
 | `qbit_auto_remove_completed` | `false` | Mark a download as completed when its torrent disappears from qBittorrent at ≥90% progress (for setups that auto-remove finished torrents) |
 | `qbit_seeding_enabled` | `true` | When disabled, torrents get per-torrent share limits (ratio 0, seeding time 0) so they stop sharing immediately after completion. Turning it off also applies the limits to torrents already tracked by Lode. Only affects torrents tracked by Lode, never global qBittorrent preferences |
 | `discord_locale` | `en` | Discord webhook language (`pl`, `en`, `de`, `fr`, `es`, `pt-BR`) |
