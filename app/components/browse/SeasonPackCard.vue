@@ -47,7 +47,7 @@
           ? t('tv.limitReached')
           : packSeasons.length > 1
             ? t('tv.downloadSeasonsRange', { seasons: seasonLabel })
-            : t('tv.downloadSeason')
+            : t('tv.downloadSeason', { season: packSeasons[0] ?? selectedSeason })
       }}
     </UButton>
     <UButton v-if="isDev" size="xs" color="neutral" variant="ghost" icon="i-lucide-bug" @click="$emit('toggleDebug')" />
@@ -131,6 +131,7 @@ const props = defineProps<{
   limitExceeded: boolean
   isDev: boolean
   debugOpen: boolean
+  selectedSeason: number
 }>()
 
 // Older cached payloads may not have the `seasons` field yet.

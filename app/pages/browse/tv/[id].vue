@@ -64,8 +64,8 @@
       </div>
 
       <div class="flex-1">
-        <div class="flex items-center gap-3">
-          <h1 class="text-3xl font-bold text-zinc-900 dark:text-white lg:text-4xl">{{ show.name }}</h1>
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="text-3xl font-bold break-words text-zinc-900 dark:text-white lg:text-4xl">{{ show.name }}</h1>
           <InLibraryBadge v-if="show.inLibrary" />
         </div>
         <p v-if="show.originalName !== show.name" class="mt-1 text-lg text-zinc-500 dark:text-zinc-400">
@@ -230,6 +230,7 @@
               :key="torrentKey(pack)"
               :style="`--i: ${idx}`"
               :pack="pack"
+              :selected-season="selectedSeason"
               :loading="downloadingPackIdx === idx"
               :disabled="
                 downloadActive ||
