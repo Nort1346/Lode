@@ -103,8 +103,9 @@ export interface SeasonPackPayload extends EpisodeTorrentPayload {
   seasons: number[]
 }
 
-// A single release covering an episode range across several seasons, e.g.
-// `S1-8E1-96`. It is not a full-season pack and not a single episode.
+// A single release covering an episode range (`S02E01-E02`) or a range across
+// several seasons (`S1-8E1-96`). It is not a full-season pack and not a single
+// episode.
 export interface EpisodePackPayload extends EpisodeTorrentPayload {
   // Seasons covered by the release and the episode range as written in its
   // title (absolute for running numbering, repeated for per-season ranges).

@@ -149,6 +149,21 @@ describe('torrent-search/loose matches', () => {
     expect(outcome.payload.episodePacks).toHaveLength(1)
     expect(outcome.payload.episodePacks[0]?.seasonEpisodes).toEqual(Array.from({ length: 10 }, (_, i) => i + 1))
   })
+
+  it('files a multi-episode range as an episode pack, not a season pack', async () => {
+    const title = 'Show.S02E01-02.720p.WEB-DL.DDP5.1.Atmos-GROUP'
+    mockUseProwlarr.mockReturnValue({ searchTv: vi.fn().mockResolvedValue([rawRelease(title)]) })
+
+    const outcome = await searchSeasonTorrents(2, 2, 'en')
+    if (outcome.kind !== 'ok') throw new Error('expected a successful search')
+
+    expect(outcome.payload.seasonPacks).toEqual([])
+    expect(outcome.payload.episodePacks).toHaveLength(1)
+    expect(outcome.payload.episodePacks[0]?.seasons).toEqual([2])
+    expect(outcome.payload.episodePacks[0]?.episodes).toEqual([1, 2])
+    expect(outcome.payload.episodePacks[0]?.seasonEpisodes).toEqual([1, 2])
+    expect(outcome.payload.episodes.every((ep) => ep.torrents.length === 0)).toBe(true)
+  })
 })
 
 describe('torrent-search/scene group prefixes', () => {
