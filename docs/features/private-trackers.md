@@ -79,6 +79,22 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 - Toggle enabled/disabled
 - Delete tracker entirely
 
+## Prowlarr Indexer Management
+
+Indexers can be added, configured, tested and deleted from Admin → Indexers (`/admin/indexers`) without opening the Prowlarr UI. The page uses the Prowlarr v1 API and supports:
+
+- definition picker with search and privacy/protocol filters
+- dynamic forms generated from the Prowlarr schema
+- CAPTCHA challenges for Cardigann definitions
+- inline enable/disable, priority and bulk actions
+- per-indexer and global tests
+
+Both admin pages link to each other: the Indexers page links to `/admin/trackers?indexer=<name>`, which pre-fills the tracker form, and the Private Trackers page links back to `/admin/indexers`.
+
+The indexer form can create or update the matching Private Trackers entry for non-public indexers. Entries are matched by exact indexer name; renaming an indexer in Lode renames the linked tracker. Deleting an indexer does not delete the tracker entry - the trackers table marks it as missing in Prowlarr so credentials are not lost.
+
+See [Prowlarr Indexer Management](./prowlarr-indexers.md) for the full feature description.
+
 ## Download Flow for Private Trackers
 
 1. User selects a torrent from Prowlarr results
