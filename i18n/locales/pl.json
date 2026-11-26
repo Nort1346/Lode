@@ -288,7 +288,10 @@
     "prepRemainingSec": "~{s}s pozostało",
     "prepRemainingMin": "~{m}m pozostało",
     "prepTitle": "Przygotowanie",
-    "prepCopying": "Import do biblioteki"
+    "prepCopying": "Import do biblioteki",
+    "prepPhaseDownload": "Pobieranie",
+    "prepPhaseOrganize": "Import do biblioteki",
+    "prepPhaseWait": "Oczekiwanie"
   },
   "admin": {
     "userTitle": "Zarządzanie użytkownikami",
@@ -471,8 +474,8 @@
     "prepCountdownTitle": "Odliczanie przed udostępnieniem",
     "prepCountdownDesc": "Pokazuj użytkownikom szacowany czas pozostały do udostępnienia pliku w bibliotece. Gdy wyłączone, plik jest dostępny od razu po zakończeniu pobierania.",
     "prepCountdownEnabled": "Odliczanie włączone",
-    "prepCountdownSpeed": "Prędkość kopiowania",
-    "prepCountdownSpeedHint": "Symulowana prędkość kopiowania pliku z dysku roboczego do docelowego. Wpływa na czas odliczania.",
+    "prepCountdownDelay": "Opóźnienie oczekiwania",
+    "prepCountdownDelayHint": "Stałe opóźnienie po zakończeniu importu, zanim pobieranie zostanie oznaczone jako gotowe. 0 s oznacza brak oczekiwania.",
     "prepCountdownSaved": "Zapisano ustawienia odliczania",
     "prepCountdownError": "Błąd zapisu ustawień odliczania",
     "qbittorrentTitle": "qBittorrent",

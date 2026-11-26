@@ -68,29 +68,37 @@ The ETA is calculated once on the server and shared by every user, so opening th
   (`collecting`, `waiting-seeders`, `calculating`, `ready`). Only `ready` carries a number.
 - The client (`useEtaTracker`) just formats `etaState` / `etaSeconds`; it no longer samples speed itself.
 
-## Preparation Phase (countdown + real import progress)
+## Preparation Phase (sequential bars)
 
-When a download completes, the row switches from the download bar to a
-**preparation bar** styled like the download bar (amber), with the `Preparing`/`Copying` label and
-progress percentage:
+When a download completes, the row switches from the download bar to three separate phase bars:
 
-- **Configurable speed**: Default 15 MB/s (admin setting)
-- **Two sources merged into one bar**: the simulated countdown (`sizeBytes /
-  speed`) and the real byte progress of the library import reported by the
-  server. The bar follows the slower of the two gates: `min(countdown %, import %)` (a disabled
-  countdown counts as 100%, a settled/skipped/failed import counts as 100%, a pending import without
-  live bytes counts as 0%), so it reaches 100 exactly when the ready notification fires and never
-  jumps ahead of a running copy.
-- **Live import detail**: while an import is copying, the bar shows
+- **Download**: stays at 100% once qBittorrent reports the torrent complete.
+- **Import to library**: follows the real byte progress of the library import reported by the
+  server. A settled `done`, a clean `skipped` (organization off or a non-media category) and a
+  `failed` import count as 100%; a `pending` row without a live entry (right after a restart,
+  before the retry sweep) stays at 0%.
+- **Waiting**: a fixed delay (admin setting `prep_delay_seconds`, default 30 s, range 0-300 s)
+  that starts when the import settles, giving Jellyfin time to detect and load the new files.
+  A disabled countdown counts as 100%.
+
+The start of the wait is stored as `prep_started_at` on the download row. With media organization
+enabled it is written when the import settles (`done`/`skipped`/`failed`), so a slow copy does not
+consume the wait; with organization disabled, or for games/books/music, it is written at download
+completion. Rows created before this column existed fall back to `completed_at`.
+
+The ready notification (Jellyfin, Discord and push, sent together by `notifyJellyfinIfNeeded`)
+fires only once both gates are open: the import has settled and the wait has elapsed. With media
+organization enabled the notification is held until `organize_status` leaves `pending`, so Jellyfin
+never scans a folder that is still being written.
+
+- **Live import detail**: while an import is copying, the phase list shows
   `copied / total · speed` plus the `files done / total` counter; the downloads page polls every
   second while a byte copy is in flight and every 3 s otherwise; the dashboard now does the same and
   also shows preparing (`completed` + `notifiedAt === null`) rows alongside active downloads,
   removing them on the ready SSE event.
-- **Jellyfin waits for the import**: with media organization enabled, the
-  ready notification (and the Discord/push message) is held until
-  `organize_status` leaves `pending`, so Jellyfin never scans a folder that is
-  still being written.
 - **Disableable**: Can be turned off in admin settings.
+- **Upgrade path**: an existing `prep_speed_mb` value is migrated to
+  `clamp(round(1024 / speed), 0, 300)` seconds - the old delay for a 1 GiB file.
 - There is no new DB status `preparing` - it is only a UI phase for `completed` rows whose ready
   notification has not fired yet.
 

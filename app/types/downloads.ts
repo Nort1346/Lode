@@ -27,6 +27,7 @@ export interface Download {
   createdAt: string
   completedAt: string | null
   notifiedAt: string | null
+  prepStartedAt?: string | null
   posterUrl: string | null
   indexerName: string | null
   resolution: string | null

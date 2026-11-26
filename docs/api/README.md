@@ -98,9 +98,9 @@ Returns the enabled save-path categories, e.g. `["movies", "series", "games", "b
 GET /api/prep-config
 ```
 
-Public download-prep (countdown) settings:
+Public download-prep (wait) settings:
 ```json
-{ "enabled": true, "speedMb": 15 }
+{ "enabled": true, "delaySeconds": 30 }
 ```
 
 ---

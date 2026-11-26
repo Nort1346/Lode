@@ -288,7 +288,10 @@
     "prepRemainingSec": "~{s}s restantes",
     "prepRemainingMin": "~{m}m restantes",
     "prepTitle": "Préparation",
-    "prepCopying": "Import vers la bibliothèque"
+    "prepCopying": "Import vers la bibliothèque",
+    "prepPhaseDownload": "Téléchargement",
+    "prepPhaseOrganize": "Import vers la bibliothèque",
+    "prepPhaseWait": "Attente"
   },
   "admin": {
     "userTitle": "Gestion des utilisateurs",
@@ -471,8 +474,8 @@
     "prepCountdownTitle": "Décompte avant disponibilité",
     "prepCountdownDesc": "Affichez le temps estimé restant avant la disponibilité du fichier dans la bibliothèque. Lorsque désactivé, le fichier est disponible immédiatement après la fin du téléchargement.",
     "prepCountdownEnabled": "Décompte activé",
-    "prepCountdownSpeed": "Vitesse de copie",
-    "prepCountdownSpeedHint": "Vitesse simulée de copie du fichier du disque de travail vers la destination. Influencie le temps de décompte.",
+    "prepCountdownDelay": "Délai d'attente",
+    "prepCountdownDelayHint": "Délai fixe après la fin de l'import, avant que le téléchargement ne soit annoncé comme prêt. 0 s signifie aucune attente.",
     "prepCountdownSaved": "Paramètres de décompte enregistrés",
     "prepCountdownError": "Erreur d'enregistrement des paramètres de décompte",
     "qbittorrentTitle": "qBittorrent",

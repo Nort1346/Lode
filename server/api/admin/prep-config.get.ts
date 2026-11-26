@@ -6,6 +6,6 @@ export default defineEventHandler(async (event) => {
 
   return {
     enabled: (await getSetting(SETTINGS.PREP_COUNTDOWN_ENABLED)) === 'true',
-    speedMb: Number((await getSetting(SETTINGS.PREP_SPEED_MB)) ?? '15')
+    delaySeconds: Number((await getSetting(SETTINGS.PREP_DELAY_SECONDS)) ?? '30')
   }
 })

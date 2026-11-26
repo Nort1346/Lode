@@ -44,6 +44,7 @@ export interface Download {
   createdAt: string
   completedAt: string | null
   notifiedAt: string | null
+  prepStartedAt: string | null
   tmdbId: number | null
   mediaType: 'movie' | 'tv' | null
   posterUrl: string | null
@@ -71,6 +72,7 @@ export type CreateDownloadInput = Omit<
   | 'numLeechs'
   | 'completedAt'
   | 'notifiedAt'
+  | 'prepStartedAt'
 >
 export type UpdateDownloadInput = Partial<Omit<Download, 'id'>>
 

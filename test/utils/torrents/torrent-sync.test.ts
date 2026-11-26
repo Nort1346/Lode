@@ -169,6 +169,7 @@ function makeDl(overrides: Record<string, unknown> = {}) {
     status: 'downloading',
     completedAt: null,
     notifiedAt: null,
+    prepStartedAt: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     ...overrides
   }
@@ -749,10 +750,12 @@ describe('syncTorrentStatus', () => {
     await syncTorrentStatus()
 
     await vi.waitFor(() =>
-      expect(mockSet).toHaveBeenCalledWith({
-        organizeStatus: 'skipped',
-        organizeError: 'torrent hash unavailable'
-      })
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizeStatus: 'skipped',
+          organizeError: 'torrent hash unavailable'
+        })
+      )
     )
     expect(mockLog.info).not.toHaveBeenCalledWith(expect.stringContaining('retrying pending organize'))
   })
@@ -1105,7 +1108,7 @@ describe('notifyJellyfinIfNeeded', () => {
 
   it('notifies Jellyfin and invalidates the library cache once the prep countdown elapses', async () => {
     mockSettingGet.mockImplementation((cond: { key?: string } | undefined) =>
-      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '10' }
+      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '30' }
     )
     mockUseJellyfin.mockReturnValue(mockJellyfin)
     mockActiveAll.mockReturnValue([
@@ -1122,17 +1125,16 @@ describe('notifyJellyfinIfNeeded', () => {
     expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
   })
 
-  it('waits out the prep countdown before notifying', async () => {
+  it('waits out the fixed delay before notifying', async () => {
     mockSettingGet.mockImplementation((cond: { key?: string } | undefined) =>
-      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '10' }
+      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '300' }
     )
     mockUseJellyfin.mockReturnValue(mockJellyfin)
     mockActiveAll.mockReturnValue([
       makeDl({
         status: 'completed',
         completedAt: completedAtPast(),
-        savePath: 'movies',
-        sizeBytes: 100 * 1024 ** 3
+        savePath: 'movies'
       })
     ])
 
@@ -1141,6 +1143,48 @@ describe('notifyJellyfinIfNeeded', () => {
     expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
     expect(mockJellyfin.invalidateLibraryCache).not.toHaveBeenCalled()
     expect(mockDb.update).not.toHaveBeenCalled()
+  })
+
+  it('starts the wait when the import settles, not at download completion', async () => {
+    mockSettingGet.mockImplementation((cond: { key?: string } | undefined) =>
+      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '30' }
+    )
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        completedAt: new Date(Date.now() - 3_600_000).toISOString(),
+        prepStartedAt: new Date(Date.now() - 5_000).toISOString(),
+        savePath: 'movies',
+        organizeStatus: 'done'
+      })
+    ])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).not.toHaveBeenCalled()
+    expect(mockDb.update).not.toHaveBeenCalled()
+  })
+
+  it('counts the delay from prepStartedAt once the import has settled', async () => {
+    mockSettingGet.mockImplementation((cond: { key?: string } | undefined) =>
+      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '30' }
+    )
+    mockUseJellyfin.mockReturnValue(mockJellyfin)
+    mockActiveAll.mockReturnValue([
+      makeDl({
+        status: 'completed',
+        completedAt: new Date(Date.now() - 3_600_000).toISOString(),
+        prepStartedAt: completedAtPast(),
+        savePath: 'movies',
+        organizeStatus: 'done'
+      })
+    ])
+
+    await notifyJellyfinIfNeeded()
+
+    expect(mockJellyfin.notifyMediaUpdated).toHaveBeenCalledWith(['/data/movies'])
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ notifiedAt: expect.any(String) }))
   })
 
   it('marks notified without notifying when the save path is unknown', async () => {
@@ -1169,7 +1213,7 @@ describe('notifyJellyfinIfNeeded', () => {
 
   it('sends Discord and push notifications when the countdown is enabled but Jellyfin is absent', async () => {
     mockSettingGet.mockImplementation((cond: { key?: string } | undefined) =>
-      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '10' }
+      cond?.key === 'prep_countdown_enabled' ? { value: 'true' } : { value: '30' }
     )
     mockUseJellyfin.mockReturnValue(null)
     mockActiveAll.mockReturnValue([

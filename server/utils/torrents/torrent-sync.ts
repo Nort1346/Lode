@@ -188,7 +188,8 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
               .set({
                 organizeStatus: 'failed',
                 organizeError:
-                  'download is in the staging dir but media organization is disabled; files were not imported'
+                  'download is in the staging dir but media organization is disabled; files were not imported',
+                prepStartedAt: new Date().toISOString()
               })
               .where(eq(downloads.id, source.id))
           )
@@ -196,14 +197,18 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
           await dbRun(
             db
               .update(downloads)
-              .set({ organizeStatus: 'failed', organizeError: 'media organization disabled; import not retried' })
+              .set({
+                organizeStatus: 'failed',
+                organizeError: 'media organization disabled; import not retried',
+                prepStartedAt: new Date().toISOString()
+              })
               .where(eq(downloads.id, source.id))
           )
         } else {
           await dbRun(
             db
               .update(downloads)
-              .set({ organizeStatus: 'skipped', organizeError: null })
+              .set({ organizeStatus: 'skipped', organizeError: null, prepStartedAt: new Date().toISOString() })
               .where(eq(downloads.id, source.id))
           )
         }
@@ -238,7 +243,8 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
           .set({
             organizedPath: result.targetRelativePath,
             organizeStatus: result.status,
-            organizeError: result.error
+            organizeError: result.error,
+            prepStartedAt: result.status === 'pending' ? null : new Date().toISOString()
           })
           .where(eq(downloads.id, source.id))
       )
@@ -256,7 +262,10 @@ async function organizeAfterComplete(source: OrganizeSource, hash: string): Prom
       const msg = err instanceof Error ? err.message : String(err)
       log.warn(`organize failed: id=${source.id}: ${msg}`)
       await dbRun(
-        db.update(downloads).set({ organizeStatus: 'failed', organizeError: msg }).where(eq(downloads.id, source.id))
+        db
+          .update(downloads)
+          .set({ organizeStatus: 'failed', organizeError: msg, prepStartedAt: new Date().toISOString() })
+          .where(eq(downloads.id, source.id))
       ).catch((writeErr: unknown) => {
         const writeMsg = writeErr instanceof Error ? writeErr.message : String(writeErr)
         log.warn(`organize failure persistence failed: id=${source.id}: ${writeMsg}`)
@@ -307,7 +316,11 @@ async function retryPendingOrganizes(): Promise<void> {
         await dbRun(
           db
             .update(downloads)
-            .set({ organizeStatus: 'skipped', organizeError: 'torrent hash unavailable' })
+            .set({
+              organizeStatus: 'skipped',
+              organizeError: 'torrent hash unavailable',
+              prepStartedAt: new Date().toISOString()
+            })
             .where(eq(downloads.id, dl.id))
         ).catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err)
@@ -345,10 +358,12 @@ async function isPrepCountdownEnabled(): Promise<boolean> {
   return row?.value === 'true'
 }
 
-async function getPrepSpeedMb(): Promise<number> {
+async function getPrepDelaySeconds(): Promise<number> {
   const db = await useDbAsync()
-  const row = await dbGet(db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'prep_speed_mb')))
-  return row !== undefined ? Number(row.value) : 15
+  const row = await dbGet(
+    db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'prep_delay_seconds'))
+  )
+  return row !== undefined ? Number(row.value) : 30
 }
 
 function notifyDiscord(
@@ -571,9 +586,11 @@ export async function syncTorrentStatus(): Promise<SyncResult> {
               // The torrent is gone from qBittorrent, so its files cannot be
               // located reliably. Keep the reason on the row: a skipped import
               // must never produce a "ready" signal for media that was never
-              // placed in the library.
+              // placed in the library. No import will run, so the wait starts
+              // here even though the row is a media category.
               organizeStatus: 'skipped',
-              organizeError: 'torrent vanished from qBittorrent; files could not be located for organization'
+              organizeError: 'torrent vanished from qBittorrent; files could not be located for organization',
+              prepStartedAt: new Date().toISOString()
             })
             .where(eq(downloads.id, dl.id))
         )
@@ -779,8 +796,7 @@ async function notifyJellyfinIfNeededOnce(): Promise<void> {
   const jellyfin = useJellyfin()
 
   const countdownEnabled = await isPrepCountdownEnabled()
-  const prepSpeedMb = await getPrepSpeedMb()
-  const prepSpeedBytes = prepSpeedMb * 1024 * 1024
+  const prepDelaySeconds = await getPrepDelaySeconds()
 
   const savePathMap = getLibraryRoots()
 
@@ -799,10 +815,11 @@ async function notifyJellyfinIfNeededOnce(): Promise<void> {
   for (const dl of completedWithPrep) {
     if (dl.notifiedAt !== null) continue
 
-    // A completed row without a completion timestamp (e.g. pre-migration data) is treated as ready
-    const elapsed =
-      dl.completedAt === null ? Number.POSITIVE_INFINITY : (Date.now() - new Date(dl.completedAt).getTime()) / 1000
-    const prepDelay = countdownEnabled ? dl.sizeBytes / prepSpeedBytes : 0
+    // The wait starts when the import settles, not when the download finishes.
+    // Older rows have no start marker yet, so they fall back to completedAt.
+    const waitStart = dl.prepStartedAt ?? dl.completedAt
+    const elapsed = waitStart === null ? Number.POSITIVE_INFINITY : (Date.now() - new Date(waitStart).getTime()) / 1000
+    const prepDelay = countdownEnabled ? prepDelaySeconds : 0
 
     // A waiting import is part of "preparation": notifying now would point
     // Jellyfin at a folder that does not exist yet. Gating on the row alone is

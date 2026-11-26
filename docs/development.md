@@ -78,10 +78,10 @@ Use the `SETTINGS` constant system (`server/types/settings.ts`) for all settings
 import { SETTINGS } from '#server/types/settings'
 
 // ✅ Correct
-putSetting(SETTINGS.PREP_SPEED_MB, '15')
+putSetting(SETTINGS.PREP_DELAY_SECONDS, '30')
 
 // ❌ Wrong - compile error
-putSetting('prep_speed_mb', '15')
+putSetting('prep_delay_seconds', '30')
 ```
 
 ### Naming Conventions

@@ -288,7 +288,10 @@
     "prepRemainingSec": "~{s}s restantes",
     "prepRemainingMin": "~{m}m restantes",
     "prepTitle": "Preparación",
-    "prepCopying": "Importando a la biblioteca"
+    "prepCopying": "Importando a la biblioteca",
+    "prepPhaseDownload": "Descarga",
+    "prepPhaseOrganize": "Importación a la biblioteca",
+    "prepPhaseWait": "Espera"
   },
   "admin": {
     "userTitle": "Gestión de usuarios",
@@ -471,8 +474,8 @@
     "prepCountdownTitle": "Cuenta regresiva antes de disponibilidad",
     "prepCountdownDesc": "Muestra a los usuarios el tiempo estimado restante antes de que el archivo esté disponible en la biblioteca. Cuando está desactivado, el archivo está disponible inmediatamente después de completar la descarga.",
     "prepCountdownEnabled": "Cuenta regresiva activada",
-    "prepCountdownSpeed": "Velocidad de copia",
-    "prepCountdownSpeedHint": "Velocidad simulada de copia del archivo del disco de trabajo al destino. Influye en el tiempo de cuenta regresiva.",
+    "prepCountdownDelay": "Retardo de espera",
+    "prepCountdownDelayHint": "Retardo fijo tras finalizar la importación, antes de marcar la descarga como lista. 0 s significa sin espera.",
     "prepCountdownSaved": "Configuración de cuenta regresiva guardada",
     "prepCountdownError": "Error al guardar la configuración de cuenta regresiva",
     "qbittorrentTitle": "qBittorrent",

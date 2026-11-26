@@ -415,7 +415,7 @@ PUT /api/admin/prep-config
 ```json
 {
   "enabled": true,
-  "speedMb": 15
+  "delaySeconds": 30
 }
 ```
 

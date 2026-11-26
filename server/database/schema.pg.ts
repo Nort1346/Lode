@@ -52,6 +52,9 @@ export const downloads = pgTable(
     createdAt: text('created_at').notNull().default(''),
     completedAt: text('completed_at'),
     notifiedAt: text('notified_at'),
+    // When the prep countdown starts: import settle time for media rows,
+    // download completion time when there is no import.
+    prepStartedAt: text('prep_started_at'),
     tmdbId: integer('tmdb_id'),
     mediaType: text('media_type', { enum: ['movie', 'tv'] }),
     posterUrl: text('poster_url'),

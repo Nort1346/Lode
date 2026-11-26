@@ -288,7 +288,10 @@
     "prepRemainingSec": "~{s}s restantes",
     "prepRemainingMin": "~{m}min restantes",
     "prepTitle": "Preparação",
-    "prepCopying": "Importando para a biblioteca"
+    "prepCopying": "Importando para a biblioteca",
+    "prepPhaseDownload": "Download",
+    "prepPhaseOrganize": "Importação para a biblioteca",
+    "prepPhaseWait": "Aguardando"
   },
   "admin": {
     "userTitle": "Gerenciar Usuários",
@@ -471,8 +474,8 @@
     "prepCountdownTitle": "Contagem Regressiva de Preparo",
     "prepCountdownDesc": "Mostra aos usuários o tempo estimado restante até o arquivo ficar disponível na biblioteca. Quando desativado, os arquivos ficam disponíveis imediatamente após a conclusão do download.",
     "prepCountdownEnabled": "Contagem regressiva ativada",
-    "prepCountdownSpeed": "Velocidade de cópia",
-    "prepCountdownSpeedHint": "Velocidade simulada para cópia dos arquivos do disco de trabalho para o armazenamento. Afeta a duração da contagem.",
+    "prepCountdownDelay": "Atraso de espera",
+    "prepCountdownDelayHint": "Atraso fixo após a conclusão da importação, antes de marcar o download como pronto. 0 s significa sem espera.",
     "prepCountdownSaved": "Configurações de preparo salvas",
     "prepCountdownError": "Falha ao salvar as configurações de preparo",
     "qbittorrentTitle": "qBittorrent",

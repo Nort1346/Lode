@@ -9,7 +9,7 @@ vi.mock('#server/utils/settings', () => ({
 }))
 
 vi.mock('#server/types/settings', () => ({
-  SETTINGS: { PREP_COUNTDOWN_ENABLED: 'prep_countdown_enabled', PREP_SPEED_MB: 'prep_speed_mb' }
+  SETTINGS: { PREP_COUNTDOWN_ENABLED: 'prep_countdown_enabled', PREP_DELAY_SECONDS: 'prep_delay_seconds' }
 }))
 
 import handler from '#server/api/admin/prep-config.get'
@@ -27,12 +27,12 @@ describe('admin/prep-config.get', () => {
     mockGetUserSession.mockResolvedValue({ user: { id: 'a1', role: 'admin' } })
     mockGetSetting.mockImplementation((key: string) => {
       if (key === 'prep_countdown_enabled') return 'true'
-      if (key === 'prep_speed_mb') return '25'
+      if (key === 'prep_delay_seconds') return '45'
       return null
     })
 
     const result = await handler(mockEvent)
-    expect(result).toEqual({ enabled: true, speedMb: 25 })
+    expect(result).toEqual({ enabled: true, delaySeconds: 45 })
   })
 
   it('returns defaults when no settings', async () => {
@@ -40,7 +40,7 @@ describe('admin/prep-config.get', () => {
     mockGetSetting.mockReturnValue(null)
 
     const result = await handler(mockEvent)
-    expect(result).toEqual({ enabled: false, speedMb: 15 })
+    expect(result).toEqual({ enabled: false, delaySeconds: 30 })
   })
 
   it('throws 403 for non-admin', async () => {
