@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { buildWatchTargets, detectWatchPlatform, rankWatchTargets, resolveWatchUrl } from '#shared/watch'
+import {
+  buildWatchTargets,
+  detectWatchPlatform,
+  findWebFallback,
+  rankWatchTargets,
+  resolveWatchUrl
+} from '#shared/watch'
 
 describe('buildWatchTargets', () => {
   const source = {
@@ -96,5 +102,22 @@ describe('rankWatchTargets', () => {
     expect(emby && resolveWatchUrl(emby, 'windows')).toBeNull()
     const moonfin = targets.find((target) => target.id === 'moonfin')
     expect(moonfin && resolveWatchUrl(moonfin, 'windows')).toBe('moonfin://item?id=abc')
+  })
+
+  it('labels every target with the media server it belongs to', () => {
+    expect(targets.every((target) => ['jellyfin', 'plex', 'emby'].includes(target.server))).toBe(true)
+    expect(targets.find((target) => target.id === 'moonfin')?.server).toBe('jellyfin')
+    expect(targets.find((target) => target.id === 'emby-web')?.server).toBe('emby')
+  })
+
+  it('falls back to the web client of the same media server', () => {
+    const allTargets = buildWatchTargets({
+      jellyfin: { itemId: 'abc', externalUrl: 'https://jf.example.com' },
+      plex: { machineId: 'm1', ratingKey: '42', mediaType: 'movie' },
+      emby: { serverId: 's2', itemId: 'i2', externalUrl: 'https://emby.example.com' }
+    })
+    expect(findWebFallback(allTargets, 'plex')?.id).toBe('plex-web')
+    expect(findWebFallback(allTargets, 'emby')?.id).toBe('emby-web')
+    expect(findWebFallback(allTargets, 'jellyfin')?.id).toBe('jellyfin-web')
   })
 })

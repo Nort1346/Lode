@@ -2,18 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockGetUserSession = vi.fn()
 const mockGetQuery = vi.fn()
-const mockUseRuntimeConfig = vi.fn()
-const mockGetItemIdByTmdbId = vi.fn()
-const mockGetServerId = vi.fn()
-const mockGetUserByName = vi.fn()
-const mockUseJellyfin = vi.hoisted(() => vi.fn())
+const mockGetWatchSource = vi.fn()
+const mockGetActiveSyncProviders = vi.hoisted(() => vi.fn())
 
 vi.stubGlobal('getUserSession', mockGetUserSession)
 vi.stubGlobal('getQuery', mockGetQuery)
-vi.stubGlobal('useRuntimeConfig', mockUseRuntimeConfig)
 
-vi.mock('#server/utils/clients/jellyfin', () => ({
-  useJellyfin: mockUseJellyfin
+vi.mock('#server/utils/sync', () => ({
+  getActiveSyncProviders: mockGetActiveSyncProviders
 }))
 
 import handler from '#server/api/watch/links.get'
@@ -21,21 +17,21 @@ import handler from '#server/api/watch/links.get'
 describe('watch/links.get', () => {
   const event = {} as never
 
+  const jellyfinProvider = { name: 'jellyfin', getWatchSource: mockGetWatchSource }
+  const plainProvider = { name: 'other' }
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetUserSession.mockResolvedValue({ user: { id: 'u1', username: 'alice' } })
     mockGetQuery.mockReturnValue({ tmdbId: '123' })
-    mockUseRuntimeConfig.mockReturnValue({
-      jellyfinUrl: 'http://jellyfin:8096',
-      jellyfinExternalUrl: 'https://jellyfin.example.com'
-    })
-    mockGetItemIdByTmdbId.mockResolvedValue('item-1')
-    mockGetServerId.mockResolvedValue('server-1')
-    mockGetUserByName.mockResolvedValue({ Id: 'user-1', Name: 'alice' })
-    mockUseJellyfin.mockReturnValue({
-      getItemIdByTmdbId: mockGetItemIdByTmdbId,
-      getServerId: mockGetServerId,
-      getUserByName: mockGetUserByName
+    mockGetActiveSyncProviders.mockResolvedValue([jellyfinProvider])
+    mockGetWatchSource.mockResolvedValue({
+      jellyfin: {
+        itemId: 'item-1',
+        serverId: 'server-1',
+        userId: 'user-1',
+        externalUrl: 'https://jellyfin.example.com'
+      }
     })
   })
 
@@ -49,17 +45,22 @@ describe('watch/links.get', () => {
     await expect(handler(event)).rejects.toThrow('400: Invalid tmdbId')
   })
 
-  it('returns no targets when Jellyfin is not configured', async () => {
-    mockUseJellyfin.mockReturnValue(null)
+  it('returns no targets when no provider can resolve watch links', async () => {
+    mockGetActiveSyncProviders.mockResolvedValue([plainProvider])
     await expect(handler(event)).resolves.toEqual({ available: false, targets: [] })
   })
 
-  it('returns no targets when the item is not in the library', async () => {
-    mockGetItemIdByTmdbId.mockResolvedValue(null)
+  it('returns no targets when the item is not in any library', async () => {
+    mockGetWatchSource.mockResolvedValue(null)
     await expect(handler(event)).resolves.toEqual({ available: false, targets: [] })
   })
 
-  it('returns Jellyfin deep links pointing at the item detail page', async () => {
+  it('passes the TMDB id and username to each watch provider', async () => {
+    await handler(event)
+    expect(mockGetWatchSource).toHaveBeenCalledWith(123, 'alice')
+  })
+
+  it('returns deep links pointing at the item detail page', async () => {
     const result = await handler(event)
     expect(result.available).toBe(true)
     const urls = result.targets.map((target) => target.url)
@@ -68,17 +69,26 @@ describe('watch/links.get', () => {
     expect(urls).toContain(
       'https://jellyfin.example.com/web/index.html#!/details?id=item-1&context=home&serverId=server-1'
     )
+    expect(result.targets.every((target) => target.server === 'jellyfin')).toBe(true)
   })
 
-  it('falls back to the internal URL and tolerates missing server/user', async () => {
-    mockUseRuntimeConfig.mockReturnValue({ jellyfinUrl: 'http://jellyfin:8096', jellyfinExternalUrl: '' })
-    mockGetServerId.mockRejectedValue(new Error('offline'))
-    mockGetUserByName.mockResolvedValue(null)
+  it('combines sources from multiple media servers', async () => {
+    const plexSource = {
+      plex: { machineId: 'machine-1', ratingKey: '42', mediaType: 'movie' as const }
+    }
+    mockGetActiveSyncProviders.mockResolvedValue([
+      jellyfinProvider,
+      { name: 'plex', getWatchSource: vi.fn(async () => plexSource) }
+    ])
 
     const result = await handler(event)
-    expect(result.targets.map((target) => target.id)).not.toContain('swiftfin')
-    expect(result.targets.find((target) => target.id === 'jellyfin-web')?.url).toContain(
-      'http://jellyfin:8096/web/index.html#!/details?id=item-1'
-    )
+    expect(result.targets.map((target) => target.server)).toContain('plex')
+    expect(result.targets.map((target) => target.id)).toContain('plex-web')
+    expect(result.targets.map((target) => target.id)).toContain('jellyfin-web')
+  })
+
+  it('ignores providers that throw while resolving watch links', async () => {
+    mockGetWatchSource.mockRejectedValue(new Error('offline'))
+    await expect(handler(event)).resolves.toEqual({ available: false, targets: [] })
   })
 })

@@ -2,11 +2,14 @@
 
 export type WatchPlatform = 'android' | 'ios' | 'windows' | 'macos' | 'linux' | 'other'
 
+export type WatchServer = 'jellyfin' | 'plex' | 'emby'
+
 export type WatchTargetId =
   'moonfin' | 'swiftfin' | 'findroid' | 'jellyfin-web' | 'plex' | 'plex-web' | 'emby' | 'emby-web'
 
 export interface WatchTarget {
   id: WatchTargetId
+  server: WatchServer
   kind: 'native' | 'web'
   url?: string
   urls?: Partial<Record<WatchPlatform, string>>
@@ -64,17 +67,20 @@ export function buildWatchTargets(source: WatchSource): WatchTarget[] {
   if (jellyfin) {
     targets.push({
       id: 'moonfin',
+      server: 'jellyfin',
       kind: 'native',
       url: `moonfin://item?id=${encodeURIComponent(jellyfin.itemId)}`
     })
     targets.push({
       id: 'findroid',
+      server: 'jellyfin',
       kind: 'native',
       url: `jellyfin://item/${encodeURIComponent(jellyfin.itemId)}`
     })
     if (jellyfin.serverId !== undefined && jellyfin.userId !== undefined) {
       targets.push({
         id: 'swiftfin',
+        server: 'jellyfin',
         kind: 'native',
         url: `jellyfin://${encodeURIComponent(jellyfin.serverId)}/${encodeURIComponent(jellyfin.userId)}/item/${encodeURIComponent(jellyfin.itemId)}`
       })
@@ -82,6 +88,7 @@ export function buildWatchTargets(source: WatchSource): WatchTarget[] {
     if (jellyfin.externalUrl !== undefined) {
       targets.push({
         id: 'jellyfin-web',
+        server: 'jellyfin',
         kind: 'web',
         url: jellyfinWebUrl(jellyfin.externalUrl, jellyfin.itemId, jellyfin.serverId)
       })
@@ -94,6 +101,7 @@ export function buildWatchTargets(source: WatchSource): WatchTarget[] {
     const showPath = plex.mediaType === 'tv' ? 'tv/' : ''
     targets.push({
       id: 'plex',
+      server: 'plex',
       kind: 'native',
       urls: {
         ios: `plex://preplay/?metadataKey=${metadataKey}&server=${encodeURIComponent(plex.machineId)}`,
@@ -103,6 +111,7 @@ export function buildWatchTargets(source: WatchSource): WatchTarget[] {
     const webAppUrl = withoutTrailingSlash(plex.webAppUrl ?? 'https://app.plex.tv/desktop')
     targets.push({
       id: 'plex-web',
+      server: 'plex',
       kind: 'web',
       url: `${webAppUrl}#!/server/${encodeURIComponent(plex.machineId)}/details?key=${metadataKey}`
     })
@@ -112,6 +121,7 @@ export function buildWatchTargets(source: WatchSource): WatchTarget[] {
   if (emby) {
     targets.push({
       id: 'emby',
+      server: 'emby',
       kind: 'native',
       urls: {
         android: `emby://items/${encodeURIComponent(emby.serverId)}/${encodeURIComponent(emby.itemId)}`,
@@ -122,6 +132,7 @@ export function buildWatchTargets(source: WatchSource): WatchTarget[] {
       const base = withoutTrailingSlash(emby.externalUrl)
       targets.push({
         id: 'emby-web',
+        server: 'emby',
         kind: 'web',
         url: `${base}/web/index.html#!/item?id=${encodeURIComponent(emby.itemId)}&serverId=${encodeURIComponent(emby.serverId)}`
       })
@@ -142,6 +153,10 @@ export function detectWatchPlatform(userAgent: string, isTouchMac = false): Watc
 
 export function resolveWatchUrl(target: WatchTarget, platform: WatchPlatform): string | null {
   return target.urls?.[platform] ?? target.url ?? null
+}
+
+export function findWebFallback(targets: WatchTarget[], server: WatchServer): WatchTarget | undefined {
+  return targets.find((target) => target.kind === 'web' && target.server === server)
 }
 
 export function rankWatchTargets(targets: WatchTarget[], platform: WatchPlatform): WatchTarget[] {

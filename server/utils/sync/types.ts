@@ -1,3 +1,5 @@
+import type { WatchSource } from '#shared/watch'
+
 export interface SyncProvider {
   name: string
   isEnabled(): Promise<boolean>
@@ -13,6 +15,7 @@ export interface SyncProvider {
   deleteAvatar(providerUserId: string): Promise<void>
   getLibraries(): Promise<Array<SyncLibrary>>
   isItemInLibrary?(tmdbId: number): Promise<boolean>
+  getWatchSource?(tmdbId: number, username: string): Promise<WatchSource | null>
 }
 
 export interface SyncUserData {

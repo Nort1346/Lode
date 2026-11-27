@@ -1,5 +1,5 @@
-import type { WatchPlatform, WatchTarget } from '#shared/watch'
-import { rankWatchTargets, resolveWatchUrl } from '#shared/watch'
+import type { WatchPlatform, WatchServer, WatchTarget } from '#shared/watch'
+import { findWebFallback, rankWatchTargets, resolveWatchUrl } from '#shared/watch'
 
 const NATIVE_OPEN_TIMEOUT_MS = 1200
 
@@ -44,9 +44,14 @@ export function useWatchLauncher() {
     })
   }
 
+  function pickWebTarget(webTargets: WatchTarget[], server: WatchServer | undefined): WatchTarget | undefined {
+    if (server === undefined) return webTargets[0]
+    return findWebFallback(webTargets, server) ?? webTargets[0]
+  }
+
   async function launchNativeThenWeb(
     nativeTargets: WatchTarget[],
-    webTarget: WatchTarget | undefined,
+    webTargets: WatchTarget[],
     platform: WatchPlatform
   ): Promise<boolean> {
     for (const target of nativeTargets) {
@@ -56,7 +61,8 @@ export function useWatchLauncher() {
       }
     }
 
-    const webUrl = webTarget ? resolveWatchUrl(webTarget, platform) : null
+    const webTarget = pickWebTarget(webTargets, nativeTargets[0]?.server)
+    const webUrl = webTarget === undefined ? null : resolveWatchUrl(webTarget, platform)
     if (webUrl !== null) {
       openInBrowser(webUrl)
     }
@@ -65,20 +71,20 @@ export function useWatchLauncher() {
 
   async function launch(targets: WatchTarget[], platform: WatchPlatform, preferred?: WatchTarget): Promise<boolean> {
     const ranked = rankWatchTargets(targets, platform)
-    const webTarget = ranked.find((target) => target.kind === 'web')
+    const webTargets = ranked.filter((target) => target.kind === 'web')
 
-    if (preferred) {
+    if (preferred !== undefined) {
       if (preferred.kind === 'web') {
         const url = resolveWatchUrl(preferred, platform)
         if (url !== null) openInBrowser(url)
         return false
       }
-      return launchNativeThenWeb([preferred], webTarget, platform)
+      return launchNativeThenWeb([preferred], webTargets, platform)
     }
 
     return launchNativeThenWeb(
       ranked.filter((target) => target.kind === 'native'),
-      webTarget,
+      webTargets,
       platform
     )
   }
