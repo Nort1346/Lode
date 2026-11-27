@@ -10,9 +10,9 @@ const LIBRARY_CACHE_TTL = 5 * 60 * 1000
 export class JellyfinClient {
   private baseUrl: string
   private apiKey: string
-  private tmdbIdSet: Set<number> | null = null
-  private tmdbIdSetTs = 0
-  private tmdbIdPromise: Promise<Set<number>> | null = null
+  private libraryIndex: { tmdbIds: Set<number>; itemIds: Map<number, string> } | null = null
+  private libraryIndexTs = 0
+  private libraryIndexPromise: Promise<{ tmdbIds: Set<number>; itemIds: Map<number, string> }> | null = null
 
   constructor(baseUrl: string, apiKey: string) {
     this.baseUrl = normalizeUrl(baseUrl)
@@ -83,23 +83,24 @@ export class JellyfinClient {
     }))
   }
 
-  private async fetchAllTmdbIds(): Promise<Set<number>> {
+  private async fetchLibraryIndex(): Promise<{ tmdbIds: Set<number>; itemIds: Map<number, string> }> {
     const now = Date.now()
-    if (this.tmdbIdSet && now - this.tmdbIdSetTs < LIBRARY_CACHE_TTL) {
-      return this.tmdbIdSet
+    if (this.libraryIndex && now - this.libraryIndexTs < LIBRARY_CACHE_TTL) {
+      return this.libraryIndex
     }
-    if (this.tmdbIdPromise) return this.tmdbIdPromise
+    if (this.libraryIndexPromise) return this.libraryIndexPromise
 
-    this.tmdbIdPromise = this.doFetchAllTmdbIds()
+    this.libraryIndexPromise = this.doFetchLibraryIndex()
     try {
-      return await this.tmdbIdPromise
+      return await this.libraryIndexPromise
     } finally {
-      this.tmdbIdPromise = null
+      this.libraryIndexPromise = null
     }
   }
 
-  private async doFetchAllTmdbIds(): Promise<Set<number>> {
+  private async doFetchLibraryIndex(): Promise<{ tmdbIds: Set<number>; itemIds: Map<number, string> }> {
     const tmdbIds = new Set<number>()
+    const itemIds = new Map<number, string>()
     const includeItemTypes = ['Movie', 'Series']
     const fields = ['ProviderIds']
     const limit = 500
@@ -121,6 +122,7 @@ export class JellyfinClient {
             const id = Number(tmdbStr)
             if (!Number.isNaN(id)) {
               tmdbIds.add(id)
+              itemIds.set(id, item.Id)
             }
           }
         }
@@ -130,24 +132,39 @@ export class JellyfinClient {
       }
     }
 
-    this.tmdbIdSet = tmdbIds
-    this.tmdbIdSetTs = Date.now()
-    return tmdbIds
+    this.libraryIndex = { tmdbIds, itemIds }
+    this.libraryIndexTs = Date.now()
+    return this.libraryIndex
   }
 
   async isItemInLibrary(tmdbId: number): Promise<boolean> {
     try {
-      const tmdbIds = await this.fetchAllTmdbIds()
-      return tmdbIds.has(tmdbId)
+      const index = await this.fetchLibraryIndex()
+      return index.tmdbIds.has(tmdbId)
     } catch {
       return false
     }
   }
 
+  async getItemIdByTmdbId(tmdbId: number): Promise<string | null> {
+    try {
+      const index = await this.fetchLibraryIndex()
+      return index.itemIds.get(tmdbId) ?? null
+    } catch {
+      return null
+    }
+  }
+
+  async getServerId(): Promise<string | null> {
+    const res = await this.request('/System/Info')
+    const data = (await res.json()) as { Id?: string }
+    return data.Id ?? null
+  }
+
   invalidateLibraryCache() {
-    this.tmdbIdSet = null
-    this.tmdbIdSetTs = 0
-    this.tmdbIdPromise = null
+    this.libraryIndex = null
+    this.libraryIndexTs = 0
+    this.libraryIndexPromise = null
   }
 
   // ===== User Management =====

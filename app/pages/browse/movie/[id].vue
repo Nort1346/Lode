@@ -117,6 +117,7 @@
         </a>
 
         <div class="mt-4 flex flex-wrap items-center gap-3">
+          <WatchButton :tmdb-id="movie.id" :in-library="movie.inLibrary" />
           <UButton
             v-if="requestStatus === null"
             color="primary"
