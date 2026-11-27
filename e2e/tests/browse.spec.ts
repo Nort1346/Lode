@@ -36,6 +36,44 @@ test.describe('browse', () => {
     await expect(page.getByText(MOVIE_OVERVIEW)).toBeVisible()
   })
 
+  test('offers a watch button with native players and a web fallback for library items', async ({ page }) => {
+    await page.route(
+      (url) => url.pathname === `/api/browse/movie/${MOVIE_ID}`,
+      async (route) => {
+        const response = await route.fetch()
+        const json = await response.json()
+        await route.fulfill({ response, json: { ...json, movie: { ...json.movie, inLibrary: true } } })
+      }
+    )
+    await page.route('**/api/watch/links*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          available: true,
+          targets: [
+            { id: 'moonfin', kind: 'native', url: 'moonfin://item?id=item-1' },
+            {
+              id: 'jellyfin-web',
+              kind: 'web',
+              url: 'https://jellyfin.example.com/web/index.html#!/details?id=item-1'
+            }
+          ]
+        }
+      })
+    })
+
+    // Navigate from the browse page so the detail request runs in the browser
+    // and can be intercepted (a direct page load fetches details during SSR).
+    await gotoPage(page, '/browse')
+    await page.getByRole('heading', { name: MOVIE_TITLE }).first().click()
+
+    const watchButton = page.getByTestId('watch-button')
+    await expect(watchButton).toBeVisible()
+    await page.getByTestId('watch-options').click()
+    await expect(page.getByRole('menuitem', { name: /Moonfin/ })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: /Jellyfin \(web\)/ })).toBeVisible()
+  })
+
   test('keeps loose Prowlarr movie matches in a separate section', async ({ page }) => {
     const torrent = (title: string) => ({
       title,

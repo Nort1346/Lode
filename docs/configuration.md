@@ -37,6 +37,7 @@
 | `NUXT_REDIS_URL` | - | Redis connection URL (enables caching) |
 | `NUXT_JELLYFIN_URL` | - | Jellyfin server URL |
 | `NUXT_JELLYFIN_API_KEY` | - | Jellyfin API key |
+| `NUXT_JELLYFIN_EXTERNAL_URL` | `NUXT_JELLYFIN_URL` | Browser-reachable Jellyfin URL used by Watch links |
 | `NUXT_DISCORD_WEBHOOK_URL` | - | Discord webhook for download notifications |
 | `NUXT_FLARESOLVERR_URL` | - | FlareSolverr URL for Cloudflare bypass |
 | `NUXT_PUBLIC_VAPID_PUBLIC_KEY` | - | VAPID public key for Web Push API |

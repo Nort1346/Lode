@@ -512,6 +512,20 @@
     "logsDownload": "Pobierz",
     "logsEmpty": "Oczekiwanie na logi..."
   },
+  "watch": {
+    "watch": "Oglądaj",
+    "openIn": "Otwórz w {app}",
+    "openInBrowser": "Otwarto w przeglądarce",
+    "choosePlayer": "Wybierz odtwarzacz",
+    "moonfin": "Moonfin",
+    "swiftfin": "Swiftfin",
+    "findroid": "Findroid",
+    "jellyfinWeb": "Jellyfin (www)",
+    "plex": "Plex",
+    "plexWeb": "Plex (www)",
+    "emby": "Emby",
+    "embyWeb": "Emby (www)"
+  },
   "requests": {
     "title": "Żądania",
     "subtitle": "Zarządzaj żdaniami użytkowników",

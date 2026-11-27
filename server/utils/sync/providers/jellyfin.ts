@@ -1,3 +1,4 @@
+import type { WatchSource } from '#shared/watch'
 import type { SyncProvider, SyncUserData, SyncUserSettings, SyncLibrary } from '../types'
 import type { JellyfinClient } from '#server/utils/clients/jellyfin'
 import { useJellyfin } from '#server/utils/clients/jellyfin'
@@ -118,5 +119,27 @@ export class JellyfinSyncProvider implements SyncProvider {
   async isItemInLibrary(tmdbId: number): Promise<boolean> {
     const client = this.getClient()
     return client.isItemInLibrary(tmdbId)
+  }
+
+  async getWatchSource(tmdbId: number, username: string): Promise<WatchSource | null> {
+    const client = this.getClient()
+    const itemId = await client.getItemIdByTmdbId(tmdbId)
+    if (itemId === null) return null
+
+    const [serverId, user] = await Promise.all([
+      client.getServerId().catch(() => null),
+      client.getUserByName(username).catch(() => null)
+    ])
+    const config = useRuntimeConfig()
+    const externalUrl = (config.jellyfinExternalUrl as string) || (config.jellyfinUrl as string)
+
+    return {
+      jellyfin: {
+        itemId,
+        serverId: serverId ?? undefined,
+        userId: user?.Id ?? undefined,
+        externalUrl
+      }
+    }
   }
 }

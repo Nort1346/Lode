@@ -512,6 +512,20 @@
     "logsDownload": "Herunterladen",
     "logsEmpty": "Warte auf Logs..."
   },
+  "watch": {
+    "watch": "Ansehen",
+    "openIn": "Öffnen in {app}",
+    "openInBrowser": "In Ihrem Browser geöffnet",
+    "choosePlayer": "Player auswählen",
+    "moonfin": "Moonfin",
+    "swiftfin": "Swiftfin",
+    "findroid": "Findroid",
+    "jellyfinWeb": "Jellyfin (Web)",
+    "plex": "Plex",
+    "plexWeb": "Plex (Web)",
+    "emby": "Emby",
+    "embyWeb": "Emby (Web)"
+  },
   "requests": {
     "title": "Anfragen",
     "subtitle": "Benutzeranfragen verwalten",

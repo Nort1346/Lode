@@ -11,7 +11,26 @@ Set in `.env`:
 ```env
 NUXT_JELLYFIN_URL=http://localhost:8096
 NUXT_JELLYFIN_API_KEY=your-api-key
+# URL reachable from users' browsers, used by the Watch button
+NUXT_JELLYFIN_EXTERNAL_URL=http://localhost:8096
 ```
+
+## Watch Button
+
+Titles already in the library show a **Watch** button on their movie/TV detail page. `GET /api/watch/links` resolves the TMDB ID to a Jellyfin item ID and returns deep links for the available players:
+
+| Player | Link | Platforms |
+|--------|------|-----------|
+| Moonfin | `moonfin://item?id=<itemId>` | Android, iOS, macOS, Windows, Linux |
+| Swiftfin | `jellyfin://<serverId>/<userId>/item/<itemId>` | iOS |
+| Findroid | `jellyfin://item/<itemId>` | Android |
+| Jellyfin web | `<externalUrl>/web/index.html#!/details?id=<itemId>&serverId=<id>` | Browser / PWA |
+| Plex (native/web) | `plex://…` / `https://app.plex.tv/desktop#!/server/<id>/details?key=…` | Android, iOS / browser |
+| Emby (native/web) | `emby://…` / `<externalUrl>/web/index.html#!/item?id=…` | Android, iOS / browser |
+
+Every media server contributes both native players and its own web client. The native app is attempted first; if none opens, the fallback is the **web client of the same server** (Jellyfin web for Jellyfin titles, Plex Web for Plex titles, Emby Web for Emby titles). Browsers cannot reliably detect installed apps, so a failed native attempt falls back to that web UI; the dropdown next to the button lets users pick a specific player. `NUXT_JELLYFIN_EXTERNAL_URL` must be reachable from the user's device, not just from Lode (e.g. not a Docker-internal hostname).
+
+The API is server-agnostic: `GET /api/watch/links` asks every active sync provider for a `WatchSource` and merges the results. Builders for all three servers live in `shared/watch.ts`; Plex and Emby links appear automatically once those providers are integrated.
 
 ## Library Detection
 

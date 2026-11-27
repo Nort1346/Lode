@@ -84,6 +84,8 @@ export default defineNuxtConfig({
     qbittorrentApiKey: '',
     jellyfinUrl: '',
     jellyfinApiKey: '',
+    // Browser-reachable URL of the Jellyfin server, used for watch links
+    jellyfinExternalUrl: '',
     savePathMovies: '/data/Movies',
     savePathSeries: '/data/Series',
     downloadPathMovies: '',
