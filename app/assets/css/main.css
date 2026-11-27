@@ -209,6 +209,37 @@ button:not(:disabled):not([aria-disabled='true']),
   animation: fade-in-up 0.3s ease-in reverse;
 }
 
+/* Library poster grid: staggered entrance and smooth reorder when the sort
+   changes. Delays are capped so a large library never queues a long animation. */
+.library-card-enter-active {
+  transition:
+    opacity 0.35s ease-out,
+    transform 0.35s ease-out;
+  transition-delay: calc(min(var(--i, 0), 10) * 22ms);
+}
+
+.library-card-enter-from {
+  opacity: 0;
+  transform: translateY(14px) scale(0.985);
+}
+
+.library-card-move {
+  transition: transform 0.35s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-card-enter-active,
+  .library-card-move {
+    transition: none;
+    transition-delay: 0s;
+  }
+
+  .library-card-enter-from {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Browse search branch crossfade */
 .search-fade-enter-active,
 .search-fade-leave-active {

@@ -1,11 +1,18 @@
 import type { ServiceStatus } from '#server/types/admin'
 import type { JellyfinItemDto } from '#server/types/jellyfin'
+import type { MediaServerItemDto } from '#server/types/media-library'
 import { createLogger } from '#server/utils/logger'
 import { normalizeUrl } from '#server/utils/url'
 
 const log = createLogger('Jellyfin')
 const JELLYFIN_AUTH_HEADER_PREFIX = 'MediaBrowser Token'
 const LIBRARY_CACHE_TTL = 5 * 60 * 1000
+const LIBRARY_ITEMS_CACHE_TTL = 60 * 1000
+const LIBRARY_PAGE_SIZE = 500
+// Stops a misbehaving server from keeping the paging loop alive forever.
+const LIBRARY_MAX_PAGES = 40
+const LIBRARY_REQUEST_TIMEOUT_MS = 15_000
+const IMAGE_REQUEST_TIMEOUT_MS = 10_000
 
 export class JellyfinClient {
   private baseUrl: string
@@ -13,6 +20,9 @@ export class JellyfinClient {
   private tmdbIdSet: Set<number> | null = null
   private tmdbIdSetTs = 0
   private tmdbIdPromise: Promise<Set<number>> | null = null
+  private libraryItems: MediaServerItemDto[] | null = null
+  private libraryItemsTs = 0
+  private libraryItemsPromise: Promise<MediaServerItemDto[]> | null = null
 
   constructor(baseUrl: string, apiKey: string) {
     this.baseUrl = normalizeUrl(baseUrl)
@@ -63,6 +73,7 @@ export class JellyfinClient {
     await this.request('/Library/Refresh', {
       method: 'POST'
     })
+    this.invalidateLibraryCache()
   }
 
   async getLibraries(): Promise<Array<{ Id: string; Name: string; CollectionType: string; Path: string }>> {
@@ -81,6 +92,87 @@ export class JellyfinClient {
       CollectionType: item.CollectionType,
       Path: item.Locations?.[0] ?? ''
     }))
+  }
+
+  async getLibraryItems(force = false): Promise<MediaServerItemDto[]> {
+    const now = Date.now()
+    if (!force && this.libraryItems !== null && now - this.libraryItemsTs < LIBRARY_ITEMS_CACHE_TTL) {
+      return this.libraryItems
+    }
+    if (this.libraryItemsPromise !== null) return this.libraryItemsPromise
+
+    this.libraryItemsPromise = this.fetchLibraryItems()
+    try {
+      const items = await this.libraryItemsPromise
+      this.libraryItems = items
+      this.libraryItemsTs = Date.now()
+      return items
+    } finally {
+      this.libraryItemsPromise = null
+    }
+  }
+
+  private async fetchLibraryItems(): Promise<MediaServerItemDto[]> {
+    const items: MediaServerItemDto[] = []
+    const fields = [
+      'ProviderIds',
+      'OriginalTitle',
+      'Overview',
+      'ProductionYear',
+      'PremiereDate',
+      'CommunityRating',
+      'OfficialRating',
+      'RunTimeTicks',
+      'Genres',
+      'DateCreated',
+      'RecursiveItemCount',
+      'ChildCount'
+    ].join(',')
+
+    for (const itemType of ['Movie', 'Series']) {
+      for (let page = 0; page < LIBRARY_MAX_PAGES; page += 1) {
+        const params = new URLSearchParams({
+          includeItemTypes: itemType,
+          recursive: 'true',
+          fields,
+          limit: String(LIBRARY_PAGE_SIZE),
+          startIndex: String(page * LIBRARY_PAGE_SIZE),
+          enableTotalRecordCount: 'false',
+          imageTypeLimit: '1',
+          enableImageTypes: 'Primary,Backdrop',
+          sortBy: 'SortName',
+          sortOrder: 'Ascending'
+        })
+        const res = await this.request(`/Items?${params.toString()}`, {
+          signal: AbortSignal.timeout(LIBRARY_REQUEST_TIMEOUT_MS)
+        })
+        const data = (await res.json()) as { Items?: MediaServerItemDto[] }
+        const batch = data.Items ?? []
+        items.push(...batch)
+        if (batch.length < LIBRARY_PAGE_SIZE) break
+      }
+    }
+
+    return items
+  }
+
+  async getItemImage(
+    itemId: string,
+    type: 'Primary' | 'Backdrop',
+    index: number,
+    maxWidth: number
+  ): Promise<{ data: Buffer; contentType: string } | null> {
+    const params = new URLSearchParams({ maxWidth: String(maxWidth), quality: '90' })
+    const url = `${this.baseUrl}/Items/${encodeURIComponent(itemId)}/Images/${type}/${index}?${params.toString()}`
+    const response = await fetch(url, {
+      headers: this.getAuthHeaders(),
+      signal: AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)
+    })
+    if (!response.ok) return null
+
+    const contentType = response.headers.get('content-type') ?? 'image/jpeg'
+    const arrayBuffer = await response.arrayBuffer()
+    return { data: Buffer.from(arrayBuffer), contentType }
   }
 
   private async fetchAllTmdbIds(): Promise<Set<number>> {
@@ -148,6 +240,9 @@ export class JellyfinClient {
     this.tmdbIdSet = null
     this.tmdbIdSetTs = 0
     this.tmdbIdPromise = null
+    this.libraryItems = null
+    this.libraryItemsTs = 0
+    this.libraryItemsPromise = null
   }
 
   // ===== User Management =====

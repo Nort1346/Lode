@@ -39,6 +39,7 @@ const navigation = computed(() => {
   const items = [
     { label: t('nav.dashboard'), icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
     { label: t('nav.browse'), icon: 'i-lucide-film', to: '/browse' },
+    { label: t('nav.library'), icon: 'i-lucide-library', to: '/library' },
     { label: t('nav.downloads'), icon: 'i-lucide-download', to: '/dashboard/downloads' },
     { label: t('nav.wishlist'), icon: 'i-lucide-heart', to: '/dashboard/wishlist' }
   ]
