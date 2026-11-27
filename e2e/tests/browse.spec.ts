@@ -244,6 +244,51 @@ test.describe('browse', () => {
     await expect(page.getByText('Seasons 1-2', { exact: true })).toBeVisible()
   })
 
+  test('labels a single-season pack with its season number', async ({ page }) => {
+    const payload = {
+      show: { id: 703, name: TV_TITLE },
+      season: { seasonNumber: 1, name: 'Season 1', overview: '', posterUrl: null, airDate: null },
+      episodes: [],
+      seasonPacks: [
+        {
+          title: 'E2E.Show.2022.S01.Complete.1080p.WEB.x264',
+          size: 1000,
+          sizeFormatted: '1000 B',
+          seeders: 20,
+          leechers: 0,
+          indexer: 'TestIndexer',
+          magnetLink: 'magnet:?xt=urn:btih:e2e',
+          downloadUrl: null,
+          guid: null,
+          score: 90,
+          percentage: 90,
+          recommended: true,
+          resolution: '1080p',
+          source: 'WEB-DL',
+          language: null,
+          tags: [],
+          isPrivate: false,
+          isSeasonPack: true,
+          seasons: [1]
+        }
+      ],
+      otherTorrents: []
+    }
+    await page.route('**/api/browse/tv/**/torrents-stream*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' },
+        body:
+          `data: ${JSON.stringify({ type: 'start', queries: 1 })}\n\n` +
+          `data: ${JSON.stringify({ type: 'done', found: 1, data: payload })}\n\n`
+      })
+    })
+
+    await gotoPage(page, `/browse/tv/703`)
+
+    await expect(page.getByRole('button', { name: 'Add season 1' })).toBeVisible()
+  })
+
   test('shows an episode range pack with its per-season episodes', async ({ page }) => {
     const payload = {
       show: { id: 703, name: TV_TITLE },

@@ -137,7 +137,7 @@
     "downloadEpisodePack": "Adicionar pacote",
     "multiseasonPack": "Temporadas {seasons}",
     "downloadSeasonsRange": "Adicionar temporadas {seasons}",
-    "downloadSeason": "Adicionar temporada completa",
+    "downloadSeason": "Adicionar temporada {season}",
     "limitReached": "Limite",
     "episodes": "ep.",
     "noTorrents": "Nenhum download disponível",
