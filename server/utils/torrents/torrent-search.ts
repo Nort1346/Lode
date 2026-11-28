@@ -4,6 +4,7 @@ import { rankTorrents } from '#server/utils/torrents/torrent-ranker'
 import { getRankingConfig } from '#server/utils/torrents/ranking-config'
 import { pickAlternativeTitles, titleCandidates } from '#server/utils/browse-utils'
 import {
+  episodePackFromInfo,
   parseEpisodeInfo,
   releaseBelongsToSeason,
   seasonPackFromInfo,
@@ -95,8 +96,8 @@ function toSeasonPackPayload(t: RankedTorrent, info: EpisodeInfo): SeasonPackPay
 }
 
 function toEpisodePackPayload(t: RankedTorrent, info: EpisodeInfo, seasonEpisodes: number[]): EpisodePackPayload {
-  const seasons = info.kind === 'episode-pack' ? info.seasons : []
-  const episodes = info.kind === 'episode-pack' ? info.episodes : []
+  const seasons = info.kind === 'episode-pack' || info.kind === 'multi-episode' ? info.seasons : []
+  const episodes = info.kind === 'episode-pack' || info.kind === 'multi-episode' ? info.episodes : []
   return {
     ...toEpisodePayload(t),
     seasons,
@@ -347,10 +348,11 @@ export async function searchSeasonTorrents(
     }
   })
 
-  // Pack rule: anything spanning more than one episode (season packs and
-  // multi-episode ranges alike) lands here; per-episode buckets only get true
-  // single episodes. The ranker is told the bucket kind explicitly and never
-  // re-guesses it from the title.
+  // Bucket rule: a release that names a whole season (or several) or a complete
+  // series lands here; per-episode buckets only get true single episodes.
+  // Multi-episode ranges are episode packs (below), not season packs. The
+  // ranker is told the bucket kind explicitly and never re-guesses it from the
+  // title.
   // Parse once per release and reuse the result for classification and
   // payloads. Key by title: rankTorrents() spreads results into new objects,
   // so object identity would be lost between the two steps.
@@ -393,16 +395,18 @@ export async function searchSeasonTorrents(
     )
   )
 
-  // A range such as `S1-8E1-96` is a pack of many episodes, not one episode and
-  // not a whole-season pack. Some releases number episodes continuously across
-  // all seasons, others repeat the same range in every listed season. TMDB's
-  // season sizes tell us which one we are looking at.
+  // An episode pack is either a multi-episode range (`S02E01-E02`,
+  // `S01E01-E03`) or a running range such as `S1-8E1-96`. It is not one
+  // episode and not a whole-season pack. Some releases number episodes
+  // continuously across all seasons, others repeat the same range in every
+  // listed season. TMDB's season sizes tell us which one we are looking at.
   const seasonList = show.seasons ?? []
   const episodePackInfos = new Map<string, EpisodeInfo>()
   const episodePackTorrents = rawTorrents.filter((t) => {
     const info = parsedInfos.get(t.title)
-    if (info?.kind !== 'episode-pack' || !info.seasons.includes(seasonNumber)) return false
-    episodePackInfos.set(t.title, info)
+    const pack = info ? episodePackFromInfo(info, seasonNumber) : null
+    if (pack === null) return false
+    episodePackInfos.set(t.title, pack)
     return true
   })
   for (const torrent of episodePackTorrents) matched.add(torrent)
@@ -429,13 +433,18 @@ export async function searchSeasonTorrents(
       // `E01-E10` over several seasons repeats in each of them; a range that
       // exceeds any one of them is a running number and must be cut by the
       // per-season TMDB counts. One unusually long season is not enough to
-      // make the whole range per-season.
+      // make the whole range per-season. A single-season range (`S02E01-E02`)
+      // is already local to that season, so it is never treated as a running
+      // number.
       const perSeason =
         covered.length > 1 &&
         firstEpisode >= 1 &&
         lastEpisode > 0 &&
         covered.every((season) => lastEpisode <= Math.max(0, season.episode_count))
-      const seasonEpisodes = perSeason ? info.episodes : episodeNumbersForSeason(info, seasonNumber, seasonList)
+      const seasonEpisodes =
+        info.kind === 'multi-episode' || perSeason
+          ? info.episodes
+          : episodeNumbersForSeason(info, seasonNumber, seasonList)
       return tvPayload(
         t,
         (torrent) => toEpisodePackPayload(torrent, info, seasonEpisodes),

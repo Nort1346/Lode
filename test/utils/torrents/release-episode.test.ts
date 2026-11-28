@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   parseEpisodeInfo,
   releaseBelongsToSeason,
+  titleIsEpisodePack,
   titleIsSeasonPack,
   titleMatchesEpisode
 } from '#server/utils/torrents/release-episode'
@@ -20,6 +21,15 @@ describe('release-episode/parseEpisodeInfo', () => {
     { name: 'Show.S01E01-E03.1080p.WEB-DL', kind: 'multi-episode', seasons: [1], episodes: [1, 2, 3], airDate: null },
     { name: 'Show.S01E01E02.1080p', kind: 'multi-episode', seasons: [1], episodes: [1, 2], airDate: null },
     { name: 'Show.S02E10-E12.Bluray', kind: 'multi-episode', seasons: [2], episodes: [10, 11, 12], airDate: null },
+    // A bare tail number after the dash is still part of the range.
+    {
+      name: 'Show.S02E01-02.720p.WEB-DL.DDP5.1.Atmos-GROUP',
+      kind: 'multi-episode',
+      seasons: [2],
+      episodes: [1, 2],
+      airDate: null
+    },
+    { name: 'Show.S02.E01-E02.1080p', kind: 'multi-episode', seasons: [2], episodes: [1, 2], airDate: null },
     // Dashes are token separators, so `S01.E01-E24` must not collapse to E01.
     {
       name: 'Show.S01.E01-E24.1080p',
@@ -239,17 +249,39 @@ describe('release-episode/titleIsSeasonPack', () => {
     { title: 'Show.Complete.Series.720p', season: 5, expected: true },
     { title: 'Show.Complete.Season.1080p', season: 1, expected: true },
     { title: 'Show.S01E02.1080p', season: 1, expected: false },
-    { title: 'Show.S01E01-E03.1080p', season: 1, expected: true },
+    { title: 'Show.S01E01-E03.1080p', season: 1, expected: false },
     { title: 'Show.S01E01-E03.1080p', season: 2, expected: false },
-    { title: 'Show.S01.E01-E24.1080p', season: 1, expected: true },
-    { title: 'Show.S01.E01.E02.1080p', season: 1, expected: true },
-    { title: 'Show.S01E01E02.1080p', season: 1, expected: true },
+    { title: 'Show.S01.E01-E24.1080p', season: 1, expected: false },
+    { title: 'Show.S01.E01.E02.1080p', season: 1, expected: false },
+    { title: 'Show.S01E01E02.1080p', season: 1, expected: false },
     { title: 'Dune.Part.Two.2024.1080p', season: 1, expected: false }
   ]
 
   for (const c of cases) {
     it(`"${c.title}" season ${c.season} -> ${c.expected}`, () => {
       expect(titleIsSeasonPack(c.title, c.season)).toBe(c.expected)
+    })
+  }
+})
+
+describe('release-episode/titleIsEpisodePack', () => {
+  const cases: Array<{ title: string; season: number; expected: boolean }> = [
+    { title: 'Show.S01E01-E03.1080p', season: 1, expected: true },
+    { title: 'Show.S01E01-E03.1080p', season: 2, expected: false },
+    { title: 'Show.S01E01E02.1080p', season: 1, expected: true },
+    { title: 'Show.S01.E01-E24.1080p', season: 1, expected: true },
+    { title: 'Show.S02E01-02.1080p', season: 2, expected: true },
+    { title: 'Show.S02E01-02.1080p', season: 1, expected: false },
+    { title: 'Show.S1-8E1-96.1080p', season: 2, expected: true },
+    { title: 'Show.S1-8E1-96.1080p', season: 9, expected: false },
+    { title: 'Show.S01.1080p.WEB-DL', season: 1, expected: false },
+    { title: 'Show.S01E02.1080p', season: 1, expected: false },
+    { title: 'Show.Complete.Series.720p', season: 1, expected: false }
+  ]
+
+  for (const c of cases) {
+    it(`"${c.title}" season ${c.season} -> ${c.expected}`, () => {
+      expect(titleIsEpisodePack(c.title, c.season)).toBe(c.expected)
     })
   }
 })

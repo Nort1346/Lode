@@ -211,6 +211,24 @@ function parseEpisodePack(lower: string): EpisodeInfo | null {
 }
 
 /**
+ * A single-season episode range written with a dash (`S02E01-02`,
+ * `S02E01-E02`, `S02.E01-E02`). Tokenization drops the dash, so the tail
+ * number used to be ignored (or read as a single episode) and the release was
+ * filed as one episode or a season pack instead of an episode pack.
+ */
+function parseSingleSeasonEpisodeRange(lower: string): EpisodeInfo | null {
+  const match = /(?:^|[^a-z0-9])s(\d{1,2})[\s._]*e(\d{1,3})\s*-\s*e?0*(\d{1,3})(?![0-9a-z])/.exec(lower)
+  if (match === null) return null
+
+  const season = Number.parseInt(match[1] ?? '', 10)
+  const from = Number.parseInt(match[2] ?? '', 10)
+  const to = Number.parseInt(match[3] ?? '', 10)
+  if (season > MAX_SEASON || from < 1 || to < from || to > MAX_EPISODE || isYear(to)) return null
+
+  return { kind: 'multi-episode', seasons: [season], episodes: rangeList(from, to), airDate: null }
+}
+
+/**
  * Single token-based implementation for season/episode detection in release
  * names. Everything is matched on whole tokens (case insensitive) or explicit
  * raw-string markers (dash/bracket episode numbers, dates) - never with naive
@@ -223,6 +241,8 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
 
   const pack = parseEpisodePack(lower)
   if (pack !== null) return pack
+  const singleRange = parseSingleSeasonEpisodeRange(lower)
+  if (singleRange !== null) return singleRange
   const seasonRanges = seasonDashRanges(lower)
 
   const epTokens: Array<{ season: number; episode: number }> = []
@@ -437,8 +457,9 @@ export function parseEpisodeInfo(releaseName: string): EpisodeInfo {
 
 /**
  * Episode-bucket matcher used by the torrent search: only true single episodes
- * land under an episode. Multi-episode ranges are packs (see titleIsSeasonPack),
- * so picking E02 never silently matches a torrent holding E01-E03.
+ * land under an episode. Multi-episode ranges are packs (see
+ * titleIsEpisodePack), so picking E02 never silently matches a torrent holding
+ * E01-E03.
  *
  * Two extra hints make recently aired releases visible:
  * - daily shows are named after their air date, not SxxExx, so they are matched
@@ -494,9 +515,9 @@ export function releaseBelongsToSeason(title: string, seasonNumber: number): boo
 }
 
 /**
- * Pack matcher used by the torrent search: anything spanning more than one
- * episode (season packs, multi-season packs, multi-episode ranges, complete
- * series) is a pack. A range matches each season it spans.
+ * Season-pack matcher used by the torrent search: a release that names a whole
+ * season (or several) or a complete series. Multi-episode ranges are episode
+ * packs, not season packs, so they are deliberately excluded here.
  *
  * Returns the parsed info so callers can build a payload without parsing the
  * same release title a second time.
@@ -504,9 +525,6 @@ export function releaseBelongsToSeason(title: string, seasonNumber: number): boo
 export function seasonPackFromInfo(info: EpisodeInfo, seasonNumber: number): EpisodeInfo | null {
   if (info.kind === 'season-pack' || info.kind === 'multiseason-pack') {
     return info.seasons.length === 0 || info.seasons.includes(seasonNumber) ? info : null
-  }
-  if (info.kind === 'multi-episode') {
-    return info.seasons.includes(seasonNumber) ? info : null
   }
   if (info.kind === 'complete-series') return info
   return null
@@ -518,4 +536,27 @@ export function seasonPackInfo(title: string, seasonNumber: number): EpisodeInfo
 
 export function titleIsSeasonPack(title: string, seasonNumber: number): boolean {
   return seasonPackInfo(title, seasonNumber) !== null
+}
+
+/**
+ * Episode-pack matcher: a release that spans more than one episode without
+ * covering a whole season (`S02E01-E02`, `S01E01-E03`, `S1-8E1-96`). Season
+ * packs are a different bucket and are not matched here.
+ */
+export function episodePackFromInfo(info: EpisodeInfo, seasonNumber: number): EpisodeInfo | null {
+  if (info.kind === 'episode-pack') {
+    return info.seasons.length === 0 || info.seasons.includes(seasonNumber) ? info : null
+  }
+  if (info.kind === 'multi-episode') {
+    return info.seasons.includes(seasonNumber) ? info : null
+  }
+  return null
+}
+
+export function episodePackInfo(title: string, seasonNumber: number): EpisodeInfo | null {
+  return episodePackFromInfo(parseEpisodeInfo(title), seasonNumber)
+}
+
+export function titleIsEpisodePack(title: string, seasonNumber: number): boolean {
+  return episodePackInfo(title, seasonNumber) !== null
 }
